@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   applyTheme,
   getServerThemePreferenceSnapshot,
@@ -129,6 +129,7 @@ function getThemeOptionCircleStyle(preference: ThemePreference) {
 export function LandingPageShell() {
   const [isThemeChooserVisible, setIsThemeChooserVisible] = useState(true);
   const [previewPreference, setPreviewPreference] = useState<ThemePreference | null>(null);
+  const storedPreferenceRef = useRef<ThemePreference>("system");
   const themeSnapshot = useSyncExternalStore(
     subscribeToThemePreference,
     getThemePreferenceSnapshot,
@@ -141,10 +142,14 @@ export function LandingPageShell() {
   }, [activePreference]);
 
   useEffect(() => {
-    return () => {
-      applyTheme(themeSnapshot.preference);
-    };
+    storedPreferenceRef.current = themeSnapshot.preference;
   }, [themeSnapshot.preference]);
+
+  useEffect(() => {
+    return () => {
+      applyTheme(storedPreferenceRef.current);
+    };
+  }, []);
 
   function handleThemeSelect(preference: ThemePreference) {
     setThemePreference(preference);

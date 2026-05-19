@@ -84,6 +84,20 @@ type ParentRunConnectionHoverPoint = {
   lineColor: string;
 };
 
+type OtherClientDelayHoverPoint = {
+  clientNumber: number;
+  otherClientNumber: number;
+  parentRunId: number;
+  delayAddedMs: number;
+  otherClientDelayMs: number;
+  flowCompletionTimeMs: number;
+  queueBufferSizeKilobyte: number | null;
+  clientFileSizeMegabytes: number | null;
+  x: number;
+  y: number;
+  color: string;
+};
+
 type ZoomDomain = {
   xMin: number;
   xMax: number;
@@ -122,6 +136,7 @@ type AvailableAggregateTest = {
     clientNumber: number;
     ccaLabels: string[];
     delayValues: number[];
+    clientStartDelayValues: number[];
     workloadMegabytesValues: number[];
   }>;
 };
@@ -132,9 +147,128 @@ type AggregateTestFilterState = {
   selectedQueueBufferSizes: number[];
 };
 
+type AvailableTestGroupOption = {
+  label: string;
+  client1Cca: string;
+  client2Cca: string;
+  bottleneckRateMegabit: number;
+  queueBufferSizeKilobyte: number;
+};
+
 const AVAILABLE_CCA_FILTERS = ["bbr", "cubic"] as const;
 const AVAILABLE_WORKLOAD_FILTERS = [100, 200] as const;
 const AVAILABLE_QUEUE_BUFFER_FILTERS = [125, 500] as const;
+const GROUP_CLIENT_1_DELAY_MS = 10;
+const GROUP_CLIENT_2_DELAY_RANGE = {
+  min: 11,
+  max: 19,
+};
+const OTHER_CLIENT_DELAY_PRIMARY_CLIENT_NUMBER = 1;
+const OTHER_CLIENT_DELAY_LIGHT_COLOR: [number, number, number] = [153, 246, 228];
+const OTHER_CLIENT_DELAY_DARK_COLOR: [number, number, number] = [15, 118, 110];
+const GROUP_DEFAULT_BOTTLENECK_RATE_MEGABIT = 80;
+const GROUP_DEFAULT_QUEUE_BUFFER_SIZE_KILOBYTES = 125;
+const GROUP_500KB_QUEUE_BOTTLENECK_RATE_MEGABIT = 50;
+const GROUP_500KB_QUEUE_BUFFER_SIZE_KILOBYTES = 488.28125;
+const GROUP_WORKLOAD_MEGABYTES = 100;
+const GROUP_CLIENT_START_DELAY_MS = 0;
+const AVAILABLE_TEST_GROUP_OPTIONS: AvailableTestGroupOption[] = [
+  {
+    label:
+      "delay-10ms-to-19ms-10flows-all-bbr-10MB-bottleneck-bandwidth-500kb-queue.yaml",
+    client1Cca: "bbr",
+    client2Cca: "bbr",
+    bottleneckRateMegabit: GROUP_500KB_QUEUE_BOTTLENECK_RATE_MEGABIT,
+    queueBufferSizeKilobyte: GROUP_500KB_QUEUE_BUFFER_SIZE_KILOBYTES,
+  },
+  {
+    label:
+      "delay-10ms-to-19ms-10flows-all-cubic-10MB-bottleneck-bandwidth-500kb-queue.yaml",
+    client1Cca: "cubic",
+    client2Cca: "cubic",
+    bottleneckRateMegabit: GROUP_500KB_QUEUE_BOTTLENECK_RATE_MEGABIT,
+    queueBufferSizeKilobyte: GROUP_500KB_QUEUE_BUFFER_SIZE_KILOBYTES,
+  },
+  {
+    label:
+      "delay-10ms-vs-10-70ms-bbr-bbr-10MB-bottleneck-bandwidth-500kb-queue.yaml",
+    client1Cca: "bbr",
+    client2Cca: "bbr",
+    bottleneckRateMegabit: GROUP_500KB_QUEUE_BOTTLENECK_RATE_MEGABIT,
+    queueBufferSizeKilobyte: GROUP_500KB_QUEUE_BUFFER_SIZE_KILOBYTES,
+  },
+  {
+    label:
+      "delay-10ms-vs-10-70ms-bbr-bbr-10MB-bottleneck-bandwidth.yaml",
+    client1Cca: "bbr",
+    client2Cca: "bbr",
+    bottleneckRateMegabit: GROUP_DEFAULT_BOTTLENECK_RATE_MEGABIT,
+    queueBufferSizeKilobyte: GROUP_DEFAULT_QUEUE_BUFFER_SIZE_KILOBYTES,
+  },
+  {
+    label:
+      "delay-10ms-vs-10-70ms-cubic-bbr-10MB-bottleneck-bandwidth-500kb-queue.yaml",
+    client1Cca: "cubic",
+    client2Cca: "bbr",
+    bottleneckRateMegabit: GROUP_500KB_QUEUE_BOTTLENECK_RATE_MEGABIT,
+    queueBufferSizeKilobyte: GROUP_500KB_QUEUE_BUFFER_SIZE_KILOBYTES,
+  },
+  {
+    label:
+      "delay-10ms-vs-10-70ms-cubic-bbr-10MB-bottleneck-bandwidth.yaml",
+    client1Cca: "cubic",
+    client2Cca: "bbr",
+    bottleneckRateMegabit: GROUP_DEFAULT_BOTTLENECK_RATE_MEGABIT,
+    queueBufferSizeKilobyte: GROUP_DEFAULT_QUEUE_BUFFER_SIZE_KILOBYTES,
+  },
+  {
+    label:
+      "delay-10ms-vs-10-70ms-cubic-cubic-10MB-bottleneck-bandwidth-500kb-queue.yaml",
+    client1Cca: "cubic",
+    client2Cca: "cubic",
+    bottleneckRateMegabit: GROUP_500KB_QUEUE_BOTTLENECK_RATE_MEGABIT,
+    queueBufferSizeKilobyte: GROUP_500KB_QUEUE_BUFFER_SIZE_KILOBYTES,
+  },
+  {
+    label:
+      "delay-10ms-vs-10-70ms-cubic-cubic-10MB-bottleneck-bandwidth.yaml",
+    client1Cca: "cubic",
+    client2Cca: "cubic",
+    bottleneckRateMegabit: GROUP_DEFAULT_BOTTLENECK_RATE_MEGABIT,
+    queueBufferSizeKilobyte: GROUP_DEFAULT_QUEUE_BUFFER_SIZE_KILOBYTES,
+  },
+];
+const OTHER_CLIENT_DELAY_GRAPH_LABEL =
+  "Added Delay Other Client (ms) vs. Flow Completion Time";
+const GRAPH_TYPE_OPTIONS = [
+  {
+    xAxis: "Added Delay (ms)",
+    yAxis: "Flow Completion Time",
+  },
+  {
+    xAxis: "Added Delay (ms)",
+    yAxis: "Average Throughput (Mbps)",
+  },
+  {
+    xAxis: "Queue Buffer Size (KB)",
+    yAxis: "Flow Completion Time",
+  },
+  {
+    xAxis: "Queue Buffer Size (KB)",
+    yAxis: "Average Throughput (Mbps)",
+  },
+  {
+    xAxis: "Bottleneck Rate (Mbit/s)",
+    yAxis: "Flow Completion Time",
+  },
+  {
+    xAxis: "Flow Completion Time",
+    yAxis: "Added Delay Other Client (ms)",
+  },
+].map((option) => ({
+  ...option,
+  label: `${option.yAxis} vs. ${option.xAxis}`,
+}));
 
 function roundToHundredth(value: number) {
   return Number(value.toFixed(2));
@@ -604,6 +738,47 @@ function EmptyChartState({ text }: { text: string }) {
   );
 }
 
+function GraphTypeDropdown({
+  selectedGraphType,
+  onSelectedGraphTypeChange,
+}: {
+  selectedGraphType: string;
+  onSelectedGraphTypeChange: (graphType: string) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-2 sm:max-w-sm">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+        Graph Type
+      </span>
+      <span className="relative">
+        <select
+          value={selectedGraphType}
+          onChange={(event) => onSelectedGraphTypeChange(event.target.value)}
+          className="h-11 w-full appearance-none rounded-xl border border-rose-300/80 bg-white px-3 pr-10 text-left text-sm font-medium text-slate-800 shadow-sm outline-none transition hover:border-rose-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 dark:border-slate-500 dark:bg-slate-800/85 dark:text-slate-100 dark:focus:ring-teal-700/60"
+        >
+          {GRAPH_TYPE_OPTIONS.map((option) => (
+            <option key={option.label} value={option.label}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <svg
+          viewBox="0 0 24 24"
+          className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-slate-300"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.9"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </span>
+    </label>
+  );
+}
+
 function aggregateTestMatchesFilters(
   test: AvailableAggregateTest,
   filters: AggregateTestFilterState,
@@ -640,6 +815,194 @@ function filterAggregateTests(
   filters: AggregateTestFilterState,
 ) {
   return tests.filter((test) => aggregateTestMatchesFilters(test, filters));
+}
+
+function clientHasCca(
+  clientDetail: AvailableAggregateTest["clientDetails"][number],
+  cca: string,
+) {
+  return clientDetail.ccaLabels.includes(cca.toLowerCase());
+}
+
+function clientHasWorkload(
+  clientDetail: AvailableAggregateTest["clientDetails"][number],
+  workloadMegabytes: number,
+) {
+  return clientDetail.workloadMegabytesValues.includes(workloadMegabytes);
+}
+
+function clientHasStartDelay(
+  clientDetail: AvailableAggregateTest["clientDetails"][number],
+  startDelayMs: number,
+) {
+  return clientDetail.clientStartDelayValues.includes(startDelayMs);
+}
+
+function clientHasDelay(
+  clientDetail: AvailableAggregateTest["clientDetails"][number],
+  delayMs: number,
+) {
+  return clientDetail.delayValues.includes(delayMs);
+}
+
+function clientHasDelayInRange(
+  clientDetail: AvailableAggregateTest["clientDetails"][number],
+  minDelayMs: number,
+  maxDelayMs: number,
+) {
+  return clientDetail.delayValues.some(
+    (delayMs) =>
+      Number.isInteger(delayMs) && delayMs >= minDelayMs && delayMs <= maxDelayMs,
+  );
+}
+
+function aggregateTestMatchesGroup(
+  test: AvailableAggregateTest,
+  group: AvailableTestGroupOption,
+) {
+  if (test.numberOfClients !== 2) {
+    return false;
+  }
+
+  if (test.queueBufferSizeKilobyte !== group.queueBufferSizeKilobyte) {
+    return false;
+  }
+
+  if (test.bottleneckRateMegabit !== group.bottleneckRateMegabit) {
+    return false;
+  }
+
+  const client1 = test.clientDetails.find(
+    (clientDetail) => clientDetail.clientNumber === 1,
+  );
+  const client2 = test.clientDetails.find(
+    (clientDetail) => clientDetail.clientNumber === 2,
+  );
+
+  if (!client1 || !client2) {
+    return false;
+  }
+
+  return (
+    clientHasDelay(client1, GROUP_CLIENT_1_DELAY_MS) &&
+    clientHasDelayInRange(
+      client2,
+      GROUP_CLIENT_2_DELAY_RANGE.min,
+      GROUP_CLIENT_2_DELAY_RANGE.max,
+    ) &&
+    clientHasCca(client1, group.client1Cca) &&
+    clientHasCca(client2, group.client2Cca) &&
+    clientHasWorkload(client1, GROUP_WORKLOAD_MEGABYTES) &&
+    clientHasWorkload(client2, GROUP_WORKLOAD_MEGABYTES) &&
+    clientHasStartDelay(client1, GROUP_CLIENT_START_DELAY_MS) &&
+    clientHasStartDelay(client2, GROUP_CLIENT_START_DELAY_MS)
+  );
+}
+
+function getOtherClientDelayPlotPointCount(points: FlowPoint[]) {
+  const pointsByParentRun = points.reduce((groups, point) => {
+    const group = groups.get(point.parentRunId) ?? [];
+    group.push(point);
+    groups.set(point.parentRunId, group);
+    return groups;
+  }, new Map<number, FlowPoint[]>());
+
+  return Array.from(pointsByParentRun.values()).filter((runPoints) => {
+    const clientNumbers = Array.from(
+      new Set(runPoints.map((point) => point.clientNumber)),
+    );
+
+    return (
+      clientNumbers.length === 2 &&
+      runPoints.some(
+        (point) =>
+          point.clientNumber === OTHER_CLIENT_DELAY_PRIMARY_CLIENT_NUMBER,
+      ) &&
+      runPoints.some(
+        (point) =>
+          point.clientNumber !== OTHER_CLIENT_DELAY_PRIMARY_CLIENT_NUMBER,
+      )
+    );
+  }).length;
+}
+
+function getTestClientDetail(test: AvailableAggregateTest, clientNumber: number) {
+  return (
+    test.clientDetails.find(
+      (clientDetail) => clientDetail.clientNumber === clientNumber,
+    ) ?? null
+  );
+}
+
+function formatGroupCriteria(group: AvailableTestGroupOption) {
+  return [
+    "2 clients",
+    `bottleneck ${formatAxisValue(group.bottleneckRateMegabit)} mbit`,
+    `queue ${formatAxisValue(group.queueBufferSizeKilobyte)} KB`,
+    `client 1: ${group.client1Cca.toUpperCase()}, delay ${GROUP_CLIENT_1_DELAY_MS} ms, start ${GROUP_CLIENT_START_DELAY_MS} ms, ${GROUP_WORKLOAD_MEGABYTES} MB`,
+    `client 2: ${group.client2Cca.toUpperCase()}, delay ${GROUP_CLIENT_2_DELAY_RANGE.min}-${GROUP_CLIENT_2_DELAY_RANGE.max} ms, start ${GROUP_CLIENT_START_DELAY_MS} ms, ${GROUP_WORKLOAD_MEGABYTES} MB`,
+  ].join(" | ");
+}
+
+function formatClientActualParameters(
+  test: AvailableAggregateTest,
+  clientNumber: number,
+  delayValues: number[],
+) {
+  const clientDetail = getTestClientDetail(test, clientNumber);
+
+  if (!clientDetail) {
+    return `client ${clientNumber}: n/a`;
+  }
+
+  return [
+    `client ${clientNumber}`,
+    `delay ${formatCommaSeparatedValues(
+      delayValues,
+      (delayValue) => `${formatAxisValue(delayValue)} ms`,
+    )}`,
+    `CCA ${formatMultiSelectSummary(
+      clientDetail.ccaLabels.map((cca) => cca.toUpperCase()),
+      "n/a",
+    )}`,
+    `start ${formatCommaSeparatedValues(
+      clientDetail.clientStartDelayValues,
+      (startDelay) => `${formatAxisValue(startDelay)} ms`,
+    )}`,
+    `workload ${formatCommaSeparatedValues(
+      clientDetail.workloadMegabytesValues,
+      (workload) => `${formatAxisValue(workload)} MB`,
+    )}`,
+  ].join(", ");
+}
+
+function formatGroupMatchedTestParameters(test: AvailableAggregateTest) {
+  const client1 = getTestClientDetail(test, 1);
+  const client2 = getTestClientDetail(test, 2);
+  const client1DelayValues = client1
+    ? client1.delayValues.filter((delayMs) => delayMs === GROUP_CLIENT_1_DELAY_MS)
+    : [];
+  const client2DelayValues = client2
+    ? client2.delayValues.filter(
+        (delayMs) =>
+          Number.isInteger(delayMs) &&
+          delayMs >= GROUP_CLIENT_2_DELAY_RANGE.min &&
+          delayMs <= GROUP_CLIENT_2_DELAY_RANGE.max,
+      )
+    : [];
+
+  return [
+    `#${test.parentRunId}`,
+    `${test.numberOfClients} clients`,
+    `bottleneck ${
+      test.bottleneckRateMegabit === null
+        ? "n/a"
+        : `${formatAxisValue(test.bottleneckRateMegabit)} mbit`
+    }`,
+    `queue ${formatQueueBufferLabel(test.queueBufferSizeKilobyte)}`,
+    formatClientActualParameters(test, 1, client1DelayValues),
+    formatClientActualParameters(test, 2, client2DelayValues),
+  ].join(" | ");
 }
 
 function formatMultiSelectSummary(
@@ -1465,6 +1828,232 @@ function ParentRunConnectionChart({
   );
 }
 
+function OtherClientDelayFlowChart({
+  points,
+}: {
+  points: FlowPoint[];
+}) {
+  const [hoveredPoint, setHoveredPoint] =
+    useState<OtherClientDelayHoverPoint | null>(null);
+
+  if (points.length === 0) {
+    return (
+      <EmptyChartState text="No run-level points are available for the other-client delay chart." />
+    );
+  }
+
+  const pointsByParentRun = points.reduce((groups, point) => {
+    const group = groups.get(point.parentRunId) ?? [];
+    group.push(point);
+    groups.set(point.parentRunId, group);
+    return groups;
+  }, new Map<number, FlowPoint[]>());
+  const pairedPoints = Array.from(pointsByParentRun.values()).flatMap(
+    (runPoints) => {
+      const clientNumbers = Array.from(
+        new Set(runPoints.map((point) => point.clientNumber)),
+      );
+
+      if (clientNumbers.length !== 2) {
+        return [];
+      }
+
+      return runPoints
+        .filter(
+          (point) =>
+            point.clientNumber === OTHER_CLIENT_DELAY_PRIMARY_CLIENT_NUMBER,
+        )
+        .map((point) => {
+          const otherPoint =
+            runPoints.find(
+              (candidate) => candidate.clientNumber !== point.clientNumber,
+            ) ?? null;
+
+          if (!otherPoint) {
+            return null;
+          }
+
+          return {
+            ...point,
+            otherClientNumber: otherPoint.clientNumber,
+            otherClientDelayMs: otherPoint.delayAddedMs,
+            color: colorForOtherClientDelay(otherPoint.delayAddedMs),
+          };
+        })
+        .filter(
+          (
+            point,
+          ): point is FlowPoint & {
+            otherClientNumber: number;
+            otherClientDelayMs: number;
+            color: string;
+          } => point !== null,
+        );
+    },
+  );
+
+  if (pairedPoints.length === 0) {
+    return (
+      <EmptyChartState text="No selected two-client tests are available for this graph type." />
+    );
+  }
+
+  const maxFlowCompletion = addAxisHeadroom(
+    Math.max(...pairedPoints.map((point) => point.flowCompletionTimeMs), 0),
+  );
+  const maxOtherClientDelay = addAxisHeadroom(
+    Math.max(...pairedPoints.map((point) => point.otherClientDelayMs), 0),
+  );
+  const positionedPoints = pairedPoints.map((point) => ({
+    ...point,
+    x: scaleChartX(point.flowCompletionTimeMs, maxFlowCompletion),
+    y: scaleChartY(point.otherClientDelayMs, maxOtherClientDelay),
+  }));
+  const tooltipHeight = 166;
+  const tooltipPosition = hoveredPoint
+    ? buildScatterTooltipPosition(hoveredPoint, tooltipHeight)
+    : null;
+
+  return (
+    <svg
+      viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+      className="h-[48vh] min-h-[340px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      role="img"
+      aria-label="Scatter plot of flow completion time versus the other client's added delay"
+      onMouseLeave={() => setHoveredPoint(null)}
+    >
+      {renderChartAxes({
+        xAxisLabel: "Flow Completion Time",
+        yAxisLabel: "Added Delay Other Client (ms)",
+        axisLineStrokeWidth: 1.8,
+        axisLabelClassName:
+          "fill-slate-600 text-[15px] font-semibold dark:fill-slate-300",
+        xTicks: renderXAxisTicks(maxFlowCompletion, (value) =>
+          formatFlowCompletionTimeLabel(value),
+        ),
+        yTicks: renderYAxisTicks(maxOtherClientDelay, (value) =>
+          formatAxisValue(value),
+        ),
+      })}
+      {positionedPoints.map((point) => (
+        <g key={`${point.parentRunId}-${point.clientNumber}`}>
+          <circle
+            cx={point.x}
+            cy={point.y}
+            r={POINT_RADIUS + 1}
+            fill={point.color}
+            opacity={0.92}
+          />
+          <circle
+            cx={point.x}
+            cy={point.y}
+            r={HOVER_RADIUS}
+            fill="transparent"
+            tabIndex={0}
+            aria-label={`Parent ${point.parentRunId}, client ${point.clientNumber}, flow completion time ${formatFlowCompletionTimeLabel(point.flowCompletionTimeMs)}, other client ${point.otherClientNumber} added delay ${formatAxisValue(point.otherClientDelayMs)} ms`}
+            onMouseEnter={() =>
+              setHoveredPoint({
+                clientNumber: point.clientNumber,
+                otherClientNumber: point.otherClientNumber,
+                parentRunId: point.parentRunId,
+                delayAddedMs: point.delayAddedMs,
+                otherClientDelayMs: point.otherClientDelayMs,
+                flowCompletionTimeMs: point.flowCompletionTimeMs,
+                queueBufferSizeKilobyte: point.queueBufferSizeKilobyte,
+                clientFileSizeMegabytes: point.clientFileSizeMegabytes,
+                x: point.x,
+                y: point.y,
+                color: point.color,
+              })
+            }
+            onFocus={() =>
+              setHoveredPoint({
+                clientNumber: point.clientNumber,
+                otherClientNumber: point.otherClientNumber,
+                parentRunId: point.parentRunId,
+                delayAddedMs: point.delayAddedMs,
+                otherClientDelayMs: point.otherClientDelayMs,
+                flowCompletionTimeMs: point.flowCompletionTimeMs,
+                queueBufferSizeKilobyte: point.queueBufferSizeKilobyte,
+                clientFileSizeMegabytes: point.clientFileSizeMegabytes,
+                x: point.x,
+                y: point.y,
+                color: point.color,
+              })
+            }
+          />
+        </g>
+      ))}
+      {hoveredPoint && tooltipPosition ? (
+        <g pointerEvents="none">
+          <line
+            x1={hoveredPoint.x}
+            x2={tooltipPosition.x}
+            y1={hoveredPoint.y}
+            y2={tooltipPosition.y + tooltipHeight / 2}
+            stroke={hoveredPoint.color}
+            strokeWidth={1.4}
+            opacity={0.7}
+            strokeDasharray="3 4"
+          />
+          <rect
+            x={tooltipPosition.x}
+            y={tooltipPosition.y}
+            width={TOOLTIP_WIDTH}
+            height={tooltipHeight}
+            rx={14}
+            fill="rgba(15, 23, 42, 0.94)"
+            stroke={hoveredPoint.color}
+            strokeWidth={1.2}
+          />
+          <text
+            x={tooltipPosition.x + 14}
+            y={tooltipPosition.y + 25}
+            className="fill-white text-[13px] font-semibold"
+          >
+            {`Client ${hoveredPoint.clientNumber}`}
+          </text>
+          <text
+            x={tooltipPosition.x + 14}
+            y={tooltipPosition.y + 50}
+            className="fill-slate-200 text-[12px]"
+          >
+            {`Parent run: #${hoveredPoint.parentRunId}`}
+          </text>
+          <text
+            x={tooltipPosition.x + 14}
+            y={tooltipPosition.y + 75}
+            className="fill-slate-200 text-[12px]"
+          >
+            {`Flow completion: ${formatFlowCompletionTimeLabel(hoveredPoint.flowCompletionTimeMs)}`}
+          </text>
+          <text
+            x={tooltipPosition.x + 14}
+            y={tooltipPosition.y + 100}
+            className="fill-slate-200 text-[12px]"
+          >
+            {`Client delay: ${formatAxisValue(hoveredPoint.delayAddedMs)} ms`}
+          </text>
+          <text
+            x={tooltipPosition.x + 14}
+            y={tooltipPosition.y + 125}
+            className="fill-slate-200 text-[12px]"
+          >
+            {`Other client ${hoveredPoint.otherClientNumber}: ${formatAxisValue(hoveredPoint.otherClientDelayMs)} ms`}
+          </text>
+          <text
+            x={tooltipPosition.x + 14}
+            y={tooltipPosition.y + 150}
+            className="fill-slate-200 text-[12px]"
+          >
+            {`Workload: ${formatWorkloadLabel(hoveredPoint.clientFileSizeMegabytes)}`}
+          </text>
+        </g>
+      ) : null}
+    </svg>
+  );
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function BoxPlot({
   points,
@@ -1980,6 +2569,19 @@ function interpolateColor(start: [number, number, number], end: [number, number,
     start[2],
     end[2],
   )})`;
+}
+
+function colorForOtherClientDelay(delayMs: number) {
+  const range =
+    GROUP_CLIENT_2_DELAY_RANGE.max - GROUP_CLIENT_2_DELAY_RANGE.min;
+  const factor =
+    range <= 0 ? 1 : (delayMs - GROUP_CLIENT_2_DELAY_RANGE.min) / range;
+
+  return interpolateColor(
+    OTHER_CLIENT_DELAY_LIGHT_COLOR,
+    OTHER_CLIENT_DELAY_DARK_COLOR,
+    factor,
+  );
 }
 
 function colorForParentRun(index: number, total: number) {
@@ -2741,6 +3343,11 @@ export function AggregateGraphsPanel({
 
               if (existingClientDetail) {
                 existingClientDetail.delayValues.add(point.delayAddedMs);
+                if (point.clientStartDelayMs !== null) {
+                  existingClientDetail.clientStartDelayValues.add(
+                    point.clientStartDelayMs,
+                  );
+                }
                 if (point.congestionControlAlgorithmName) {
                   existingClientDetail.ccaLabels.add(
                     point.congestionControlAlgorithmName.toLowerCase(),
@@ -2760,6 +3367,11 @@ export function AggregateGraphsPanel({
                       : [],
                   ),
                   delayValues: new Set([point.delayAddedMs]),
+                  clientStartDelayValues: new Set(
+                    point.clientStartDelayMs !== null
+                      ? [point.clientStartDelayMs]
+                      : [],
+                  ),
                   workloadMegabytesValues: new Set(
                     point.clientFileSizeMegabytes !== null
                       ? [point.clientFileSizeMegabytes]
@@ -2799,6 +3411,11 @@ export function AggregateGraphsPanel({
                         : [],
                     ),
                     delayValues: new Set([point.delayAddedMs]),
+                    clientStartDelayValues: new Set(
+                      point.clientStartDelayMs !== null
+                        ? [point.clientStartDelayMs]
+                        : [],
+                    ),
                     workloadMegabytesValues: new Set(
                       point.clientFileSizeMegabytes !== null
                         ? [point.clientFileSizeMegabytes]
@@ -2828,6 +3445,7 @@ export function AggregateGraphsPanel({
                   clientNumber: number;
                   ccaLabels: Set<string>;
                   delayValues: Set<number>;
+                  clientStartDelayValues: Set<number>;
                   workloadMegabytesValues: Set<number>;
                 }
               >;
@@ -2857,6 +3475,9 @@ export function AggregateGraphsPanel({
               delayValues: Array.from(clientDetail.delayValues).sort(
                 (a, b) => a - b,
               ),
+              clientStartDelayValues: Array.from(
+                clientDetail.clientStartDelayValues,
+              ).sort((a, b) => a - b),
               workloadMegabytesValues: Array.from(
                 clientDetail.workloadMegabytesValues,
               ).sort((a, b) => a - b),
@@ -2871,6 +3492,10 @@ export function AggregateGraphsPanel({
   const [selectedQueueBufferSizes, setSelectedQueueBufferSizes] = useState<
     number[]
   >([]);
+  const [selectedTestGroups, setSelectedTestGroups] = useState<string[]>([]);
+  const [selectedGraphType, setSelectedGraphType] = useState(
+    GRAPH_TYPE_OPTIONS[0].label,
+  );
   const filterState = useMemo(
     () => ({
       selectedCcas,
@@ -2955,6 +3580,16 @@ export function AggregateGraphsPanel({
       ),
     [availableTests, filterState],
   );
+  const testGroupMatchesByLabel = useMemo(
+    () =>
+      new Map(
+        AVAILABLE_TEST_GROUP_OPTIONS.map((group) => [
+          group.label,
+          availableTests.filter((test) => aggregateTestMatchesGroup(test, group)),
+        ]),
+      ),
+    [availableTests],
+  );
 
   function toggleTestSelection(parentRunId: number) {
     setSelectedTestIds((current) =>
@@ -2976,6 +3611,35 @@ export function AggregateGraphsPanel({
     });
   }
 
+  function handleTestGroupSelection(groupLabel: string, checked: boolean) {
+    setSelectedTestGroups((current) => {
+      const nextSelectedGroups = checked
+        ? current.includes(groupLabel)
+          ? current
+          : [...current, groupLabel]
+        : current.filter((value) => value !== groupLabel);
+
+      setSelectedTestIds(
+        Array.from(
+          new Set(
+            nextSelectedGroups.flatMap((selectedGroupLabel) =>
+              (testGroupMatchesByLabel.get(selectedGroupLabel) ?? []).map(
+                (test) => test.parentRunId,
+              ),
+            ),
+          ),
+        ).sort((left, right) => right - left),
+      );
+      return nextSelectedGroups;
+    });
+  }
+
+  const isOtherClientDelayGraph =
+    selectedGraphType === OTHER_CLIENT_DELAY_GRAPH_LABEL;
+  const displayedPlottedPointCount = isOtherClientDelayGraph
+    ? getOtherClientDelayPlotPointCount(filteredFlowPoints)
+    : filteredFlowPoints.length;
+
   return (
     <main className="space-atmosphere relative min-h-screen overflow-hidden p-5 sm:p-10">
       <div className="relative z-10 mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-7xl items-center justify-center py-3 sm:py-8">
@@ -2989,7 +3653,7 @@ export function AggregateGraphsPanel({
                 Aggregate Graphs
               </h1>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                Showing {filteredFlowPoints.length} plotted parent-run/client
+                Showing {displayedPlottedPointCount} plotted parent-run/client
                 points across {totalSelectedTests} selected tests.
               </p>
             </div>
@@ -3051,10 +3715,28 @@ export function AggregateGraphsPanel({
                 <div className="fade-up-on-load-delay-1">
                   <ChartCard
                     eyebrow="Parent Runs"
-                    title="Connected Client Lines"
-                    subtitle="Every parent run is shown on one plot with added delay on the x axis. Each run gets its own color, and that run's client points are connected directly."
+                    title={
+                      isOtherClientDelayGraph
+                        ? "Other Client Delay"
+                        : "Connected Client Lines"
+                    }
+                    subtitle={
+                      isOtherClientDelayGraph
+                        ? "Two-client parent runs are plotted with flow completion time on the x axis and the other client's added delay on the y axis."
+                        : "Every parent run is shown on one plot with added delay on the x axis. Each run gets its own color, and that run's client points are connected directly."
+                    }
                   >
-                    <ParentRunConnectionChart points={filteredFlowPoints} />
+                    <div className="mb-4 flex justify-start">
+                      <GraphTypeDropdown
+                        selectedGraphType={selectedGraphType}
+                        onSelectedGraphTypeChange={setSelectedGraphType}
+                      />
+                    </div>
+                    {isOtherClientDelayGraph ? (
+                      <OtherClientDelayFlowChart points={filteredFlowPoints} />
+                    ) : (
+                      <ParentRunConnectionChart points={filteredFlowPoints} />
+                    )}
                   </ChartCard>
                 </div>
               ) : (
@@ -3082,10 +3764,10 @@ export function AggregateGraphsPanel({
             role="dialog"
             aria-modal="true"
             aria-labelledby={testModalTitleId}
-            className="flex max-h-[80vh] w-full max-w-4xl flex-col overflow-hidden rounded-[1.75rem] border border-rose-200/80 bg-[#fff8fc] p-6 shadow-2xl dark:border-slate-600 dark:bg-slate-800"
+            className="flex min-h-[60vh] max-h-[80vh] w-full max-w-4xl flex-col overflow-hidden rounded-[1.75rem] border border-rose-200/80 bg-[#fff8fc] p-6 shadow-2xl dark:border-slate-600 dark:bg-slate-800"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="shrink-0 flex items-start justify-between gap-4">
+            <div className="hidden shrink-0 items-start justify-between gap-4">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
                   Aggregate Tests
@@ -3121,7 +3803,70 @@ export function AggregateGraphsPanel({
               </button>
             </div>
 
-            <div className="mt-5 grid min-h-0 flex-1 gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
+            <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-rose-200/80 bg-white/80 dark:border-slate-600 dark:bg-slate-900/35">
+              <h3 className="shrink-0 border-b border-rose-200/80 bg-white/95 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-400">
+                Groups
+              </h3>
+              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
+                {AVAILABLE_TEST_GROUP_OPTIONS.map((group) => {
+                  const matchedTests =
+                    testGroupMatchesByLabel.get(group.label) ?? [];
+
+                  return (
+                    <div
+                      key={group.label}
+                      className="rounded-xl border border-rose-100/80 bg-white px-3 py-2 text-sm text-slate-700 transition hover:border-rose-200 dark:border-slate-700 dark:bg-slate-900/45 dark:text-slate-100 dark:hover:border-slate-600"
+                    >
+                      <label className="flex cursor-pointer items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedTestGroups.includes(group.label)}
+                          onChange={(event) =>
+                            handleTestGroupSelection(
+                              group.label,
+                              event.target.checked,
+                            )
+                          }
+                          className="mt-1 h-4 w-4 shrink-0 rounded border-rose-400 text-teal-700 focus:ring-teal-500 dark:border-slate-400"
+                        />
+                        <span className="min-w-0 break-words font-mono text-xs leading-5">
+                          {group.label}
+                        </span>
+                      </label>
+                      <details className="group mt-2">
+                        <summary className="flex cursor-pointer list-none items-center justify-between rounded-lg border border-rose-100 bg-rose-50/70 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:border-slate-600">
+                          <span>{`Included tests (${matchedTests.length})`}</span>
+                          <span className="ml-2 h-2 w-2 rotate-45 border-b-2 border-r-2 border-slate-500 transition group-open:rotate-[225deg] dark:border-slate-300" />
+                        </summary>
+                        <div className="mt-2 rounded-lg border border-rose-100 bg-white/80 p-2 dark:border-slate-700 dark:bg-slate-950/35">
+                          <p className="text-[11px] leading-5 text-slate-500 dark:text-slate-300">
+                            {formatGroupCriteria(group)}
+                          </p>
+                          {matchedTests.length > 0 ? (
+                            <ul className="mt-2 max-h-44 space-y-1 overflow-y-auto">
+                              {matchedTests.map((test) => (
+                                <li
+                                  key={test.parentRunId}
+                                  className="rounded-md bg-rose-50/70 px-2 py-1.5 font-mono text-[11px] leading-5 text-slate-700 dark:bg-slate-800/65 dark:text-slate-100"
+                                >
+                                  {formatGroupMatchedTestParameters(test)}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="mt-2 text-xs text-slate-500 dark:text-slate-300">
+                              No available tests match this category.
+                            </p>
+                          )}
+                        </div>
+                      </details>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <div className="mt-5 hidden min-h-0 flex-1 gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
               <aside className="min-h-0 overflow-y-auto rounded-2xl border border-rose-200/80 bg-[#fff3f8] p-4 dark:border-slate-600 dark:bg-slate-900/55">
                 <div>
                   <details className="group">
@@ -3367,7 +4112,7 @@ export function AggregateGraphsPanel({
               </div>
             </div>
 
-            <div className="mt-5 shrink-0 flex flex-wrap items-center justify-between gap-3">
+            <div className="mt-5 hidden shrink-0 flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm text-slate-600 dark:text-slate-300">
                   {selectedTestCountLabel}

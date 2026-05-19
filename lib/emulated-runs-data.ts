@@ -30,6 +30,7 @@ export type AggregateDelayGraphPoint = {
   numberOfClients: number;
   clientNumber: number;
   delayAddedMs: number;
+  clientStartDelayMs: number | null;
   flowCompletionTimeMs: number | null;
   averageThroughputMbps: number | null;
   runCount: number;
@@ -980,7 +981,7 @@ export async function fetchAggregateDelayGraphData(): Promise<
   const { data, error } = await supabase
     .from("emulated_runs")
     .select(
-      "emulated_parent_run_id, client_number, delay_added, flow_completion_time_ms, client_file_size_megabytes, congestion_control_algorithms(name), emulated_parent_runs(number_of_clients, queue_buffer_size_kilobyte, bottleneck_rate_megabit)",
+      "emulated_parent_run_id, client_number, delay_added, client_start_delay_ms, flow_completion_time_ms, client_file_size_megabytes, congestion_control_algorithms(name), emulated_parent_runs(number_of_clients, queue_buffer_size_kilobyte, bottleneck_rate_megabit)",
     )
     .order("delay_added", { ascending: true });
 
@@ -992,6 +993,7 @@ export async function fetchAggregateDelayGraphData(): Promise<
     emulated_parent_run_id: number | null;
     client_number: number | null;
     delay_added: number | null;
+    client_start_delay_ms: number | null;
     flow_completion_time_ms: number | null;
     client_file_size_megabytes: NumericLike;
     congestion_control_algorithms:
@@ -1058,6 +1060,7 @@ export async function fetchAggregateDelayGraphData(): Promise<
       numberOfClients,
       clientNumber: run.client_number,
       delayAddedMs: run.delay_added,
+      clientStartDelayMs: run.client_start_delay_ms,
       flowCompletionTimeMs:
         run.flow_completion_time_ms !== null && run.flow_completion_time_ms > 0
           ? roundToHundredth(run.flow_completion_time_ms)
