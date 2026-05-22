@@ -5,17 +5,17 @@ import { useId, useMemo, useState } from "react";
 import type { AggregateDelayGraphPoint } from "@/lib/emulated-runs-data";
 
 const CHART_WIDTH = 1120;
-const CHART_HEIGHT = 620;
+const CHART_HEIGHT = 440;
 const CHART_PADDING = {
   top: 28,
   right: 28,
-  bottom: 248,
+  bottom: 68,
   left: 78,
 };
 const POINT_RADIUS = 4.2;
 const HOVER_RADIUS = 14;
 const TOOLTIP_WIDTH = 226;
-const TOOLTIP_GAP_BELOW_X_AXIS = 42;
+const TOOLTIP_OVERLAP_X_AXIS = 8;
 const SERIES_COLORS = ["#0d9488", "#dc2626", "#4f46e5", "#ca8a04"];
 const CLIENT_POINT_COLORS: Record<number, string> = {
   1: "#0f766e",
@@ -466,16 +466,13 @@ function quantile(sortedValues: number[], fraction: number) {
   return lower + (upper - lower) * (position - lowerIndex);
 }
 
-function buildScatterTooltipPosition(point: { x: number; y: number }, height: number) {
+function buildScatterTooltipPosition(point: { x: number; y: number }) {
   const x = clamp(
     point.x - TOOLTIP_WIDTH / 2,
     CHART_PADDING.left,
     CHART_WIDTH - CHART_PADDING.right - TOOLTIP_WIDTH,
   );
-  const y = Math.min(
-    CHART_HEIGHT - CHART_PADDING.bottom + TOOLTIP_GAP_BELOW_X_AXIS,
-    CHART_HEIGHT - 18 - height,
-  );
+  const y = CHART_HEIGHT - CHART_PADDING.bottom - TOOLTIP_OVERLAP_X_AXIS;
 
   return {
     x,
@@ -1115,13 +1112,13 @@ function ScatterPlot({
     };
   });
   const tooltipPosition = hoveredPoint
-    ? buildScatterTooltipPosition(hoveredPoint, tooltipHeight)
+    ? buildScatterTooltipPosition(hoveredPoint)
     : null;
 
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[70vh] min-h-[540px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
       role="img"
       aria-label="Run-level scatter plot of added delay versus flow completion time"
       onMouseLeave={() => setHoveredPoint(null)}
@@ -1375,7 +1372,7 @@ function ParentRunConnectionChart({
   });
   const tooltipHeight = 166;
   const tooltipPosition = hoveredPoint
-    ? buildScatterTooltipPosition(hoveredPoint, tooltipHeight)
+    ? buildScatterTooltipPosition(hoveredPoint)
     : null;
   const isZoomed =
     activeDomain.xMin !== baseDomain.xMin ||
@@ -1602,7 +1599,7 @@ function ParentRunConnectionChart({
     <div className="space-y-4">
       <svg
         viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-        className={`h-[64vh] min-h-[500px] w-full select-none overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600 ${
+        className={`h-[48vh] min-h-[340px] w-full select-none overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600 ${
           isZoomed ? (panState ? "cursor-grabbing" : "cursor-grab") : ""
         }`}
         style={{ userSelect: "none" }}
@@ -1956,13 +1953,13 @@ function OtherClientDelayFlowChart({
   }));
   const tooltipHeight = 166;
   const tooltipPosition = hoveredPoint
-    ? buildScatterTooltipPosition(hoveredPoint, tooltipHeight)
+    ? buildScatterTooltipPosition(hoveredPoint)
     : null;
 
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[64vh] min-h-[500px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[48vh] min-h-[340px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
       role="img"
       aria-label="Scatter plot of flow completion time versus the other client's added delay"
       onMouseLeave={() => setHoveredPoint(null)}
@@ -2176,13 +2173,13 @@ function BoxPlot({
     };
   });
   const tooltipPosition = hoveredStat
-    ? buildScatterTooltipPosition(hoveredStat, tooltipHeight)
+    ? buildScatterTooltipPosition(hoveredStat)
     : null;
 
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[70vh] min-h-[540px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
       role="img"
       aria-label="Box plot of flow completion time grouped by added delay"
       onMouseLeave={() => setHoveredStat(null)}
@@ -2430,13 +2427,13 @@ function EcdfChart({
     .filter((entry) => entry.plottedPoints.length > 0);
   const tooltipHeight = 142;
   const tooltipPosition = hoveredPoint
-    ? buildScatterTooltipPosition(hoveredPoint, tooltipHeight)
+    ? buildScatterTooltipPosition(hoveredPoint)
     : null;
 
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[70vh] min-h-[540px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
       role="img"
       aria-label="Empirical cumulative distribution of flow completion time"
       onMouseLeave={() => setHoveredPoint(null)}
@@ -2922,7 +2919,7 @@ function ViolinPlot({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[70vh] min-h-[540px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
       role="img"
       aria-label="Violin plot of flow completion time by delay and client"
     >
@@ -3018,7 +3015,7 @@ function DensityGridChart({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[70vh] min-h-[540px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
       role="img"
         aria-label="Density grid of flow completion time by added delay and client"
     >
@@ -3141,7 +3138,7 @@ function MedianSlopeChart({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[64vh] min-h-[500px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[48vh] min-h-[340px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
       role="img"
       aria-label="Slope chart comparing median flow completion time between two delay levels"
     >
@@ -3261,7 +3258,7 @@ function PercentileHeatmap({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[64vh] min-h-[500px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[48vh] min-h-[340px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
       role="img"
       aria-label="Heatmap of percentile flow completion time by delay and client"
     >
