@@ -633,7 +633,7 @@ function MetricChart({
   const leftPadding = isExpanded ? 78 : 56;
   const rightPadding = isExpanded ? 28 : 18;
   const topPadding = isExpanded ? 26 : 18;
-  const bottomPadding = isExpanded ? 94 : 52;
+  const bottomPadding = isExpanded ? 132 : 52;
   const plotWidth = chartWidth - leftPadding - rightPadding;
   const plotHeight = chartHeight - topPadding - bottomPadding;
   const cardShellClassName = `transition-opacity duration-[400ms] ${
@@ -906,20 +906,22 @@ function MetricChart({
   const hoverTargetPointRadius = isExpanded ? 14 : 10;
   const pointDotRadius = isExpanded ? 2.8 : 2.2;
   const pointHitRadius = hoverActivationRadius;
-  const tooltipWidth = isCwndMetric
+  const pointCalloutWidth = isCwndMetric
     ? isExpanded
-      ? 204
-      : 184
+      ? 340
+      : 220
     : isExpanded
-      ? 140
-      : 116;
-  const tooltipHeight = isCwndMetric
+      ? 280
+      : 180;
+  const pointCalloutHeight = isCwndMetric
     ? isExpanded
       ? 68
       : 60
     : isExpanded
       ? 50
       : 44;
+  const pointCalloutGapFromXAxis = isExpanded ? 8 : 6;
+  const selectedPointRingRadius = isExpanded ? 9 : 7;
   const sliceTooltipWidth = isCwndMetric
     ? isExpanded
       ? 380
@@ -1138,7 +1140,7 @@ function MetricChart({
         : [...current, runId],
     );
   };
-  const crosshairX = hoveredSlice?.x ?? displayedPoint?.x ?? hoveredCursorX ?? null;
+  const crosshairX = hoveredSlice?.x ?? hoveredCursorX ?? null;
   const sliceTooltipHeight = hoveredSlice
     ? (isExpanded ? 26 : 22) +
       hoveredSlice.values.length * sliceTooltipRowHeight +
@@ -1437,10 +1439,13 @@ function MetricChart({
                   r={pointHitRadius}
                   fill="transparent"
                   pointerEvents={areInlineChartInteractionsEnabled ? "all" : "none"}
-                  onMouseEnter={() => {
+                  onMouseEnter={(event) => {
                     if (!areInlineChartInteractionsEnabled) {
                       return;
                     }
+                    event.stopPropagation();
+                    setHoveredSlice(null);
+                    setHoveredCursorX(null);
                     if (pinnedRunId !== null) {
                       if (pinnedRunId === runSeries.runId) {
                         const pinned = toHoveredPoint(runSeries, point);
@@ -1453,10 +1458,13 @@ function MetricChart({
                     setHoveredRunId(runSeries.runId);
                     setHoveredPointForRun(runSeries, point);
                   }}
-                  onMouseMove={() => {
+                  onMouseMove={(event) => {
                     if (!areInlineChartInteractionsEnabled) {
                       return;
                     }
+                    event.stopPropagation();
+                    setHoveredSlice(null);
+                    setHoveredCursorX(null);
                     if (pinnedRunId !== null) {
                       if (pinnedRunId === runSeries.runId) {
                         const pinned = toHoveredPoint(runSeries, point);
@@ -1469,17 +1477,19 @@ function MetricChart({
                     setHoveredRunId(runSeries.runId);
                     setHoveredPointForRun(runSeries, point);
                   }}
-                  onMouseLeave={() => {
+                  onMouseLeave={(event) => {
                     if (!areInlineChartInteractionsEnabled) {
                       return;
                     }
+                    event.stopPropagation();
                     setHoveredRunId(null);
                     setHoveredPoint(null);
                   }}
-                  onClick={() => {
+                  onClick={(event) => {
                     if (!areInlineChartInteractionsEnabled) {
                       return;
                     }
+                    event.stopPropagation();
                     if (pinnedRunId !== null) {
                       return;
                     }
@@ -1488,6 +1498,8 @@ function MetricChart({
                     setPinnedPoint(pinned);
                     setHoveredRunId(runSeries.runId);
                     setHoveredPoint(pinned);
+                    setHoveredSlice(null);
+                    setHoveredCursorX(null);
                   }}
                 />
               ))}
@@ -1528,7 +1540,20 @@ function MetricChart({
               <circle
                 cx={displayedPoint.x}
                 cy={displayedPoint.y}
-                r={isExpanded ? 5.2 : 4.4}
+                r={selectedPointRingRadius}
+                fill="rgba(255, 250, 253, 0.82)"
+                stroke={runSeries.color}
+                strokeWidth={isExpanded ? 2.2 : 1.8}
+                pointerEvents="none"
+                opacity={1}
+                style={{
+                  transition: "r 120ms ease",
+                }}
+              />
+              <circle
+                cx={displayedPoint.x}
+                cy={displayedPoint.y}
+                r={isExpanded ? 4.4 : 3.8}
                 fill={runSeries.color}
                 pointerEvents="none"
                 opacity={1}
@@ -1633,86 +1658,104 @@ function MetricChart({
                   </>
                 );
               })()
-            : displayedPoint
-              ? (() => {
-                  let tooltipX = crosshairX + 12;
-                  if (tooltipX + tooltipWidth > chartWidth - rightPadding) {
-                    tooltipX = crosshairX - tooltipWidth - 12;
-                  }
-                  tooltipX = Math.max(
-                    leftPadding + 4,
-                    Math.min(chartWidth - rightPadding - tooltipWidth - 2, tooltipX),
-                  );
-
-                  let tooltipY = displayedPoint.y - tooltipHeight - 12;
-                  if (tooltipY < topPadding + 4) {
-                    tooltipY = displayedPoint.y + 12;
-                  }
-                  tooltipY = Math.max(
-                    topPadding + 4,
-                    Math.min(
-                      chartHeight - bottomPadding - tooltipHeight - 4,
-                      tooltipY,
-                    ),
-                  );
-
-                  return (
-                    <>
-                      <rect
-                        x={tooltipX}
-                        y={tooltipY}
-                        width={tooltipWidth}
-                        height={tooltipHeight}
-                        rx={7}
-                        fill="rgba(255, 250, 253, 0.96)"
-                        stroke={displayedPoint.color}
-                        strokeWidth={1.4}
-                      />
-                      <text
-                        x={tooltipX + 10}
-                        y={tooltipY + (isExpanded ? 15 : 14)}
-                        className={isExpanded ? "fill-slate-900 text-[10px]" : "fill-slate-900 text-[9px]"}
-                        fontWeight={700}
-                      >
-                        {displayedPoint.runSummary}
-                      </text>
-                      <text
-                        x={tooltipX + 10}
-                        y={tooltipY + (isExpanded ? 31 : 27)}
-                        className={isExpanded ? "fill-slate-700 text-[10px]" : "fill-slate-700 text-[9px]"}
-                      >
-                        {isCwndMetric
-                          ? `cwnd (${unit}): ${formatScaleValue(displayedPoint.yValue)}`
-                          : `y (${unit}): ${formatScaleValue(displayedPoint.yValue)}`}
-                      </text>
-                      <text
-                        x={tooltipX + 10}
-                        y={tooltipY + (isExpanded ? 43 : 38)}
-                        className={isExpanded ? "fill-slate-700 text-[10px]" : "fill-slate-700 text-[9px]"}
-                      >
-                        {isCwndMetric
-                          ? `in-flight (${unit}): ${
-                              displayedPoint.companionYValue === null
-                                ? "n/a"
-                                : formatScaleValue(displayedPoint.companionYValue)
-                            }`
-                          : `x (seconds): ${formatSecondsValue(displayedPoint.xValue)}`}
-                      </text>
-                      {isCwndMetric ? (
-                        <text
-                          x={tooltipX + 10}
-                          y={tooltipY + (isExpanded ? 55 : 49)}
-                          className={isExpanded ? "fill-slate-700 text-[10px]" : "fill-slate-700 text-[9px]"}
-                        >
-                          x (seconds): {formatSecondsValue(displayedPoint.xValue)}
-                        </text>
-                      ) : null}
-                    </>
-                  );
-                })()
-              : null}
+            : null}
         </g>
       ) : null}
+      {areInlineChartInteractionsEnabled && displayedPoint ? (() => {
+        const plotBottomY = chartHeight - bottomPadding;
+        const calloutY = plotBottomY - pointCalloutHeight - pointCalloutGapFromXAxis;
+        const calloutX = Math.max(
+          leftPadding + 4,
+          Math.min(
+            chartWidth - rightPadding - pointCalloutWidth - 2,
+            displayedPoint.x - pointCalloutWidth / 2,
+          ),
+        );
+        const lineBottomY = calloutY;
+        const connectorColor = displayedPoint.color;
+
+        return (
+          <g pointerEvents="none">
+            <line
+              x1={displayedPoint.x}
+              x2={displayedPoint.x}
+              y1={displayedPoint.y + selectedPointRingRadius}
+              y2={lineBottomY}
+              stroke={connectorColor}
+              strokeWidth={1.4}
+              strokeDasharray="5 5"
+              opacity={0.72}
+            />
+            <circle
+              cx={displayedPoint.x}
+              cy={displayedPoint.y}
+              r={selectedPointRingRadius + 2.5}
+              fill="none"
+              stroke={connectorColor}
+              strokeWidth={1}
+              opacity={0.34}
+            />
+            <rect
+              x={calloutX}
+              y={calloutY}
+              width={pointCalloutWidth}
+              height={pointCalloutHeight}
+              rx={7}
+              fill="rgba(255, 250, 253, 0.98)"
+              stroke={connectorColor}
+              strokeWidth={1.4}
+            />
+            <line
+              x1={displayedPoint.x}
+              x2={Math.max(calloutX, Math.min(calloutX + pointCalloutWidth, displayedPoint.x))}
+              y1={calloutY}
+              y2={calloutY}
+              stroke={connectorColor}
+              strokeWidth={1.4}
+              opacity={0.72}
+            />
+            <text
+              x={calloutX + 10}
+              y={calloutY + (isExpanded ? 15 : 14)}
+              className={isExpanded ? "fill-slate-900 text-[10px]" : "fill-slate-900 text-[9px]"}
+              fontWeight={700}
+            >
+              {displayedPoint.runSummary}
+            </text>
+            <text
+              x={calloutX + 10}
+              y={calloutY + (isExpanded ? 31 : 27)}
+              className={isExpanded ? "fill-slate-700 text-[10px]" : "fill-slate-700 text-[9px]"}
+            >
+              {isCwndMetric
+                ? `cwnd (${unit}): ${formatScaleValue(displayedPoint.yValue)}`
+                : `y (${unit}): ${formatScaleValue(displayedPoint.yValue)}`}
+            </text>
+            <text
+              x={calloutX + 10}
+              y={calloutY + (isExpanded ? 43 : 38)}
+              className={isExpanded ? "fill-slate-700 text-[10px]" : "fill-slate-700 text-[9px]"}
+            >
+              {isCwndMetric
+                ? `in-flight (${unit}): ${
+                    displayedPoint.companionYValue === null
+                      ? "n/a"
+                      : formatScaleValue(displayedPoint.companionYValue)
+                  }`
+                : `x (seconds): ${formatSecondsValue(displayedPoint.xValue)}`}
+            </text>
+            {isCwndMetric ? (
+              <text
+                x={calloutX + 10}
+                y={calloutY + (isExpanded ? 55 : 49)}
+                className={isExpanded ? "fill-slate-700 text-[10px]" : "fill-slate-700 text-[9px]"}
+              >
+                x (seconds): {formatSecondsValue(displayedPoint.xValue)}
+              </text>
+            ) : null}
+          </g>
+        );
+      })() : null}
       <text
         x={leftPadding + plotWidth / 2}
         y={chartHeight - 4}

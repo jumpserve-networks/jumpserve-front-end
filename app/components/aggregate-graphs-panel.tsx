@@ -5,16 +5,17 @@ import { useId, useMemo, useState } from "react";
 import type { AggregateDelayGraphPoint } from "@/lib/emulated-runs-data";
 
 const CHART_WIDTH = 1120;
-const CHART_HEIGHT = 440;
+const CHART_HEIGHT = 620;
 const CHART_PADDING = {
   top: 28,
   right: 28,
-  bottom: 68,
+  bottom: 248,
   left: 78,
 };
 const POINT_RADIUS = 4.2;
 const HOVER_RADIUS = 14;
 const TOOLTIP_WIDTH = 226;
+const TOOLTIP_GAP_BELOW_X_AXIS = 42;
 const SERIES_COLORS = ["#0d9488", "#dc2626", "#4f46e5", "#ca8a04"];
 const CLIENT_POINT_COLORS: Record<number, string> = {
   1: "#0f766e",
@@ -466,17 +467,21 @@ function quantile(sortedValues: number[], fraction: number) {
 }
 
 function buildScatterTooltipPosition(point: { x: number; y: number }, height: number) {
+  const x = clamp(
+    point.x - TOOLTIP_WIDTH / 2,
+    CHART_PADDING.left,
+    CHART_WIDTH - CHART_PADDING.right - TOOLTIP_WIDTH,
+  );
+  const y = Math.min(
+    CHART_HEIGHT - CHART_PADDING.bottom + TOOLTIP_GAP_BELOW_X_AXIS,
+    CHART_HEIGHT - 18 - height,
+  );
+
   return {
-    x: clamp(
-      point.x + 14,
-      CHART_PADDING.left,
-      CHART_WIDTH - CHART_PADDING.right - TOOLTIP_WIDTH,
-    ),
-    y: clamp(
-      point.y - height - 14,
-      CHART_PADDING.top,
-      CHART_HEIGHT - CHART_PADDING.bottom - height,
-    ),
+    x,
+    y,
+    anchorX: clamp(point.x, x, x + TOOLTIP_WIDTH),
+    anchorY: y,
   };
 }
 
@@ -779,6 +784,46 @@ function GraphTypeDropdown({
   );
 }
 
+function SelectedTestGroupsBubble({
+  selectedTestGroups,
+}: {
+  selectedTestGroups: string[];
+}) {
+  if (selectedTestGroups.length === 0) {
+    return null;
+  }
+
+  return (
+    <div
+      className="relative mb-3 rounded-2xl border border-teal-200 bg-white/95 px-3 py-2 shadow-lg shadow-teal-900/10 dark:border-teal-500/45 dark:bg-slate-950/95 dark:shadow-black/25"
+      aria-label="Selected test groups"
+    >
+      <div className="absolute left-8 top-full h-3 w-3 -translate-y-1/2 rotate-45 border-b border-r border-teal-200 bg-white/95 dark:border-teal-500/45 dark:bg-slate-950/95" />
+      <div className="relative flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-teal-700 dark:text-teal-300">
+          Viewing
+        </span>
+        <span className="rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-800 dark:border-teal-500/50 dark:bg-teal-500/15 dark:text-teal-200">
+          {`${selectedTestGroups.length} ${
+            selectedTestGroups.length === 1 ? "group" : "groups"
+          }`}
+        </span>
+        <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+          {selectedTestGroups.map((groupLabel) => (
+            <span
+              key={groupLabel}
+              title={groupLabel}
+              className="max-w-full truncate rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 font-mono text-[11px] leading-none text-slate-700 dark:border-slate-600 dark:bg-slate-800/85 dark:text-slate-100 sm:max-w-[22rem]"
+            >
+              {groupLabel}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function aggregateTestMatchesFilters(
   test: AvailableAggregateTest,
   filters: AggregateTestFilterState,
@@ -1076,7 +1121,7 @@ function ScatterPlot({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[70vh] min-h-[540px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
       role="img"
       aria-label="Run-level scatter plot of added delay versus flow completion time"
       onMouseLeave={() => setHoveredPoint(null)}
@@ -1138,9 +1183,9 @@ function ScatterPlot({
         <g pointerEvents="none">
           <line
             x1={hoveredPoint.x}
-            x2={tooltipPosition.x}
+            x2={tooltipPosition.anchorX}
             y1={hoveredPoint.y}
-            y2={tooltipPosition.y + tooltipHeight / 2}
+            y2={tooltipPosition.anchorY}
             stroke={hoveredPoint.color}
             strokeWidth={1.4}
             opacity={0.7}
@@ -1557,7 +1602,7 @@ function ParentRunConnectionChart({
     <div className="space-y-4">
       <svg
         viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-        className={`h-[48vh] min-h-[340px] w-full select-none overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600 ${
+        className={`h-[64vh] min-h-[500px] w-full select-none overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600 ${
           isZoomed ? (panState ? "cursor-grabbing" : "cursor-grab") : ""
         }`}
         style={{ userSelect: "none" }}
@@ -1703,9 +1748,9 @@ function ParentRunConnectionChart({
           <g pointerEvents="none">
             <line
               x1={hoveredPoint.x}
-              x2={tooltipPosition.x}
+              x2={tooltipPosition.anchorX}
               y1={hoveredPoint.y}
-              y2={tooltipPosition.y + tooltipHeight / 2}
+              y2={tooltipPosition.anchorY}
               stroke={hoveredPoint.lineColor}
               strokeWidth={1.4}
               opacity={0.7}
@@ -1917,7 +1962,7 @@ function OtherClientDelayFlowChart({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[48vh] min-h-[340px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[64vh] min-h-[500px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
       role="img"
       aria-label="Scatter plot of flow completion time versus the other client's added delay"
       onMouseLeave={() => setHoveredPoint(null)}
@@ -1988,9 +2033,9 @@ function OtherClientDelayFlowChart({
         <g pointerEvents="none">
           <line
             x1={hoveredPoint.x}
-            x2={tooltipPosition.x}
+            x2={tooltipPosition.anchorX}
             y1={hoveredPoint.y}
-            y2={tooltipPosition.y + tooltipHeight / 2}
+            y2={tooltipPosition.anchorY}
             stroke={hoveredPoint.color}
             strokeWidth={1.4}
             opacity={0.7}
@@ -2137,7 +2182,7 @@ function BoxPlot({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[70vh] min-h-[540px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
       role="img"
       aria-label="Box plot of flow completion time grouped by added delay"
       onMouseLeave={() => setHoveredStat(null)}
@@ -2391,7 +2436,7 @@ function EcdfChart({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[70vh] min-h-[540px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
       role="img"
       aria-label="Empirical cumulative distribution of flow completion time"
       onMouseLeave={() => setHoveredPoint(null)}
@@ -2877,7 +2922,7 @@ function ViolinPlot({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[70vh] min-h-[540px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
       role="img"
       aria-label="Violin plot of flow completion time by delay and client"
     >
@@ -2973,7 +3018,7 @@ function DensityGridChart({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[70vh] min-h-[540px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
       role="img"
         aria-label="Density grid of flow completion time by added delay and client"
     >
@@ -3096,7 +3141,7 @@ function MedianSlopeChart({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[48vh] min-h-[340px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[64vh] min-h-[500px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
       role="img"
       aria-label="Slope chart comparing median flow completion time between two delay levels"
     >
@@ -3216,7 +3261,7 @@ function PercentileHeatmap({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[48vh] min-h-[340px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[64vh] min-h-[500px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
       role="img"
       aria-label="Heatmap of percentile flow completion time by delay and client"
     >
@@ -3517,9 +3562,7 @@ export function AggregateGraphsPanel({
     [filteredAvailableTests],
   );
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
-  const [selectedTestIds, setSelectedTestIds] = useState<number[]>(
-    availableTestIds,
-  );
+  const [selectedTestIds, setSelectedTestIds] = useState<number[]>([]);
   const visibleSelectedTestIds = selectedTestIds.filter((parentRunId) =>
     availableTestIds.includes(parentRunId),
   );
@@ -3732,6 +3775,9 @@ export function AggregateGraphsPanel({
                         onSelectedGraphTypeChange={setSelectedGraphType}
                       />
                     </div>
+                    <SelectedTestGroupsBubble
+                      selectedTestGroups={selectedTestGroups}
+                    />
                     {isOtherClientDelayGraph ? (
                       <OtherClientDelayFlowChart points={filteredFlowPoints} />
                     ) : (
