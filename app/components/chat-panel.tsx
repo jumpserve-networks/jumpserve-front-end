@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import { sendMessage, type AgentResponse } from "@/lib/agent-api";
 
 interface Message {
@@ -156,7 +157,13 @@ export function ChatPanel({ userEmail }: { userEmail?: string }) {
                   ))}
                 </div>
               )}
-              <div className="whitespace-pre-wrap text-sm">{msg.content}</div>
+              {msg.role === "user" ? (
+                <div className="whitespace-pre-wrap text-sm">{msg.content}</div>
+              ) : (
+                <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-li:my-0.5 prose-table:text-sm prose-th:px-2 prose-th:py-1 prose-td:px-2 prose-td:py-1 prose-pre:bg-slate-800 prose-pre:text-slate-200 prose-code:text-rose-500 prose-code:before:content-none prose-code:after:content-none">
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                </div>
+              )}
             </div>
           </div>
         ))}
