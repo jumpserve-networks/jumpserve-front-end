@@ -1,14 +1,29 @@
 "use client";
 
-export type ThemePreference = "light" | "dark" | "system";
+import {
+  DARK_MEDIA_QUERY,
+  STORAGE_KEY,
+  THEME_PREFERENCE_COOKIE_MAX_AGE_SECONDS,
+  THEME_PREFERENCE_COOKIE_NAME,
+  parsePreference,
+  type ThemePreference,
+} from "@/lib/theme-preference-shared";
+
+export {
+  DARK_MEDIA_QUERY,
+  STORAGE_KEY,
+  THEME_PREFERENCE_COOKIE_MAX_AGE_SECONDS,
+  THEME_PREFERENCE_COOKIE_NAME,
+  parsePreference,
+  type ThemePreference,
+};
+
 type ThemePreferenceListener = () => void;
 type ThemePreferenceSnapshot = {
   hasStoredPreference: boolean;
   preference: ThemePreference;
 };
 
-export const STORAGE_KEY = "theme-preference";
-export const DARK_MEDIA_QUERY = "(prefers-color-scheme: dark)";
 const listeners = new Set<ThemePreferenceListener>();
 const SERVER_THEME_PREFERENCE_SNAPSHOT: ThemePreferenceSnapshot = {
   hasStoredPreference: false,
@@ -17,10 +32,30 @@ const SERVER_THEME_PREFERENCE_SNAPSHOT: ThemePreferenceSnapshot = {
 let cachedThemePreferenceSnapshot: ThemePreferenceSnapshot =
   SERVER_THEME_PREFERENCE_SNAPSHOT;
 
-export function parsePreference(value: string | null): ThemePreference | null {
-  return value === "light" || value === "dark" || value === "system"
-    ? value
-    : null;
+function readCookiePreference(): ThemePreference | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  const cookie = document.cookie
+    .split("; ")
+    .find((entry) => entry.startsWith(`${THEME_PREFERENCE_COOKIE_NAME}=`));
+
+  if (!cookie) {
+    return null;
+  }
+
+  return parsePreference(decodeURIComponent(cookie.split("=").slice(1).join("=")));
+}
+
+function writeCookiePreference(preference: ThemePreference) {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  document.cookie = `${THEME_PREFERENCE_COOKIE_NAME}=${encodeURIComponent(
+    preference,
+  )}; Max-Age=${THEME_PREFERENCE_COOKIE_MAX_AGE_SECONDS}; Path=/; SameSite=Lax`;
 }
 
 export function readPreference(): ThemePreference {
@@ -28,7 +63,20 @@ export function readPreference(): ThemePreference {
     return "system";
   }
 
-  return parsePreference(window.localStorage.getItem(STORAGE_KEY)) ?? "system";
+  const cookiePreference = readCookiePreference();
+
+  if (cookiePreference) {
+    return cookiePreference;
+  }
+
+  const localStoragePreference = parsePreference(window.localStorage.getItem(STORAGE_KEY));
+
+  if (localStoragePreference) {
+    writeCookiePreference(localStoragePreference);
+    return localStoragePreference;
+  }
+
+  return "system";
 }
 
 export function hasStoredPreference() {
@@ -36,7 +84,10 @@ export function hasStoredPreference() {
     return false;
   }
 
-  return parsePreference(window.localStorage.getItem(STORAGE_KEY)) !== null;
+  return (
+    readCookiePreference() !== null ||
+    parsePreference(window.localStorage.getItem(STORAGE_KEY)) !== null
+  );
 }
 
 export function resolveDarkMode(preference: ThemePreference) {
@@ -128,6 +179,7 @@ export function setThemePreference(nextPreference: ThemePreference) {
   }
 
   window.localStorage.setItem(STORAGE_KEY, nextPreference);
+  writeCookiePreference(nextPreference);
   applyTheme(nextPreference);
   emitThemePreferenceChange();
 }

@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeToggle } from "@/app/components/theme-toggle";
+import {
+  DARK_MEDIA_QUERY,
+  STORAGE_KEY,
+  THEME_PREFERENCE_COOKIE_MAX_AGE_SECONDS,
+  THEME_PREFERENCE_COOKIE_NAME,
+} from "@/lib/theme-preference-shared";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -24,13 +30,34 @@ export const metadata: Metadata = {
 const themeInitScript = `
 (() => {
   try {
-    const storageKey = "theme-preference";
-    const darkMediaQuery = "(prefers-color-scheme: dark)";
+    const storageKey = ${JSON.stringify(STORAGE_KEY)};
+    const cookieName = ${JSON.stringify(THEME_PREFERENCE_COOKIE_NAME)};
+    const cookieMaxAge = ${JSON.stringify(THEME_PREFERENCE_COOKIE_MAX_AGE_SECONDS)};
+    const darkMediaQuery = ${JSON.stringify(DARK_MEDIA_QUERY)};
+    const cookiePreference = document.cookie
+      .split("; ")
+      .find((entry) => entry.startsWith(cookieName + "="))
+      ?.split("=")
+      .slice(1)
+      .join("=");
+    const decodedCookiePreference = cookiePreference ? decodeURIComponent(cookiePreference) : null;
     const storedPreference = localStorage.getItem(storageKey);
+    const hasCookiePreference =
+      decodedCookiePreference === "light" || decodedCookiePreference === "dark" || decodedCookiePreference === "system";
+    const hasStoredPreference =
+      storedPreference === "light" || storedPreference === "dark" || storedPreference === "system";
     const preference =
-      storedPreference === "light" || storedPreference === "dark" || storedPreference === "system"
-        ? storedPreference
-        : "system";
+      hasCookiePreference
+        ? decodedCookiePreference
+        : hasStoredPreference
+          ? storedPreference
+          : "system";
+    if (!hasCookiePreference && hasStoredPreference) {
+      document.cookie = cookieName + "=" + encodeURIComponent(storedPreference) + "; Max-Age=" + cookieMaxAge + "; Path=/; SameSite=Lax";
+    }
+    if (hasCookiePreference && storedPreference !== preference) {
+      localStorage.setItem(storageKey, preference);
+    }
     const darkMode =
       preference === "dark" ||
       (preference === "system" && window.matchMedia(darkMediaQuery).matches);

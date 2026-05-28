@@ -154,10 +154,15 @@ type AvailableTestGroupOption = {
   client2Cca: string;
   bottleneckRateMegabit: number;
   queueBufferSizeKilobyte: number;
+  workloadMegabytes?: number;
+  client2DelayRange?: {
+    min: number;
+    max: number;
+  };
 };
 
 const AVAILABLE_CCA_FILTERS = ["bbr", "cubic"] as const;
-const AVAILABLE_WORKLOAD_FILTERS = [100, 200] as const;
+const AVAILABLE_WORKLOAD_FILTERS = [10, 50, 100, 200] as const;
 const AVAILABLE_QUEUE_BUFFER_FILTERS = [125, 500] as const;
 const GROUP_CLIENT_1_DELAY_MS = 10;
 const GROUP_CLIENT_2_DELAY_RANGE = {
@@ -169,74 +174,119 @@ const OTHER_CLIENT_DELAY_LIGHT_COLOR: [number, number, number] = [153, 246, 228]
 const OTHER_CLIENT_DELAY_DARK_COLOR: [number, number, number] = [15, 118, 110];
 const GROUP_DEFAULT_BOTTLENECK_RATE_MEGABIT = 80;
 const GROUP_DEFAULT_QUEUE_BUFFER_SIZE_KILOBYTES = 125;
-const GROUP_500KB_QUEUE_BOTTLENECK_RATE_MEGABIT = 50;
-const GROUP_500KB_QUEUE_BUFFER_SIZE_KILOBYTES = 488.28125;
+const GROUP_NETEM_NINES_BOTTLENECK_RATE_MEGABIT = 100;
+const GROUP_NETEM_NINES_QUEUE_BUFFER_SIZE_KILOBYTES = 125;
+const GROUP_NETEM_NINES_WORKLOAD_MEGABYTES = 50;
 const GROUP_WORKLOAD_MEGABYTES = 100;
 const GROUP_CLIENT_START_DELAY_MS = 0;
 const AVAILABLE_TEST_GROUP_OPTIONS: AvailableTestGroupOption[] = [
+  {
+    label: "netem-nines-delay-10ms-vs-11-19ms-bbr.yaml",
+    client1Cca: "bbr",
+    client2Cca: "bbr",
+    bottleneckRateMegabit: GROUP_NETEM_NINES_BOTTLENECK_RATE_MEGABIT,
+    queueBufferSizeKilobyte: GROUP_NETEM_NINES_QUEUE_BUFFER_SIZE_KILOBYTES,
+    workloadMegabytes: GROUP_NETEM_NINES_WORKLOAD_MEGABYTES,
+    client2DelayRange: GROUP_CLIENT_2_DELAY_RANGE,
+  },
+  {
+    label: "netem-nines-delay-10ms-vs-11-19ms.yaml",
+    client1Cca: "cubic",
+    client2Cca: "cubic",
+    bottleneckRateMegabit: GROUP_NETEM_NINES_BOTTLENECK_RATE_MEGABIT,
+    queueBufferSizeKilobyte: GROUP_NETEM_NINES_QUEUE_BUFFER_SIZE_KILOBYTES,
+    workloadMegabytes: GROUP_NETEM_NINES_WORKLOAD_MEGABYTES,
+    client2DelayRange: GROUP_CLIENT_2_DELAY_RANGE,
+  },
+  {
+    label:
+      "delay-10ms-to-19ms-10flows-all-bbr-100MB-bottleneck-bandwidth-500kb-queue.yaml",
+    client1Cca: "bbr",
+    client2Cca: "bbr",
+    bottleneckRateMegabit: GROUP_DEFAULT_BOTTLENECK_RATE_MEGABIT,
+    queueBufferSizeKilobyte: GROUP_DEFAULT_QUEUE_BUFFER_SIZE_KILOBYTES,
+    workloadMegabytes: GROUP_WORKLOAD_MEGABYTES,
+  },
   {
     label:
       "delay-10ms-to-19ms-10flows-all-bbr-10MB-bottleneck-bandwidth-500kb-queue.yaml",
     client1Cca: "bbr",
     client2Cca: "bbr",
-    bottleneckRateMegabit: GROUP_500KB_QUEUE_BOTTLENECK_RATE_MEGABIT,
-    queueBufferSizeKilobyte: GROUP_500KB_QUEUE_BUFFER_SIZE_KILOBYTES,
+    bottleneckRateMegabit: GROUP_DEFAULT_BOTTLENECK_RATE_MEGABIT,
+    queueBufferSizeKilobyte: GROUP_DEFAULT_QUEUE_BUFFER_SIZE_KILOBYTES,
+    workloadMegabytes: GROUP_WORKLOAD_MEGABYTES,
+  },
+  {
+    label:
+      "delay-10ms-to-19ms-10flows-all-cubic-100MB-bottleneck-bandwidth-500kb-queue.yaml",
+    client1Cca: "cubic",
+    client2Cca: "cubic",
+    bottleneckRateMegabit: GROUP_DEFAULT_BOTTLENECK_RATE_MEGABIT,
+    queueBufferSizeKilobyte: GROUP_DEFAULT_QUEUE_BUFFER_SIZE_KILOBYTES,
+    workloadMegabytes: GROUP_WORKLOAD_MEGABYTES,
   },
   {
     label:
       "delay-10ms-to-19ms-10flows-all-cubic-10MB-bottleneck-bandwidth-500kb-queue.yaml",
     client1Cca: "cubic",
     client2Cca: "cubic",
-    bottleneckRateMegabit: GROUP_500KB_QUEUE_BOTTLENECK_RATE_MEGABIT,
-    queueBufferSizeKilobyte: GROUP_500KB_QUEUE_BUFFER_SIZE_KILOBYTES,
+    bottleneckRateMegabit: GROUP_DEFAULT_BOTTLENECK_RATE_MEGABIT,
+    queueBufferSizeKilobyte: GROUP_DEFAULT_QUEUE_BUFFER_SIZE_KILOBYTES,
+    workloadMegabytes: GROUP_WORKLOAD_MEGABYTES,
+  },
+  {
+    label:
+      "delay-10ms-vs-10-70ms-bbr-bbr-10MB-bottleneck-bandwidth-125kb-queue.yaml",
+    client1Cca: "bbr",
+    client2Cca: "bbr",
+    bottleneckRateMegabit: GROUP_DEFAULT_BOTTLENECK_RATE_MEGABIT,
+    queueBufferSizeKilobyte: GROUP_DEFAULT_QUEUE_BUFFER_SIZE_KILOBYTES,
+    workloadMegabytes: GROUP_WORKLOAD_MEGABYTES,
   },
   {
     label:
       "delay-10ms-vs-10-70ms-bbr-bbr-10MB-bottleneck-bandwidth-500kb-queue.yaml",
     client1Cca: "bbr",
     client2Cca: "bbr",
-    bottleneckRateMegabit: GROUP_500KB_QUEUE_BOTTLENECK_RATE_MEGABIT,
-    queueBufferSizeKilobyte: GROUP_500KB_QUEUE_BUFFER_SIZE_KILOBYTES,
+    bottleneckRateMegabit: GROUP_DEFAULT_BOTTLENECK_RATE_MEGABIT,
+    queueBufferSizeKilobyte: GROUP_DEFAULT_QUEUE_BUFFER_SIZE_KILOBYTES,
+    workloadMegabytes: GROUP_WORKLOAD_MEGABYTES,
   },
   {
     label:
-      "delay-10ms-vs-10-70ms-bbr-bbr-10MB-bottleneck-bandwidth.yaml",
-    client1Cca: "bbr",
+      "delay-10ms-vs-10-70ms-cubic-bbr-10MB-bottleneck-bandwidth-125kb-queue.yaml",
+    client1Cca: "cubic",
     client2Cca: "bbr",
     bottleneckRateMegabit: GROUP_DEFAULT_BOTTLENECK_RATE_MEGABIT,
     queueBufferSizeKilobyte: GROUP_DEFAULT_QUEUE_BUFFER_SIZE_KILOBYTES,
+    workloadMegabytes: GROUP_WORKLOAD_MEGABYTES,
   },
   {
     label:
       "delay-10ms-vs-10-70ms-cubic-bbr-10MB-bottleneck-bandwidth-500kb-queue.yaml",
     client1Cca: "cubic",
     client2Cca: "bbr",
-    bottleneckRateMegabit: GROUP_500KB_QUEUE_BOTTLENECK_RATE_MEGABIT,
-    queueBufferSizeKilobyte: GROUP_500KB_QUEUE_BUFFER_SIZE_KILOBYTES,
+    bottleneckRateMegabit: GROUP_DEFAULT_BOTTLENECK_RATE_MEGABIT,
+    queueBufferSizeKilobyte: GROUP_DEFAULT_QUEUE_BUFFER_SIZE_KILOBYTES,
+    workloadMegabytes: GROUP_WORKLOAD_MEGABYTES,
   },
   {
     label:
-      "delay-10ms-vs-10-70ms-cubic-bbr-10MB-bottleneck-bandwidth.yaml",
+      "delay-10ms-vs-10-70ms-cubic-cubic-10MB-bottleneck-bandwidth-125kb-queue.yaml",
     client1Cca: "cubic",
-    client2Cca: "bbr",
+    client2Cca: "cubic",
     bottleneckRateMegabit: GROUP_DEFAULT_BOTTLENECK_RATE_MEGABIT,
     queueBufferSizeKilobyte: GROUP_DEFAULT_QUEUE_BUFFER_SIZE_KILOBYTES,
+    workloadMegabytes: GROUP_WORKLOAD_MEGABYTES,
   },
   {
     label:
       "delay-10ms-vs-10-70ms-cubic-cubic-10MB-bottleneck-bandwidth-500kb-queue.yaml",
     client1Cca: "cubic",
     client2Cca: "cubic",
-    bottleneckRateMegabit: GROUP_500KB_QUEUE_BOTTLENECK_RATE_MEGABIT,
-    queueBufferSizeKilobyte: GROUP_500KB_QUEUE_BUFFER_SIZE_KILOBYTES,
-  },
-  {
-    label:
-      "delay-10ms-vs-10-70ms-cubic-cubic-10MB-bottleneck-bandwidth.yaml",
-    client1Cca: "cubic",
-    client2Cca: "cubic",
     bottleneckRateMegabit: GROUP_DEFAULT_BOTTLENECK_RATE_MEGABIT,
     queueBufferSizeKilobyte: GROUP_DEFAULT_QUEUE_BUFFER_SIZE_KILOBYTES,
+    workloadMegabytes: GROUP_WORKLOAD_MEGABYTES,
   },
 ];
 const OTHER_CLIENT_DELAY_GRAPH_LABEL =
@@ -902,6 +952,10 @@ function aggregateTestMatchesGroup(
   test: AvailableAggregateTest,
   group: AvailableTestGroupOption,
 ) {
+  const workloadMegabytes = group.workloadMegabytes ?? GROUP_WORKLOAD_MEGABYTES;
+  const client2DelayRange =
+    group.client2DelayRange ?? GROUP_CLIENT_2_DELAY_RANGE;
+
   if (test.numberOfClients !== 2) {
     return false;
   }
@@ -929,13 +983,13 @@ function aggregateTestMatchesGroup(
     clientHasDelay(client1, GROUP_CLIENT_1_DELAY_MS) &&
     clientHasDelayInRange(
       client2,
-      GROUP_CLIENT_2_DELAY_RANGE.min,
-      GROUP_CLIENT_2_DELAY_RANGE.max,
+      client2DelayRange.min,
+      client2DelayRange.max,
     ) &&
     clientHasCca(client1, group.client1Cca) &&
     clientHasCca(client2, group.client2Cca) &&
-    clientHasWorkload(client1, GROUP_WORKLOAD_MEGABYTES) &&
-    clientHasWorkload(client2, GROUP_WORKLOAD_MEGABYTES) &&
+    clientHasWorkload(client1, workloadMegabytes) &&
+    clientHasWorkload(client2, workloadMegabytes) &&
     clientHasStartDelay(client1, GROUP_CLIENT_START_DELAY_MS) &&
     clientHasStartDelay(client2, GROUP_CLIENT_START_DELAY_MS)
   );
@@ -977,13 +1031,35 @@ function getTestClientDetail(test: AvailableAggregateTest, clientNumber: number)
 }
 
 function formatGroupCriteria(group: AvailableTestGroupOption) {
+  const workloadMegabytes = group.workloadMegabytes ?? GROUP_WORKLOAD_MEGABYTES;
+  const client2DelayRange =
+    group.client2DelayRange ?? GROUP_CLIENT_2_DELAY_RANGE;
+
   return [
     "2 clients",
     `bottleneck ${formatAxisValue(group.bottleneckRateMegabit)} mbit`,
     `queue ${formatAxisValue(group.queueBufferSizeKilobyte)} KB`,
-    `client 1: ${group.client1Cca.toUpperCase()}, delay ${GROUP_CLIENT_1_DELAY_MS} ms, start ${GROUP_CLIENT_START_DELAY_MS} ms, ${GROUP_WORKLOAD_MEGABYTES} MB`,
-    `client 2: ${group.client2Cca.toUpperCase()}, delay ${GROUP_CLIENT_2_DELAY_RANGE.min}-${GROUP_CLIENT_2_DELAY_RANGE.max} ms, start ${GROUP_CLIENT_START_DELAY_MS} ms, ${GROUP_WORKLOAD_MEGABYTES} MB`,
+    `client 1: ${group.client1Cca.toUpperCase()}, delay ${GROUP_CLIENT_1_DELAY_MS} ms, start ${GROUP_CLIENT_START_DELAY_MS} ms, ${workloadMegabytes} MB`,
+    `client 2: ${group.client2Cca.toUpperCase()}, delay ${client2DelayRange.min}-${client2DelayRange.max} ms, start ${GROUP_CLIENT_START_DELAY_MS} ms, ${workloadMegabytes} MB`,
   ].join(" | ");
+}
+
+function formatGroupScenarioLabel(group: AvailableTestGroupOption) {
+  const ccaPair =
+    group.client1Cca === group.client2Cca
+      ? `All ${group.client1Cca.toUpperCase()}`
+      : `${group.client1Cca.toUpperCase()} + ${group.client2Cca.toUpperCase()}`;
+  const delayPattern = group.label.includes("delay-10ms-to-19ms")
+    ? "10-19 ms delay sweep"
+    : group.label.includes("11-19ms")
+      ? "10 ms vs 11-19 ms"
+    : "10 ms vs variable delay";
+
+  return `${ccaPair} ${delayPattern}`;
+}
+
+function formatGroupFileLabel(label: string) {
+  return label.replace(/\.ya?ml$/, "");
 }
 
 function formatClientActualParameters(
@@ -3807,10 +3883,10 @@ export function AggregateGraphsPanel({
             role="dialog"
             aria-modal="true"
             aria-labelledby={testModalTitleId}
-            className="flex min-h-[60vh] max-h-[80vh] w-full max-w-4xl flex-col overflow-hidden rounded-[1.75rem] border border-rose-200/80 bg-[#fff8fc] p-6 shadow-2xl dark:border-slate-600 dark:bg-slate-800"
+            className="flex min-h-[60vh] max-h-[84vh] w-full max-w-5xl flex-col overflow-hidden rounded-[1.75rem] border border-rose-200/80 bg-[#fff8fc] p-5 shadow-2xl dark:border-slate-600 dark:bg-slate-800 sm:p-6"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="hidden shrink-0 items-start justify-between gap-4">
+            <div className="flex shrink-0 items-start justify-between gap-4">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
                   Aggregate Tests
@@ -3822,7 +3898,8 @@ export function AggregateGraphsPanel({
                   Select Available Tests
                 </h2>
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                  {`${filteredAvailableTests.length} tests available`}
+                  Choose prepared test groups, then inspect or adjust the matched
+                  parent runs.
                 </p>
               </div>
               <button
@@ -3846,24 +3923,38 @@ export function AggregateGraphsPanel({
               </button>
             </div>
 
-            <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-rose-200/80 bg-white/80 dark:border-slate-600 dark:bg-slate-900/35">
-              <h3 className="shrink-0 border-b border-rose-200/80 bg-white/95 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-400">
-                Groups
-              </h3>
-              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
+            <section className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-rose-200/80 bg-white/75 shadow-inner dark:border-slate-600 dark:bg-slate-900/35">
+              <div className="shrink-0 border-b border-rose-200/80 bg-white/95 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/95">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                    Test Groups
+                  </h3>
+                  <span className="rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-800 dark:border-teal-500/45 dark:bg-teal-500/15 dark:text-teal-200">
+                    {selectedTestCountLabel}
+                  </span>
+                </div>
+              </div>
+              <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto p-4 lg:grid-cols-2">
                 {AVAILABLE_TEST_GROUP_OPTIONS.map((group) => {
                   const matchedTests =
                     testGroupMatchesByLabel.get(group.label) ?? [];
+                  const isSelected = selectedTestGroups.includes(group.label);
+                  const workloadMegabytes =
+                    group.workloadMegabytes ?? GROUP_WORKLOAD_MEGABYTES;
 
                   return (
                     <div
                       key={group.label}
-                      className="rounded-xl border border-rose-100/80 bg-white px-3 py-2 text-sm text-slate-700 transition hover:border-rose-200 dark:border-slate-700 dark:bg-slate-900/45 dark:text-slate-100 dark:hover:border-slate-600"
+                      className={`rounded-2xl border p-3 text-sm transition ${
+                        isSelected
+                          ? "border-teal-300 bg-teal-50/85 text-slate-900 shadow-sm dark:border-teal-500/60 dark:bg-teal-500/12 dark:text-slate-100"
+                          : "border-rose-100/80 bg-white text-slate-700 hover:border-rose-200 hover:bg-[#fffafd] dark:border-slate-700 dark:bg-slate-900/45 dark:text-slate-100 dark:hover:border-slate-600 dark:hover:bg-slate-900/70"
+                      }`}
                     >
                       <label className="flex cursor-pointer items-start gap-3">
                         <input
                           type="checkbox"
-                          checked={selectedTestGroups.includes(group.label)}
+                          checked={isSelected}
                           onChange={(event) =>
                             handleTestGroupSelection(
                               group.label,
@@ -3872,16 +3963,42 @@ export function AggregateGraphsPanel({
                           }
                           className="mt-1 h-4 w-4 shrink-0 rounded border-rose-400 text-teal-700 focus:ring-teal-500 dark:border-slate-400"
                         />
-                        <span className="min-w-0 break-words font-mono text-xs leading-5">
-                          {group.label}
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-start justify-between gap-2">
+                            <span className="text-base font-semibold leading-6 text-slate-900 dark:text-slate-100">
+                              {formatGroupScenarioLabel(group)}
+                            </span>
+                            <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
+                              {`${matchedTests.length} ${
+                                matchedTests.length === 1 ? "test" : "tests"
+                              }`}
+                            </span>
+                          </span>
+                          <span className="mt-1 block break-words font-mono text-[11px] leading-4 text-slate-500 dark:text-slate-400">
+                            {formatGroupFileLabel(group.label)}
+                          </span>
+                          <span className="mt-3 flex flex-wrap gap-1.5">
+                            <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 ring-1 ring-rose-100 dark:bg-slate-950/40 dark:text-slate-200 dark:ring-slate-700">
+                              {`${group.client1Cca.toUpperCase()} / ${group.client2Cca.toUpperCase()}`}
+                            </span>
+                            <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 ring-1 ring-rose-100 dark:bg-slate-950/40 dark:text-slate-200 dark:ring-slate-700">
+                              {`${formatAxisValue(group.bottleneckRateMegabit)} mbit`}
+                            </span>
+                            <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 ring-1 ring-rose-100 dark:bg-slate-950/40 dark:text-slate-200 dark:ring-slate-700">
+                              {`${formatAxisValue(group.queueBufferSizeKilobyte)} KB queue`}
+                            </span>
+                            <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 ring-1 ring-rose-100 dark:bg-slate-950/40 dark:text-slate-200 dark:ring-slate-700">
+                              {`${workloadMegabytes} MB`}
+                            </span>
+                          </span>
                         </span>
                       </label>
-                      <details className="group mt-2">
-                        <summary className="flex cursor-pointer list-none items-center justify-between rounded-lg border border-rose-100 bg-rose-50/70 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:border-slate-600">
-                          <span>{`Included tests (${matchedTests.length})`}</span>
+                      <details className="group mt-3">
+                        <summary className="flex cursor-pointer list-none items-center justify-between rounded-xl border border-rose-100 bg-white/70 px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-rose-200 hover:bg-white dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:border-slate-600">
+                          <span>{`View matched parent runs (${matchedTests.length})`}</span>
                           <span className="ml-2 h-2 w-2 rotate-45 border-b-2 border-r-2 border-slate-500 transition group-open:rotate-[225deg] dark:border-slate-300" />
                         </summary>
-                        <div className="mt-2 rounded-lg border border-rose-100 bg-white/80 p-2 dark:border-slate-700 dark:bg-slate-950/35">
+                        <div className="mt-2 rounded-xl border border-rose-100 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-950/35">
                           <p className="text-[11px] leading-5 text-slate-500 dark:text-slate-300">
                             {formatGroupCriteria(group)}
                           </p>
@@ -3890,7 +4007,7 @@ export function AggregateGraphsPanel({
                               {matchedTests.map((test) => (
                                 <li
                                   key={test.parentRunId}
-                                  className="rounded-md bg-rose-50/70 px-2 py-1.5 font-mono text-[11px] leading-5 text-slate-700 dark:bg-slate-800/65 dark:text-slate-100"
+                                  className="rounded-lg bg-rose-50/70 px-2 py-1.5 font-mono text-[11px] leading-5 text-slate-700 dark:bg-slate-800/65 dark:text-slate-100"
                                 >
                                   {formatGroupMatchedTestParameters(test)}
                                 </li>
@@ -4155,7 +4272,7 @@ export function AggregateGraphsPanel({
               </div>
             </div>
 
-            <div className="mt-5 hidden shrink-0 flex-wrap items-center justify-between gap-3">
+            <div className="mt-5 flex shrink-0 flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm text-slate-600 dark:text-slate-300">
                   {selectedTestCountLabel}

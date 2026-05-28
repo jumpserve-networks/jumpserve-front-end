@@ -28,6 +28,7 @@ const THEME_OPTIONS: Array<{
     label: "dark",
   },
 ];
+const LANDING_SERIF_FONT = "Georgia, 'Times New Roman', serif";
 
 function LightThemeIcon() {
   return (
@@ -126,8 +127,16 @@ function getThemeOptionCircleStyle(preference: ThemePreference) {
   return undefined;
 }
 
-export function LandingPageShell() {
-  const [isThemeChooserVisible, setIsThemeChooserVisible] = useState(true);
+type LandingPageShellProps = {
+  initialHasStoredThemePreference?: boolean;
+};
+
+export function LandingPageShell({
+  initialHasStoredThemePreference = false,
+}: LandingPageShellProps) {
+  const [isThemeChooserOpen, setIsThemeChooserOpen] = useState(
+    !initialHasStoredThemePreference,
+  );
   const [previewPreference, setPreviewPreference] = useState<ThemePreference | null>(null);
   const storedPreferenceRef = useRef<ThemePreference>("system");
   const themeSnapshot = useSyncExternalStore(
@@ -136,6 +145,8 @@ export function LandingPageShell() {
     getServerThemePreferenceSnapshot,
   );
   const activePreference = previewPreference ?? themeSnapshot.preference;
+  const isThemeChooserVisible =
+    isThemeChooserOpen && !themeSnapshot.hasStoredPreference;
 
   useEffect(() => {
     applyTheme(activePreference);
@@ -154,7 +165,7 @@ export function LandingPageShell() {
   function handleThemeSelect(preference: ThemePreference) {
     setThemePreference(preference);
     setPreviewPreference(null);
-    setIsThemeChooserVisible(false);
+    setIsThemeChooserOpen(false);
   }
 
   function handlePreviewStart(preference: ThemePreference) {
@@ -166,7 +177,10 @@ export function LandingPageShell() {
   }
 
   return (
-    <main className="space-atmosphere relative min-h-screen overflow-hidden">
+    <main
+      className="space-atmosphere relative min-h-screen overflow-hidden"
+      style={{ fontFamily: LANDING_SERIF_FONT }}
+    >
       {isThemeChooserVisible ? (
         <section className="absolute inset-0 z-[60]">
           <div className="absolute inset-0 bg-white/25 backdrop-blur-sm dark:bg-slate-950/35" />
@@ -174,7 +188,7 @@ export function LandingPageShell() {
             <div className="mx-auto w-full max-w-7xl">
               <p
                 className="chooser-fade-up-late mt-24 -translate-y-16 text-center text-sm font-semibold uppercase tracking-[0.36em] text-slate-600 dark:text-slate-300 sm:mt-32 sm:-translate-y-20"
-                style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
+                style={{ fontFamily: LANDING_SERIF_FONT }}
               >
                 Jumpserve
               </p>
@@ -199,7 +213,7 @@ export function LandingPageShell() {
                     </span>
                     <span
                       className="text-3xl font-semibold tracking-[0.08em] sm:text-4xl"
-                      style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
+                      style={{ fontFamily: LANDING_SERIF_FONT }}
                     >
                       {option.label}
                     </span>
@@ -216,7 +230,7 @@ export function LandingPageShell() {
           <p className="mb-4 text-center text-2xl font-semibold tracking-[0.08em] text-slate-900 dark:text-slate-100">
             <span
               className="chooser-fade-up-late inline-block"
-              style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
+              style={{ fontFamily: LANDING_SERIF_FONT }}
             >
               Jumpserve
             </span>
@@ -224,15 +238,21 @@ export function LandingPageShell() {
           <nav className="chooser-fade-up grid grid-cols-1 gap-3 rounded-[1.75rem] border border-rose-200/70 bg-[#fff8fc]/95 p-4 text-center shadow-xl dark:border-slate-600 dark:bg-slate-800/82 sm:grid-cols-2">
             <Link
               href="/test-lookup"
-              className="flex min-h-20 items-center justify-center rounded-[1.2rem] bg-slate-900 px-4 py-4 text-lg font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
+              className="flex min-h-24 flex-col items-center justify-center gap-1 rounded-[1.2rem] bg-slate-900 px-4 py-4 text-center text-white transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-950 dark:hover:bg-white"
             >
-              Test lookup
+              <span className="text-lg font-semibold">Test lookup</span>
+              <span className="text-sm font-normal leading-5 opacity-80">
+                Search individual tests and inspect their run details
+              </span>
             </Link>
             <Link
               href="/aggregate-graphs"
-              className="flex min-h-20 items-center justify-center rounded-[1.2rem] border border-rose-300/80 bg-[#fff5fb] px-4 py-4 text-lg font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-700/85 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
+              className="flex min-h-24 flex-col items-center justify-center gap-1 rounded-[1.2rem] border border-rose-300/80 bg-[#fff5fb] px-4 py-4 text-center text-slate-800 transition hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-700/85 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
             >
-              Aggregate graphs
+              <span className="text-lg font-semibold">Aggregate graphs</span>
+              <span className="text-sm font-normal leading-5 opacity-75">
+                Compare emulation metrics across groups of runs
+              </span>
             </Link>
           </nav>
         </div>
