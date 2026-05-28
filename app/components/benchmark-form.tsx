@@ -47,6 +47,9 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
   const [startDelaysText, setStartDelaysText] = useState(
     config.client_start_delays_ms.join(", "),
   );
+  const [experimentName, setExperimentName] = useState("");
+  const [tagsText, setTagsText] = useState("");
+  const [notes, setNotes] = useState("");
 
   useEffect(() => {
     loadConfigs();
@@ -124,12 +127,18 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
             ...Array(numClients - startDelays.length).fill(0),
           ];
 
-    return {
+    const finalConfig: any = {
       ...config,
       client_delays_ms: delays,
       client_file_sizes_mbytes: fileSizes,
       client_start_delays_ms: paddedStartDelays,
     };
+    if (experimentName.trim()) finalConfig.experiment_name = experimentName.trim();
+    if (tagsText.trim()) {
+      finalConfig.tags = tagsText.split(",").map((t) => t.trim()).filter(Boolean);
+    }
+    if (notes.trim()) finalConfig.notes = notes.trim();
+    return finalConfig;
   }
 
   async function handleLaunch() {
@@ -360,6 +369,45 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
           <option value="kernel">Kernel</option>
           <option value="ss">SS (out-of-band)</option>
         </select>
+      </div>
+
+      {/* Experiment metadata */}
+      <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
+        <p className="mb-3 text-sm font-medium text-slate-600 dark:text-slate-400">
+          Experiment Metadata (optional)
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className={labelClasses}>Experiment Name</label>
+            <input
+              type="text"
+              className={inputClasses}
+              value={experimentName}
+              onChange={(e) => setExperimentName(e.target.value)}
+              placeholder="e.g. bbr-fairness-sweep-v2"
+            />
+          </div>
+          <div>
+            <label className={labelClasses}>Tags (comma-separated)</label>
+            <input
+              type="text"
+              className={inputClasses}
+              value={tagsText}
+              onChange={(e) => setTagsText(e.target.value)}
+              placeholder="e.g. fairness, bbr, paper-fig3"
+            />
+          </div>
+          <div>
+            <label className={labelClasses}>Notes</label>
+            <textarea
+              className={inputClasses + " resize-none"}
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="What are you testing and why?"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Save config */}
