@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { BenchmarkForm } from "@/app/components/benchmark-form";
 import { BenchmarkStatus } from "@/app/components/benchmark-status";
@@ -19,10 +18,6 @@ export default async function BenchmarksPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/");
-  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -45,19 +40,33 @@ export default async function BenchmarksPage() {
           a fresh EC2 instance.
         </p>
 
-        <div className="mt-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <h2 className="mb-4 text-lg font-semibold text-slate-800 dark:text-slate-200">
-            Configuration
-          </h2>
-          <BenchmarkForm userEmail={user.email} />
-        </div>
+        {!user ? (
+          <div className="mt-8 rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <p className="text-lg font-medium text-slate-700 dark:text-slate-300">
+              Sign in to run benchmarks
+            </p>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              Click the &quot;Login with Google&quot; button in the top-right
+              corner, then refresh this page.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="mt-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+              <h2 className="mb-4 text-lg font-semibold text-slate-800 dark:text-slate-200">
+                Configuration
+              </h2>
+              <BenchmarkForm userEmail={user.email} />
+            </div>
 
-        <div className="mt-8">
-          <h2 className="mb-4 text-lg font-semibold text-slate-800 dark:text-slate-200">
-            Recent Jobs
-          </h2>
-          <BenchmarkStatus />
-        </div>
+            <div className="mt-8">
+              <h2 className="mb-4 text-lg font-semibold text-slate-800 dark:text-slate-200">
+                Recent Jobs
+              </h2>
+              <BenchmarkStatus />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
