@@ -40,6 +40,22 @@ export async function launchBenchmark(
   return data;
 }
 
+export async function cancelBenchmark(jobId: string): Promise<{ jobId: string; status: string }> {
+  const res = await fetch(`${BENCHMARK_API_URL}/benchmarks/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jobId }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || `Request failed with status ${res.status}`);
+  }
+
+  return data;
+}
+
 export const AVAILABLE_CCAS = [
   'cubic',
   'bbr',

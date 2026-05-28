@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { cancelBenchmark } from "@/lib/benchmark-api";
 
 interface BenchmarkJob {
   id: string;
@@ -38,6 +39,8 @@ const STATUS_STYLES: Record<string, string> = {
     "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300",
   terminated:
     "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300",
+  cancelled:
+    "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
 };
 
 const PHASE_ORDER = [
@@ -225,6 +228,41 @@ function LiveMetrics({ jobId }: { jobId: string }) {
   );
 }
 
+function CancelButton({
+  jobId,
+  onCancelled,
+}: {
+  jobId: string;
+  onCancelled: () => void;
+}) {
+  const [cancelling, setCancelling] = useState(false);
+
+  async function handleCancel() {
+    if (!confirm("Cancel this benchmark? The EC2 instance will be terminated."))
+      return;
+    setCancelling(true);
+    try {
+      await cancelBenchmark(jobId);
+      onCancelled();
+    } catch (err: any) {
+      alert(`Failed to cancel: ${err.message}`);
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleCancel}
+      disabled={cancelling}
+      className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-500/40 dark:bg-slate-800 dark:text-red-400 dark:hover:bg-red-500/10"
+    >
+      {cancelling ? "Cancelling..." : "Cancel"}
+    </button>
+  );
+}
+
 export function BenchmarkStatus() {
   const [supabase] = useState(() => createClient());
   const [jobs, setJobs] = useState<BenchmarkJob[]>([]);
@@ -293,14 +331,19 @@ export function BenchmarkStatus() {
                   </p>
                 )}
               </div>
-              {job.status === "completed" && job.parent_run_id && (
-                <Link
-                  href={`/parent-run/${job.parent_run_id}`}
-                  className="shrink-0 rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-rose-600"
-                >
-                  View Results
-                </Link>
-              )}
+              <div className="flex shrink-0 gap-2">
+                {isActive && (
+                  <CancelButton jobId={job.id} onCancelled={fetchJobs} />
+                )}
+                {job.status === "completed" && job.parent_run_id && (
+                  <Link
+                    href={`/parent-run/${job.parent_run_id}`}
+                    className="rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-rose-600"
+                  >
+                    View Results
+                  </Link>
+                )}
+              </div>
             </div>
 
             {/* Progress bar for active jobs */}
