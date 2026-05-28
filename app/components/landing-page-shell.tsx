@@ -254,6 +254,15 @@ export function LandingPageShell({
                 Compare emulation metrics across groups of runs
               </span>
             </Link>
+            <Link
+              href="/benchmarks"
+              className="flex min-h-24 flex-col items-center justify-center gap-1 rounded-[1.2rem] border border-rose-300/80 bg-[#fff5fb] px-4 py-4 text-center text-slate-800 transition hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-700/85 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700 sm:col-span-2"
+            >
+              <span className="text-lg font-semibold">Run benchmark</span>
+              <span className="text-sm font-normal leading-5 opacity-75">
+                Configure and launch benchmarks on fresh EC2 instances
+              </span>
+            </Link>
           </nav>
         </div>
       </div>
