@@ -3796,14 +3796,14 @@ export function AggregateGraphsPanel({
 
           <div className="mt-6 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
             <aside className="flex items-start">
-              <div className="fade-up-on-load-delay-2 rounded-[1.75rem] border border-rose-200/80 bg-[#fff3f8] p-4 shadow-inner dark:border-slate-600 dark:bg-slate-900/60 sm:p-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+              <div className="fade-up-on-load-delay-2 rounded-[1.75rem] border border-emerald-200/80 bg-emerald-50/95 p-4 shadow-inner shadow-emerald-900/5 dark:border-emerald-500/35 dark:bg-emerald-950/30 sm:p-5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
                   Test Selection
                 </p>
                 <button
                   type="button"
                   onClick={() => setIsTestModalOpen(true)}
-                  className="group mt-3 flex w-full items-center justify-between rounded-xl border border-rose-500/80 bg-rose-500 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:border-rose-600 hover:bg-rose-600 hover:shadow-[0_12px_24px_-16px_rgba(190,24,93,0.55)] dark:border-emerald-400/80 dark:bg-emerald-400 dark:text-slate-950 dark:hover:border-emerald-300 dark:hover:bg-emerald-300 dark:hover:shadow-[0_12px_24px_-16px_rgba(52,211,153,0.55)]"
+                  className="group mt-3 flex w-full items-center justify-between rounded-xl border border-emerald-500/80 bg-emerald-500 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-600 hover:bg-emerald-600 hover:shadow-[0_12px_24px_-16px_rgba(5,150,105,0.55)] dark:border-emerald-400/80 dark:bg-emerald-400 dark:text-slate-950 dark:hover:border-emerald-300 dark:hover:bg-emerald-300 dark:hover:shadow-[0_12px_24px_-16px_rgba(52,211,153,0.55)]"
                 >
                   <span>Select Available Tests</span>
                   <svg
@@ -3820,7 +3820,7 @@ export function AggregateGraphsPanel({
                     <path d="m13 6 6 6-6 6" />
                   </svg>
                 </button>
-                <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+                <p className="mt-3 text-sm text-emerald-800 dark:text-emerald-200">
                   {selectedTestCountLabel}
                 </p>
               </div>
