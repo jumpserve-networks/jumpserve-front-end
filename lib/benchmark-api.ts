@@ -73,6 +73,7 @@ export const AVAILABLE_SCRIPTS = [
   { value: 'netem_cubic_benchmark_hotnets.py', label: 'HotNets Benchmark' },
   { value: 'netem_cubic_benchmark_nines.py', label: 'Nines Benchmark' },
   { value: 'netem_nines.py', label: 'Netem Nines' },
+  { value: 'netem_multi_bottleneck.py', label: 'Multi-Bottleneck (parking-lot / dumbbell)' },
 ] as const;
 
 export function defaultConfig(): BenchmarkConfig {
