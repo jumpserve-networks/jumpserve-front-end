@@ -1,6 +1,5 @@
 # Jumpserve Front End
 
-testing
 Starter app using:
 
 - Next.js `16.1.6`
