@@ -74,11 +74,19 @@ function parseSavedMessages(raw: any[]): Message[] {
   return msgs;
 }
 
+interface SessionSummary {
+  id: string;
+  updated_at: string;
+  preview: string;
+}
+
 export function ChatPanel({ userEmail }: { userEmail?: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [showSessions, setShowSessions] = useState(false);
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [supabase] = useState(() => createClient());
   const [sessionId] = useState(() => {
     if (typeof window !== "undefined") {
@@ -147,6 +155,31 @@ export function ChatPanel({ userEmail }: { userEmail?: string }) {
     }
   }
 
+  async function loadSessions() {
+    const { data } = await supabase
+      .from("agent_sessions")
+      .select("id, updated_at, messages")
+      .order("updated_at", { ascending: false })
+      .limit(20);
+    if (data) {
+      setSessions(
+        data.map((s: any) => {
+          let preview = "Empty chat";
+          if (Array.isArray(s.messages)) {
+            const firstUser = s.messages.find((m: any) => m.role === "user");
+            if (firstUser) {
+              const text = Array.isArray(firstUser.content)
+                ? firstUser.content.map((b: any) => (typeof b === "string" ? b : b.text || "")).join("")
+                : String(firstUser.content);
+              preview = text.slice(0, 60) + (text.length > 60 ? "..." : "");
+            }
+          }
+          return { id: s.id, updated_at: s.updated_at, preview };
+        }),
+      );
+    }
+  }
+
   function handleNewSession() {
     const id = crypto.randomUUID();
     localStorage.setItem("jumpserve-chat-session", id);
@@ -154,8 +187,93 @@ export function ChatPanel({ userEmail }: { userEmail?: string }) {
     window.location.reload();
   }
 
+  function switchSession(id: string) {
+    localStorage.setItem("jumpserve-chat-session", id);
+    setShowSessions(false);
+    window.location.reload();
+  }
+
+  async function deleteSession(id: string) {
+    await supabase.from("agent_sessions").delete().eq("id", id);
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+    if (id === sessionId) {
+      handleNewSession();
+    }
+  }
+
   return (
-    <div className="flex h-[calc(100vh-12rem)] flex-col">
+    <div className="relative flex h-[calc(100vh-12rem)] flex-col">
+      {/* Sessions drawer */}
+      {showSessions && (
+        <div className="absolute inset-0 z-20 flex">
+          <div className="w-72 flex-shrink-0 overflow-y-auto border-r border-slate-200 bg-white p-4 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Chat History
+              </h3>
+              <button
+                onClick={() => setShowSessions(false)}
+                className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <button
+              onClick={handleNewSession}
+              className="mb-3 w-full rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-500 transition hover:border-rose-400 hover:text-rose-500 dark:border-slate-600 dark:text-slate-400"
+            >
+              + New Chat
+            </button>
+            {sessions.length === 0 && (
+              <p className="text-xs text-slate-400 dark:text-slate-500">No chats yet</p>
+            )}
+            {sessions.map((s) => (
+              <div
+                key={s.id}
+                className={`group mb-1.5 flex items-start gap-2 rounded-lg px-3 py-2 text-sm transition ${
+                  s.id === sessionId
+                    ? "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"
+                    : "text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
+                }`}
+              >
+                <button
+                  onClick={() => switchSession(s.id)}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <p className="truncate font-medium">{s.preview}</p>
+                  <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                    {new Date(s.updated_at).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteSession(s.id);
+                  }}
+                  className="mt-0.5 shrink-0 rounded p-1 text-slate-300 opacity-0 transition hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 dark:text-slate-600 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                  title="Delete chat"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+          <div
+            className="flex-1 bg-black/20"
+            onClick={() => setShowSessions(false)}
+          />
+        </div>
+      )}
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-4 pb-4">
         {messages.length === 0 && historyLoaded && (
@@ -242,8 +360,11 @@ export function ChatPanel({ userEmail }: { userEmail?: string }) {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={handleNewSession}
-            title="New conversation"
+            onClick={() => {
+              loadSessions();
+              setShowSessions(true);
+            }}
+            title="Chat history"
             className="shrink-0 rounded-lg border border-slate-200 p-2.5 text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
           >
             <svg
@@ -256,7 +377,7 @@ export function ChatPanel({ userEmail }: { userEmail?: string }) {
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M12 4.5v15m7.5-7.5h-15"
+                d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
               />
             </svg>
           </button>
