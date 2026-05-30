@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   applyTheme,
   getServerThemePreferenceSnapshot,
@@ -127,6 +127,113 @@ function getThemeOptionCircleStyle(preference: ThemePreference) {
   return undefined;
 }
 
+function InfoModal({ onClose }: { onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const handleBackdrop = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.target === e.currentTarget) onClose();
+    },
+    [onClose],
+  );
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const sectionTitle = "mb-2 text-base font-bold text-slate-800 dark:text-slate-100";
+  const prose = "text-sm leading-relaxed text-slate-600 dark:text-slate-300";
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      onClick={handleBackdrop}
+    >
+      <div
+        ref={ref}
+        className="relative mx-4 max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900 sm:p-8"
+        style={{ fontFamily: "system-ui, sans-serif" }}
+      >
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        <h2 className="mb-6 text-xl font-bold text-slate-900 dark:text-slate-50">
+          How to use JumpServe
+        </h2>
+
+        <div className="space-y-5">
+          <section>
+            <h3 className={sectionTitle}>Test Lookup</h3>
+            <p className={prose}>
+              Browse and search individual benchmark runs. Each run shows per-client throughput,
+              RTT, queueing delay, and congestion window over time. Click any run to see detailed
+              charts and snapshot-level data.
+            </p>
+          </section>
+
+          <section>
+            <h3 className={sectionTitle}>Aggregate Graphs</h3>
+            <p className={prose}>
+              Compare metrics across groups of runs. Select multiple parent runs to overlay
+              throughput or RTT curves and spot trends across different configurations.
+            </p>
+          </section>
+
+          <section>
+            <h3 className={sectionTitle}>Run Benchmark</h3>
+            <p className={prose}>
+              Launch TCP congestion control benchmarks on fresh EC2 instances. Configure the number
+              of clients, CCA per client (CUBIC, BBR, etc.), per-client delays, bottleneck rate, and
+              buffer size. Each run spins up a new instance, runs the experiment, persists results to
+              the database, and tears down the instance.
+            </p>
+            <ul className="mt-2 list-disc pl-5 text-sm text-slate-600 dark:text-slate-300 space-y-1">
+              <li><strong>Saved configs</strong> — save and reload frequently used configurations</li>
+              <li><strong>Experiment tags</strong> — tag runs for easy search (e.g. &quot;paper-fig3&quot;, &quot;fairness&quot;)</li>
+              <li><strong>Multi-bottleneck</strong> — select the Multi-Bottleneck script for parking-lot or dumbbell topologies</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3 className={sectionTitle}>Chat with AI</h3>
+            <p className={prose}>
+              An AI assistant powered by Claude that can run benchmarks, query results, compute
+              fairness metrics, and explain congestion control behavior — all in natural language.
+            </p>
+            <ul className="mt-2 list-disc pl-5 text-sm text-slate-600 dark:text-slate-300 space-y-1">
+              <li>&quot;Run a 2-client cubic vs bbr test at 100 Mbit with 10ms and 60ms delays&quot;</li>
+              <li>&quot;Show results for my last run&quot;</li>
+              <li>&quot;Compare run 42 and run 43&quot;</li>
+              <li>&quot;Find all runs tagged fairness&quot;</li>
+              <li>&quot;What&apos;s the Jain&apos;s fairness index for run 50?&quot;</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3 className={sectionTitle}>Key Concepts</h3>
+            <ul className="list-disc pl-5 text-sm text-slate-600 dark:text-slate-300 space-y-1">
+              <li><strong>CCA</strong> — Congestion Control Algorithm (CUBIC, BBR, Reno, etc.)</li>
+              <li><strong>Parent Run</strong> — a single benchmark execution containing all clients</li>
+              <li><strong>Bottleneck</strong> — the shared link all clients compete over</li>
+              <li><strong>Jain&apos;s Fairness Index</strong> — 1.0 = perfectly fair, 1/n = maximally unfair</li>
+              <li><strong>FCT</strong> — Flow Completion Time, how long each client takes to finish</li>
+            </ul>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type LandingPageShellProps = {
   initialHasStoredThemePreference?: boolean;
 };
@@ -134,6 +241,7 @@ type LandingPageShellProps = {
 export function LandingPageShell({
   initialHasStoredThemePreference = false,
 }: LandingPageShellProps) {
+  const [showInfo, setShowInfo] = useState(false);
   const [isThemeChooserOpen, setIsThemeChooserOpen] = useState(
     !initialHasStoredThemePreference,
   );
@@ -275,6 +383,18 @@ export function LandingPageShell({
           </nav>
         </div>
       </div>
+      {/* Info button */}
+      <button
+        onClick={() => setShowInfo(true)}
+        className="fixed bottom-5 right-5 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-slate-300/70 bg-white/90 text-slate-500 shadow-lg backdrop-blur transition hover:bg-white hover:text-slate-700 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+        title="How to use JumpServe"
+      >
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+        </svg>
+      </button>
+
+      {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
     </main>
   );
 }
