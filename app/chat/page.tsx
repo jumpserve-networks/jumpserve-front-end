@@ -23,8 +23,8 @@ export default async function ChatPage() {
       <AuthButton />
       <ThemeToggle />
 
-      <div className="mx-auto max-w-3xl px-4 py-8">
-        <div className="mb-4 flex items-center justify-between">
+      <div className="mx-auto max-w-5xl px-4 py-4">
+        <div className="mb-3 flex items-center justify-between">
           <Link
             href="/"
             className="inline-flex items-center gap-1 text-sm text-slate-500 transition hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
