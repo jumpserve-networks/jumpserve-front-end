@@ -285,6 +285,7 @@ export function LandingPageShell({
   }
 
   return (
+    <>
     <main
       className="space-atmosphere relative min-h-screen overflow-hidden"
       style={{ fontFamily: LANDING_SERIF_FONT }}
@@ -383,18 +384,20 @@ export function LandingPageShell({
           </nav>
         </div>
       </div>
-      {/* Info button */}
-      <button
-        onClick={() => setShowInfo(true)}
-        className="fixed bottom-5 right-5 z-50 flex h-10 w-10 items-center justify-center rounded-full border border-slate-300/70 bg-white/90 text-slate-500 shadow-lg backdrop-blur transition hover:bg-white hover:text-slate-700 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-        title="How to use JumpServe"
-      >
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
-        </svg>
-      </button>
-
-      {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
     </main>
+
+    {/* Info button — outside main to avoid overflow:hidden clipping */}
+    <button
+      onClick={() => setShowInfo(true)}
+      className="fixed bottom-5 right-5 z-[70] flex h-10 w-10 items-center justify-center rounded-full border border-slate-300/70 bg-white/90 text-slate-500 shadow-lg backdrop-blur transition hover:bg-white hover:text-slate-700 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+      title="How to use JumpServe"
+    >
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+      </svg>
+    </button>
+
+    {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
+    </>
   );
 }
