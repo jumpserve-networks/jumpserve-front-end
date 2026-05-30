@@ -46,75 +46,95 @@ function ToolEventBadge({ name }: { name: string }) {
 
 /**
  * Parse Strands-format messages into UI messages.
- * Strands stores: user, assistant (may have tool_use only), tool (toolResult), assistant (text reply).
- * We merge consecutive assistant messages and skip tool-result messages.
+ *
+ * Strands stores messages with content blocks using top-level keys:
+ *   - {text: "..."} for text content
+ *   - {toolUse: {toolUseId, name, input}} for tool calls
+ *   - {toolResult: {...}} for tool results (under role=user)
+ *
+ * A typical tool-use flow is:
+ *   user [{text}] → assistant [{toolUse}] → user [{toolResult}] → assistant [{text}]
+ *
+ * We merge consecutive assistant messages so tool badges appear with the final text.
  */
 function parseSavedMessages(raw: any[]): Message[] {
   const msgs: Message[] = [];
+  let pendingToolEvents: Array<{ name: string; input: any }> = [];
 
   for (const m of raw) {
     if (!m.role || !m.content) continue;
-
-    // Skip tool result messages
-    if (m.role === "tool" || m.role === "toolResult") continue;
+    const blocks = Array.isArray(m.content) ? m.content : [m.content];
 
     if (m.role === "user") {
-      const text = Array.isArray(m.content)
-        ? m.content
-            .map((b: any) => (typeof b === "string" ? b : b.text || ""))
-            .join("")
-        : String(m.content);
+      // Check if this is a toolResult message (skip it)
+      const hasToolResult = blocks.some(
+        (b: any) => typeof b === "object" && b.toolResult,
+      );
+      if (hasToolResult) continue;
+
+      // Regular user message
+      const text = blocks
+        .map((b: any) => {
+          if (typeof b === "string") return b;
+          if (b.text) return b.text;
+          return "";
+        })
+        .join("");
       if (text) msgs.push({ role: "user", content: text });
     } else if (m.role === "assistant") {
       let text = "";
       const toolEvents: Array<{ name: string; input: any }> = [];
 
-      if (Array.isArray(m.content)) {
-        for (const block of m.content) {
-          if (typeof block === "string") text += block;
-          else if (block.type === "text" && block.text) text += block.text;
-          else if (block.type === "tool_use")
-            toolEvents.push({ name: block.name, input: block.input });
+      for (const block of blocks) {
+        if (typeof block === "string") {
+          text += block;
+        } else if (block.text) {
+          text += block.text;
+        } else if (block.toolUse) {
+          toolEvents.push({
+            name: block.toolUse.name,
+            input: block.toolUse.input,
+          });
         }
-      } else if (typeof m.content === "string") {
-        text = m.content;
+        // Also handle the {"type": "text"/"tool_use"} format as fallback
+        else if (block.type === "text" && block.text) {
+          text += block.text;
+        } else if (block.type === "tool_use") {
+          toolEvents.push({ name: block.name, input: block.input });
+        }
       }
 
-      // If we have text, push a new message or merge tool events with previous
-      if (text) {
-        // Merge tool events from a preceding tool_use-only assistant message
-        const prev = msgs[msgs.length - 1];
-        if (
-          prev &&
-          prev.role === "assistant" &&
-          !prev.content &&
-          prev.toolEvents?.length
-        ) {
-          prev.content = text;
-          prev.toolEvents = [...(prev.toolEvents || []), ...toolEvents];
-        } else {
-          msgs.push({ role: "assistant", content: text, toolEvents });
-        }
-      } else if (toolEvents.length > 0) {
-        // Tool-use-only assistant message — push placeholder, will merge with next
-        msgs.push({ role: "assistant", content: "", toolEvents });
+      if (toolEvents.length > 0 && !text) {
+        // Tool-use-only message — save events to merge with next assistant text
+        pendingToolEvents.push(...toolEvents);
+      } else if (text) {
+        const allToolEvents = [...pendingToolEvents, ...toolEvents];
+        pendingToolEvents = [];
+        msgs.push({
+          role: "assistant",
+          content: text,
+          toolEvents: allToolEvents.length > 0 ? allToolEvents : undefined,
+        });
       }
     }
   }
 
-  // Remove any assistant messages that ended up with no content
-  return msgs.filter((m) => m.content || (m.toolEvents && m.toolEvents.length > 0));
+  return msgs;
 }
 
 function extractPreview(messages: any[]): string {
   if (!Array.isArray(messages)) return "Empty chat";
-  const firstUser = messages.find((m: any) => m.role === "user");
+  const firstUser = messages.find(
+    (m: any) =>
+      m.role === "user" &&
+      Array.isArray(m.content) &&
+      !m.content.some((b: any) => b.toolResult),
+  );
   if (!firstUser) return "Empty chat";
-  const text = Array.isArray(firstUser.content)
-    ? firstUser.content
-        .map((b: any) => (typeof b === "string" ? b : b.text || ""))
-        .join("")
-    : String(firstUser.content);
+  const blocks = Array.isArray(firstUser.content) ? firstUser.content : [firstUser.content];
+  const text = blocks
+    .map((b: any) => (typeof b === "string" ? b : b.text || ""))
+    .join("");
   return text.slice(0, 50) + (text.length > 50 ? "..." : "");
 }
 
