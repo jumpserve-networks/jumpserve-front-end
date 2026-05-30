@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { createClient } from "@/lib/supabase/client";
 import { sendMessage, type AgentResponse } from "@/lib/agent-api";
 
 interface Message {
@@ -45,10 +46,40 @@ function ToolEventBadge({ name }: { name: string }) {
   );
 }
 
+function parseSavedMessages(raw: any[]): Message[] {
+  const msgs: Message[] = [];
+  for (const m of raw) {
+    if (!m.role || !m.content) continue;
+    if (m.role === "user") {
+      const text = Array.isArray(m.content)
+        ? m.content.map((b: any) => (typeof b === "string" ? b : b.text || "")).join("")
+        : String(m.content);
+      if (text) msgs.push({ role: "user", content: text });
+    } else if (m.role === "assistant") {
+      let text = "";
+      const toolEvents: Array<{ name: string; input: any }> = [];
+      if (Array.isArray(m.content)) {
+        for (const block of m.content) {
+          if (typeof block === "string") text += block;
+          else if (block.type === "text") text += block.text || "";
+          else if (block.type === "tool_use")
+            toolEvents.push({ name: block.name, input: block.input });
+        }
+      } else {
+        text = String(m.content);
+      }
+      if (text) msgs.push({ role: "assistant", content: text, toolEvents });
+    }
+  }
+  return msgs;
+}
+
 export function ChatPanel({ userEmail }: { userEmail?: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [supabase] = useState(() => createClient());
   const [sessionId] = useState(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("jumpserve-chat-session");
@@ -60,6 +91,22 @@ export function ChatPanel({ userEmail }: { userEmail?: string }) {
     return crypto.randomUUID();
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load chat history from Supabase on mount
+  useEffect(() => {
+    async function loadHistory() {
+      const { data } = await supabase
+        .from("agent_sessions")
+        .select("messages")
+        .eq("id", sessionId)
+        .single();
+      if (data?.messages && Array.isArray(data.messages) && data.messages.length > 0) {
+        setMessages(parseSavedMessages(data.messages));
+      }
+      setHistoryLoaded(true);
+    }
+    loadHistory();
+  }, [sessionId, supabase]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -111,7 +158,7 @@ export function ChatPanel({ userEmail }: { userEmail?: string }) {
     <div className="flex h-[calc(100vh-12rem)] flex-col">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-4 pb-4">
-        {messages.length === 0 && (
+        {messages.length === 0 && historyLoaded && (
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
               <p className="text-lg font-medium text-slate-400 dark:text-slate-500">
