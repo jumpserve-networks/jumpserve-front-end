@@ -31,6 +31,8 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
   const [config, setConfig] = useState<BenchmarkConfig>(defaultConfig());
   const [savedConfigs, setSavedConfigs] = useState<SavedConfig[]>([]);
   const [configName, setConfigName] = useState("");
+  const [configDescription, setConfigDescription] = useState("");
+  const [selectedConfigId, setSelectedConfigId] = useState<string | null>(null);
   const [isLaunching, setIsLaunching] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -76,16 +78,35 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
     const finalConfig = buildFinalConfig();
     if (!finalConfig) return;
 
-    const { error } = await supabase.from("benchmark_configs").insert({
+    const row: any = {
       name: configName.trim(),
       config: finalConfig,
-    });
+    };
+    if (configDescription.trim()) row.description = configDescription.trim();
+
+    const { error } = await supabase.from("benchmark_configs").insert(row);
 
     if (error) {
       setMessage({ type: "error", text: `Failed to save: ${error.message}` });
     } else {
       setMessage({ type: "success", text: "Config saved!" });
       setConfigName("");
+      setConfigDescription("");
+      loadConfigs();
+    }
+  }
+
+  async function handleDeleteConfig() {
+    if (!selectedConfigId) return;
+    const { error } = await supabase
+      .from("benchmark_configs")
+      .delete()
+      .eq("id", selectedConfigId);
+    if (error) {
+      setMessage({ type: "error", text: `Failed to delete: ${error.message}` });
+    } else {
+      setSelectedConfigId(null);
+      setMessage({ type: "success", text: "Config deleted" });
       loadConfigs();
     }
   }
@@ -194,23 +215,37 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
       {savedConfigs.length > 0 && (
         <div>
           <label className={labelClasses}>Load Saved Config</label>
-          <select
-            className={inputClasses}
-            defaultValue=""
-            onChange={(e) => {
-              const found = savedConfigs.find((c) => c.id === e.target.value);
-              if (found) applyConfig(found);
-            }}
-          >
-            <option value="" disabled>
-              Select a config...
-            </option>
-            {savedConfigs.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
+          <div className="flex gap-2">
+            <select
+              className={inputClasses}
+              value={selectedConfigId ?? ""}
+              onChange={(e) => {
+                const found = savedConfigs.find((c) => c.id === e.target.value);
+                if (found) {
+                  setSelectedConfigId(found.id);
+                  applyConfig(found);
+                }
+              }}
+            >
+              <option value="" disabled>
+                Select a config...
               </option>
-            ))}
-          </select>
+              {savedConfigs.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}{c.description ? ` — ${c.description}` : ""}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={handleDeleteConfig}
+              disabled={!selectedConfigId}
+              className="whitespace-nowrap rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-30 dark:border-red-500/40 dark:bg-slate-800 dark:text-red-400 dark:hover:bg-red-500/10"
+              title="Delete selected config"
+            >
+              Delete
+            </button>
+          </div>
         </div>
       )}
 
@@ -411,22 +446,31 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
       </div>
 
       {/* Save config */}
-      <div className="flex gap-2">
+      <div className="space-y-2">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            className={inputClasses}
+            value={configName}
+            onChange={(e) => setConfigName(e.target.value)}
+            placeholder="Config name..."
+          />
+          <button
+            type="button"
+            onClick={handleSaveConfig}
+            disabled={!configName.trim()}
+            className="whitespace-nowrap rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+          >
+            Save Config
+          </button>
+        </div>
         <input
           type="text"
           className={inputClasses}
-          value={configName}
-          onChange={(e) => setConfigName(e.target.value)}
-          placeholder="Config name to save..."
+          value={configDescription}
+          onChange={(e) => setConfigDescription(e.target.value)}
+          placeholder="Description (optional) — e.g. 2-client fairness test at 100 Mbit"
         />
-        <button
-          type="button"
-          onClick={handleSaveConfig}
-          disabled={!configName.trim()}
-          className="whitespace-nowrap rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-        >
-          Save Config
-        </button>
       </div>
 
       {/* Launch */}
