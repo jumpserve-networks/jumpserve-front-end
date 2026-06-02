@@ -69,8 +69,8 @@ export default async function ParentRunPage({
   }
 
   return (
-    <main className="space-atmosphere relative box-border h-dvh overflow-hidden p-4 sm:p-6">
-      <div className="relative z-10 mx-auto flex h-full w-full items-start justify-center py-1 sm:py-3">
+    <main className="space-atmosphere relative box-border min-h-dvh overflow-y-auto p-4 sm:p-6">
+      <div className="relative z-10 mx-auto flex w-full items-start justify-center py-1 sm:py-3">
         <section className="w-full max-w-6xl rounded-3xl border border-rose-200/70 bg-[#fff8fc]/95 p-6 shadow-2xl backdrop-blur-sm dark:border-slate-600/70 dark:bg-slate-800/78 sm:p-8">
           <div className="mb-8 border-b border-rose-200/80 pb-6 dark:border-slate-600">
             <div className="flex items-start justify-between gap-4">
