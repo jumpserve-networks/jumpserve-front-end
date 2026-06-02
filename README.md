@@ -34,3 +34,5 @@ Open `http://localhost:3000`.
 
 - Browser client: `lib/supabase/client.ts`
 - Server client: `lib/supabase/server.ts`
+
+test for Bard
