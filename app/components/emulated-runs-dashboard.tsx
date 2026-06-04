@@ -449,7 +449,7 @@ export function EmulatedRunChartsPanel({
                 {totalSampleCount} total samples across selected child runs
               </p>
               <div
-                className="grid gap-5 md:grid-cols-2 xl:grid-cols-4"
+                className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-4"
                 onMouseLeave={() => setHoveredMetricId(null)}
               >
                 {METRICS.map((metric) => (
@@ -636,13 +636,13 @@ function MetricChart({
   const bottomPadding = isExpanded ? 132 : 52;
   const plotWidth = chartWidth - leftPadding - rightPadding;
   const plotHeight = chartHeight - topPadding - bottomPadding;
-  const cardShellClassName = `transition-opacity duration-[400ms] ${
+  const cardShellClassName = `min-w-0 transition-opacity duration-[240ms] ${
     isDimmed ? "opacity-65" : "opacity-100"
   }`;
-  const cardClassName = `rounded-2xl border border-rose-200/80 bg-[#fff8fc] p-4 shadow-sm transition-[border-color,box-shadow,transform] duration-[400ms] will-change-transform dark:border-slate-600 dark:bg-slate-800/55 ${
+  const cardClassName = `min-w-0 rounded-2xl border border-rose-200/80 bg-[#fff8fc] p-3 shadow-sm transition-[border-color,box-shadow] duration-200 dark:border-slate-600 dark:bg-slate-800/55 sm:p-4 ${
     isDimmed
       ? ""
-      : `${isActive ? "-translate-y-3 scale-[1.02] border-rose-500 shadow-2xl dark:border-slate-400 dark:shadow-none" : ""} focus-within:-translate-y-3 focus-within:scale-[1.02] focus-within:border-rose-500 focus-within:shadow-2xl dark:focus-within:border-slate-400 dark:focus-within:shadow-none`
+      : `${isActive ? "border-rose-500 shadow-lg dark:border-slate-400 dark:shadow-none" : ""} focus-within:border-rose-500 focus-within:shadow-lg dark:focus-within:border-slate-400 dark:focus-within:shadow-none`
   }`;
   const activeRunId = pinnedRunId ?? hoveredRunId;
   const displayedPoint = pinnedPoint ?? hoveredPoint;
@@ -893,8 +893,8 @@ function MetricChart({
   const hasVisibleSeries = interactiveSeriesForRender.length > 0;
 
   const chartClassName = isExpanded
-    ? "h-[70vh] w-full overflow-visible rounded-xl bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
-    : "h-44 w-full overflow-visible rounded-xl bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600";
+    ? "h-[72vh] min-h-[28rem] w-full touch-pan-y overflow-visible rounded-xl bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+    : "h-48 w-full touch-pan-y overflow-visible rounded-xl bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600 sm:h-44";
   const axisTickTextClass = isExpanded
     ? "fill-slate-500 text-[11px] dark:fill-slate-400"
     : "fill-slate-500 text-[9px] dark:fill-slate-400";
@@ -1791,12 +1791,12 @@ function MetricChart({
           className={`${cardClassName} ${onExpand ? "cursor-pointer" : ""}`}
           onClick={onExpand}
         >
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-start justify-between gap-3">
           <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
             {title}
           </h2>
           {onExpand ? (
-            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+            <span className="hidden text-[11px] text-slate-500 dark:text-slate-400 sm:inline">
               Click chart to enlarge
             </span>
           ) : null}
@@ -1804,7 +1804,7 @@ function MetricChart({
         <div
           className={
             onExpand
-              ? "mt-3 rounded-xl"
+              ? "mt-3 touch-pan-y rounded-xl"
               : "mt-3"
           }
         >
@@ -1812,7 +1812,7 @@ function MetricChart({
             <button
               type="button"
               onClick={onExpand}
-              className="block w-full cursor-pointer rounded-xl text-left outline-none focus-visible:outline-none focus-visible:ring-0"
+              className="block w-full touch-pan-y cursor-pointer rounded-xl text-left outline-none focus-visible:outline-none focus-visible:ring-0"
               aria-label={`Expand ${title} chart`}
             >
               {chartSvg}
@@ -1827,7 +1827,7 @@ function MetricChart({
             same client.
           </p>
         ) : null}
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex min-w-0 flex-wrap gap-2">
           {legendSeries.map((runSeries) => {
             const isHidden = hiddenRunIds.includes(runSeries.runId);
             const isActive = !isHidden && (
@@ -1839,11 +1839,11 @@ function MetricChart({
               key={runSeries.runId}
               type="button"
               aria-pressed={!isHidden}
-              className={`group rounded-lg border bg-[#fff3f8] px-2.5 py-1 text-[11px] text-slate-700 transition dark:bg-slate-700/45 dark:text-slate-100 ${
+              className={`group max-w-full rounded-lg border bg-[#fff3f8] px-2.5 py-1 text-left text-[11px] text-slate-700 transition-[border-color,box-shadow,opacity] dark:bg-slate-700/45 dark:text-slate-100 ${
                 isHidden
                   ? "border-rose-200/70 opacity-45 dark:border-slate-600/60"
                   : isActive
-                    ? "cursor-pointer border-rose-200/90 hover:-translate-y-0.5 hover:border-rose-300 hover:shadow-sm dark:border-slate-600 dark:hover:border-slate-400 dark:hover:shadow-none"
+                    ? "cursor-pointer border-rose-200/90 hover:border-rose-300 hover:shadow-sm dark:border-slate-600 dark:hover:border-slate-400 dark:hover:shadow-none"
                     : "cursor-pointer border-rose-200/70 opacity-60 dark:border-slate-600/60"
               }`}
               title={runSeries.label}
@@ -1895,7 +1895,7 @@ function MetricChart({
                 }`}
                 style={{ backgroundColor: runSeries.color }}
               />
-              <span className={isHidden ? "line-through" : undefined}>
+              <span className={`break-words ${isHidden ? "line-through" : ""}`}>
               {runSeries.shortLabel}
               </span>
             </button>

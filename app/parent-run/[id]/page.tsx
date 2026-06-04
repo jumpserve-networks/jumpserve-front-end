@@ -50,7 +50,7 @@ export default async function ParentRunPage({
 
   if (!parentRun) {
     return (
-      <main className="space-atmosphere relative min-h-screen overflow-hidden p-5 sm:p-10">
+      <main className="space-atmosphere relative min-h-screen overflow-x-clip p-4 sm:p-10">
         <div className="relative z-10 mx-auto flex w-full items-start justify-center py-3 sm:py-8">
           <section className="w-full max-w-4xl rounded-3xl border border-rose-200/70 bg-[#fff8fc]/95 p-10 text-center shadow-xl dark:border-slate-600 dark:bg-slate-800/82">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
@@ -69,16 +69,16 @@ export default async function ParentRunPage({
   }
 
   return (
-    <main className="space-atmosphere relative box-border min-h-dvh overflow-y-auto p-4 sm:p-6">
+    <main className="space-atmosphere relative box-border min-h-dvh overflow-x-clip p-2 sm:p-6">
       <div className="relative z-10 mx-auto flex w-full items-start justify-center py-1 sm:py-3">
-        <section className="w-full max-w-6xl rounded-3xl border border-rose-200/70 bg-[#fff8fc]/95 p-6 shadow-2xl backdrop-blur-sm dark:border-slate-600/70 dark:bg-slate-800/78 sm:p-8">
-          <div className="mb-8 border-b border-rose-200/80 pb-6 dark:border-slate-600">
-            <div className="flex items-start justify-between gap-4">
-              <div>
+        <section className="w-full max-w-6xl rounded-2xl border border-rose-200/70 bg-[#fff8fc]/95 p-4 shadow-2xl backdrop-blur-sm dark:border-slate-600/70 dark:bg-slate-800/78 sm:rounded-3xl sm:p-8">
+          <div className="mb-6 border-b border-rose-200/80 pb-5 dark:border-slate-600 sm:mb-8 sm:pb-6">
+            <div className="flex items-start justify-between gap-3 sm:gap-4">
+              <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
                   Jumpserve
                 </p>
-                <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
+                <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
                   Emulated Run Explorer
                 </h1>
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
@@ -107,14 +107,14 @@ export default async function ParentRunPage({
               </Link>
             </div>
           </div>
-          <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,2.4fr)_repeat(4,minmax(0,1fr))]">
-            <article className="rounded-2xl border border-rose-200/80 bg-[#fff3f8] p-4 dark:border-slate-600 dark:bg-slate-800/55">
+          <div className="mb-6 grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-[minmax(0,2.4fr)_repeat(4,minmax(0,1fr))]">
+            <article className="min-w-0 rounded-2xl border border-rose-200/80 bg-[#fff3f8] p-4 dark:border-slate-600 dark:bg-slate-800/55 sm:col-span-2 lg:col-span-1">
               <div className="flex flex-col gap-1 text-sm text-slate-500 dark:text-slate-300">
                 <span className="uppercase tracking-[0.18em]">
                   {parentRun.clientCount} client{parentRun.clientCount === 1 ? "" : "s"}
                 </span>
               </div>
-              <p className="mt-2 text-base font-medium text-slate-800 dark:text-slate-100">
+              <p className="mt-2 break-words text-base font-medium text-slate-800 dark:text-slate-100">
                 {parentRun.clientSummaryLine}
               </p>
               <p className="mt-2.5 text-sm uppercase tracking-[0.16em] text-slate-500 dark:text-slate-200">
@@ -170,11 +170,11 @@ function SummaryCard({
   value: string;
 }) {
   return (
-    <article className="rounded-2xl border border-rose-200/80 bg-[#fff3f8] p-4 dark:border-slate-600 dark:bg-slate-800/55">
+    <article className="min-w-0 rounded-2xl border border-rose-200/80 bg-[#fff3f8] p-4 dark:border-slate-600 dark:bg-slate-800/55">
       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
         {label}
       </p>
-      <p className="mt-2 text-sm font-medium text-slate-800 dark:text-slate-100">
+      <p className="mt-2 break-words text-sm font-medium text-slate-800 dark:text-slate-100">
         {value}
       </p>
     </article>
@@ -187,7 +187,7 @@ function ChartsLoadingFallback() {
       <p className="text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
         Loading chart data...
       </p>
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }, (_, index) => (
           <div
             key={index}
