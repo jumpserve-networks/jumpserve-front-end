@@ -905,10 +905,10 @@ function MetricChart({
     ? "h-[min(58dvh,34rem)] min-h-[16rem] w-full touch-pan-y overflow-visible rounded-xl bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600 sm:h-[min(64dvh,38rem)]"
     : "h-48 w-full touch-pan-y overflow-visible rounded-xl bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600 sm:h-44";
   const axisTickTextClass = isExpanded
-    ? "fill-slate-500 text-[11px] dark:fill-slate-400"
+    ? "fill-slate-500 text-[16px] font-medium dark:fill-slate-300"
     : "fill-slate-500 text-[9px] dark:fill-slate-400";
   const axisLabelTextClass = isExpanded
-    ? "fill-slate-500 text-[12px] dark:fill-slate-400"
+    ? "fill-slate-600 text-[18px] font-medium dark:fill-slate-300"
     : "fill-slate-500 text-[10px] dark:fill-slate-400";
   const hoverActivationRadius = 10;
   const hoverTargetStrokeWidth = isExpanded ? 24 : 18;
@@ -1194,7 +1194,8 @@ function MetricChart({
     >
       {xTicks.map((tick) => {
         const x = leftPadding + ((tick - xMin) / xDenominator) * plotWidth;
-        const labelY = chartHeight - bottomPadding + 14;
+        const labelY =
+          chartHeight - bottomPadding + (isExpanded ? 19 : 14);
         return (
           <g key={`x-${tick}`}>
             <line
@@ -1252,7 +1253,7 @@ function MetricChart({
               strokeWidth={1}
             />
             <text
-              x={leftPadding - 7}
+              x={leftPadding - (isExpanded ? 12 : 7)}
               y={y + 3}
               textAnchor="end"
               className={axisTickTextClass}
@@ -1767,7 +1768,7 @@ function MetricChart({
       })() : null}
       <text
         x={leftPadding + plotWidth / 2}
-        y={chartHeight - 4}
+        y={isExpanded ? chartHeight - 44 : chartHeight - 4}
         textAnchor="middle"
         className={axisLabelTextClass}
       >
