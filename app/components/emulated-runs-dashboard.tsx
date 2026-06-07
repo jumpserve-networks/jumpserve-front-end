@@ -1796,39 +1796,39 @@ function MetricChart({
         onCardHoverEnd?.();
       }}
     >
-        <article className={cardClassName}>
+        <article
+          className={`${cardClassName} ${onExpand ? "cursor-pointer" : ""}`}
+          onClick={onExpand}
+        >
         <div className="flex items-start justify-between gap-3">
           <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
             {title}
           </h2>
           {onExpand ? (
+            <span className="hidden text-[11px] text-slate-500 dark:text-slate-400 sm:inline">
+              Click chart to enlarge
+            </span>
+          ) : null}
+        </div>
+        <div
+          className={
+            onExpand
+              ? "mt-3 touch-pan-y rounded-xl"
+              : "mt-3"
+          }
+        >
+          {onExpand ? (
             <button
               type="button"
               onClick={onExpand}
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-rose-200/90 bg-[#fff3f8] text-slate-600 transition hover:border-rose-300 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600/30 dark:border-slate-600 dark:bg-slate-700/45 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/80"
+              className="block w-full touch-pan-y cursor-pointer rounded-xl text-left outline-none focus-visible:outline-none focus-visible:ring-0"
               aria-label={`Expand ${title} chart`}
-              title={`Expand ${title}`}
             >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M15 3h6v6" />
-                <path d="M9 21H3v-6" />
-                <path d="M21 3l-7 7" />
-                <path d="M3 21l7-7" />
-              </svg>
+              {chartSvg}
             </button>
-          ) : null}
-        </div>
-        <div className="mt-3 touch-pan-y rounded-xl">
-          {chartSvg}
+          ) : (
+            chartSvg
+          )}
         </div>
         {isCwndMetric ? (
           <p className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">

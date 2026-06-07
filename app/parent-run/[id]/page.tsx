@@ -7,7 +7,7 @@ import { notFound } from "next/navigation";
 
 type ParentRunPageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ lookupPage?: string | string[] }>;
+  searchParams: Promise<{ page?: string | string[] }>;
 };
 
 export async function generateMetadata({
@@ -61,16 +61,16 @@ export default async function ParentRunPage({
 }: ParentRunPageProps) {
   const { id } = await params;
   const parentRunId = Number(id);
-  const lookupPageParam = (await searchParams).lookupPage;
-  const parsedLookupPage = Number.parseInt(
-    Array.isArray(lookupPageParam)
-      ? lookupPageParam[0]
-      : (lookupPageParam ?? ""),
+  const pageParam = (await searchParams).page;
+  const parsedPage = Number.parseInt(
+    Array.isArray(pageParam)
+      ? pageParam[0]
+      : (pageParam ?? ""),
     10,
   );
-  const lookupPage =
-    Number.isInteger(parsedLookupPage) && parsedLookupPage > 0
-      ? parsedLookupPage
+  const returnPage =
+    Number.isInteger(parsedPage) && parsedPage > 0
+      ? parsedPage
       : 1;
 
   if (!Number.isInteger(parentRunId)) {
@@ -103,11 +103,14 @@ export default async function ParentRunPage({
     <main className="space-atmosphere relative box-border min-h-dvh p-2 sm:p-6">
       <div className="relative z-10 mx-auto flex w-full items-start justify-center py-1 sm:py-3">
         <section className="w-full max-w-6xl rounded-2xl border border-rose-200/70 bg-[#fff8fc]/95 p-4 shadow-2xl backdrop-blur-sm dark:border-slate-600/70 dark:bg-slate-800/78 sm:rounded-3xl sm:p-8">
-          <div className="mb-6 border-b border-rose-200/80 pb-5 dark:border-slate-600 sm:mb-8 sm:pb-6">
+          <div className="mb-6 border-b border-rose-200/80 pb-2.5 dark:border-slate-600 sm:mb-8 sm:pb-3">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
+              Jumpserve
+            </p>
             <div className="mb-5 flex items-center justify-between gap-3">
               <Link
-                href={`/test-lookup?page=${lookupPage}`}
-                aria-label={`Return to test lookup page ${lookupPage}`}
+                href={`/test-lookup?page=${returnPage}`}
+                aria-label={`Return to test lookup page ${returnPage}`}
                 className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-rose-300/80 bg-[#fff5fb] px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/85 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
               >
                 <svg
@@ -146,10 +149,7 @@ export default async function ParentRunPage({
               </Link>
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
-                Jumpserve
-              </p>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
+              <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
                 Emulated Run Explorer | {parentRun.id}
               </h1>
             </div>

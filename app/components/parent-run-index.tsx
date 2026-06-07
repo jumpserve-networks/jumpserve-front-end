@@ -455,7 +455,7 @@ export function ParentRunIndex({
   const totalPages = pageData.totalPages;
   const totalCount = pageData.totalCount;
   const getParentRunHref = (parentRunId: number) =>
-    `/parent-run/${parentRunId}?lookupPage=${currentPage}`;
+    `/parent-run/${parentRunId}?page=${currentPage}`;
   const normalizedRunSearchQuery = runSearchQuery.trim().toLowerCase();
   const isFilterOptionSectionExpanded = (sectionId: string) =>
     expandedFilterOptionSections.includes(sectionId);
