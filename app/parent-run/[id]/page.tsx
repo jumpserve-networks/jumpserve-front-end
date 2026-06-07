@@ -97,12 +97,8 @@ export default async function ParentRunPage({
                   Jumpserve
                 </p>
                 <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
-                  Emulated Run Explorer
+                  Emulated Run Explorer | {parentRun.id}
                 </h1>
-                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                  Compare all child <code>emulated_runs</code>{" "}
-                  on shared charts from <code>emulated_snapshot_stats</code>.
-                </p>
               </div>
               <Link
                 href="/"
