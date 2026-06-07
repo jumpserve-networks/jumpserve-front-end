@@ -454,6 +454,8 @@ export function ParentRunIndex({
   const currentPage = pageData.page;
   const totalPages = pageData.totalPages;
   const totalCount = pageData.totalCount;
+  const getParentRunHref = (parentRunId: number) =>
+    `/parent-run/${parentRunId}?lookupPage=${currentPage}`;
   const normalizedRunSearchQuery = runSearchQuery.trim().toLowerCase();
   const isFilterOptionSectionExpanded = (sectionId: string) =>
     expandedFilterOptionSections.includes(sectionId);
@@ -1520,17 +1522,20 @@ export function ParentRunIndex({
                         <tr
                           key={parentRun.id}
                           tabIndex={0}
-                          onClick={() => router.push(`/parent-run/${parentRun.id}`)}
+                          onClick={() => router.push(getParentRunHref(parentRun.id))}
                           onKeyDown={(event) => {
                             if (event.key === "Enter" || event.key === " ") {
                               event.preventDefault();
-                              router.push(`/parent-run/${parentRun.id}`);
+                              router.push(getParentRunHref(parentRun.id));
                             }
                           }}
                           className="cursor-pointer border-b border-rose-100/80 align-top transition hover:bg-white/50 focus-visible:bg-white/50 focus-visible:outline-none last:border-b-0 dark:border-slate-600/70 dark:hover:bg-slate-800/30 dark:focus-visible:bg-slate-800/30"
                         >
                           <td className="px-3 py-3 align-top">
-                            <Link href={`/parent-run/${parentRun.id}`} className="block min-w-0">
+                            <Link
+                              href={getParentRunHref(parentRun.id)}
+                              className="block min-w-0"
+                            >
                               <div className="flex flex-col gap-1 text-xs text-slate-500 dark:text-slate-300">
                                 <span className="uppercase tracking-[0.16em]">
                                   {parentRun.clientCount} client{parentRun.clientCount === 1 ? "" : "s"}
@@ -1596,7 +1601,7 @@ export function ParentRunIndex({
                     className="group rounded-3xl border border-rose-200/80 bg-[linear-gradient(165deg,#fff7fb_0%,#fff0f7_100%)] px-5 py-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-rose-300 hover:shadow-[0_14px_28px_rgba(190,24,93,0.16)] dark:border-slate-600 dark:bg-[linear-gradient(165deg,rgba(51,65,85,0.78)_0%,rgba(71,85,105,0.72)_100%)] dark:hover:border-slate-400 dark:hover:shadow-none"
                   >
                     <Link
-                      href={`/parent-run/${parentRun.id}`}
+                      href={getParentRunHref(parentRun.id)}
                       className="block min-w-0"
                     >
                       <div className="flex flex-col gap-1 text-sm text-slate-500 dark:text-slate-300 sm:flex-row sm:items-center sm:justify-between sm:gap-4">

@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 
 type ParentRunPageProps = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ lookupPage?: string | string[] }>;
 };
 
 export async function generateMetadata({
@@ -56,9 +57,21 @@ function formatValueList(values: number[], suffix: string) {
 
 export default async function ParentRunPage({
   params,
+  searchParams,
 }: ParentRunPageProps) {
   const { id } = await params;
   const parentRunId = Number(id);
+  const lookupPageParam = (await searchParams).lookupPage;
+  const parsedLookupPage = Number.parseInt(
+    Array.isArray(lookupPageParam)
+      ? lookupPageParam[0]
+      : (lookupPageParam ?? ""),
+    10,
+  );
+  const lookupPage =
+    Number.isInteger(parsedLookupPage) && parsedLookupPage > 0
+      ? parsedLookupPage
+      : 1;
 
   if (!Number.isInteger(parentRunId)) {
     notFound();
@@ -91,15 +104,26 @@ export default async function ParentRunPage({
       <div className="relative z-10 mx-auto flex w-full items-start justify-center py-1 sm:py-3">
         <section className="w-full max-w-6xl rounded-2xl border border-rose-200/70 bg-[#fff8fc]/95 p-4 shadow-2xl backdrop-blur-sm dark:border-slate-600/70 dark:bg-slate-800/78 sm:rounded-3xl sm:p-8">
           <div className="mb-6 border-b border-rose-200/80 pb-5 dark:border-slate-600 sm:mb-8 sm:pb-6">
-            <div className="flex items-start justify-between gap-3 sm:gap-4">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
-                  Jumpserve
-                </p>
-                <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
-                  Emulated Run Explorer | {parentRun.id}
-                </h1>
-              </div>
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <Link
+                href={`/test-lookup?page=${lookupPage}`}
+                aria-label={`Return to test lookup page ${lookupPage}`}
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-rose-300/80 bg-[#fff5fb] px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/85 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.9"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m15 18-6-6 6-6" />
+                </svg>
+                Back
+              </Link>
               <Link
                 href="/"
                 aria-label="Go to home"
@@ -113,12 +137,21 @@ export default async function ParentRunPage({
                   strokeWidth="1.9"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  aria-hidden="true"
                 >
                   <path d="M3 10.5 12 3l9 7.5" />
                   <path d="M6 10v10h12V10" />
                   <path d="M10 20v-6h4v6" />
                 </svg>
               </Link>
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
+                Jumpserve
+              </p>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
+                Emulated Run Explorer | {parentRun.id}
+              </h1>
             </div>
           </div>
           <div className="mb-6 grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-[minmax(0,2.4fr)_repeat(4,minmax(0,1fr))]">

@@ -2,9 +2,13 @@ import Link from "next/link";
 import { ParentRunIndex } from "@/app/components/parent-run-index";
 import { fetchParentRunsForIndexPage } from "@/lib/emulated-runs-data";
 
-export async function TestLookupHome() {
+export async function TestLookupHome({
+  initialPageNumber = 1,
+}: {
+  initialPageNumber?: number;
+}) {
   const parentRunPage = await fetchParentRunsForIndexPage({
-    page: 1,
+    page: initialPageNumber,
     pageSize: 10,
   });
 
