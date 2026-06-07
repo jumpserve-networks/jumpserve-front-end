@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 
 export type EmulatedParentRun = {
   id: number;
@@ -486,39 +487,47 @@ export function EmulatedRunChartsPanel({
       ) : (
         <EmptyState text="No parent run selected." />
       )}
-      {expandedMetric ? (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
-          onClick={() => setExpandedMetricId(null)}
-        >
-          <div
-            className="max-h-[95vh] w-full max-w-7xl overflow-y-auto rounded-2xl border border-slate-600/70 bg-slate-800/92 p-3 shadow-2xl sm:p-4"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between px-1">
-              <h3 className="text-sm font-semibold text-slate-100 sm:text-base">
-                Expanded View: {expandedMetric.title}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setExpandedMetricId(null)}
-                className="rounded-lg border border-slate-500 bg-slate-700/90 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-slate-600"
+      {expandedMetric && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[70] flex items-center justify-center overflow-hidden bg-slate-950/70 p-2 backdrop-blur-sm sm:p-4"
+              onClick={() => setExpandedMetricId(null)}
+            >
+              <div
+                className="flex max-h-[calc(100dvh-1rem)] w-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-slate-600/70 bg-slate-800/92 p-3 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-4"
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Expanded View: ${expandedMetric.title}`}
+                onClick={(event) => event.stopPropagation()}
               >
-                Close
-              </button>
-            </div>
-            <MetricChart
-              metricId={expandedMetric.id}
-              series={chartSeries}
-              title={expandedMetric.title}
-              unit={expandedMetric.unit}
-              accessor={expandedMetric.accessor}
-              throughputAxisMaxMbps={throughputAxisMaxMbps}
-              size="expanded"
-            />
-          </div>
-        </div>
-      ) : null}
+                <div className="mb-3 flex shrink-0 items-start justify-between gap-3 px-1">
+                  <h3 className="min-w-0 text-sm font-semibold text-slate-100 sm:text-base">
+                    Expanded View: {expandedMetric.title}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedMetricId(null)}
+                    className="shrink-0 rounded-lg border border-slate-500 bg-slate-700/90 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-slate-600"
+                  >
+                    Close
+                  </button>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+                  <MetricChart
+                    metricId={expandedMetric.id}
+                    series={chartSeries}
+                    title={expandedMetric.title}
+                    unit={expandedMetric.unit}
+                    accessor={expandedMetric.accessor}
+                    throughputAxisMaxMbps={throughputAxisMaxMbps}
+                    size="expanded"
+                  />
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }
@@ -893,7 +902,7 @@ function MetricChart({
   const hasVisibleSeries = interactiveSeriesForRender.length > 0;
 
   const chartClassName = isExpanded
-    ? "h-[72vh] min-h-[28rem] w-full touch-pan-y overflow-visible rounded-xl bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+    ? "h-[min(58dvh,34rem)] min-h-[16rem] w-full touch-pan-y overflow-visible rounded-xl bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600 sm:h-[min(64dvh,38rem)]"
     : "h-48 w-full touch-pan-y overflow-visible rounded-xl bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600 sm:h-44";
   const axisTickTextClass = isExpanded
     ? "fill-slate-500 text-[11px] dark:fill-slate-400"
@@ -1787,39 +1796,39 @@ function MetricChart({
         onCardHoverEnd?.();
       }}
     >
-        <article
-          className={`${cardClassName} ${onExpand ? "cursor-pointer" : ""}`}
-          onClick={onExpand}
-        >
+        <article className={cardClassName}>
         <div className="flex items-start justify-between gap-3">
           <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
             {title}
           </h2>
           {onExpand ? (
-            <span className="hidden text-[11px] text-slate-500 dark:text-slate-400 sm:inline">
-              Click chart to enlarge
-            </span>
-          ) : null}
-        </div>
-        <div
-          className={
-            onExpand
-              ? "mt-3 touch-pan-y rounded-xl"
-              : "mt-3"
-          }
-        >
-          {onExpand ? (
             <button
               type="button"
               onClick={onExpand}
-              className="block w-full touch-pan-y cursor-pointer rounded-xl text-left outline-none focus-visible:outline-none focus-visible:ring-0"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-rose-200/90 bg-[#fff3f8] text-slate-600 transition hover:border-rose-300 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600/30 dark:border-slate-600 dark:bg-slate-700/45 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/80"
               aria-label={`Expand ${title} chart`}
+              title={`Expand ${title}`}
             >
-              {chartSvg}
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M15 3h6v6" />
+                <path d="M9 21H3v-6" />
+                <path d="M21 3l-7 7" />
+                <path d="M3 21l7-7" />
+              </svg>
             </button>
-          ) : (
-            chartSvg
-          )}
+          ) : null}
+        </div>
+        <div className="mt-3 touch-pan-y rounded-xl">
+          {chartSvg}
         </div>
         {isCwndMetric ? (
           <p className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">

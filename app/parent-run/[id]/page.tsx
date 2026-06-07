@@ -50,7 +50,7 @@ export default async function ParentRunPage({
 
   if (!parentRun) {
     return (
-      <main className="space-atmosphere relative min-h-screen overflow-x-clip p-4 sm:p-10">
+      <main className="space-atmosphere relative min-h-screen p-4 sm:p-10">
         <div className="relative z-10 mx-auto flex w-full items-start justify-center py-3 sm:py-8">
           <section className="w-full max-w-4xl rounded-3xl border border-rose-200/70 bg-[#fff8fc]/95 p-10 text-center shadow-xl dark:border-slate-600 dark:bg-slate-800/82">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
@@ -69,7 +69,7 @@ export default async function ParentRunPage({
   }
 
   return (
-    <main className="space-atmosphere relative box-border min-h-dvh overflow-x-clip p-2 sm:p-6">
+    <main className="space-atmosphere relative box-border min-h-dvh p-2 sm:p-6">
       <div className="relative z-10 mx-auto flex w-full items-start justify-center py-1 sm:py-3">
         <section className="w-full max-w-6xl rounded-2xl border border-rose-200/70 bg-[#fff8fc]/95 p-4 shadow-2xl backdrop-blur-sm dark:border-slate-600/70 dark:bg-slate-800/78 sm:rounded-3xl sm:p-8">
           <div className="mb-6 border-b border-rose-200/80 pb-5 dark:border-slate-600 sm:mb-8 sm:pb-6">

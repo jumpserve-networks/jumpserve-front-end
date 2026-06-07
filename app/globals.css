@@ -48,6 +48,8 @@
 }
 
 html {
+  min-height: 100%;
+  overflow-y: auto;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   scrollbar-gutter: stable;
   scrollbar-width: thin;
@@ -57,7 +59,11 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), "Avenir Next", sans-serif;
+  min-height: 100%;
   overflow-x: hidden;
+  overflow-y: visible;
+  overscroll-behavior-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 * {
