@@ -1,8 +1,28 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ParentRunCharts } from "@/app/parent-run/[id]/parent-run-charts";
 import { fetchParentRunSummary } from "@/lib/emulated-runs-data";
 import { notFound } from "next/navigation";
+
+type ParentRunPageProps = {
+  params: Promise<{ id: string }>;
+};
+
+export async function generateMetadata({
+  params,
+}: ParentRunPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const parentRunId = Number(id);
+
+  return {
+    title: {
+      absolute: Number.isInteger(parentRunId)
+        ? `Jumpserve | ${parentRunId}`
+        : "Jumpserve",
+    },
+  };
+}
 
 function formatCreatedAt(value: string | null) {
   if (!value) {
@@ -36,9 +56,7 @@ function formatValueList(values: number[], suffix: string) {
 
 export default async function ParentRunPage({
   params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+}: ParentRunPageProps) {
   const { id } = await params;
   const parentRunId = Number(id);
 
