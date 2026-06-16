@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
 import { ChatPanel } from "@/app/components/chat-panel";
+import { requireGoogleUser } from "@/lib/auth";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ChatPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await requireGoogleUser("/chat");
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -32,7 +29,7 @@ export default async function ChatPage() {
           <div className="w-16" />
         </div>
 
-        <ChatPanel userEmail={user?.email} />
+        <ChatPanel userEmail={user.email} />
       </div>
     </div>
   );

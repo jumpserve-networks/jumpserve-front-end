@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { LandingPageShell } from "@/app/components/landing-page-shell";
+import { requireGoogleUser } from "@/lib/auth";
 import {
   THEME_PREFERENCE_COOKIE_NAME,
   parsePreference,
@@ -12,6 +13,8 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
+  await requireGoogleUser("/");
+
   const cookieStore = await cookies();
   const initialHasStoredThemePreference =
     parsePreference(cookieStore.get(THEME_PREFERENCE_COOKIE_NAME)?.value) !== null;

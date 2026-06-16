@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
 import { BenchmarkTabs } from "@/app/components/benchmark-tabs";
+import { requireGoogleUser } from "@/lib/auth";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function BenchmarksPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await requireGoogleUser("/benchmarks");
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -34,19 +31,7 @@ export default async function BenchmarksPage() {
           instances.
         </p>
 
-        {!user ? (
-          <div className="mt-8 rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <p className="text-lg font-medium text-slate-700 dark:text-slate-300">
-              Sign in to run benchmarks
-            </p>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              Click the &quot;Login with Google&quot; button in the top-right
-              corner to get started.
-            </p>
-          </div>
-        ) : (
-          <BenchmarkTabs userEmail={user.email} />
-        )}
+        <BenchmarkTabs userEmail={user.email} />
       </div>
     </div>
   );

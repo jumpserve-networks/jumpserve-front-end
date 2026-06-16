@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSafeNextPath } from "@/lib/auth-redirect";
+import { isGoogleAuthenticatedUser } from "@/lib/auth-provider";
 import { createClient } from "@/lib/supabase/client";
 
 type AuthStatus = "loading" | "logged-out" | "logged-in";
@@ -76,7 +77,11 @@ export function AuthButton() {
       }
 
       setSession(nextSession);
-      setStatus(nextSession ? "logged-in" : "logged-out");
+      setStatus(
+        isGoogleAuthenticatedUser(nextSession?.user ?? null)
+          ? "logged-in"
+          : "logged-out",
+      );
     }
 
     loadSession();
@@ -89,7 +94,11 @@ export function AuthButton() {
       }
 
       setSession(nextSession);
-      setStatus(nextSession ? "logged-in" : "logged-out");
+      setStatus(
+        isGoogleAuthenticatedUser(nextSession?.user ?? null)
+          ? "logged-in"
+          : "logged-out",
+      );
       setErrorMessage(null);
     });
 

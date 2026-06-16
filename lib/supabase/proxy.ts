@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSafeNextPath } from "@/lib/auth-redirect";
+import { isGoogleAuthenticatedUser } from "@/lib/auth-provider";
 
 const PUBLIC_PATHS = new Set(["/login", "/auth/callback"]);
 const AUTH_ERROR_PARAMS = ["error", "error_code", "error_description"];
@@ -49,10 +50,12 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const { data: claimsData } = await supabase.auth.getClaims();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
-  const isAuthenticated = Boolean(claimsData?.claims?.sub);
+  const isAuthenticated = isGoogleAuthenticatedUser(user);
   const isPublicPath = PUBLIC_PATHS.has(pathname);
 
   if (
