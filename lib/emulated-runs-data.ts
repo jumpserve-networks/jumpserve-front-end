@@ -336,6 +336,29 @@ type ParentRunFilterRecord = {
   queueBufferSizeKilobyte: number | null;
 };
 
+type NormalizedParentRunIndexFilters = {
+  normalizedRunSearchQuery: string;
+  clientCounts: number[];
+  ccaLabels: string[];
+  ccaByClientNumber: Record<number, string[]>;
+  addedDelaysMs: number[];
+  clientStartDelaysMs: number[];
+  clientFileSizesMegabytes: number[];
+  bottleneckRatesMegabit: number[];
+  queueBufferSizesKilobyte: number[];
+};
+
+type ParentRunFilterOmit = {
+  clientCounts?: boolean;
+  ccaLabels?: boolean;
+  ccaClientNumber?: number;
+  addedDelaysMs?: boolean;
+  clientStartDelaysMs?: boolean;
+  clientFileSizesMegabytes?: boolean;
+  bottleneckRatesMegabit?: boolean;
+  queueBufferSizesKilobyte?: boolean;
+};
+
 function normalizeNumberFilterValues(values: number[] | undefined) {
   return Array.from(
     new Set(
@@ -360,6 +383,37 @@ function hasAnyNumberValue(values: Set<number>, selectedValues: number[]) {
 
 function hasAnyStringValue(values: Set<string>, selectedValues: string[]) {
   return selectedValues.some((value) => values.has(value));
+}
+
+function normalizeParentRunIndexFilters(
+  filters: ParentRunIndexFilters,
+): NormalizedParentRunIndexFilters {
+  return {
+    normalizedRunSearchQuery: filters.runSearchQuery?.trim() ?? "",
+    clientCounts: normalizeNumberFilterValues(filters.clientCounts),
+    ccaLabels: normalizeStringFilterValues(filters.ccaLabels),
+    ccaByClientNumber: Object.fromEntries(
+      Object.entries(filters.ccaByClientNumber ?? {}).map(
+        ([clientNumber, values]) => [
+          Number(clientNumber),
+          normalizeStringFilterValues(values),
+        ],
+      ),
+    ),
+    addedDelaysMs: normalizeNumberFilterValues(filters.addedDelaysMs),
+    clientStartDelaysMs: normalizeNumberFilterValues(
+      filters.clientStartDelaysMs,
+    ),
+    clientFileSizesMegabytes: normalizeNumberFilterValues(
+      filters.clientFileSizesMegabytes,
+    ),
+    bottleneckRatesMegabit: normalizeNumberFilterValues(
+      filters.bottleneckRatesMegabit,
+    ),
+    queueBufferSizesKilobyte: normalizeNumberFilterValues(
+      filters.queueBufferSizesKilobyte,
+    ),
+  };
 }
 
 function getCongestionControlAlgorithmLabel(run: RawRunForIndex) {
@@ -417,6 +471,7 @@ function buildStringFilterOptions(
 function buildParentRunFilterModel(
   parentRows: RawParentRunForIndex[],
   runRows: RawRunForIndex[],
+  filters: ParentRunIndexFilters,
 ) {
   const recordsByParentRunId = new Map<number, ParentRunFilterRecord>();
 
@@ -468,104 +523,57 @@ function buildParentRunFilterModel(
   }
 
   const records = Array.from(recordsByParentRunId.values());
+  const normalizedFilters = normalizeParentRunIndexFilters(filters);
 
   return {
     recordsByParentRunId,
-    filterOptions: {
-      clientCounts: buildNumberFilterOptions(records, (record) =>
-        record.clientCount === null ? [] : [record.clientCount],
-      ),
-      ccaLabels: buildStringFilterOptions(records, (record) =>
-        Array.from(record.ccaLabels),
-      ),
-      ccaLabelsByClientNumber: Object.fromEntries(
-        Array.from(
-          new Set(
-            records.flatMap((record) =>
-              Array.from(record.ccaLabelsByClientNumber.keys()),
-            ),
-          ),
-        )
-          .sort((left, right) => left - right)
-          .map((clientNumber) => [
-            clientNumber,
-            buildStringFilterOptions(records, (record) =>
-              Array.from(record.ccaLabelsByClientNumber.get(clientNumber) ?? []),
-            ),
-          ]),
-      ),
-      addedDelaysMs: buildNumberFilterOptions(records, (record) =>
-        Array.from(record.addedDelaysMs),
-      ),
-      clientStartDelaysMs: buildNumberFilterOptions(records, (record) =>
-        Array.from(record.clientStartDelaysMs),
-      ),
-      clientFileSizesMegabytes: buildNumberFilterOptions(records, (record) =>
-        Array.from(record.clientFileSizesMegabytes),
-      ),
-      bottleneckRatesMegabit: buildNumberFilterOptions(records, (record) =>
-        record.bottleneckRateMegabit === null ? [] : [record.bottleneckRateMegabit],
-      ),
-      queueBufferSizesKilobyte: buildNumberFilterOptions(records, (record) =>
-        record.queueBufferSizeKilobyte === null
-          ? []
-          : [record.queueBufferSizeKilobyte],
-      ),
-    },
+    records,
+    filterOptions: buildReactiveParentRunFilterOptions(
+      records,
+      normalizedFilters,
+    ),
   };
 }
 
-function parentRunMatchesIndexFilters(
+function parentRunMatchesNormalizedIndexFilters(
   record: ParentRunFilterRecord,
-  filters: ParentRunIndexFilters,
+  filters: NormalizedParentRunIndexFilters,
+  omit: ParentRunFilterOmit = {},
 ) {
-  const normalizedRunSearchQuery = filters.runSearchQuery?.trim() ?? "";
-  const clientCounts = normalizeNumberFilterValues(filters.clientCounts);
-  const ccaLabels = normalizeStringFilterValues(filters.ccaLabels);
-  const ccaByClientNumber = Object.fromEntries(
-    Object.entries(filters.ccaByClientNumber ?? {}).map(
-      ([clientNumber, values]) => [
-        Number(clientNumber),
-        normalizeStringFilterValues(values),
-      ],
-    ),
-  );
-  const addedDelaysMs = normalizeNumberFilterValues(filters.addedDelaysMs);
-  const clientStartDelaysMs = normalizeNumberFilterValues(
-    filters.clientStartDelaysMs,
-  );
-  const clientFileSizesMegabytes = normalizeNumberFilterValues(
-    filters.clientFileSizesMegabytes,
-  );
-  const bottleneckRatesMegabit = normalizeNumberFilterValues(
-    filters.bottleneckRatesMegabit,
-  );
-  const queueBufferSizesKilobyte = normalizeNumberFilterValues(
-    filters.queueBufferSizesKilobyte,
-  );
-
   if (
-    normalizedRunSearchQuery &&
-    !String(record.id).includes(normalizedRunSearchQuery)
+    filters.normalizedRunSearchQuery &&
+    !String(record.id).includes(filters.normalizedRunSearchQuery)
   ) {
     return false;
   }
 
   if (
-    clientCounts.length > 0 &&
-    (record.clientCount === null || !clientCounts.includes(record.clientCount))
+    !omit.clientCounts &&
+    filters.clientCounts.length > 0 &&
+    (record.clientCount === null ||
+      !filters.clientCounts.includes(record.clientCount))
   ) {
     return false;
   }
 
-  if (ccaLabels.length > 0 && !hasAnyStringValue(record.ccaLabels, ccaLabels)) {
+  if (
+    !omit.ccaLabels &&
+    filters.ccaLabels.length > 0 &&
+    !hasAnyStringValue(record.ccaLabels, filters.ccaLabels)
+  ) {
     return false;
   }
 
-  for (const [clientNumber, selectedCcas] of Object.entries(ccaByClientNumber)) {
+  for (const [clientNumber, selectedCcas] of Object.entries(
+    filters.ccaByClientNumber,
+  )) {
     const parsedClientNumber = Number(clientNumber);
 
-    if (selectedCcas.length === 0 || !Number.isFinite(parsedClientNumber)) {
+    if (
+      selectedCcas.length === 0 ||
+      !Number.isFinite(parsedClientNumber) ||
+      omit.ccaClientNumber === parsedClientNumber
+    ) {
       continue;
     }
 
@@ -578,46 +586,134 @@ function parentRunMatchesIndexFilters(
   }
 
   if (
-    addedDelaysMs.length > 0 &&
-    !hasAnyNumberValue(record.addedDelaysMs, addedDelaysMs)
+    !omit.addedDelaysMs &&
+    filters.addedDelaysMs.length > 0 &&
+    !hasAnyNumberValue(record.addedDelaysMs, filters.addedDelaysMs)
   ) {
     return false;
   }
 
   if (
-    clientStartDelaysMs.length > 0 &&
-    !hasAnyNumberValue(record.clientStartDelaysMs, clientStartDelaysMs)
-  ) {
-    return false;
-  }
-
-  if (
-    clientFileSizesMegabytes.length > 0 &&
+    !omit.clientStartDelaysMs &&
+    filters.clientStartDelaysMs.length > 0 &&
     !hasAnyNumberValue(
-      record.clientFileSizesMegabytes,
-      clientFileSizesMegabytes,
+      record.clientStartDelaysMs,
+      filters.clientStartDelaysMs,
     )
   ) {
     return false;
   }
 
   if (
-    bottleneckRatesMegabit.length > 0 &&
-    (record.bottleneckRateMegabit === null ||
-      !bottleneckRatesMegabit.includes(record.bottleneckRateMegabit))
+    !omit.clientFileSizesMegabytes &&
+    filters.clientFileSizesMegabytes.length > 0 &&
+    !hasAnyNumberValue(
+      record.clientFileSizesMegabytes,
+      filters.clientFileSizesMegabytes,
+    )
   ) {
     return false;
   }
 
   if (
-    queueBufferSizesKilobyte.length > 0 &&
+    !omit.bottleneckRatesMegabit &&
+    filters.bottleneckRatesMegabit.length > 0 &&
+    (record.bottleneckRateMegabit === null ||
+      !filters.bottleneckRatesMegabit.includes(record.bottleneckRateMegabit))
+  ) {
+    return false;
+  }
+
+  if (
+    !omit.queueBufferSizesKilobyte &&
+    filters.queueBufferSizesKilobyte.length > 0 &&
     (record.queueBufferSizeKilobyte === null ||
-      !queueBufferSizesKilobyte.includes(record.queueBufferSizeKilobyte))
+      !filters.queueBufferSizesKilobyte.includes(record.queueBufferSizeKilobyte))
   ) {
     return false;
   }
 
   return true;
+}
+
+function parentRunMatchesIndexFilters(
+  record: ParentRunFilterRecord,
+  filters: ParentRunIndexFilters,
+) {
+  return parentRunMatchesNormalizedIndexFilters(
+    record,
+    normalizeParentRunIndexFilters(filters),
+  );
+}
+
+function filterRecordsForOptions(
+  records: ParentRunFilterRecord[],
+  filters: NormalizedParentRunIndexFilters,
+  omit: ParentRunFilterOmit,
+) {
+  return records.filter((record) =>
+    parentRunMatchesNormalizedIndexFilters(record, filters, omit),
+  );
+}
+
+function buildReactiveParentRunFilterOptions(
+  records: ParentRunFilterRecord[],
+  filters: NormalizedParentRunIndexFilters,
+): ParentRunFilterOptions {
+  const clientNumbers = Array.from(
+    new Set(
+      records.flatMap((record) =>
+        Array.from(record.ccaLabelsByClientNumber.keys()),
+      ),
+    ),
+  ).sort((left, right) => left - right);
+
+  return {
+    clientCounts: buildNumberFilterOptions(
+      filterRecordsForOptions(records, filters, { clientCounts: true }),
+      (record) => (record.clientCount === null ? [] : [record.clientCount]),
+    ),
+    ccaLabels: buildStringFilterOptions(
+      filterRecordsForOptions(records, filters, { ccaLabels: true }),
+      (record) => Array.from(record.ccaLabels),
+    ),
+    ccaLabelsByClientNumber: Object.fromEntries(
+      clientNumbers.map((clientNumber) => [
+        clientNumber,
+        buildStringFilterOptions(
+          filterRecordsForOptions(records, filters, { ccaClientNumber: clientNumber }),
+          (record) =>
+            Array.from(record.ccaLabelsByClientNumber.get(clientNumber) ?? []),
+        ),
+      ]),
+    ),
+    addedDelaysMs: buildNumberFilterOptions(
+      filterRecordsForOptions(records, filters, { addedDelaysMs: true }),
+      (record) => Array.from(record.addedDelaysMs),
+    ),
+    clientStartDelaysMs: buildNumberFilterOptions(
+      filterRecordsForOptions(records, filters, { clientStartDelaysMs: true }),
+      (record) => Array.from(record.clientStartDelaysMs),
+    ),
+    clientFileSizesMegabytes: buildNumberFilterOptions(
+      filterRecordsForOptions(records, filters, {
+        clientFileSizesMegabytes: true,
+      }),
+      (record) => Array.from(record.clientFileSizesMegabytes),
+    ),
+    bottleneckRatesMegabit: buildNumberFilterOptions(
+      filterRecordsForOptions(records, filters, { bottleneckRatesMegabit: true }),
+      (record) =>
+        record.bottleneckRateMegabit === null ? [] : [record.bottleneckRateMegabit],
+    ),
+    queueBufferSizesKilobyte: buildNumberFilterOptions(
+      filterRecordsForOptions(records, filters, { queueBufferSizesKilobyte: true }),
+      (record) =>
+        record.queueBufferSizeKilobyte === null
+          ? []
+          : [record.queueBufferSizeKilobyte],
+    ),
+  };
 }
 
 async function buildParentRunIndexItems(
@@ -860,6 +956,7 @@ async function fetchParentRunsForIndexPageWithClient(
   const { recordsByParentRunId, filterOptions } = buildParentRunFilterModel(
     parentRows,
     runRows,
+    filters,
   );
   const matchingRows = parentRows.filter((row) => {
     const record = recordsByParentRunId.get(row.id);
