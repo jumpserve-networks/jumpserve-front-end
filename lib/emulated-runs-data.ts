@@ -25,6 +25,32 @@ export type ParentRunIndexItem = EmulatedParentRun & {
   queueBufferSizeKilobyte: number | null;
 };
 
+export type ParentRunFilterOption<T extends number | string> = {
+  value: T;
+  count: number;
+};
+
+export type ParentRunFilterOptions = {
+  clientCounts: Array<ParentRunFilterOption<number>>;
+  ccaLabels: Array<ParentRunFilterOption<string>>;
+  addedDelaysMs: Array<ParentRunFilterOption<number>>;
+  clientStartDelaysMs: Array<ParentRunFilterOption<number>>;
+  clientFileSizesMegabytes: Array<ParentRunFilterOption<number>>;
+  bottleneckRatesMegabit: Array<ParentRunFilterOption<number>>;
+  queueBufferSizesKilobyte: Array<ParentRunFilterOption<number>>;
+};
+
+export type ParentRunIndexFilters = {
+  runSearchQuery?: string;
+  clientCounts?: number[];
+  ccaLabels?: string[];
+  addedDelaysMs?: number[];
+  clientStartDelaysMs?: number[];
+  clientFileSizesMegabytes?: number[];
+  bottleneckRatesMegabit?: number[];
+  queueBufferSizesKilobyte?: number[];
+};
+
 export type AggregateDelayGraphPoint = {
   parentRunId: number;
   numberOfClients: number;
@@ -42,6 +68,7 @@ export type AggregateDelayGraphPoint = {
 
 export type ParentRunIndexPage = {
   parentRuns: ParentRunIndexItem[];
+  filterOptions: ParentRunFilterOptions;
   page: number;
   pageSize: number;
   totalPages: number;
@@ -277,7 +304,272 @@ type RawParentRunForIndex = {
   snapshot_length_ms: NumericLike;
   bottleneck_rate_megabit: NumericLike;
   queue_buffer_size_kilobyte: NumericLike;
+  number_of_clients: number | null;
 };
+
+type RawRunForIndex = {
+  id: number;
+  emulated_parent_run_id: number | null;
+  client_number: number | null;
+  delay_added: number | null;
+  congestion_control_algorithm_id: number | null;
+  client_file_size_megabytes: number | null;
+  client_start_delay_ms: number | null;
+  flow_completion_time_ms: NumericLike;
+  congestion_control_algorithms:
+    | { name: string | null }
+    | Array<{ name: string | null }>
+    | null;
+};
+
+type ParentRunFilterRecord = {
+  id: number;
+  clientCount: number | null;
+  ccaLabels: Set<string>;
+  addedDelaysMs: Set<number>;
+  clientStartDelaysMs: Set<number>;
+  clientFileSizesMegabytes: Set<number>;
+  bottleneckRateMegabit: number | null;
+  queueBufferSizeKilobyte: number | null;
+};
+
+function normalizeNumberFilterValues(values: number[] | undefined) {
+  return Array.from(
+    new Set(
+      (values ?? []).filter((value) => Number.isFinite(value)),
+    ),
+  );
+}
+
+function normalizeStringFilterValues(values: string[] | undefined) {
+  return Array.from(
+    new Set(
+      (values ?? [])
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0),
+    ),
+  );
+}
+
+function hasAnyNumberValue(values: Set<number>, selectedValues: number[]) {
+  return selectedValues.some((value) => values.has(value));
+}
+
+function hasAnyStringValue(values: Set<string>, selectedValues: string[]) {
+  return selectedValues.some((value) => values.has(value));
+}
+
+function getCongestionControlAlgorithmLabel(run: RawRunForIndex) {
+  let congestionControlAlgorithmName: string | null = null;
+
+  if (Array.isArray(run.congestion_control_algorithms)) {
+    congestionControlAlgorithmName =
+      run.congestion_control_algorithms[0]?.name ?? null;
+  } else if (run.congestion_control_algorithms) {
+    congestionControlAlgorithmName = run.congestion_control_algorithms.name;
+  }
+
+  return (
+    congestionControlAlgorithmName ??
+    (run.congestion_control_algorithm_id !== null
+      ? `id ${run.congestion_control_algorithm_id}`
+      : null)
+  );
+}
+
+function buildNumberFilterOptions(
+  records: ParentRunFilterRecord[],
+  getValues: (record: ParentRunFilterRecord) => number[],
+) {
+  const countByValue = new Map<number, number>();
+
+  for (const record of records) {
+    for (const value of new Set(getValues(record))) {
+      countByValue.set(value, (countByValue.get(value) ?? 0) + 1);
+    }
+  }
+
+  return Array.from(countByValue.entries())
+    .map(([value, count]) => ({ value, count }))
+    .sort((left, right) => left.value - right.value);
+}
+
+function buildStringFilterOptions(
+  records: ParentRunFilterRecord[],
+  getValues: (record: ParentRunFilterRecord) => string[],
+) {
+  const countByValue = new Map<string, number>();
+
+  for (const record of records) {
+    for (const value of new Set(getValues(record))) {
+      countByValue.set(value, (countByValue.get(value) ?? 0) + 1);
+    }
+  }
+
+  return Array.from(countByValue.entries())
+    .map(([value, count]) => ({ value, count }))
+    .sort((left, right) => left.value.localeCompare(right.value));
+}
+
+function buildParentRunFilterModel(
+  parentRows: RawParentRunForIndex[],
+  runRows: RawRunForIndex[],
+) {
+  const recordsByParentRunId = new Map<number, ParentRunFilterRecord>();
+
+  for (const row of parentRows) {
+    recordsByParentRunId.set(row.id, {
+      id: row.id,
+      clientCount: row.number_of_clients,
+      ccaLabels: new Set(),
+      addedDelaysMs: new Set(),
+      clientStartDelaysMs: new Set(),
+      clientFileSizesMegabytes: new Set(),
+      bottleneckRateMegabit: toNumber(row.bottleneck_rate_megabit),
+      queueBufferSizeKilobyte: toNumber(row.queue_buffer_size_kilobyte),
+    });
+  }
+
+  for (const run of runRows) {
+    if (run.emulated_parent_run_id === null) {
+      continue;
+    }
+
+    const record = recordsByParentRunId.get(run.emulated_parent_run_id);
+
+    if (!record) {
+      continue;
+    }
+
+    const ccaLabel = getCongestionControlAlgorithmLabel(run);
+
+    if (ccaLabel) {
+      record.ccaLabels.add(ccaLabel);
+    }
+    if (run.delay_added !== null) {
+      record.addedDelaysMs.add(run.delay_added);
+    }
+    if (run.client_start_delay_ms !== null) {
+      record.clientStartDelaysMs.add(run.client_start_delay_ms);
+    }
+    if (run.client_file_size_megabytes !== null) {
+      record.clientFileSizesMegabytes.add(run.client_file_size_megabytes);
+    }
+  }
+
+  const records = Array.from(recordsByParentRunId.values());
+
+  return {
+    recordsByParentRunId,
+    filterOptions: {
+      clientCounts: buildNumberFilterOptions(records, (record) =>
+        record.clientCount === null ? [] : [record.clientCount],
+      ),
+      ccaLabels: buildStringFilterOptions(records, (record) =>
+        Array.from(record.ccaLabels),
+      ),
+      addedDelaysMs: buildNumberFilterOptions(records, (record) =>
+        Array.from(record.addedDelaysMs),
+      ),
+      clientStartDelaysMs: buildNumberFilterOptions(records, (record) =>
+        Array.from(record.clientStartDelaysMs),
+      ),
+      clientFileSizesMegabytes: buildNumberFilterOptions(records, (record) =>
+        Array.from(record.clientFileSizesMegabytes),
+      ),
+      bottleneckRatesMegabit: buildNumberFilterOptions(records, (record) =>
+        record.bottleneckRateMegabit === null ? [] : [record.bottleneckRateMegabit],
+      ),
+      queueBufferSizesKilobyte: buildNumberFilterOptions(records, (record) =>
+        record.queueBufferSizeKilobyte === null
+          ? []
+          : [record.queueBufferSizeKilobyte],
+      ),
+    },
+  };
+}
+
+function parentRunMatchesIndexFilters(
+  record: ParentRunFilterRecord,
+  filters: ParentRunIndexFilters,
+) {
+  const normalizedRunSearchQuery = filters.runSearchQuery?.trim() ?? "";
+  const clientCounts = normalizeNumberFilterValues(filters.clientCounts);
+  const ccaLabels = normalizeStringFilterValues(filters.ccaLabels);
+  const addedDelaysMs = normalizeNumberFilterValues(filters.addedDelaysMs);
+  const clientStartDelaysMs = normalizeNumberFilterValues(
+    filters.clientStartDelaysMs,
+  );
+  const clientFileSizesMegabytes = normalizeNumberFilterValues(
+    filters.clientFileSizesMegabytes,
+  );
+  const bottleneckRatesMegabit = normalizeNumberFilterValues(
+    filters.bottleneckRatesMegabit,
+  );
+  const queueBufferSizesKilobyte = normalizeNumberFilterValues(
+    filters.queueBufferSizesKilobyte,
+  );
+
+  if (
+    normalizedRunSearchQuery &&
+    !String(record.id).includes(normalizedRunSearchQuery)
+  ) {
+    return false;
+  }
+
+  if (
+    clientCounts.length > 0 &&
+    (record.clientCount === null || !clientCounts.includes(record.clientCount))
+  ) {
+    return false;
+  }
+
+  if (ccaLabels.length > 0 && !hasAnyStringValue(record.ccaLabels, ccaLabels)) {
+    return false;
+  }
+
+  if (
+    addedDelaysMs.length > 0 &&
+    !hasAnyNumberValue(record.addedDelaysMs, addedDelaysMs)
+  ) {
+    return false;
+  }
+
+  if (
+    clientStartDelaysMs.length > 0 &&
+    !hasAnyNumberValue(record.clientStartDelaysMs, clientStartDelaysMs)
+  ) {
+    return false;
+  }
+
+  if (
+    clientFileSizesMegabytes.length > 0 &&
+    !hasAnyNumberValue(
+      record.clientFileSizesMegabytes,
+      clientFileSizesMegabytes,
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    bottleneckRatesMegabit.length > 0 &&
+    (record.bottleneckRateMegabit === null ||
+      !bottleneckRatesMegabit.includes(record.bottleneckRateMegabit))
+  ) {
+    return false;
+  }
+
+  if (
+    queueBufferSizesKilobyte.length > 0 &&
+    (record.queueBufferSizeKilobyte === null ||
+      !queueBufferSizesKilobyte.includes(record.queueBufferSizeKilobyte))
+  ) {
+    return false;
+  }
+
+  return true;
+}
 
 async function buildParentRunIndexItems(
   supabase: SupabaseClient,
@@ -324,21 +616,6 @@ async function buildParentRunIndexItems(
       throw new Error(`Failed to load emulated_runs: ${runsError.message}`);
     }
 
-    type RawRunForIndex = {
-      id: number;
-      emulated_parent_run_id: number | null;
-      client_number: number | null;
-      delay_added: number | null;
-      congestion_control_algorithm_id: number | null;
-      client_file_size_megabytes: number | null;
-      client_start_delay_ms: number | null;
-      flow_completion_time_ms: NumericLike;
-      congestion_control_algorithms:
-        | { name: string | null }
-        | Array<{ name: string | null }>
-        | null;
-    };
-
     for (const run of (runsData ?? []) as RawRunForIndex[]) {
       if (
         run.emulated_parent_run_id === null ||
@@ -349,19 +626,8 @@ async function buildParentRunIndexItems(
 
       runParentMap.set(run.id, run.emulated_parent_run_id);
 
-      let congestionControlAlgorithmName: string | null = null;
-      if (Array.isArray(run.congestion_control_algorithms)) {
-        congestionControlAlgorithmName =
-          run.congestion_control_algorithms[0]?.name ?? null;
-      } else if (run.congestion_control_algorithms) {
-        congestionControlAlgorithmName = run.congestion_control_algorithms.name;
-      }
-
       const ccaLabel =
-        congestionControlAlgorithmName ??
-        (run.congestion_control_algorithm_id !== null
-          ? `id ${run.congestion_control_algorithm_id}`
-          : "n/a");
+        getCongestionControlAlgorithmLabel(run) ?? "n/a";
       const delayLabel = run.delay_added !== null ? `${run.delay_added}ms` : "n/a";
       const summary = `${ccaLabel} ${delayLabel}`;
       const currentCcas = ccasByParentRunId.get(run.emulated_parent_run_id) ?? new Set();
@@ -452,7 +718,7 @@ async function buildParentRunIndexItems(
       chartDurationSeconds: chartDurationByParentRunId.get(row.id) ?? null,
       bottleneckRateMegabit: toNumber(row.bottleneck_rate_megabit),
       queueBufferSizeKilobyte: toNumber(row.queue_buffer_size_kilobyte),
-      clientCount: orderedClientSummaries.length,
+      clientCount: row.number_of_clients ?? orderedClientSummaries.length,
       clientFlowCompletionTimes: orderedClientSummaries.map(
         ([clientNumber, record]) => ({
           clientNumber,
@@ -479,41 +745,89 @@ async function fetchParentRunsForIndexPageWithClient(
   {
     page,
     pageSize,
+    filters = {},
   }: {
     page: number;
     pageSize: number;
+    filters?: ParentRunIndexFilters;
   },
 ): Promise<ParentRunIndexPage> {
   const safePageSize = Math.max(1, Math.min(pageSize, 100));
   const safePage = Math.max(1, page);
-  const safeOffset = (safePage - 1) * safePageSize;
-  const { data, error, count } = await supabase
-    .from("emulated_parent_runs")
-    .select(
-      "id, created_at, snapshot_length_ms, bottleneck_rate_megabit, queue_buffer_size_kilobyte",
-      { count: "exact" },
-    )
-    .order("created_at", { ascending: false })
-    .range(safeOffset, safeOffset + safePageSize - 1);
+  const batchSize = 1000;
+  const parentRows: RawParentRunForIndex[] = [];
+  const runRows: RawRunForIndex[] = [];
 
-  if (error) {
-    throw new Error(`Failed to load emulated_parent_runs: ${error.message}`);
+  for (let from = 0; ; from += batchSize) {
+    const { data, error } = await supabase
+      .from("emulated_parent_runs")
+      .select(
+        "id, created_at, snapshot_length_ms, bottleneck_rate_megabit, queue_buffer_size_kilobyte, number_of_clients",
+      )
+      .order("created_at", { ascending: false })
+      .range(from, from + batchSize - 1);
+
+    if (error) {
+      throw new Error(`Failed to load emulated_parent_runs: ${error.message}`);
+    }
+
+    const rows = (data ?? []) as RawParentRunForIndex[];
+    parentRows.push(
+      ...rows.map((row) => ({
+        id: row.id,
+        created_at: row.created_at,
+        snapshot_length_ms: row.snapshot_length_ms,
+        bottleneck_rate_megabit: row.bottleneck_rate_megabit,
+        queue_buffer_size_kilobyte: row.queue_buffer_size_kilobyte,
+        number_of_clients: row.number_of_clients,
+      })),
+    );
+
+    if (rows.length < batchSize) {
+      break;
+    }
   }
 
-  const rows = ((data ?? []) as RawParentRunForIndex[]).map((row) => ({
-    id: row.id,
-    created_at: row.created_at,
-    snapshot_length_ms: row.snapshot_length_ms,
-    bottleneck_rate_megabit: row.bottleneck_rate_megabit,
-    queue_buffer_size_kilobyte: row.queue_buffer_size_kilobyte,
-  }));
-  const parentRuns = await buildParentRunIndexItems(supabase, rows);
-  const totalCount = count ?? 0;
+  for (let from = 0; ; from += batchSize) {
+    const { data, error } = await supabase
+      .from("emulated_runs")
+      .select(
+        "id, emulated_parent_run_id, client_number, delay_added, congestion_control_algorithm_id, client_file_size_megabytes, client_start_delay_ms, flow_completion_time_ms, congestion_control_algorithms(name)",
+      )
+      .range(from, from + batchSize - 1);
+
+    if (error) {
+      throw new Error(`Failed to load emulated_runs: ${error.message}`);
+    }
+
+    const rows = (data ?? []) as RawRunForIndex[];
+    runRows.push(...rows);
+
+    if (rows.length < batchSize) {
+      break;
+    }
+  }
+
+  const { recordsByParentRunId, filterOptions } = buildParentRunFilterModel(
+    parentRows,
+    runRows,
+  );
+  const matchingRows = parentRows.filter((row) => {
+    const record = recordsByParentRunId.get(row.id);
+
+    return record ? parentRunMatchesIndexFilters(record, filters) : false;
+  });
+  const totalCount = matchingRows.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / safePageSize));
+  const resolvedPage = Math.min(safePage, totalPages);
+  const safeOffset = (resolvedPage - 1) * safePageSize;
+  const pageRows = matchingRows.slice(safeOffset, safeOffset + safePageSize);
+  const parentRuns = await buildParentRunIndexItems(supabase, pageRows);
 
   return {
     parentRuns,
-    page: Math.min(safePage, totalPages),
+    filterOptions,
+    page: resolvedPage,
     pageSize: safePageSize,
     totalPages,
     totalCount,
@@ -524,12 +838,18 @@ async function fetchParentRunsForIndexPageWithClient(
 export async function fetchParentRunsForIndexPage({
   page = 1,
   pageSize = 30,
+  filters = {},
 }: {
   page?: number;
   pageSize?: number;
+  filters?: ParentRunIndexFilters;
 } = {}): Promise<ParentRunIndexPage> {
   const supabase = await createClient();
-  return fetchParentRunsForIndexPageWithClient(supabase, { page, pageSize });
+  return fetchParentRunsForIndexPageWithClient(supabase, {
+    page,
+    pageSize,
+    filters,
+  });
 }
 
 export async function fetchParentRunsForIndex(): Promise<ParentRunIndexItem[]> {

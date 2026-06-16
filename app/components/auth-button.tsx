@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSafeNextPath } from "@/lib/auth-redirect";
 import { isGoogleAuthenticatedUser } from "@/lib/auth-provider";
+import { getConfiguredSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/client";
 
 type AuthStatus = "loading" | "logged-out" | "logged-in";
@@ -122,7 +123,8 @@ export function AuthButton() {
       currentUrl.pathname === "/login"
         ? getSafeNextPath(currentUrl.searchParams.get("next"))
         : `${currentUrl.pathname}${currentUrl.search}`;
-    const callbackUrl = new URL("/auth/callback", currentUrl.origin);
+    const callbackOrigin = getConfiguredSiteUrl() ?? currentUrl.origin;
+    const callbackUrl = new URL("/auth/callback", callbackOrigin);
     callbackUrl.searchParams.set("next", nextPath);
 
     const { error } = await supabase.auth.signInWithOAuth({

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   ParentRunIndexItem,
   ParentRunIndexPage,
@@ -12,30 +12,15 @@ type ParentRunFilterState = {
   normalizedRunSearchQuery: string;
   selectedClientCounts: number[];
   selectedCcaLabels: string[];
-  selectedAddedDelayRanges: number[];
-  selectedClientStartDelayRanges: number[];
-  selectedClientFileSizeRanges: number[];
-  selectedBottleneckRateRanges: number[];
-  selectedQueueBufferSizeRanges: number[];
+  selectedAddedDelayValues: number[];
+  selectedClientStartDelayValues: number[];
+  selectedClientFileSizeValues: number[];
+  selectedBottleneckRateValues: number[];
+  selectedQueueBufferSizeValues: number[];
 };
 
-const CLIENT_COUNT_OPTIONS = [2, 3, 4];
 const FILTER_OPTION_PREVIEW_COUNT = 6;
 const PARENT_RUN_PAGE_SIZE = 10;
-
-type RangeBucket = {
-  start: number;
-  end: number;
-  label: string;
-};
-
-type RangeBucketConfig = {
-  addedDelayBuckets: RangeBucket[];
-  clientStartDelayBuckets: RangeBucket[];
-  clientFileSizeBuckets: RangeBucket[];
-  bottleneckRateBuckets: RangeBucket[];
-  queueBufferSizeBuckets: RangeBucket[];
-};
 
 type ParentRunSortColumn =
   | "run"
@@ -64,104 +49,15 @@ function formatCreatedAt(value: string | null) {
   }).format(parsed);
 }
 
-function buildRangeBuckets(maxValue: number | null): RangeBucket[] {
-  if (maxValue === null || !Number.isFinite(maxValue) || maxValue < 0) {
-    return [];
-  }
-
-  const buckets: RangeBucket[] = [];
-  let start = 0;
-
-  while (start <= maxValue) {
-    let bucketSize = 100;
-
-    if (start < 30) {
-      bucketSize = 5;
-    } else if (start < 100) {
-      bucketSize = 10;
-    } else if (start < 200) {
-      bucketSize = 25;
-    } else if (start < 500) {
-      bucketSize = 50;
-    }
-
-    const end = start + bucketSize;
-    buckets.push({
-      start,
-      end,
-      label: `${start}-${end - 1}`,
-    });
-    start = end;
-  }
-
-  return buckets;
-}
-
-function parseDelayLabelValue(delayLabel: string) {
-  if (!delayLabel.endsWith("ms")) {
-    return null;
-  }
-
-  const parsed = Number(delayLabel.slice(0, -2));
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function findRangeBucketForValue(
-  value: number | null,
-  buckets: RangeBucket[],
-) {
-  if (value === null || !Number.isFinite(value)) {
-    return null;
-  }
-
-  return (
-    buckets.find((bucket) => value >= bucket.start && value < bucket.end) ?? null
-  );
-}
-
-function matchesSelectedRangeBuckets(
-  values: number[],
-  selectedRangeStarts: number[],
-  buckets: RangeBucket[],
-) {
-  if (selectedRangeStarts.length === 0) {
-    return true;
-  }
-
-  if (values.length === 0) {
-    return false;
-  }
-
-  return values.some((value) => {
-    const bucket = findRangeBucketForValue(value, buckets);
-    return bucket ? selectedRangeStarts.includes(bucket.start) : false;
-  });
-}
-
-function formatSelectedRangeSummary(
-  selectedRangeStarts: number[],
-  bucketLookup: Map<number, RangeBucket>,
+function formatSelectedValueSummary(
+  selectedValues: number[],
   unitLabel: string,
 ) {
-  return selectedRangeStarts
+  return selectedValues
     .slice()
     .sort((a, b) => a - b)
-    .map((rangeStart) => {
-      const bucket = bucketLookup.get(rangeStart);
-      return bucket ? `${bucket.label} ${unitLabel}` : `${rangeStart} ${unitLabel}`;
-    })
+    .map((value) => `${formatNumber(value)} ${unitLabel}`)
     .join(", ");
-}
-
-function toBucketsForValues(values: Array<number | null>) {
-  const numericValues = values.filter((value): value is number => value !== null);
-  const maxValue = numericValues.length > 0 ? Math.max(...numericValues) : null;
-
-  return buildRangeBuckets(maxValue);
-}
-
-function buildBucketLookup(buckets: RangeBucket[]) {
-  return new Map(buckets.map((bucket) => [bucket.start, bucket]));
 }
 
 function formatNumber(value: number) {
@@ -220,6 +116,80 @@ function buildVisiblePageNumbers(currentPage: number, totalPages: number) {
   }
 
   return Array.from(pages).sort((a, b) => a - b);
+}
+
+function appendNumberFilterParams(
+  searchParams: URLSearchParams,
+  name: string,
+  values: number[],
+) {
+  values
+    .slice()
+    .sort((a, b) => a - b)
+    .forEach((value) => {
+      searchParams.append(name, String(value));
+    });
+}
+
+function appendStringFilterParams(
+  searchParams: URLSearchParams,
+  name: string,
+  values: string[],
+) {
+  values
+    .slice()
+    .sort((a, b) => a.localeCompare(b))
+    .forEach((value) => {
+      searchParams.append(name, value);
+    });
+}
+
+function buildParentRunPageSearchParams(
+  pageNumber: number,
+  filterState: ParentRunFilterState,
+) {
+  const searchParams = new URLSearchParams({
+    page: String(pageNumber),
+    pageSize: String(PARENT_RUN_PAGE_SIZE),
+  });
+
+  if (filterState.normalizedRunSearchQuery) {
+    searchParams.set("search", filterState.normalizedRunSearchQuery);
+  }
+
+  appendNumberFilterParams(
+    searchParams,
+    "clientCount",
+    filterState.selectedClientCounts,
+  );
+  appendStringFilterParams(searchParams, "cca", filterState.selectedCcaLabels);
+  appendNumberFilterParams(
+    searchParams,
+    "addedDelayMs",
+    filterState.selectedAddedDelayValues,
+  );
+  appendNumberFilterParams(
+    searchParams,
+    "clientStartDelayMs",
+    filterState.selectedClientStartDelayValues,
+  );
+  appendNumberFilterParams(
+    searchParams,
+    "clientFileSizeMb",
+    filterState.selectedClientFileSizeValues,
+  );
+  appendNumberFilterParams(
+    searchParams,
+    "bottleneckRateMbit",
+    filterState.selectedBottleneckRateValues,
+  );
+  appendNumberFilterParams(
+    searchParams,
+    "queueBufferKbyte",
+    filterState.selectedQueueBufferSizeValues,
+  );
+
+  return searchParams;
 }
 
 function ListViewIcon() {
@@ -309,115 +279,6 @@ function SortIndicator({
   );
 }
 
-function parentRunMatchesFilters(
-  parentRun: ParentRunIndexItem,
-  {
-    normalizedRunSearchQuery,
-    selectedClientCounts,
-    selectedCcaLabels,
-    selectedAddedDelayRanges,
-    selectedClientStartDelayRanges,
-    selectedClientFileSizeRanges,
-    selectedBottleneckRateRanges,
-    selectedQueueBufferSizeRanges,
-  }: ParentRunFilterState,
-  {
-    addedDelayBuckets,
-    clientStartDelayBuckets,
-    clientFileSizeBuckets,
-    bottleneckRateBuckets,
-    queueBufferSizeBuckets,
-  }: RangeBucketConfig,
-) {
-  if (
-    selectedClientCounts.length > 0 &&
-    !selectedClientCounts.includes(parentRun.clientCount)
-  ) {
-    return false;
-  }
-
-  if (
-    selectedCcaLabels.length > 0 &&
-    !selectedCcaLabels.some((selectedCca) => parentRun.ccaLabels.includes(selectedCca))
-  ) {
-    return false;
-  }
-
-  const addedDelayValues = parentRun.delayLabels
-    .map(parseDelayLabelValue)
-    .filter((value): value is number => value !== null);
-
-  if (
-    !matchesSelectedRangeBuckets(
-      addedDelayValues,
-      selectedAddedDelayRanges,
-      addedDelayBuckets,
-    )
-  ) {
-    return false;
-  }
-
-  if (
-    !matchesSelectedRangeBuckets(
-      parentRun.clientStartDelayMsValues,
-      selectedClientStartDelayRanges,
-      clientStartDelayBuckets,
-    )
-  ) {
-    return false;
-  }
-
-  if (
-    !matchesSelectedRangeBuckets(
-      parentRun.clientFileSizeMegabytesValues,
-      selectedClientFileSizeRanges,
-      clientFileSizeBuckets,
-    )
-  ) {
-    return false;
-  }
-
-  if (
-    !matchesSelectedRangeBuckets(
-      parentRun.bottleneckRateMegabit === null
-        ? []
-        : [parentRun.bottleneckRateMegabit],
-      selectedBottleneckRateRanges,
-      bottleneckRateBuckets,
-    )
-  ) {
-    return false;
-  }
-
-  if (
-    !matchesSelectedRangeBuckets(
-      parentRun.queueBufferSizeKilobyte === null
-        ? []
-        : [parentRun.queueBufferSizeKilobyte],
-      selectedQueueBufferSizeRanges,
-      queueBufferSizeBuckets,
-    )
-  ) {
-    return false;
-  }
-
-  if (!normalizedRunSearchQuery) {
-    return true;
-  }
-
-  return String(parentRun.id).includes(normalizedRunSearchQuery);
-}
-
-function filterParentRuns(
-  parentRuns: ParentRunIndexItem[],
-  filterState: ParentRunFilterState,
-  bucketConfig: RangeBucketConfig,
-) {
-  return parentRuns.filter((parentRun) =>
-    parentRunMatchesFilters(parentRun, filterState, bucketConfig),
-  );
-}
-
 export function ParentRunIndex({
   initialPage,
 }: {
@@ -429,6 +290,7 @@ export function ParentRunIndex({
   const [pageLoadError, setPageLoadError] = useState<string | null>(null);
   const [pageJumpValue, setPageJumpValue] = useState(String(initialPage.page));
   const [runSearchQuery, setRunSearchQuery] = useState("");
+  const hasMountedFilterEffect = useRef(false);
   const [areExtraFiltersVisible, setAreExtraFiltersVisible] = useState(false);
   const [parentRunView, setParentRunView] = useState<"list" | "grid">("list");
   const [parentRunSortColumn, setParentRunSortColumn] =
@@ -439,18 +301,19 @@ export function ParentRunIndex({
     useState<string[]>([]);
   const [selectedClientCounts, setSelectedClientCounts] = useState<number[]>([]);
   const [selectedCcaLabels, setSelectedCcaLabels] = useState<string[]>([]);
-  const [selectedAddedDelayRanges, setSelectedAddedDelayRanges] = useState<
+  const [selectedAddedDelayValues, setSelectedAddedDelayValues] = useState<
     number[]
   >([]);
-  const [selectedClientStartDelayRanges, setSelectedClientStartDelayRanges] =
+  const [selectedClientStartDelayValues, setSelectedClientStartDelayValues] =
     useState<number[]>([]);
-  const [selectedClientFileSizeRanges, setSelectedClientFileSizeRanges] =
+  const [selectedClientFileSizeValues, setSelectedClientFileSizeValues] =
     useState<number[]>([]);
-  const [selectedBottleneckRateRanges, setSelectedBottleneckRateRanges] =
+  const [selectedBottleneckRateValues, setSelectedBottleneckRateValues] =
     useState<number[]>([]);
-  const [selectedQueueBufferSizeRanges, setSelectedQueueBufferSizeRanges] =
+  const [selectedQueueBufferSizeValues, setSelectedQueueBufferSizeValues] =
     useState<number[]>([]);
   const parentRuns = pageData.parentRuns;
+  const filterOptions = pageData.filterOptions;
   const currentPage = pageData.page;
   const totalPages = pageData.totalPages;
   const totalCount = pageData.totalCount;
@@ -470,117 +333,34 @@ export function ParentRunIndex({
     (normalizedRunSearchQuery.length > 0 ? 1 : 0) +
     selectedClientCounts.length +
     selectedCcaLabels.length +
-    selectedAddedDelayRanges.length +
-    selectedClientStartDelayRanges.length +
-    selectedClientFileSizeRanges.length +
-    selectedBottleneckRateRanges.length +
-    selectedQueueBufferSizeRanges.length;
-  const availableCcaLabels = useMemo(
-    () =>
-      Array.from(new Set(parentRuns.flatMap((parentRun) => parentRun.ccaLabels)))
-        .sort((a, b) => a.localeCompare(b)),
-    [parentRuns],
-  );
-  const availableAddedDelayBuckets = useMemo(
-    () =>
-      toBucketsForValues(
-        parentRuns.flatMap((parentRun) =>
-          parentRun.delayLabels.map(parseDelayLabelValue),
-        ),
-      ),
-    [parentRuns],
-  );
-  const availableClientStartDelayBuckets = useMemo(
-    () =>
-      toBucketsForValues(
-        parentRuns.flatMap((parentRun) => parentRun.clientStartDelayMsValues),
-      ),
-    [parentRuns],
-  );
-  const availableClientFileSizeBuckets = useMemo(
-    () =>
-      toBucketsForValues(
-        parentRuns.flatMap((parentRun) => parentRun.clientFileSizeMegabytesValues),
-      ),
-    [parentRuns],
-  );
-  const availableBottleneckRateBuckets = useMemo(
-    () =>
-      toBucketsForValues(
-        parentRuns.map((parentRun) => parentRun.bottleneckRateMegabit),
-      ),
-    [parentRuns],
-  );
-  const availableQueueBufferSizeBuckets = useMemo(
-    () =>
-      toBucketsForValues(
-        parentRuns.map((parentRun) => parentRun.queueBufferSizeKilobyte),
-      ),
-    [parentRuns],
-  );
-  const addedDelayBucketLookup = useMemo(
-    () => buildBucketLookup(availableAddedDelayBuckets),
-    [availableAddedDelayBuckets],
-  );
-  const clientStartDelayBucketLookup = useMemo(
-    () => buildBucketLookup(availableClientStartDelayBuckets),
-    [availableClientStartDelayBuckets],
-  );
-  const clientFileSizeBucketLookup = useMemo(
-    () => buildBucketLookup(availableClientFileSizeBuckets),
-    [availableClientFileSizeBuckets],
-  );
-  const bottleneckRateBucketLookup = useMemo(
-    () => buildBucketLookup(availableBottleneckRateBuckets),
-    [availableBottleneckRateBuckets],
-  );
-  const queueBufferSizeBucketLookup = useMemo(
-    () => buildBucketLookup(availableQueueBufferSizeBuckets),
-    [availableQueueBufferSizeBuckets],
-  );
-  const rangeBucketConfig = useMemo(
-    () => ({
-      addedDelayBuckets: availableAddedDelayBuckets,
-      clientStartDelayBuckets: availableClientStartDelayBuckets,
-      clientFileSizeBuckets: availableClientFileSizeBuckets,
-      bottleneckRateBuckets: availableBottleneckRateBuckets,
-      queueBufferSizeBuckets: availableQueueBufferSizeBuckets,
-    }),
-    [
-      availableAddedDelayBuckets,
-      availableClientStartDelayBuckets,
-      availableClientFileSizeBuckets,
-      availableBottleneckRateBuckets,
-      availableQueueBufferSizeBuckets,
-    ],
-  );
-  const baseFilterState = useMemo(
+    selectedAddedDelayValues.length +
+    selectedClientStartDelayValues.length +
+    selectedClientFileSizeValues.length +
+    selectedBottleneckRateValues.length +
+    selectedQueueBufferSizeValues.length;
+  const baseFilterState = useMemo<ParentRunFilterState>(
     () => ({
       normalizedRunSearchQuery,
       selectedClientCounts,
       selectedCcaLabels,
-      selectedAddedDelayRanges,
-      selectedClientStartDelayRanges,
-      selectedClientFileSizeRanges,
-      selectedBottleneckRateRanges,
-      selectedQueueBufferSizeRanges,
+      selectedAddedDelayValues,
+      selectedClientStartDelayValues,
+      selectedClientFileSizeValues,
+      selectedBottleneckRateValues,
+      selectedQueueBufferSizeValues,
     }),
     [
       normalizedRunSearchQuery,
       selectedClientCounts,
       selectedCcaLabels,
-      selectedAddedDelayRanges,
-      selectedClientStartDelayRanges,
-      selectedClientFileSizeRanges,
-      selectedBottleneckRateRanges,
-      selectedQueueBufferSizeRanges,
+      selectedAddedDelayValues,
+      selectedClientStartDelayValues,
+      selectedClientFileSizeValues,
+      selectedBottleneckRateValues,
+      selectedQueueBufferSizeValues,
     ],
   );
 
-  const filteredParentRuns = useMemo(
-    () => filterParentRuns(parentRuns, baseFilterState, rangeBucketConfig),
-    [baseFilterState, parentRuns, rangeBucketConfig],
-  );
   const sortedParentRuns = useMemo(() => {
     const getSortValue = (parentRun: ParentRunIndexItem) => {
       switch (parentRunSortColumn) {
@@ -601,7 +381,7 @@ export function ParentRunIndex({
       }
     };
 
-    return [...filteredParentRuns].sort((left, right) => {
+    return [...parentRuns].sort((left, right) => {
       const leftValue = getSortValue(left);
       const rightValue = getSortValue(right);
       const comparison = leftValue < rightValue ? -1 : leftValue > rightValue ? 1 : 0;
@@ -612,7 +392,7 @@ export function ParentRunIndex({
 
       return right.id - left.id;
     });
-  }, [filteredParentRuns, parentRunSortColumn, parentRunSortDirection]);
+  }, [parentRuns, parentRunSortColumn, parentRunSortDirection]);
   const toggleParentRunSort = (column: ParentRunSortColumn) => {
     if (parentRunSortColumn === column) {
       setParentRunSortDirection((current) =>
@@ -628,157 +408,91 @@ export function ParentRunIndex({
   const clientCountOptionCounts = useMemo(
     () =>
       new Map(
-        CLIENT_COUNT_OPTIONS.map((clientCount) => [
-          clientCount,
-          filterParentRuns(
-            parentRuns,
-            {
-              ...baseFilterState,
-              selectedClientCounts: [clientCount],
-            },
-            rangeBucketConfig,
-          ).length,
+        filterOptions.clientCounts.map((option) => [
+          option.value,
+          option.count,
         ]),
       ),
-    [baseFilterState, parentRuns, rangeBucketConfig],
+    [filterOptions.clientCounts],
   );
 
   const ccaOptionCounts = useMemo(
     () =>
       new Map(
-        availableCcaLabels.map((ccaLabel) => [
-          ccaLabel,
-          filterParentRuns(
-            parentRuns,
-            {
-              ...baseFilterState,
-              selectedCcaLabels: [ccaLabel],
-            },
-            rangeBucketConfig,
-          ).length,
+        filterOptions.ccaLabels.map((option) => [
+          option.value,
+          option.count,
         ]),
       ),
-    [availableCcaLabels, baseFilterState, parentRuns, rangeBucketConfig],
+    [filterOptions.ccaLabels],
   );
 
   const addedDelayOptionCounts = useMemo(
     () =>
       new Map(
-        availableAddedDelayBuckets.map((bucket) => [
-          bucket.start,
-          filterParentRuns(
-            parentRuns,
-            {
-              ...baseFilterState,
-              selectedAddedDelayRanges: [bucket.start],
-            },
-            rangeBucketConfig,
-          ).length,
+        filterOptions.addedDelaysMs.map((option) => [
+          option.value,
+          option.count,
         ]),
       ),
-    [availableAddedDelayBuckets, baseFilterState, parentRuns, rangeBucketConfig],
+    [filterOptions.addedDelaysMs],
   );
 
   const clientStartDelayOptionCounts = useMemo(
     () =>
       new Map(
-        availableClientStartDelayBuckets.map((bucket) => [
-          bucket.start,
-          filterParentRuns(
-            parentRuns,
-            {
-              ...baseFilterState,
-              selectedClientStartDelayRanges: [bucket.start],
-            },
-            rangeBucketConfig,
-          ).length,
+        filterOptions.clientStartDelaysMs.map((option) => [
+          option.value,
+          option.count,
         ]),
       ),
-    [
-      availableClientStartDelayBuckets,
-      baseFilterState,
-      parentRuns,
-      rangeBucketConfig,
-    ],
+    [filterOptions.clientStartDelaysMs],
   );
 
   const clientFileSizeOptionCounts = useMemo(
     () =>
       new Map(
-        availableClientFileSizeBuckets.map((bucket) => [
-          bucket.start,
-          filterParentRuns(
-            parentRuns,
-            {
-              ...baseFilterState,
-              selectedClientFileSizeRanges: [bucket.start],
-            },
-            rangeBucketConfig,
-          ).length,
+        filterOptions.clientFileSizesMegabytes.map((option) => [
+          option.value,
+          option.count,
         ]),
       ),
-    [
-      availableClientFileSizeBuckets,
-      baseFilterState,
-      parentRuns,
-      rangeBucketConfig,
-    ],
+    [filterOptions.clientFileSizesMegabytes],
   );
 
   const bottleneckRateOptionCounts = useMemo(
     () =>
       new Map(
-        availableBottleneckRateBuckets.map((bucket) => [
-          bucket.start,
-          filterParentRuns(
-            parentRuns,
-            {
-              ...baseFilterState,
-              selectedBottleneckRateRanges: [bucket.start],
-            },
-            rangeBucketConfig,
-          ).length,
+        filterOptions.bottleneckRatesMegabit.map((option) => [
+          option.value,
+          option.count,
         ]),
       ),
-    [
-      availableBottleneckRateBuckets,
-      baseFilterState,
-      parentRuns,
-      rangeBucketConfig,
-    ],
+    [filterOptions.bottleneckRatesMegabit],
   );
 
   const queueBufferSizeOptionCounts = useMemo(
     () =>
       new Map(
-        availableQueueBufferSizeBuckets.map((bucket) => [
-          bucket.start,
-          filterParentRuns(
-            parentRuns,
-            {
-              ...baseFilterState,
-              selectedQueueBufferSizeRanges: [bucket.start],
-            },
-            rangeBucketConfig,
-          ).length,
+        filterOptions.queueBufferSizesKilobyte.map((option) => [
+          option.value,
+          option.count,
         ]),
       ),
-    [
-      availableQueueBufferSizeBuckets,
-      baseFilterState,
-      parentRuns,
-      rangeBucketConfig,
-    ],
+    [filterOptions.queueBufferSizesKilobyte],
   );
 
   useEffect(() => {
     setPageJumpValue(String(currentPage));
   }, [currentPage]);
 
-  const loadPage = async (pageNumber: number) => {
+  const loadPage = async (
+    pageNumber: number,
+    { force = false }: { force?: boolean } = {},
+  ) => {
     const clampedPageNumber = Math.min(Math.max(pageNumber, 1), totalPages);
 
-    if (isLoadingPage || clampedPageNumber === currentPage) {
+    if (isLoadingPage || (!force && clampedPageNumber === currentPage)) {
       return;
     }
 
@@ -786,10 +500,10 @@ export function ParentRunIndex({
     setPageLoadError(null);
 
     try {
-      const searchParams = new URLSearchParams({
-        page: String(clampedPageNumber),
-        pageSize: String(PARENT_RUN_PAGE_SIZE),
-      });
+      const searchParams = buildParentRunPageSearchParams(
+        clampedPageNumber,
+        baseFilterState,
+      );
       const response = await fetch(`/api/parent-runs?${searchParams.toString()}`, {
         cache: "no-store",
       });
@@ -808,6 +522,46 @@ export function ParentRunIndex({
       setIsLoadingPage(false);
     }
   };
+
+  useEffect(() => {
+    if (!hasMountedFilterEffect.current) {
+      hasMountedFilterEffect.current = true;
+      return;
+    }
+
+    const searchParams = buildParentRunPageSearchParams(1, baseFilterState);
+
+    async function loadFirstFilteredPage() {
+      setIsLoadingPage(true);
+      setPageLoadError(null);
+
+      try {
+        const response = await fetch(
+          `/api/parent-runs?${searchParams.toString()}`,
+          {
+            cache: "no-store",
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to load parent run page.");
+        }
+
+        const payload = (await response.json()) as ParentRunIndexPage;
+        setPageData(payload);
+      } catch (error) {
+        setPageLoadError(
+          error instanceof Error
+            ? error.message
+            : "Failed to load parent run page.",
+        );
+      } finally {
+        setIsLoadingPage(false);
+      }
+    }
+
+    void loadFirstFilteredPage();
+  }, [baseFilterState]);
 
   const visiblePageNumbers = useMemo(
     () => buildVisiblePageNumbers(currentPage, totalPages),
@@ -865,7 +619,10 @@ export function ParentRunIndex({
                 </span>
               </summary>
               <div className="mt-2 space-y-1 rounded-2xl border border-rose-300/80 bg-white/80 p-2.5 dark:border-slate-500 dark:bg-slate-900/75">
-                {CLIENT_COUNT_OPTIONS.map((clientCount) => (
+                {filterOptions.clientCounts.map((option) => {
+                  const clientCount = option.value;
+
+                  return (
                   <label
                     key={clientCount}
                     className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
@@ -895,7 +652,8 @@ export function ParentRunIndex({
                       {clientCountOptionCounts.get(clientCount) ?? 0}
                     </span>
                   </label>
-                ))}
+                  );
+                })}
               </div>
             </details>
           </div>
@@ -915,12 +673,15 @@ export function ParentRunIndex({
                 </span>
               </summary>
               <div className="mt-2 space-y-1 rounded-2xl border border-rose-300/80 bg-white/80 p-2.5 dark:border-slate-500 dark:bg-slate-900/75">
-                {availableCcaLabels.length > 0 ? (
+                {filterOptions.ccaLabels.length > 0 ? (
                   <>
                     {(isFilterOptionSectionExpanded("cca")
-                      ? availableCcaLabels
-                      : availableCcaLabels.slice(0, FILTER_OPTION_PREVIEW_COUNT)
-                    ).map((ccaLabel) => (
+                      ? filterOptions.ccaLabels
+                      : filterOptions.ccaLabels.slice(0, FILTER_OPTION_PREVIEW_COUNT)
+                    ).map((option) => {
+                      const ccaLabel = option.value;
+
+                      return (
                     <label
                       key={ccaLabel}
                       className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
@@ -950,8 +711,9 @@ export function ParentRunIndex({
                         {ccaOptionCounts.get(ccaLabel) ?? 0}
                       </span>
                     </label>
-                    ))}
-                    {availableCcaLabels.length > FILTER_OPTION_PREVIEW_COUNT ? (
+                      );
+                    })}
+                    {filterOptions.ccaLabels.length > FILTER_OPTION_PREVIEW_COUNT ? (
                       <button
                         type="button"
                         onClick={() => toggleFilterOptionSection("cca")}
@@ -959,7 +721,7 @@ export function ParentRunIndex({
                       >
                         {isFilterOptionSectionExpanded("cca")
                           ? "Show less"
-                          : `Show more (${availableCcaLabels.length - FILTER_OPTION_PREVIEW_COUNT})`}
+                          : `Show more (${filterOptions.ccaLabels.length - FILTER_OPTION_PREVIEW_COUNT})`}
                       </button>
                     ) : null}
                   </>
@@ -978,12 +740,8 @@ export function ParentRunIndex({
             <details className="group mt-2">
               <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-rose-300/80 bg-white/80 px-3 py-2 text-sm text-slate-700 transition hover:border-rose-400 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100">
                 <span className="min-h-4 flex-1 truncate pr-2">
-                  {selectedAddedDelayRanges.length > 0
-                    ? formatSelectedRangeSummary(
-                        selectedAddedDelayRanges,
-                        addedDelayBucketLookup,
-                        "ms",
-                      )
+                  {selectedAddedDelayValues.length > 0
+                    ? formatSelectedValueSummary(selectedAddedDelayValues, "ms")
                     : "(None selected)"}
                 </span>
                 <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-50 dark:bg-slate-800">
@@ -991,43 +749,47 @@ export function ParentRunIndex({
                 </span>
               </summary>
               <div className="mt-2 space-y-1 rounded-2xl border border-rose-300/80 bg-white/80 p-2.5 dark:border-slate-500 dark:bg-slate-900/75">
-                {availableAddedDelayBuckets.length > 0 ? (
+                {filterOptions.addedDelaysMs.length > 0 ? (
                   <>
                     {(isFilterOptionSectionExpanded("delay")
-                      ? availableAddedDelayBuckets
-                      : availableAddedDelayBuckets.slice(0, FILTER_OPTION_PREVIEW_COUNT)
-                    ).map((bucket) => (
+                      ? filterOptions.addedDelaysMs
+                      : filterOptions.addedDelaysMs.slice(0, FILTER_OPTION_PREVIEW_COUNT)
+                    ).map((option) => {
+                      const value = option.value;
+
+                      return (
                     <label
-                      key={bucket.start}
+                      key={value}
                       className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
                     >
                       <span className="flex min-w-0 items-center gap-2">
                         <input
                           type="checkbox"
-                          checked={selectedAddedDelayRanges.includes(bucket.start)}
+                          checked={selectedAddedDelayValues.includes(value)}
                           onChange={(event) => {
                             if (event.target.checked) {
-                              setSelectedAddedDelayRanges((current) =>
-                                current.includes(bucket.start)
+                              setSelectedAddedDelayValues((current) =>
+                                current.includes(value)
                                   ? current
-                                  : [...current, bucket.start],
+                                  : [...current, value],
                               );
                               return;
                             }
-                            setSelectedAddedDelayRanges((current) =>
-                              current.filter((value) => value !== bucket.start),
+                            setSelectedAddedDelayValues((current) =>
+                              current.filter((currentValue) => currentValue !== value),
                             );
                           }}
                           className="h-3.5 w-3.5 rounded border-rose-400 text-teal-700 focus:ring-teal-500 dark:border-slate-400"
                         />
-                        <span className="truncate">{bucket.label} ms</span>
+                        <span className="truncate">{formatNumber(value)} ms</span>
                       </span>
                       <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
-                        {addedDelayOptionCounts.get(bucket.start) ?? 0}
+                        {addedDelayOptionCounts.get(value) ?? 0}
                       </span>
                     </label>
-                    ))}
-                    {availableAddedDelayBuckets.length > FILTER_OPTION_PREVIEW_COUNT ? (
+                      );
+                    })}
+                    {filterOptions.addedDelaysMs.length > FILTER_OPTION_PREVIEW_COUNT ? (
                       <button
                         type="button"
                         onClick={() => toggleFilterOptionSection("delay")}
@@ -1035,7 +797,7 @@ export function ParentRunIndex({
                       >
                         {isFilterOptionSectionExpanded("delay")
                           ? "Show less"
-                          : `Show more (${availableAddedDelayBuckets.length - FILTER_OPTION_PREVIEW_COUNT})`}
+                          : `Show more (${filterOptions.addedDelaysMs.length - FILTER_OPTION_PREVIEW_COUNT})`}
                       </button>
                     ) : null}
                   </>
@@ -1054,12 +816,8 @@ export function ParentRunIndex({
             <details className="group mt-2">
               <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-rose-300/80 bg-white/80 px-3 py-2 text-sm text-slate-700 transition hover:border-rose-400 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100">
                 <span className="min-h-4 flex-1 truncate pr-2">
-                  {selectedClientFileSizeRanges.length > 0
-                    ? formatSelectedRangeSummary(
-                        selectedClientFileSizeRanges,
-                        clientFileSizeBucketLookup,
-                        "MB",
-                      )
+                  {selectedClientFileSizeValues.length > 0
+                    ? formatSelectedValueSummary(selectedClientFileSizeValues, "MB")
                     : "(None selected)"}
                 </span>
                 <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-50 dark:bg-slate-800">
@@ -1068,42 +826,50 @@ export function ParentRunIndex({
               </summary>
               <div className="mt-2 space-y-1 rounded-2xl border border-rose-300/80 bg-white/80 p-2.5 dark:border-slate-500 dark:bg-slate-900/75">
                 {(isFilterOptionSectionExpanded("client-file-size")
-                  ? availableClientFileSizeBuckets
-                  : availableClientFileSizeBuckets.slice(0, FILTER_OPTION_PREVIEW_COUNT)
-                ).map((bucket) => (
+                  ? filterOptions.clientFileSizesMegabytes
+                  : filterOptions.clientFileSizesMegabytes.slice(
+                      0,
+                      FILTER_OPTION_PREVIEW_COUNT,
+                    )
+                ).map((option) => {
+                  const value = option.value;
+
+                  return (
                   <label
-                    key={bucket.start}
+                    key={value}
                     className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
                   >
                     <span className="flex min-w-0 items-center gap-2">
                       <input
                         type="checkbox"
-                        checked={selectedClientFileSizeRanges.includes(bucket.start)}
+                        checked={selectedClientFileSizeValues.includes(value)}
                         onChange={(event) => {
                           if (event.target.checked) {
-                            setSelectedClientFileSizeRanges((current) =>
-                              current.includes(bucket.start)
+                            setSelectedClientFileSizeValues((current) =>
+                              current.includes(value)
                                 ? current
-                                : [...current, bucket.start],
+                                : [...current, value],
                             );
                             return;
                           }
-                          setSelectedClientFileSizeRanges((current) =>
-                            current.filter((value) => value !== bucket.start),
+                          setSelectedClientFileSizeValues((current) =>
+                            current.filter((currentValue) => currentValue !== value),
                           );
                         }}
                         className="h-3.5 w-3.5 rounded border-rose-400 text-teal-700 focus:ring-teal-500 dark:border-slate-400"
                       />
                       <span className="truncate">
-                        {bucket.label} MB
+                        {formatNumber(value)} MB
                       </span>
                     </span>
                     <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
-                      {clientFileSizeOptionCounts.get(bucket.start) ?? 0}
+                      {clientFileSizeOptionCounts.get(value) ?? 0}
                     </span>
                   </label>
-                ))}
-                {availableClientFileSizeBuckets.length > FILTER_OPTION_PREVIEW_COUNT ? (
+                  );
+                })}
+                {filterOptions.clientFileSizesMegabytes.length >
+                FILTER_OPTION_PREVIEW_COUNT ? (
                   <button
                     type="button"
                     onClick={() => toggleFilterOptionSection("client-file-size")}
@@ -1111,7 +877,7 @@ export function ParentRunIndex({
                   >
                     {isFilterOptionSectionExpanded("client-file-size")
                       ? "Show less"
-                      : `Show more (${availableClientFileSizeBuckets.length - FILTER_OPTION_PREVIEW_COUNT})`}
+                      : `Show more (${filterOptions.clientFileSizesMegabytes.length - FILTER_OPTION_PREVIEW_COUNT})`}
                   </button>
                 ) : null}
               </div>
@@ -1133,10 +899,9 @@ export function ParentRunIndex({
                 <details className="group mt-2">
                   <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-rose-300/80 bg-white/80 px-3 py-2 text-sm text-slate-700 transition hover:border-rose-400 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100">
                     <span className="min-h-4 flex-1 truncate pr-2">
-                      {selectedClientStartDelayRanges.length > 0
-                        ? formatSelectedRangeSummary(
-                            selectedClientStartDelayRanges,
-                            clientStartDelayBucketLookup,
+                      {selectedClientStartDelayValues.length > 0
+                        ? formatSelectedValueSummary(
+                            selectedClientStartDelayValues,
                             "ms",
                           )
                         : "(None selected)"}
@@ -1147,40 +912,50 @@ export function ParentRunIndex({
                   </summary>
                   <div className="mt-2 space-y-1 rounded-2xl border border-rose-300/80 bg-white/80 p-2.5 dark:border-slate-500 dark:bg-slate-900/75">
                     {(isFilterOptionSectionExpanded("client-start-delay")
-                      ? availableClientStartDelayBuckets
-                      : availableClientStartDelayBuckets.slice(0, FILTER_OPTION_PREVIEW_COUNT)
-                    ).map((bucket) => (
+                      ? filterOptions.clientStartDelaysMs
+                      : filterOptions.clientStartDelaysMs.slice(
+                          0,
+                          FILTER_OPTION_PREVIEW_COUNT,
+                        )
+                    ).map((option) => {
+                      const value = option.value;
+
+                      return (
                       <label
-                        key={bucket.start}
+                        key={value}
                         className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
                       >
                         <span className="flex min-w-0 items-center gap-2">
                           <input
                             type="checkbox"
-                            checked={selectedClientStartDelayRanges.includes(bucket.start)}
+                            checked={selectedClientStartDelayValues.includes(value)}
                             onChange={(event) => {
                               if (event.target.checked) {
-                                setSelectedClientStartDelayRanges((current) =>
-                                  current.includes(bucket.start)
+                                setSelectedClientStartDelayValues((current) =>
+                                  current.includes(value)
                                     ? current
-                                    : [...current, bucket.start],
+                                    : [...current, value],
                                 );
                                 return;
                               }
-                              setSelectedClientStartDelayRanges((current) =>
-                                current.filter((value) => value !== bucket.start),
+                              setSelectedClientStartDelayValues((current) =>
+                                current.filter(
+                                  (currentValue) => currentValue !== value,
+                                ),
                               );
                             }}
                             className="h-3.5 w-3.5 rounded border-rose-400 text-teal-700 focus:ring-teal-500 dark:border-slate-400"
                           />
-                          <span className="truncate">{bucket.label} ms</span>
+                          <span className="truncate">{formatNumber(value)} ms</span>
                         </span>
                         <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
-                          {clientStartDelayOptionCounts.get(bucket.start) ?? 0}
+                          {clientStartDelayOptionCounts.get(value) ?? 0}
                         </span>
                       </label>
-                    ))}
-                    {availableClientStartDelayBuckets.length > FILTER_OPTION_PREVIEW_COUNT ? (
+                      );
+                    })}
+                    {filterOptions.clientStartDelaysMs.length >
+                    FILTER_OPTION_PREVIEW_COUNT ? (
                       <button
                         type="button"
                         onClick={() => toggleFilterOptionSection("client-start-delay")}
@@ -1188,7 +963,7 @@ export function ParentRunIndex({
                       >
                         {isFilterOptionSectionExpanded("client-start-delay")
                           ? "Show less"
-                          : `Show more (${availableClientStartDelayBuckets.length - FILTER_OPTION_PREVIEW_COUNT})`}
+                          : `Show more (${filterOptions.clientStartDelaysMs.length - FILTER_OPTION_PREVIEW_COUNT})`}
                       </button>
                     ) : null}
                   </div>
@@ -1201,10 +976,9 @@ export function ParentRunIndex({
                 <details className="group mt-2">
                   <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-rose-300/80 bg-white/80 px-3 py-2 text-sm text-slate-700 transition hover:border-rose-400 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100">
                     <span className="min-h-4 flex-1 truncate pr-2">
-                      {selectedQueueBufferSizeRanges.length > 0
-                        ? formatSelectedRangeSummary(
-                            selectedQueueBufferSizeRanges,
-                            queueBufferSizeBucketLookup,
+                      {selectedQueueBufferSizeValues.length > 0
+                        ? formatSelectedValueSummary(
+                            selectedQueueBufferSizeValues,
                             "kbytes",
                           )
                         : "(None selected)"}
@@ -1215,40 +989,52 @@ export function ParentRunIndex({
                   </summary>
                   <div className="mt-2 space-y-1 rounded-2xl border border-rose-300/80 bg-white/80 p-2.5 dark:border-slate-500 dark:bg-slate-900/75">
                     {(isFilterOptionSectionExpanded("queue-buffer")
-                      ? availableQueueBufferSizeBuckets
-                      : availableQueueBufferSizeBuckets.slice(0, FILTER_OPTION_PREVIEW_COUNT)
-                    ).map((size) => (
+                      ? filterOptions.queueBufferSizesKilobyte
+                      : filterOptions.queueBufferSizesKilobyte.slice(
+                          0,
+                          FILTER_OPTION_PREVIEW_COUNT,
+                        )
+                    ).map((option) => {
+                      const value = option.value;
+
+                      return (
                       <label
-                        key={size.start}
+                        key={value}
                         className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
                       >
                         <span className="flex min-w-0 items-center gap-2">
                           <input
                             type="checkbox"
-                            checked={selectedQueueBufferSizeRanges.includes(size.start)}
+                            checked={selectedQueueBufferSizeValues.includes(value)}
                             onChange={(event) => {
                               if (event.target.checked) {
-                                setSelectedQueueBufferSizeRanges((current) =>
-                                  current.includes(size.start)
+                                setSelectedQueueBufferSizeValues((current) =>
+                                  current.includes(value)
                                     ? current
-                                    : [...current, size.start],
+                                    : [...current, value],
                                 );
                                 return;
                               }
-                              setSelectedQueueBufferSizeRanges((current) =>
-                                current.filter((value) => value !== size.start),
+                              setSelectedQueueBufferSizeValues((current) =>
+                                current.filter(
+                                  (currentValue) => currentValue !== value,
+                                ),
                               );
                             }}
                             className="h-3.5 w-3.5 rounded border-rose-400 text-teal-700 focus:ring-teal-500 dark:border-slate-400"
                           />
-                          <span className="truncate">{size.label} kbytes</span>
+                          <span className="truncate">
+                            {formatNumber(value)} kbytes
+                          </span>
                         </span>
                         <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
-                          {queueBufferSizeOptionCounts.get(size.start) ?? 0}
+                          {queueBufferSizeOptionCounts.get(value) ?? 0}
                         </span>
                       </label>
-                    ))}
-                    {availableQueueBufferSizeBuckets.length > FILTER_OPTION_PREVIEW_COUNT ? (
+                      );
+                    })}
+                    {filterOptions.queueBufferSizesKilobyte.length >
+                    FILTER_OPTION_PREVIEW_COUNT ? (
                       <button
                         type="button"
                         onClick={() => toggleFilterOptionSection("queue-buffer")}
@@ -1256,7 +1042,7 @@ export function ParentRunIndex({
                       >
                         {isFilterOptionSectionExpanded("queue-buffer")
                           ? "Show less"
-                          : `Show more (${availableQueueBufferSizeBuckets.length - FILTER_OPTION_PREVIEW_COUNT})`}
+                          : `Show more (${filterOptions.queueBufferSizesKilobyte.length - FILTER_OPTION_PREVIEW_COUNT})`}
                       </button>
                     ) : null}
                   </div>
@@ -1269,10 +1055,9 @@ export function ParentRunIndex({
                 <details className="group mt-2">
                   <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-rose-300/80 bg-white/80 px-3 py-2 text-sm text-slate-700 transition hover:border-rose-400 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100">
                     <span className="min-h-4 flex-1 truncate pr-2">
-                      {selectedBottleneckRateRanges.length > 0
-                        ? formatSelectedRangeSummary(
-                            selectedBottleneckRateRanges,
-                            bottleneckRateBucketLookup,
+                      {selectedBottleneckRateValues.length > 0
+                        ? formatSelectedValueSummary(
+                            selectedBottleneckRateValues,
                             "mbit",
                           )
                         : "(None selected)"}
@@ -1283,40 +1068,50 @@ export function ParentRunIndex({
                   </summary>
                   <div className="mt-2 space-y-1 rounded-2xl border border-rose-300/80 bg-white/80 p-2.5 dark:border-slate-500 dark:bg-slate-900/75">
                     {(isFilterOptionSectionExpanded("bottleneck-rate")
-                      ? availableBottleneckRateBuckets
-                      : availableBottleneckRateBuckets.slice(0, FILTER_OPTION_PREVIEW_COUNT)
-                    ).map((rate) => (
+                      ? filterOptions.bottleneckRatesMegabit
+                      : filterOptions.bottleneckRatesMegabit.slice(
+                          0,
+                          FILTER_OPTION_PREVIEW_COUNT,
+                        )
+                    ).map((option) => {
+                      const value = option.value;
+
+                      return (
                       <label
-                        key={rate.start}
+                        key={value}
                         className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
                       >
                         <span className="flex min-w-0 items-center gap-2">
                           <input
                             type="checkbox"
-                            checked={selectedBottleneckRateRanges.includes(rate.start)}
+                            checked={selectedBottleneckRateValues.includes(value)}
                             onChange={(event) => {
                               if (event.target.checked) {
-                                setSelectedBottleneckRateRanges((current) =>
-                                  current.includes(rate.start)
+                                setSelectedBottleneckRateValues((current) =>
+                                  current.includes(value)
                                     ? current
-                                    : [...current, rate.start],
+                                    : [...current, value],
                                 );
                                 return;
                               }
-                              setSelectedBottleneckRateRanges((current) =>
-                                current.filter((value) => value !== rate.start),
+                              setSelectedBottleneckRateValues((current) =>
+                                current.filter(
+                                  (currentValue) => currentValue !== value,
+                                ),
                               );
                             }}
                             className="h-3.5 w-3.5 rounded border-rose-400 text-teal-700 focus:ring-teal-500 dark:border-slate-400"
                           />
-                          <span className="truncate">{rate.label} mbit</span>
+                          <span className="truncate">{formatNumber(value)} mbit</span>
                         </span>
                         <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
-                          {bottleneckRateOptionCounts.get(rate.start) ?? 0}
+                          {bottleneckRateOptionCounts.get(value) ?? 0}
                         </span>
                       </label>
-                    ))}
-                    {availableBottleneckRateBuckets.length > FILTER_OPTION_PREVIEW_COUNT ? (
+                      );
+                    })}
+                    {filterOptions.bottleneckRatesMegabit.length >
+                    FILTER_OPTION_PREVIEW_COUNT ? (
                       <button
                         type="button"
                         onClick={() => toggleFilterOptionSection("bottleneck-rate")}
@@ -1324,7 +1119,7 @@ export function ParentRunIndex({
                       >
                         {isFilterOptionSectionExpanded("bottleneck-rate")
                           ? "Show less"
-                          : `Show more (${availableBottleneckRateBuckets.length - FILTER_OPTION_PREVIEW_COUNT})`}
+                          : `Show more (${filterOptions.bottleneckRatesMegabit.length - FILTER_OPTION_PREVIEW_COUNT})`}
                       </button>
                     ) : null}
                   </div>
@@ -1338,11 +1133,11 @@ export function ParentRunIndex({
               setRunSearchQuery("");
               setSelectedClientCounts([]);
               setSelectedCcaLabels([]);
-              setSelectedAddedDelayRanges([]);
-              setSelectedClientStartDelayRanges([]);
-              setSelectedClientFileSizeRanges([]);
-              setSelectedBottleneckRateRanges([]);
-              setSelectedQueueBufferSizeRanges([]);
+              setSelectedAddedDelayValues([]);
+              setSelectedClientStartDelayValues([]);
+              setSelectedClientFileSizeValues([]);
+              setSelectedBottleneckRateValues([]);
+              setSelectedQueueBufferSizeValues([]);
             }}
             className="mt-4 w-full rounded-xl border border-rose-300/80 bg-white/90 px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/75 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/85"
           >
@@ -1418,7 +1213,7 @@ export function ParentRunIndex({
                 : "grid max-w-6xl content-start gap-3 md:grid-cols-2 xl:grid-cols-3"
             }`}
           >
-            {filteredParentRuns.length > 0 ? (
+            {sortedParentRuns.length > 0 ? (
               parentRunView === "list" ? (
                 <div className="overflow-x-auto rounded-3xl border border-rose-200/80 bg-[linear-gradient(165deg,#fff7fb_0%,#fff0f7_100%)] dark:border-slate-600 dark:bg-[linear-gradient(165deg,rgba(51,65,85,0.78)_0%,rgba(71,85,105,0.72)_100%)]">
                   <table className="w-full table-fixed border-collapse">
