@@ -46,6 +46,10 @@ export async function GET(request: Request) {
         runSearchQuery: searchParams.get("search") ?? undefined,
         clientCounts: parseNumberList(searchParams.getAll("clientCount")),
         ccaLabels: parseStringList(searchParams.getAll("cca")),
+        ccaByClientNumber: {
+          1: parseStringList(searchParams.getAll("ccaClient1")),
+          2: parseStringList(searchParams.getAll("ccaClient2")),
+        },
         addedDelaysMs: parseNumberList(searchParams.getAll("addedDelayMs")),
         clientStartDelaysMs: parseNumberList(
           searchParams.getAll("clientStartDelayMs"),

@@ -12,6 +12,9 @@ type ParentRunFilterState = {
   normalizedRunSearchQuery: string;
   selectedClientCounts: number[];
   selectedCcaLabels: string[];
+  isOrderedCcaFilterEnabled: boolean;
+  selectedClientOneCcaLabels: string[];
+  selectedClientTwoCcaLabels: string[];
   selectedAddedDelayValues: number[];
   selectedClientStartDelayValues: number[];
   selectedClientFileSizeValues: number[];
@@ -163,6 +166,18 @@ function buildParentRunPageSearchParams(
     filterState.selectedClientCounts,
   );
   appendStringFilterParams(searchParams, "cca", filterState.selectedCcaLabels);
+  if (filterState.isOrderedCcaFilterEnabled) {
+    appendStringFilterParams(
+      searchParams,
+      "ccaClient1",
+      filterState.selectedClientOneCcaLabels,
+    );
+    appendStringFilterParams(
+      searchParams,
+      "ccaClient2",
+      filterState.selectedClientTwoCcaLabels,
+    );
+  }
   appendNumberFilterParams(
     searchParams,
     "addedDelayMs",
@@ -301,6 +316,14 @@ export function ParentRunIndex({
     useState<string[]>([]);
   const [selectedClientCounts, setSelectedClientCounts] = useState<number[]>([]);
   const [selectedCcaLabels, setSelectedCcaLabels] = useState<string[]>([]);
+  const [isOrderedCcaFilterEnabled, setIsOrderedCcaFilterEnabled] =
+    useState(false);
+  const [selectedClientOneCcaLabels, setSelectedClientOneCcaLabels] = useState<
+    string[]
+  >([]);
+  const [selectedClientTwoCcaLabels, setSelectedClientTwoCcaLabels] = useState<
+    string[]
+  >([]);
   const [selectedAddedDelayValues, setSelectedAddedDelayValues] = useState<
     number[]
   >([]);
@@ -333,6 +356,8 @@ export function ParentRunIndex({
     (normalizedRunSearchQuery.length > 0 ? 1 : 0) +
     selectedClientCounts.length +
     selectedCcaLabels.length +
+    (isOrderedCcaFilterEnabled ? selectedClientOneCcaLabels.length : 0) +
+    (isOrderedCcaFilterEnabled ? selectedClientTwoCcaLabels.length : 0) +
     selectedAddedDelayValues.length +
     selectedClientStartDelayValues.length +
     selectedClientFileSizeValues.length +
@@ -343,6 +368,9 @@ export function ParentRunIndex({
       normalizedRunSearchQuery,
       selectedClientCounts,
       selectedCcaLabels,
+      isOrderedCcaFilterEnabled,
+      selectedClientOneCcaLabels,
+      selectedClientTwoCcaLabels,
       selectedAddedDelayValues,
       selectedClientStartDelayValues,
       selectedClientFileSizeValues,
@@ -353,6 +381,9 @@ export function ParentRunIndex({
       normalizedRunSearchQuery,
       selectedClientCounts,
       selectedCcaLabels,
+      isOrderedCcaFilterEnabled,
+      selectedClientOneCcaLabels,
+      selectedClientTwoCcaLabels,
       selectedAddedDelayValues,
       selectedClientStartDelayValues,
       selectedClientFileSizeValues,
@@ -425,6 +456,34 @@ export function ParentRunIndex({
         ]),
       ),
     [filterOptions.ccaLabels],
+  );
+  const clientOneCcaOptions = useMemo(
+    () => filterOptions.ccaLabelsByClientNumber[1] ?? [],
+    [filterOptions.ccaLabelsByClientNumber],
+  );
+  const clientTwoCcaOptions = useMemo(
+    () => filterOptions.ccaLabelsByClientNumber[2] ?? [],
+    [filterOptions.ccaLabelsByClientNumber],
+  );
+  const clientOneCcaOptionCounts = useMemo(
+    () =>
+      new Map(
+        clientOneCcaOptions.map((option) => [
+          option.value,
+          option.count,
+        ]),
+      ),
+    [clientOneCcaOptions],
+  );
+  const clientTwoCcaOptionCounts = useMemo(
+    () =>
+      new Map(
+        clientTwoCcaOptions.map((option) => [
+          option.value,
+          option.count,
+        ]),
+      ),
+    [clientTwoCcaOptions],
   );
 
   const addedDelayOptionCounts = useMemo(
@@ -664,9 +723,22 @@ export function ParentRunIndex({
             <details className="group mt-2">
               <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-rose-300/80 bg-white/80 px-3 py-2 text-sm text-slate-700 transition hover:border-rose-400 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100">
                 <span className="min-h-4 flex-1 truncate pr-2">
-                  {selectedCcaLabels.length > 0
-                    ? selectedCcaLabels.join(", ")
-                    : "(None selected)"}
+                  {isOrderedCcaFilterEnabled &&
+                  (selectedClientOneCcaLabels.length > 0 ||
+                    selectedClientTwoCcaLabels.length > 0)
+                    ? [
+                        selectedClientOneCcaLabels.length > 0
+                          ? `C1: ${selectedClientOneCcaLabels.join(", ")}`
+                          : null,
+                        selectedClientTwoCcaLabels.length > 0
+                          ? `C2: ${selectedClientTwoCcaLabels.join(", ")}`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" | ")
+                    : selectedCcaLabels.length > 0
+                      ? selectedCcaLabels.join(", ")
+                      : "(None selected)"}
                 </span>
                 <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-50 dark:bg-slate-800">
                   <span className="h-2.5 w-2.5 rotate-45 border-b-2 border-r-2 border-slate-500 transition group-open:rotate-[225deg] dark:border-slate-300" />
@@ -723,6 +795,131 @@ export function ParentRunIndex({
                           ? "Show less"
                           : `Show more (${filterOptions.ccaLabels.length - FILTER_OPTION_PREVIEW_COUNT})`}
                       </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setIsOrderedCcaFilterEnabled((current) => !current)
+                      }
+                      className={`w-full rounded-xl border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] transition ${
+                        isOrderedCcaFilterEnabled
+                          ? "border-teal-500 bg-teal-50 text-teal-800 dark:border-teal-400 dark:bg-teal-500/15 dark:text-teal-100"
+                          : "border-rose-200 bg-white/80 text-slate-700 hover:border-rose-300 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
+                      }`}
+                    >
+                      Ordered only
+                    </button>
+                    {isOrderedCcaFilterEnabled ? (
+                      <div className="space-y-3 rounded-2xl border border-teal-200 bg-teal-50/45 p-2.5 dark:border-teal-500/40 dark:bg-teal-500/10">
+                        <div>
+                          <p className="px-1.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-teal-800 dark:text-teal-100">
+                            Client 1
+                          </p>
+                          <div className="space-y-1">
+                            {clientOneCcaOptions.length > 0 ? (
+                              clientOneCcaOptions.map((option) => {
+                                const ccaLabel = option.value;
+
+                                return (
+                                  <label
+                                    key={`client-1-${ccaLabel}`}
+                                    className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-white/70 dark:text-slate-100 dark:hover:bg-slate-700/60"
+                                  >
+                                    <span className="flex min-w-0 items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedClientOneCcaLabels.includes(
+                                          ccaLabel,
+                                        )}
+                                        onChange={(event) => {
+                                          if (event.target.checked) {
+                                            setSelectedClientOneCcaLabels(
+                                              (current) =>
+                                                current.includes(ccaLabel)
+                                                  ? current
+                                                  : [...current, ccaLabel],
+                                            );
+                                            return;
+                                          }
+                                          setSelectedClientOneCcaLabels(
+                                            (current) =>
+                                              current.filter(
+                                                (value) => value !== ccaLabel,
+                                              ),
+                                          );
+                                        }}
+                                        className="h-3.5 w-3.5 rounded border-teal-500 text-teal-700 focus:ring-teal-500 dark:border-teal-300"
+                                      />
+                                      <span className="truncate">{ccaLabel}</span>
+                                    </span>
+                                    <span className="shrink-0 rounded-full border border-teal-200 bg-white/80 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-teal-800 dark:border-teal-500/40 dark:bg-slate-800 dark:text-teal-100">
+                                      {clientOneCcaOptionCounts.get(ccaLabel) ?? 0}
+                                    </span>
+                                  </label>
+                                );
+                              })
+                            ) : (
+                              <p className="px-1.5 py-1 text-xs text-slate-500 dark:text-slate-300">
+                                No client 1 CCA values found.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <p className="px-1.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-teal-800 dark:text-teal-100">
+                            Client 2
+                          </p>
+                          <div className="space-y-1">
+                            {clientTwoCcaOptions.length > 0 ? (
+                              clientTwoCcaOptions.map((option) => {
+                                const ccaLabel = option.value;
+
+                                return (
+                                  <label
+                                    key={`client-2-${ccaLabel}`}
+                                    className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-white/70 dark:text-slate-100 dark:hover:bg-slate-700/60"
+                                  >
+                                    <span className="flex min-w-0 items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedClientTwoCcaLabels.includes(
+                                          ccaLabel,
+                                        )}
+                                        onChange={(event) => {
+                                          if (event.target.checked) {
+                                            setSelectedClientTwoCcaLabels(
+                                              (current) =>
+                                                current.includes(ccaLabel)
+                                                  ? current
+                                                  : [...current, ccaLabel],
+                                            );
+                                            return;
+                                          }
+                                          setSelectedClientTwoCcaLabels(
+                                            (current) =>
+                                              current.filter(
+                                                (value) => value !== ccaLabel,
+                                              ),
+                                          );
+                                        }}
+                                        className="h-3.5 w-3.5 rounded border-teal-500 text-teal-700 focus:ring-teal-500 dark:border-teal-300"
+                                      />
+                                      <span className="truncate">{ccaLabel}</span>
+                                    </span>
+                                    <span className="shrink-0 rounded-full border border-teal-200 bg-white/80 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-teal-800 dark:border-teal-500/40 dark:bg-slate-800 dark:text-teal-100">
+                                      {clientTwoCcaOptionCounts.get(ccaLabel) ?? 0}
+                                    </span>
+                                  </label>
+                                );
+                              })
+                            ) : (
+                              <p className="px-1.5 py-1 text-xs text-slate-500 dark:text-slate-300">
+                                No client 2 CCA values found.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     ) : null}
                   </>
                 ) : (
@@ -1133,6 +1330,9 @@ export function ParentRunIndex({
               setRunSearchQuery("");
               setSelectedClientCounts([]);
               setSelectedCcaLabels([]);
+              setIsOrderedCcaFilterEnabled(false);
+              setSelectedClientOneCcaLabels([]);
+              setSelectedClientTwoCcaLabels([]);
               setSelectedAddedDelayValues([]);
               setSelectedClientStartDelayValues([]);
               setSelectedClientFileSizeValues([]);

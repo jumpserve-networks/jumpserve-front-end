@@ -33,6 +33,7 @@ export type ParentRunFilterOption<T extends number | string> = {
 export type ParentRunFilterOptions = {
   clientCounts: Array<ParentRunFilterOption<number>>;
   ccaLabels: Array<ParentRunFilterOption<string>>;
+  ccaLabelsByClientNumber: Record<number, Array<ParentRunFilterOption<string>>>;
   addedDelaysMs: Array<ParentRunFilterOption<number>>;
   clientStartDelaysMs: Array<ParentRunFilterOption<number>>;
   clientFileSizesMegabytes: Array<ParentRunFilterOption<number>>;
@@ -44,6 +45,7 @@ export type ParentRunIndexFilters = {
   runSearchQuery?: string;
   clientCounts?: number[];
   ccaLabels?: string[];
+  ccaByClientNumber?: Record<number, string[]>;
   addedDelaysMs?: number[];
   clientStartDelaysMs?: number[];
   clientFileSizesMegabytes?: number[];
@@ -326,6 +328,7 @@ type ParentRunFilterRecord = {
   id: number;
   clientCount: number | null;
   ccaLabels: Set<string>;
+  ccaLabelsByClientNumber: Map<number, Set<string>>;
   addedDelaysMs: Set<number>;
   clientStartDelaysMs: Set<number>;
   clientFileSizesMegabytes: Set<number>;
@@ -422,6 +425,7 @@ function buildParentRunFilterModel(
       id: row.id,
       clientCount: row.number_of_clients,
       ccaLabels: new Set(),
+      ccaLabelsByClientNumber: new Map(),
       addedDelaysMs: new Set(),
       clientStartDelaysMs: new Set(),
       clientFileSizesMegabytes: new Set(),
@@ -445,6 +449,12 @@ function buildParentRunFilterModel(
 
     if (ccaLabel) {
       record.ccaLabels.add(ccaLabel);
+      if (run.client_number !== null) {
+        const clientCcaLabels =
+          record.ccaLabelsByClientNumber.get(run.client_number) ?? new Set();
+        clientCcaLabels.add(ccaLabel);
+        record.ccaLabelsByClientNumber.set(run.client_number, clientCcaLabels);
+      }
     }
     if (run.delay_added !== null) {
       record.addedDelaysMs.add(run.delay_added);
@@ -467,6 +477,22 @@ function buildParentRunFilterModel(
       ),
       ccaLabels: buildStringFilterOptions(records, (record) =>
         Array.from(record.ccaLabels),
+      ),
+      ccaLabelsByClientNumber: Object.fromEntries(
+        Array.from(
+          new Set(
+            records.flatMap((record) =>
+              Array.from(record.ccaLabelsByClientNumber.keys()),
+            ),
+          ),
+        )
+          .sort((left, right) => left - right)
+          .map((clientNumber) => [
+            clientNumber,
+            buildStringFilterOptions(records, (record) =>
+              Array.from(record.ccaLabelsByClientNumber.get(clientNumber) ?? []),
+            ),
+          ]),
       ),
       addedDelaysMs: buildNumberFilterOptions(records, (record) =>
         Array.from(record.addedDelaysMs),
@@ -496,6 +522,14 @@ function parentRunMatchesIndexFilters(
   const normalizedRunSearchQuery = filters.runSearchQuery?.trim() ?? "";
   const clientCounts = normalizeNumberFilterValues(filters.clientCounts);
   const ccaLabels = normalizeStringFilterValues(filters.ccaLabels);
+  const ccaByClientNumber = Object.fromEntries(
+    Object.entries(filters.ccaByClientNumber ?? {}).map(
+      ([clientNumber, values]) => [
+        Number(clientNumber),
+        normalizeStringFilterValues(values),
+      ],
+    ),
+  );
   const addedDelaysMs = normalizeNumberFilterValues(filters.addedDelaysMs);
   const clientStartDelaysMs = normalizeNumberFilterValues(
     filters.clientStartDelaysMs,
@@ -526,6 +560,21 @@ function parentRunMatchesIndexFilters(
 
   if (ccaLabels.length > 0 && !hasAnyStringValue(record.ccaLabels, ccaLabels)) {
     return false;
+  }
+
+  for (const [clientNumber, selectedCcas] of Object.entries(ccaByClientNumber)) {
+    const parsedClientNumber = Number(clientNumber);
+
+    if (selectedCcas.length === 0 || !Number.isFinite(parsedClientNumber)) {
+      continue;
+    }
+
+    const clientCcas =
+      record.ccaLabelsByClientNumber.get(parsedClientNumber) ?? new Set();
+
+    if (!hasAnyStringValue(clientCcas, selectedCcas)) {
+      return false;
+    }
   }
 
   if (
