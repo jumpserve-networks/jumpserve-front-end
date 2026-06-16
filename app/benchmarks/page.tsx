@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { BenchmarkTabs } from "@/app/components/benchmark-tabs";
-import { AuthButton } from "@/app/components/auth-button";
-import { ThemeToggle } from "@/app/components/theme-toggle";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +18,6 @@ export default async function BenchmarksPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <AuthButton />
-      <ThemeToggle />
-
       <div className="mx-auto max-w-3xl px-4 py-12">
         <Link
           href="/"

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { getSafeNextPath } from "@/lib/auth-redirect";
 import { createClient } from "@/lib/supabase/client";
 
 type AuthStatus = "loading" | "logged-out" | "logged-in";
@@ -60,6 +61,7 @@ export function AuthButton() {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [session, setSession] = useState<Session | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -99,22 +101,47 @@ export function AuthButton() {
 
   async function handleGoogleLogin() {
     setErrorMessage(null);
+    setIsSubmitting(true);
 
-    const redirectTo =
-      typeof window === "undefined"
-        ? undefined
-        : new URL("/auth/callback", window.location.origin).toString();
+    if (typeof window === "undefined") {
+      setIsSubmitting(false);
+      return;
+    }
+
+    const currentUrl = new URL(window.location.href);
+    const nextPath =
+      currentUrl.pathname === "/login"
+        ? getSafeNextPath(currentUrl.searchParams.get("next"))
+        : `${currentUrl.pathname}${currentUrl.search}`;
+    const callbackUrl = new URL("/auth/callback", currentUrl.origin);
+    callbackUrl.searchParams.set("next", nextPath);
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo,
+        redirectTo: callbackUrl.toString(),
       },
     });
 
     if (error) {
       setErrorMessage(error.message);
+      setIsSubmitting(false);
     }
+  }
+
+  async function handleSignOut() {
+    setErrorMessage(null);
+    setIsSubmitting(true);
+
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      setErrorMessage(error.message);
+      setIsSubmitting(false);
+      return;
+    }
+
+    window.location.assign("/login");
   }
 
   const userLabel =
@@ -126,25 +153,38 @@ export function AuthButton() {
   return (
     <div className="fixed top-3 right-3 z-50 flex max-w-[calc(100vw-1.5rem)] flex-col items-end gap-2">
       {status === "logged-in" ? (
-        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/80 bg-white/95 px-4 py-2 text-sm font-medium text-emerald-800 shadow-lg shadow-zinc-900/10 backdrop-blur dark:border-emerald-500/40 dark:bg-slate-900/88 dark:text-emerald-200 dark:shadow-black/40">
+        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/80 bg-white/95 py-2 pr-2 pl-4 text-sm font-medium text-emerald-800 shadow-lg shadow-zinc-900/10 backdrop-blur dark:border-emerald-500/40 dark:bg-slate-900/88 dark:text-emerald-200 dark:shadow-black/40">
           <LoggedInIcon />
-          <span>Logged in</span>
           {userLabel ? (
             <span className="max-w-44 truncate text-emerald-700/80 dark:text-emerald-200/75">
               {userLabel}
             </span>
-          ) : null}
+          ) : (
+            <span>Logged in</span>
+          )}
+          <button
+            type="button"
+            onClick={handleSignOut}
+            disabled={isSubmitting}
+            className="rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-wait disabled:opacity-60 dark:border-emerald-500/40 dark:bg-slate-800 dark:text-emerald-100 dark:hover:bg-slate-700"
+          >
+            {isSubmitting ? "Logging out..." : "Log out"}
+          </button>
         </div>
       ) : (
         <button
           type="button"
           onClick={handleGoogleLogin}
-          disabled={status === "loading"}
+          disabled={status === "loading" || isSubmitting}
           className="inline-flex items-center gap-2 rounded-full border border-rose-300/80 bg-white/95 px-4 py-2 text-sm font-medium text-slate-900 shadow-lg shadow-zinc-900/10 backdrop-blur transition hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-50 disabled:cursor-wait disabled:opacity-70 dark:border-slate-500 dark:bg-slate-900/88 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-800"
         >
           <GoogleIcon />
           <span>
-            {status === "loading" ? "Checking login..." : "Login with Google"}
+            {status === "loading"
+              ? "Checking login..."
+              : isSubmitting
+                ? "Opening Google..."
+                : "Login with Google"}
           </span>
         </button>
       )}
