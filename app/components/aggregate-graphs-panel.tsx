@@ -146,6 +146,34 @@ type AggregateTestFilterState = {
   selectedCcas: string[];
   selectedWorkloads: number[];
   selectedQueueBufferSizes: number[];
+  selectedBottleneckRates: number[];
+  selectedClientCounts: number[];
+  parentRunSearchQuery: string;
+};
+
+type AggregateExplorerMode = "explore" | "compare" | "facets";
+
+type AggregateGraphViewId =
+  | "connected-runs"
+  | "scatter"
+  | "box-plot"
+  | "ecdf"
+  | "heatmap"
+  | "other-client-delay";
+
+type PercentileKey = "p50" | "p90" | "max";
+
+type CohortDefinition = {
+  id: "a" | "b";
+  label: string;
+  cca: string;
+  color: string;
+};
+
+type FacetCell = {
+  rowValue: number;
+  columnValue: number;
+  points: FlowPoint[];
 };
 
 type AvailableTestGroupOption = {
@@ -164,6 +192,10 @@ type AvailableTestGroupOption = {
 const AVAILABLE_CCA_FILTERS = ["bbr", "cubic"] as const;
 const AVAILABLE_WORKLOAD_FILTERS = [10, 50, 100, 200] as const;
 const AVAILABLE_QUEUE_BUFFER_FILTERS = [125, 500] as const;
+const DEFAULT_COHORTS: CohortDefinition[] = [
+  { id: "a", label: "BBR", cca: "bbr", color: "#0d9488" },
+  { id: "b", label: "CUBIC", cca: "cubic", color: "#dc2626" },
+];
 const GROUP_CLIENT_1_DELAY_MS = 10;
 const GROUP_CLIENT_2_DELAY_RANGE = {
   min: 11,
@@ -289,37 +321,178 @@ const AVAILABLE_TEST_GROUP_OPTIONS: AvailableTestGroupOption[] = [
     workloadMegabytes: GROUP_WORKLOAD_MEGABYTES,
   },
 ];
-const OTHER_CLIENT_DELAY_GRAPH_LABEL =
-  "Added Delay Other Client (ms) vs. Flow Completion Time";
-const GRAPH_TYPE_OPTIONS = [
+const AGGREGATE_GRAPH_VIEWS: Array<{
+  id: AggregateGraphViewId;
+  label: string;
+  title: string;
+  subtitle: string;
+}> = [
   {
-    xAxis: "Added Delay (ms)",
-    yAxis: "Flow Completion Time",
+    id: "connected-runs",
+    label: "Connected Runs",
+    title: "Connected Client Lines",
+    subtitle:
+      "Each parent run is one line connecting its selected client points by added delay.",
   },
   {
-    xAxis: "Added Delay (ms)",
-    yAxis: "Average Throughput (Mbps)",
+    id: "scatter",
+    label: "Scatter",
+    title: "FCT Scatter",
+    subtitle:
+      "Every client run is plotted by added delay and flow completion time.",
   },
   {
-    xAxis: "Queue Buffer Size (KB)",
-    yAxis: "Flow Completion Time",
+    id: "box-plot",
+    label: "Box Plot",
+    title: "FCT Distribution by Delay",
+    subtitle:
+      "Median, quartiles, and min/max are grouped by added delay and client.",
   },
   {
-    xAxis: "Queue Buffer Size (KB)",
-    yAxis: "Average Throughput (Mbps)",
+    id: "ecdf",
+    label: "ECDF",
+    title: "Completion Distribution",
+    subtitle:
+      "Completion curves show how quickly each selected client group finishes.",
   },
   {
-    xAxis: "Bottleneck Rate (Mbit/s)",
-    yAxis: "Flow Completion Time",
+    id: "heatmap",
+    label: "Heatmap",
+    title: "Percentile Heatmap",
+    subtitle:
+      "Selected FCT percentiles are grouped by added delay and client.",
   },
   {
-    xAxis: "Flow Completion Time",
-    yAxis: "Added Delay Other Client (ms)",
+    id: "other-client-delay",
+    label: "Other Client Delay",
+    title: "Other Client Delay",
+    subtitle:
+      "Two-client parent runs plot primary-client FCT against the other client's added delay.",
   },
-].map((option) => ({
-  ...option,
-  label: `${option.yAxis} vs. ${option.xAxis}`,
-}));
+];
+
+const EXPLORER_MODES: Array<{
+  id: AggregateExplorerMode;
+  label: string;
+  title: string;
+  subtitle: string;
+}> = [
+  {
+    id: "explore",
+    label: "Explore",
+    title: "Filtered Run Explorer",
+    subtitle:
+      "Use filters to narrow the visible parent runs, then switch chart views.",
+  },
+  {
+    id: "compare",
+    label: "Compare Cohorts",
+    title: "BBR vs CUBIC",
+    subtitle:
+      "Compare flow completion distributions for BBR and CUBIC under the same filters.",
+  },
+  {
+    id: "facets",
+    label: "Facet Grid",
+    title: "Workload x Queue",
+    subtitle:
+      "Scan compact FCT patterns by workload rows and queue-size columns.",
+  },
+];
+
+const PERCENTILE_OPTIONS: Array<{ value: PercentileKey; label: string }> = [
+  { value: "p50", label: "p50" },
+  { value: "p90", label: "p90" },
+  { value: "max", label: "max" },
+];
+
+const PAGE_DESCRIPTOR_ITEMS = [
+  {
+    title: "FCT",
+    text: "Flow Completion Time: how long a client took to finish its transfer. Lower is better.",
+  },
+  {
+    title: "Parent Run",
+    text: "One benchmark execution containing the client runs that were launched together.",
+  },
+  {
+    title: "Client Point",
+    text: "One client inside a parent run. Most charts plot one dot per client point.",
+  },
+  {
+    title: "Presets",
+    text: "Optional saved test scenarios. Filters are the default way to explore the data.",
+  },
+];
+
+const FILTER_DESCRIPTOR_ITEMS = [
+  {
+    title: "CCA",
+    text: "Congestion control algorithm used by the client, such as BBR or CUBIC.",
+  },
+  {
+    title: "Workload",
+    text: "Client file size. Larger workloads usually create longer FCT values.",
+  },
+  {
+    title: "Queue Buffer",
+    text: "Bottleneck queue size. Use this to compare buffering behavior.",
+  },
+  {
+    title: "Bottleneck",
+    text: "Configured bottleneck link rate for the parent run.",
+  },
+  {
+    title: "Client Count",
+    text: "Number of clients launched together in the parent run.",
+  },
+  {
+    title: "Parent Run",
+    text: "Search for a specific parent-run id when checking one test directly.",
+  },
+];
+
+const CHART_DESCRIPTOR_ITEMS = [
+  {
+    title: "Connected Runs",
+    text: "Connects clients from the same parent run so paired behavior is easier to see.",
+  },
+  {
+    title: "Scatter",
+    text: "Plots each client point by delay and FCT. Useful for clusters and outliers.",
+  },
+  {
+    title: "Box Plot",
+    text: "Shows median, quartiles, min, and max for grouped FCT values.",
+  },
+  {
+    title: "ECDF",
+    text: "Shows what percentage of runs completed by each FCT value. Farther left is faster.",
+  },
+  {
+    title: "Heatmap",
+    text: "Colors grouped p50, p90, or max FCT values. Darker cells are slower.",
+  },
+  {
+    title: "Other Client Delay",
+    text: "For two-client runs, compares one client's FCT against the other client's delay.",
+  },
+];
+
+const MODE_DESCRIPTOR_ITEMS = [
+  {
+    title: "Explore",
+    text: "General charting for the current filtered dataset.",
+  },
+  {
+    title: "Compare Cohorts",
+    text: "Compares BBR and CUBIC under the same non-CCA filters.",
+  },
+  {
+    title: "Facet Grid",
+    text: "Splits the same data into workload rows and queue-size columns.",
+  },
+];
 
 function roundToHundredth(value: number) {
   return Number(value.toFixed(2));
@@ -790,44 +963,401 @@ function EmptyChartState({ text }: { text: string }) {
   );
 }
 
-function GraphTypeDropdown({
-  selectedGraphType,
-  onSelectedGraphTypeChange,
+function DescriptorList({
+  items,
+  compact = false,
 }: {
-  selectedGraphType: string;
-  onSelectedGraphTypeChange: (graphType: string) => void;
+  items: Array<{ title: string; text: string }>;
+  compact?: boolean;
 }) {
   return (
-    <label className="flex flex-col gap-2 sm:max-w-sm">
-      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-        Graph Type
-      </span>
-      <span className="relative">
-        <select
-          value={selectedGraphType}
-          onChange={(event) => onSelectedGraphTypeChange(event.target.value)}
-          className="h-11 w-full appearance-none rounded-xl border border-rose-300/80 bg-white px-3 pr-10 text-left text-sm font-medium text-slate-800 shadow-sm outline-none transition hover:border-rose-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 dark:border-slate-500 dark:bg-slate-800/85 dark:text-slate-100 dark:focus:ring-teal-700/60"
+    <dl className={compact ? "space-y-2" : "grid gap-3 sm:grid-cols-2 lg:grid-cols-4"}>
+      {items.map((item) => (
+        <div
+          key={item.title}
+          className={
+            compact
+              ? "rounded-xl border border-emerald-200/70 bg-white/70 px-3 py-2 dark:border-emerald-500/30 dark:bg-slate-950/25"
+              : "rounded-2xl border border-rose-100/90 bg-white/85 p-3 dark:border-slate-700 dark:bg-slate-900/45"
+          }
         >
-          {GRAPH_TYPE_OPTIONS.map((option) => (
-            <option key={option.label} value={option.label}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <svg
-          viewBox="0 0 24 24"
-          className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-slate-300"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.9"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
+          <dt
+            className={
+              compact
+                ? "text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-300"
+                : "text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400"
+            }
+          >
+            {item.title}
+          </dt>
+          <dd
+            className={
+              compact
+                ? "mt-1 text-xs leading-5 text-emerald-900 dark:text-emerald-100"
+                : "mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300"
+            }
+          >
+            {item.text}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function PageDescriptorPanel() {
+  return (
+    <section className="mt-6 rounded-[1.5rem] border border-rose-200/80 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-900/35">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+            Quick Glossary
+          </p>
+          <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
+            What the aggregate page is showing
+          </h2>
+        </div>
+      </div>
+      <DescriptorList items={PAGE_DESCRIPTOR_ITEMS} />
+    </section>
+  );
+}
+
+function ModeDescriptorPanel({
+  selectedMode,
+  selectedViewId,
+}: {
+  selectedMode: AggregateExplorerMode;
+  selectedViewId: AggregateGraphViewId;
+}) {
+  const mode = MODE_DESCRIPTOR_ITEMS.find(
+    (item) =>
+      item.title.toLowerCase() ===
+      EXPLORER_MODES.find((option) => option.id === selectedMode)?.label.toLowerCase(),
+  );
+  const view =
+    selectedMode === "explore"
+      ? CHART_DESCRIPTOR_ITEMS.find(
+          (item) =>
+            item.title.toLowerCase() ===
+            AGGREGATE_GRAPH_VIEWS.find((option) => option.id === selectedViewId)
+              ?.label.toLowerCase(),
+        )
+      : null;
+
+  return (
+    <div className="rounded-2xl border border-rose-100/90 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-900/45">
+      <div className="grid gap-3 md:grid-cols-2">
+        {mode ? (
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+              Current Section
+            </p>
+            <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">
+              <span className="font-semibold text-slate-900 dark:text-slate-100">
+                {mode.title}
+              </span>
+              {`: ${mode.text}`}
+            </p>
+          </div>
+        ) : null}
+        {view ? (
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+              Current Chart
+            </p>
+            <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">
+              <span className="font-semibold text-slate-900 dark:text-slate-100">
+                {view.title}
+              </span>
+              {`: ${view.text}`}
+            </p>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function GraphViewSegmentedControl({
+  selectedViewId,
+  onSelectedViewIdChange,
+}: {
+  selectedViewId: AggregateGraphViewId;
+  onSelectedViewIdChange: (viewId: AggregateGraphViewId) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2" role="tablist" aria-label="Chart view">
+      {AGGREGATE_GRAPH_VIEWS.map((view) => {
+        const isSelected = selectedViewId === view.id;
+
+        return (
+          <button
+            key={view.id}
+            type="button"
+            role="tab"
+            aria-selected={isSelected}
+            onClick={() => onSelectedViewIdChange(view.id)}
+            className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
+              isSelected
+                ? "border-teal-500 bg-teal-500 text-white shadow-sm dark:border-teal-300 dark:bg-teal-300 dark:text-slate-950"
+                : "border-rose-200/80 bg-white text-slate-700 hover:border-rose-300 hover:bg-rose-50 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-500"
+            }`}
+          >
+            {view.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ExplorerModeSegmentedControl({
+  selectedMode,
+  onSelectedModeChange,
+}: {
+  selectedMode: AggregateExplorerMode;
+  onSelectedModeChange: (mode: AggregateExplorerMode) => void;
+}) {
+  return (
+    <div
+      className="inline-flex flex-wrap gap-2 rounded-2xl border border-rose-200/80 bg-white/80 p-1 dark:border-slate-600 dark:bg-slate-900/50"
+      role="tablist"
+      aria-label="Explorer mode"
+    >
+      {EXPLORER_MODES.map((mode) => {
+        const isSelected = selectedMode === mode.id;
+
+        return (
+          <button
+            key={mode.id}
+            type="button"
+            role="tab"
+            aria-selected={isSelected}
+            onClick={() => onSelectedModeChange(mode.id)}
+            className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+              isSelected
+                ? "bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-950"
+                : "text-slate-600 hover:bg-rose-50 dark:text-slate-300 dark:hover:bg-slate-800"
+            }`}
+          >
+            {mode.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function PercentileSelector({
+  selectedPercentile,
+  onSelectedPercentileChange,
+}: {
+  selectedPercentile: PercentileKey;
+  onSelectedPercentileChange: (percentile: PercentileKey) => void;
+}) {
+  return (
+    <div
+      className="flex flex-wrap gap-2"
+      role="group"
+      aria-label="Heatmap percentile"
+    >
+      {PERCENTILE_OPTIONS.map((option) => {
+        const isSelected = selectedPercentile === option.value;
+
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onSelectedPercentileChange(option.value)}
+            className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
+              isSelected
+                ? "border-rose-500 bg-rose-500 text-white shadow-sm dark:border-rose-300 dark:bg-rose-300 dark:text-slate-950"
+                : "border-rose-200/80 bg-white text-slate-700 hover:border-rose-300 hover:bg-rose-50 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-500"
+            }`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function TextFilterControl({
+  label,
+  value,
+  placeholder,
+  onValueChange,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  onValueChange: (value: string) => void;
+}) {
+  return (
+    <label className="flex min-w-[13rem] flex-1 flex-col gap-1.5">
+      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+        {label}
       </span>
+      <input
+        value={value}
+        onChange={(event) => onValueChange(event.target.value)}
+        placeholder={placeholder}
+        className="h-10 rounded-xl border border-rose-200/80 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-teal-700/50"
+      />
     </label>
+  );
+}
+
+function StringFilterChips({
+  label,
+  options,
+  selectedValues,
+  onSelectedValuesChange,
+  formatLabel = (value) => value,
+}: {
+  label: string;
+  options: string[];
+  selectedValues: string[];
+  onSelectedValuesChange: (values: string[]) => void;
+  formatLabel?: (value: string) => string;
+}) {
+  if (options.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+        {label}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => {
+          const isSelected = selectedValues.includes(option);
+
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() =>
+                onSelectedValuesChange(
+                  isSelected
+                    ? selectedValues.filter((value) => value !== option)
+                    : [...selectedValues, option].sort((a, b) => a.localeCompare(b)),
+                )
+              }
+              className={`rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition ${
+                isSelected
+                  ? "border-teal-500 bg-teal-500 text-white dark:border-teal-300 dark:bg-teal-300 dark:text-slate-950"
+                  : "border-rose-200/80 bg-white text-slate-700 hover:border-rose-300 hover:bg-rose-50 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-500"
+              }`}
+            >
+              {formatLabel(option)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function NumberFilterChips({
+  label,
+  options,
+  selectedValues,
+  onSelectedValuesChange,
+  formatLabel,
+}: {
+  label: string;
+  options: number[];
+  selectedValues: number[];
+  onSelectedValuesChange: (values: number[]) => void;
+  formatLabel: (value: number) => string;
+}) {
+  if (options.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+        {label}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => {
+          const isSelected = selectedValues.includes(option);
+
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() =>
+                onSelectedValuesChange(
+                  isSelected
+                    ? selectedValues.filter((value) => value !== option)
+                    : [...selectedValues, option].sort((a, b) => a - b),
+                )
+              }
+              className={`rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition ${
+                isSelected
+                  ? "border-teal-500 bg-teal-500 text-white dark:border-teal-300 dark:bg-teal-300 dark:text-slate-950"
+                  : "border-rose-200/80 bg-white text-slate-700 hover:border-rose-300 hover:bg-rose-50 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-500"
+              }`}
+            >
+              {formatLabel(option)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ClientFilterControl({
+  clientNumbers,
+  selectedClientNumbers,
+  onSelectedClientNumbersChange,
+}: {
+  clientNumbers: number[];
+  selectedClientNumbers: number[];
+  onSelectedClientNumbersChange: (clientNumbers: number[]) => void;
+}) {
+  if (clientNumbers.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Client filter">
+      {clientNumbers.map((clientNumber) => {
+        const isSelected = selectedClientNumbers.includes(clientNumber);
+
+        return (
+          <button
+            key={clientNumber}
+            type="button"
+            onClick={() =>
+              onSelectedClientNumbersChange(
+                isSelected
+                  ? selectedClientNumbers.filter((value) => value !== clientNumber)
+                  : [...selectedClientNumbers, clientNumber].sort((a, b) => a - b),
+              )
+            }
+            className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+              isSelected
+                ? "border-rose-400 bg-rose-50 text-slate-900 dark:border-slate-400 dark:bg-slate-700/90 dark:text-slate-100"
+                : "border-rose-200/80 bg-white text-slate-700 hover:border-rose-300 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-500"
+            }`}
+          >
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: colorForClientPoint(clientNumber) }}
+            />
+            <span>{`Client ${clientNumber}`}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -895,6 +1425,29 @@ function aggregateTestMatchesFilters(
     filters.selectedQueueBufferSizes.length > 0 &&
     (test.queueBufferSizeKilobyte === null ||
       !filters.selectedQueueBufferSizes.includes(test.queueBufferSizeKilobyte))
+  ) {
+    return false;
+  }
+
+  if (
+    filters.selectedBottleneckRates.length > 0 &&
+    (test.bottleneckRateMegabit === null ||
+      !filters.selectedBottleneckRates.includes(test.bottleneckRateMegabit))
+  ) {
+    return false;
+  }
+
+  if (
+    filters.selectedClientCounts.length > 0 &&
+    !filters.selectedClientCounts.includes(test.numberOfClients)
+  ) {
+    return false;
+  }
+
+  const normalizedParentRunSearchQuery = filters.parentRunSearchQuery.trim();
+  if (
+    normalizedParentRunSearchQuery !== "" &&
+    !String(test.parentRunId).includes(normalizedParentRunSearchQuery)
   ) {
     return false;
   }
@@ -1146,7 +1699,483 @@ function formatWorkloadLabel(value: number | null) {
   return value === null ? "n/a" : `${formatAxisValue(value)} MB`;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function buildFlowSummary(points: FlowPoint[]) {
+  if (points.length === 0) {
+    return null;
+  }
+
+  const flowCompletionValues = points
+    .map((point) => point.flowCompletionTimeMs)
+    .sort((a, b) => a - b);
+  const delayValues = points.map((point) => point.delayAddedMs);
+
+  return {
+    plottedPoints: points.length,
+    parentRuns: new Set(points.map((point) => point.parentRunId)).size,
+    min: flowCompletionValues[0],
+    median: quantile(flowCompletionValues, 0.5),
+    p90: quantile(flowCompletionValues, 0.9),
+    max: flowCompletionValues[flowCompletionValues.length - 1],
+    minDelay: Math.min(...delayValues),
+    maxDelay: Math.max(...delayValues),
+  };
+}
+
+function FlowSummaryStrip({ points }: { points: FlowPoint[] }) {
+  const summary = buildFlowSummary(points);
+
+  if (!summary) {
+    return null;
+  }
+
+  const items = [
+    {
+      label: "Parent Runs",
+      value: `${summary.parentRuns}`,
+    },
+    {
+      label: "Client Points",
+      value: `${summary.plottedPoints}`,
+    },
+    {
+      label: "Median FCT",
+      value: formatFlowCompletionTimeLabel(summary.median),
+    },
+    {
+      label: "p90 FCT",
+      value: formatFlowCompletionTimeLabel(summary.p90),
+    },
+    {
+      label: "Range",
+      value: `${formatFlowCompletionTimeLabel(summary.min)}-${formatFlowCompletionTimeLabel(summary.max)}`,
+    },
+    {
+      label: "Delay",
+      value:
+        summary.minDelay === summary.maxDelay
+          ? `${formatAxisValue(summary.minDelay)} ms`
+          : `${formatAxisValue(summary.minDelay)}-${formatAxisValue(summary.maxDelay)} ms`,
+    },
+  ];
+
+  return (
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+      {items.map((item) => (
+        <div
+          key={item.label}
+          className="rounded-2xl border border-rose-100/90 bg-white/85 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/45"
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+            {item.label}
+          </p>
+          <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+            {item.value}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function getPointCca(point: FlowPoint) {
+  return point.congestionControlAlgorithmName?.toLowerCase() ?? "n/a";
+}
+
+function formatSignedFlowDelta(value: number) {
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${formatFlowCompletionTimeLabel(value)}`;
+}
+
+function CohortComparisonPanel({
+  points,
+  cohorts = DEFAULT_COHORTS,
+}: {
+  points: FlowPoint[];
+  cohorts?: CohortDefinition[];
+}) {
+  const cohortEntries = cohorts.map((cohort) => {
+    const cohortPoints = points.filter((point) => getPointCca(point) === cohort.cca);
+    const summary = buildFlowSummary(cohortPoints);
+
+    return {
+      ...cohort,
+      points: cohortPoints,
+      summary,
+    };
+  });
+  const [left, right] = cohortEntries;
+
+  if (!left || !right) {
+    return <EmptyChartState text="Two cohorts are required for comparison." />;
+  }
+
+  const deltas =
+    left.summary && right.summary
+      ? [
+          {
+            label: "Median Delta",
+            value: formatSignedFlowDelta(right.summary.median - left.summary.median),
+          },
+          {
+            label: "p90 Delta",
+            value: formatSignedFlowDelta(right.summary.p90 - left.summary.p90),
+          },
+          {
+            label: "Max Delta",
+            value: formatSignedFlowDelta(right.summary.max - left.summary.max),
+          },
+        ]
+      : [];
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
+        {cohortEntries.map((entry) => (
+          <div
+            key={entry.id}
+            className="rounded-2xl border border-rose-100/90 bg-white/85 p-4 dark:border-slate-700 dark:bg-slate-900/45"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                  Cohort {entry.id.toUpperCase()}
+                </p>
+                <h3 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
+                  {entry.label}
+                </h3>
+              </div>
+              <span
+                className="h-3 w-3 rounded-full"
+                style={{ backgroundColor: entry.color }}
+              />
+            </div>
+            {entry.summary ? (
+              <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                <span className="text-slate-500 dark:text-slate-400">
+                  Parent runs
+                </span>
+                <span className="text-right font-semibold text-slate-900 dark:text-slate-100">
+                  {entry.summary.parentRuns}
+                </span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  Points
+                </span>
+                <span className="text-right font-semibold text-slate-900 dark:text-slate-100">
+                  {entry.summary.plottedPoints}
+                </span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  Median
+                </span>
+                <span className="text-right font-semibold text-slate-900 dark:text-slate-100">
+                  {formatFlowCompletionTimeLabel(entry.summary.median)}
+                </span>
+                <span className="text-slate-500 dark:text-slate-400">p90</span>
+                <span className="text-right font-semibold text-slate-900 dark:text-slate-100">
+                  {formatFlowCompletionTimeLabel(entry.summary.p90)}
+                </span>
+                <span className="text-slate-500 dark:text-slate-400">Max</span>
+                <span className="text-right font-semibold text-slate-900 dark:text-slate-100">
+                  {formatFlowCompletionTimeLabel(entry.summary.max)}
+                </span>
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-slate-500 dark:text-slate-300">
+                No points match this cohort under the current filters.
+              </p>
+            )}
+          </div>
+        ))}
+        <div className="rounded-2xl border border-teal-100 bg-teal-50/80 p-4 dark:border-teal-500/35 dark:bg-teal-950/25 lg:min-w-44">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">
+            B - A
+          </p>
+          {deltas.length > 0 ? (
+            <div className="mt-4 space-y-3">
+              {deltas.map((delta) => (
+                <div key={delta.label}>
+                  <p className="text-xs text-teal-800/75 dark:text-teal-200/75">
+                    {delta.label}
+                  </p>
+                  <p className="mt-0.5 text-lg font-semibold text-slate-900 dark:text-slate-100">
+                    {delta.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-teal-800 dark:text-teal-200">
+              Need data in both cohorts.
+            </p>
+          )}
+        </div>
+      </div>
+      <CohortEcdfChart cohorts={cohortEntries} />
+    </div>
+  );
+}
+
+function CohortEcdfChart({
+  cohorts,
+}: {
+  cohorts: Array<CohortDefinition & { points: FlowPoint[] }>;
+}) {
+  const populatedCohorts = cohorts.filter((cohort) => cohort.points.length > 0);
+
+  if (populatedCohorts.length === 0) {
+    return <EmptyChartState text="No cohort points are available for comparison." />;
+  }
+
+  const maxFlowCompletion = Math.max(
+    ...populatedCohorts.flatMap((cohort) =>
+      cohort.points.map((point) => point.flowCompletionTimeMs),
+    ),
+    1,
+  );
+  const plottedCohorts = populatedCohorts.map((cohort) => {
+    const sortedPoints = cohort.points
+      .slice()
+      .sort((left, right) => left.flowCompletionTimeMs - right.flowCompletionTimeMs);
+    const plottedPoints = sortedPoints.map((point, index) => ({
+      x: scaleChartX(point.flowCompletionTimeMs, maxFlowCompletion),
+      y: scaleChartY(((index + 1) / sortedPoints.length) * 100, 100),
+    }));
+
+    return {
+      ...cohort,
+      path: buildEcdfPath(plottedPoints),
+    };
+  });
+
+  return (
+    <svg
+      viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+      className="h-[44vh] min-h-[320px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      role="img"
+      aria-label="ECDF comparison of cohort flow completion time"
+    >
+      {renderChartAxes({
+        xAxisLabel: "Flow Completion Time",
+        yAxisLabel: "Runs Completed (%)",
+        xTicks: renderXAxisTicks(maxFlowCompletion, (value) =>
+          formatFlowCompletionTimeLabel(value),
+        ),
+        yTicks: renderYAxisTicks(100, (value) => `${formatAxisValue(value)}%`),
+      })}
+      {plottedCohorts.map((cohort, index) => (
+        <g key={cohort.id}>
+          {cohort.path ? (
+            <path
+              d={cohort.path}
+              fill="none"
+              stroke={cohort.color}
+              strokeWidth={3.2}
+              strokeLinecap="round"
+            />
+          ) : null}
+          <text
+            x={CHART_WIDTH - CHART_PADDING.right - 140}
+            y={CHART_PADDING.top + 18 + index * 22}
+            className="fill-slate-700 text-[12px] font-semibold dark:fill-slate-200"
+          >
+            {cohort.label}
+          </text>
+          <circle
+            cx={CHART_WIDTH - CHART_PADDING.right - 155}
+            cy={CHART_PADDING.top + 14 + index * 22}
+            r={5}
+            fill={cohort.color}
+          />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function FacetGrid({
+  points,
+  rowValues,
+  columnValues,
+}: {
+  points: FlowPoint[];
+  rowValues: number[];
+  columnValues: number[];
+}) {
+  if (points.length === 0) {
+    return <EmptyChartState text="No points are available for the facet grid." />;
+  }
+
+  if (rowValues.length === 0 || columnValues.length === 0) {
+    return <EmptyChartState text="Need workload and queue values for the facet grid." />;
+  }
+
+  const cells: FacetCell[] = rowValues.flatMap((rowValue) =>
+    columnValues.map((columnValue) => ({
+      rowValue,
+      columnValue,
+      points: points.filter(
+        (point) =>
+          point.clientFileSizeMegabytes === rowValue &&
+          point.queueBufferSizeKilobyte === columnValue,
+      ),
+    })),
+  );
+
+  return (
+    <div className="overflow-x-auto">
+      <div
+        className="grid min-w-[720px] gap-3"
+        style={{
+          gridTemplateColumns: `9rem repeat(${columnValues.length}, minmax(13rem, 1fr))`,
+        }}
+      >
+        <div />
+        {columnValues.map((queueSize) => (
+          <div
+            key={`queue-${queueSize}`}
+            className="rounded-xl border border-rose-100 bg-white/80 px-3 py-2 text-center text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/45 dark:text-slate-200"
+          >
+            {`${formatAxisValue(queueSize)} KB Queue`}
+          </div>
+        ))}
+        {rowValues.flatMap((rowValue) => [
+          <div
+            key={`workload-${rowValue}`}
+            className="flex items-center rounded-xl border border-rose-100 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/45 dark:text-slate-200"
+          >
+            {`${formatAxisValue(rowValue)} MB`}
+          </div>,
+          ...columnValues.map((columnValue) => {
+            const cell = cells.find(
+              (candidate) =>
+                candidate.rowValue === rowValue &&
+                candidate.columnValue === columnValue,
+            );
+
+            return (
+              <FacetCellChart
+                key={`${rowValue}-${columnValue}`}
+                points={cell?.points ?? []}
+              />
+            );
+          }),
+        ])}
+      </div>
+    </div>
+  );
+}
+
+function FacetCellChart({ points }: { points: FlowPoint[] }) {
+  const summary = buildFlowSummary(points);
+  const width = 220;
+  const height = 150;
+  const padding = { top: 14, right: 14, bottom: 26, left: 34 };
+  const innerWidth = width - padding.left - padding.right;
+  const innerHeight = height - padding.top - padding.bottom;
+
+  if (!summary) {
+    return (
+      <div className="flex min-h-[170px] items-center justify-center rounded-2xl border border-dashed border-rose-200 bg-white/70 p-3 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-900/35 dark:text-slate-500">
+        No data
+      </div>
+    );
+  }
+
+  const maxDelay = Math.max(...points.map((point) => point.delayAddedMs), 1);
+  const maxFlowCompletion = Math.max(
+    ...points.map((point) => point.flowCompletionTimeMs),
+    1,
+  );
+  const plottedPoints = points.map((point) => ({
+    x: padding.left + (point.delayAddedMs / maxDelay) * innerWidth,
+    y:
+      padding.top +
+      innerHeight -
+      (point.flowCompletionTimeMs / maxFlowCompletion) * innerHeight,
+    color: colorForClientPoint(point.clientNumber),
+  }));
+
+  return (
+    <div className="rounded-2xl border border-rose-100 bg-white/85 p-3 dark:border-slate-700 dark:bg-slate-900/45">
+      <div className="mb-2 grid grid-cols-3 gap-1 text-center">
+        <div>
+          <p className="text-[9px] uppercase tracking-[0.1em] text-slate-400">
+            Points
+          </p>
+          <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">
+            {summary.plottedPoints}
+          </p>
+        </div>
+        <div>
+          <p className="text-[9px] uppercase tracking-[0.1em] text-slate-400">
+            Median
+          </p>
+          <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">
+            {formatFlowCompletionTimeLabel(summary.median)}
+          </p>
+        </div>
+        <div>
+          <p className="text-[9px] uppercase tracking-[0.1em] text-slate-400">
+            p90
+          </p>
+          <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">
+            {formatFlowCompletionTimeLabel(summary.p90)}
+          </p>
+        </div>
+      </div>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="h-36 w-full rounded-xl bg-[#fff2f8] text-slate-300 dark:bg-slate-950/45 dark:text-slate-600"
+        role="img"
+        aria-label="Facet scatter of flow completion time versus added delay"
+      >
+        <line
+          x1={padding.left}
+          x2={padding.left}
+          y1={padding.top}
+          y2={height - padding.bottom}
+          stroke="currentColor"
+          strokeWidth={1}
+        />
+        <line
+          x1={padding.left}
+          x2={width - padding.right}
+          y1={height - padding.bottom}
+          y2={height - padding.bottom}
+          stroke="currentColor"
+          strokeWidth={1}
+        />
+        {plottedPoints.map((point, index) => (
+          <circle
+            key={`${point.x}-${point.y}-${index}`}
+            cx={point.x}
+            cy={point.y}
+            r={3.2}
+            fill={point.color}
+            opacity={0.82}
+          />
+        ))}
+        <text
+          x={padding.left + innerWidth / 2}
+          y={height - 7}
+          textAnchor="middle"
+          className="fill-slate-500 text-[9px] dark:fill-slate-400"
+        >
+          Added Delay
+        </text>
+        <text
+          x={11}
+          y={padding.top + innerHeight / 2}
+          transform={`rotate(-90 11 ${padding.top + innerHeight / 2})`}
+          textAnchor="middle"
+          className="fill-slate-500 text-[9px] dark:fill-slate-400"
+        >
+          FCT
+        </text>
+      </svg>
+    </div>
+  );
+}
+
 function ScatterPlot({
   points,
   series,
@@ -1332,19 +2361,6 @@ function ParentRunConnectionChart({
     useState<ParentRunConnectionHoverPoint | null>(null);
   const [zoomDomain, setZoomDomain] = useState<ZoomDomain | null>(null);
   const [panState, setPanState] = useState<PanState | null>(null);
-  const clientNumbers = Array.from(
-    new Set(points.map((point) => point.clientNumber)),
-  ).sort((a, b) => a - b);
-  const [selectedClientNumbers, setSelectedClientNumbers] = useState<number[]>(
-    clientNumbers,
-  );
-
-  const visibleClientNumbers = selectedClientNumbers.filter((clientNumber) =>
-    clientNumbers.includes(clientNumber),
-  );
-  const filteredPoints = points.filter((point) =>
-    visibleClientNumbers.includes(point.clientNumber),
-  );
 
   if (points.length === 0) {
     return (
@@ -1352,43 +2368,9 @@ function ParentRunConnectionChart({
     );
   }
 
-  if (filteredPoints.length === 0) {
-    return (
-      <div className="space-y-4">
-        <EmptyChartState text="No client points are selected for the connected client lines chart." />
-        <div className="flex flex-wrap justify-center gap-2">
-          {clientNumbers.map((clientNumber) => {
-            const isSelected = visibleClientNumbers.includes(clientNumber);
-
-            return (
-              <button
-                key={clientNumber}
-                type="button"
-                onClick={() =>
-                  setSelectedClientNumbers((current) =>
-                    current.includes(clientNumber)
-                      ? current.filter((value) => value !== clientNumber)
-                      : [...current, clientNumber].sort((a, b) => a - b),
-                  )
-                }
-                className={`rounded-xl border px-3 py-2 text-sm transition ${
-                  isSelected
-                    ? "border-rose-400 bg-rose-50 text-slate-900 dark:border-slate-400 dark:bg-slate-700/90 dark:text-slate-100"
-                    : "border-rose-200/80 bg-white text-slate-700 hover:border-rose-300 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-200 dark:hover:border-slate-500"
-                }`}
-              >
-                {`Client ${clientNumber}`}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  const maxDelay = Math.max(...filteredPoints.map((point) => point.delayAddedMs), 0);
+  const maxDelay = Math.max(...points.map((point) => point.delayAddedMs), 0);
   const maxFlowCompletion = Math.max(
-    ...filteredPoints.map((point) => point.flowCompletionTimeMs),
+    ...points.map((point) => point.flowCompletionTimeMs),
     0,
   );
   const baseDomain = {
@@ -1406,10 +2388,10 @@ function ParentRunConnectionChart({
       }
     : baseDomain;
   const parentRunIds = Array.from(
-    new Set(filteredPoints.map((point) => point.parentRunId)),
+    new Set(points.map((point) => point.parentRunId)),
   ).sort((a, b) => a - b);
   const connectedRuns = parentRunIds.map((parentRunId, index) => {
-    const runPoints = filteredPoints
+    const runPoints = points
       .filter((point) => point.parentRunId === parentRunId)
       .sort((a, b) => {
         if (a.delayAddedMs !== b.delayAddedMs) {
@@ -1912,36 +2894,6 @@ function ParentRunConnectionChart({
           Reset zoom
         </button>
       </div>
-      <div className="flex flex-wrap justify-center gap-2">
-        {clientNumbers.map((clientNumber) => {
-          const isSelected = visibleClientNumbers.includes(clientNumber);
-
-          return (
-            <button
-              key={clientNumber}
-              type="button"
-              onClick={() =>
-                setSelectedClientNumbers((current) =>
-                  current.includes(clientNumber)
-                    ? current.filter((value) => value !== clientNumber)
-                    : [...current, clientNumber].sort((a, b) => a - b),
-                )
-              }
-              className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${
-                isSelected
-                  ? "border-rose-400 bg-rose-50 text-slate-900 dark:border-slate-400 dark:bg-slate-700/90 dark:text-slate-100"
-                  : "border-rose-200/80 bg-white text-slate-700 hover:border-rose-300 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-200 dark:hover:border-slate-500"
-              }`}
-            >
-              <span
-                className="inline-block h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: colorForClientPoint(clientNumber) }}
-              />
-              <span>{`Client ${clientNumber}`}</span>
-            </button>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -2172,7 +3124,6 @@ function OtherClientDelayFlowChart({
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function BoxPlot({
   points,
   series,
@@ -2458,7 +3409,6 @@ function buildEcdfPath(points: Array<{ x: number; y: number }>) {
   return commands.join(" ");
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function EcdfChart({
   points,
   series,
@@ -3280,7 +4230,6 @@ function MedianSlopeChart({
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function PercentileHeatmap({
   points,
   series,
@@ -3610,21 +4559,50 @@ export function AggregateGraphsPanel({
   const [selectedQueueBufferSizes, setSelectedQueueBufferSizes] = useState<
     number[]
   >([]);
+  const [selectedBottleneckRates, setSelectedBottleneckRates] = useState<
+    number[]
+  >([]);
+  const [selectedClientCounts, setSelectedClientCounts] = useState<number[]>([]);
+  const [parentRunSearchQuery, setParentRunSearchQuery] = useState("");
   const [selectedTestGroups, setSelectedTestGroups] = useState<string[]>([]);
-  const [selectedGraphType, setSelectedGraphType] = useState(
-    GRAPH_TYPE_OPTIONS[0].label,
-  );
+  const [selectedExplorerMode, setSelectedExplorerMode] =
+    useState<AggregateExplorerMode>("explore");
+  const [selectedGraphViewId, setSelectedGraphViewId] =
+    useState<AggregateGraphViewId>("connected-runs");
+  const [selectedPercentile, setSelectedPercentile] =
+    useState<PercentileKey>("p90");
   const filterState = useMemo(
     () => ({
       selectedCcas,
       selectedWorkloads,
       selectedQueueBufferSizes,
+      selectedBottleneckRates,
+      selectedClientCounts,
+      parentRunSearchQuery,
     }),
-    [selectedCcas, selectedQueueBufferSizes, selectedWorkloads],
+    [
+      parentRunSearchQuery,
+      selectedBottleneckRates,
+      selectedCcas,
+      selectedClientCounts,
+      selectedQueueBufferSizes,
+      selectedWorkloads,
+    ],
+  );
+  const comparisonFilterState = useMemo(
+    () => ({
+      ...filterState,
+      selectedCcas: [],
+    }),
+    [filterState],
   );
   const filteredAvailableTests = useMemo(
     () => filterAggregateTests(availableTests, filterState),
     [availableTests, filterState],
+  );
+  const comparisonAvailableTests = useMemo(
+    () => filterAggregateTests(availableTests, comparisonFilterState),
+    [availableTests, comparisonFilterState],
   );
   const availableTestIds = useMemo(
     () => availableTests.map((test) => test.parentRunId),
@@ -3634,25 +4612,78 @@ export function AggregateGraphsPanel({
     () => filteredAvailableTests.map((test) => test.parentRunId),
     [filteredAvailableTests],
   );
+  const comparisonAvailableTestIds = useMemo(
+    () => comparisonAvailableTests.map((test) => test.parentRunId),
+    [comparisonAvailableTests],
+  );
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   const [selectedTestIds, setSelectedTestIds] = useState<number[]>([]);
+  const hasManualTestSelection = selectedTestIds.length > 0;
+  const allClientNumbers = useMemo(
+    () =>
+      Array.from(new Set(flowPoints.map((point) => point.clientNumber))).sort(
+        (a, b) => a - b,
+      ),
+    [flowPoints],
+  );
+  const [selectedClientNumbers, setSelectedClientNumbers] =
+    useState<number[]>(allClientNumbers);
+  const visibleClientNumbers = selectedClientNumbers.filter((clientNumber) =>
+    allClientNumbers.includes(clientNumber),
+  );
   const visibleSelectedTestIds = selectedTestIds.filter((parentRunId) =>
     availableTestIds.includes(parentRunId),
   );
+  const activeTestIds = hasManualTestSelection
+    ? visibleSelectedTestIds
+    : filteredAvailableTestIds;
+  const activeComparisonTestIds = hasManualTestSelection
+    ? visibleSelectedTestIds
+    : comparisonAvailableTestIds;
   const filteredFlowPoints = useMemo(
     () =>
       flowPoints.filter((point) =>
-        visibleSelectedTestIds.includes(point.parentRunId),
+        activeTestIds.includes(point.parentRunId),
       ),
-    [flowPoints, visibleSelectedTestIds],
+    [activeTestIds, flowPoints],
+  );
+  const comparisonFlowPoints = useMemo(
+    () =>
+      flowPoints.filter((point) =>
+        activeComparisonTestIds.includes(point.parentRunId),
+      ),
+    [activeComparisonTestIds, flowPoints],
+  );
+  const clientFilteredFlowPoints = useMemo(
+    () =>
+      filteredFlowPoints.filter((point) =>
+        visibleClientNumbers.includes(point.clientNumber),
+      ),
+    [filteredFlowPoints, visibleClientNumbers],
+  );
+  const clientFilteredComparisonFlowPoints = useMemo(
+    () =>
+      comparisonFlowPoints.filter((point) =>
+        visibleClientNumbers.includes(point.clientNumber),
+      ),
+    [comparisonFlowPoints, visibleClientNumbers],
+  );
+  const clientSeries = useMemo<ClientSeries[]>(
+    () =>
+      visibleClientNumbers.map((clientNumber, index) => ({
+        clientNumber,
+        color: colorForClientPoint(clientNumber) ?? SERIES_COLORS[index % SERIES_COLORS.length],
+        label: `Client ${clientNumber}`,
+      })),
+    [visibleClientNumbers],
   );
   const totalSelectedTests = useMemo(
     () => new Set(filteredFlowPoints.map((point) => point.parentRunId)).size,
     [filteredFlowPoints],
   );
-  const selectedTestCountLabel = `${visibleSelectedTestIds.length} ${
-    visibleSelectedTestIds.length === 1 ? "test" : "tests"
-  } selected`;
+  const selectedTestCountLabel = `${totalSelectedTests} ${
+    totalSelectedTests === 1 ? "test" : "tests"
+  } active`;
   const allTestsSelected =
     filteredAvailableTestIds.length > 0 &&
     filteredAvailableTestIds.every((testId) => visibleSelectedTestIds.includes(testId));
@@ -3706,6 +4737,78 @@ export function AggregateGraphsPanel({
       ),
     [availableTests],
   );
+  const ccaFilterOptions = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...AVAILABLE_CCA_FILTERS,
+          ...availableTests.flatMap((test) => test.ccaLabels),
+        ]),
+      ).sort((a, b) => a.localeCompare(b)),
+    [availableTests],
+  );
+  const workloadFilterOptions = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...AVAILABLE_WORKLOAD_FILTERS,
+          ...availableTests.flatMap((test) => test.workloadMegabytesValues),
+        ]),
+      ).sort((a, b) => a - b),
+    [availableTests],
+  );
+  const queueBufferFilterOptions = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...AVAILABLE_QUEUE_BUFFER_FILTERS,
+          ...availableTests
+            .map((test) => test.queueBufferSizeKilobyte)
+            .filter((value): value is number => value !== null),
+        ]),
+      ).sort((a, b) => a - b),
+    [availableTests],
+  );
+  const bottleneckRateFilterOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          availableTests
+            .map((test) => test.bottleneckRateMegabit)
+            .filter((value): value is number => value !== null),
+        ),
+      ).sort((a, b) => a - b),
+    [availableTests],
+  );
+  const clientCountFilterOptions = useMemo(
+    () =>
+      Array.from(new Set(availableTests.map((test) => test.numberOfClients))).sort(
+        (a, b) => a - b,
+      ),
+    [availableTests],
+  );
+  const facetRowValues = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          clientFilteredFlowPoints
+            .map((point) => point.clientFileSizeMegabytes)
+            .filter((value): value is number => value !== null),
+        ),
+      ).sort((a, b) => a - b),
+    [clientFilteredFlowPoints],
+  );
+  const facetColumnValues = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          clientFilteredFlowPoints
+            .map((point) => point.queueBufferSizeKilobyte)
+            .filter((value): value is number => value !== null),
+        ),
+      ).sort((a, b) => a - b),
+    [clientFilteredFlowPoints],
+  );
 
   function toggleTestSelection(parentRunId: number) {
     setSelectedTestIds((current) =>
@@ -3750,11 +4853,37 @@ export function AggregateGraphsPanel({
     });
   }
 
-  const isOtherClientDelayGraph =
-    selectedGraphType === OTHER_CLIENT_DELAY_GRAPH_LABEL;
+  function clearInlineFilters() {
+    setSelectedCcas([]);
+    setSelectedWorkloads([]);
+    setSelectedQueueBufferSizes([]);
+    setSelectedBottleneckRates([]);
+    setSelectedClientCounts([]);
+    setParentRunSearchQuery("");
+    setSelectedTestIds([]);
+    setSelectedTestGroups([]);
+  }
+
+  const selectedGraphView =
+    AGGREGATE_GRAPH_VIEWS.find((view) => view.id === selectedGraphViewId) ??
+    AGGREGATE_GRAPH_VIEWS[0];
+  const selectedExplorerModeConfig =
+    EXPLORER_MODES.find((mode) => mode.id === selectedExplorerMode) ??
+    EXPLORER_MODES[0];
+  const isOtherClientDelayGraph = selectedGraphViewId === "other-client-delay";
+  const displayedFlowPoints = isOtherClientDelayGraph
+    ? filteredFlowPoints
+    : clientFilteredFlowPoints;
+  const displayedModePoints =
+    selectedExplorerMode === "compare"
+      ? clientFilteredComparisonFlowPoints
+      : displayedFlowPoints;
+  const displayedParentRunCount = new Set(
+    displayedModePoints.map((point) => point.parentRunId),
+  ).size;
   const displayedPlottedPointCount = isOtherClientDelayGraph
     ? getOtherClientDelayPlotPointCount(filteredFlowPoints)
-    : filteredFlowPoints.length;
+    : displayedModePoints.length;
 
   return (
     <main className="space-atmosphere relative min-h-screen overflow-hidden p-5 sm:p-10">
@@ -3770,7 +4899,7 @@ export function AggregateGraphsPanel({
               </h1>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                 Showing {displayedPlottedPointCount} plotted parent-run/client
-                points across {totalSelectedTests} selected tests.
+                points across {displayedParentRunCount} active tests.
               </p>
             </div>
             <Link
@@ -3794,18 +4923,85 @@ export function AggregateGraphsPanel({
             </Link>
           </div>
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+          <PageDescriptorPanel />
+
+          <div className="mt-6 grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
             <aside className="flex items-start">
-              <div className="fade-up-on-load-delay-2 rounded-[1.75rem] border border-emerald-200/80 bg-emerald-50/95 p-4 shadow-inner shadow-emerald-900/5 dark:border-emerald-500/35 dark:bg-emerald-950/30 sm:p-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
-                  Test Selection
-                </p>
+              <div className="fade-up-on-load-delay-2 w-full rounded-[1.75rem] border border-emerald-200/80 bg-emerald-50/95 p-4 shadow-inner shadow-emerald-900/5 dark:border-emerald-500/35 dark:bg-emerald-950/30 sm:p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
+                      Filters
+                    </p>
+                    <p className="mt-2 text-sm text-emerald-800 dark:text-emerald-200">
+                      {hasManualTestSelection
+                        ? `${selectedTestCountLabel} from presets`
+                        : `${selectedTestCountLabel} from filters`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearInlineFilters}
+                    className="rounded-xl border border-emerald-300/80 bg-white px-3 py-2 text-xs font-semibold text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-50 dark:border-emerald-500/45 dark:bg-slate-900/45 dark:text-emerald-200 dark:hover:border-emerald-400"
+                  >
+                    Reset
+                  </button>
+                </div>
+                <div className="mt-5 space-y-4">
+                  <StringFilterChips
+                    label="CCA"
+                    options={ccaFilterOptions}
+                    selectedValues={selectedCcas}
+                    onSelectedValuesChange={setSelectedCcas}
+                    formatLabel={(value) => value.toUpperCase()}
+                  />
+                  <NumberFilterChips
+                    label="Workload"
+                    options={workloadFilterOptions}
+                    selectedValues={selectedWorkloads}
+                    onSelectedValuesChange={setSelectedWorkloads}
+                    formatLabel={(value) => `${formatAxisValue(value)} MB`}
+                  />
+                  <NumberFilterChips
+                    label="Queue Buffer"
+                    options={queueBufferFilterOptions}
+                    selectedValues={selectedQueueBufferSizes}
+                    onSelectedValuesChange={setSelectedQueueBufferSizes}
+                    formatLabel={(value) => `${formatAxisValue(value)} KB`}
+                  />
+                  <NumberFilterChips
+                    label="Bottleneck"
+                    options={bottleneckRateFilterOptions}
+                    selectedValues={selectedBottleneckRates}
+                    onSelectedValuesChange={setSelectedBottleneckRates}
+                    formatLabel={(value) => `${formatAxisValue(value)} mbit`}
+                  />
+                  <NumberFilterChips
+                    label="Client Count"
+                    options={clientCountFilterOptions}
+                    selectedValues={selectedClientCounts}
+                    onSelectedValuesChange={setSelectedClientCounts}
+                    formatLabel={(value) => `${value}`}
+                  />
+                  <TextFilterControl
+                    label="Parent Run"
+                    value={parentRunSearchQuery}
+                    placeholder="Search id"
+                    onValueChange={setParentRunSearchQuery}
+                  />
+                </div>
+                <div className="mt-5 rounded-2xl border border-emerald-200/70 bg-emerald-100/55 p-3 dark:border-emerald-500/30 dark:bg-emerald-950/20">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">
+                    Filter Meanings
+                  </p>
+                  <DescriptorList items={FILTER_DESCRIPTOR_ITEMS} compact />
+                </div>
                 <button
                   type="button"
                   onClick={() => setIsTestModalOpen(true)}
-                  className="group mt-3 flex w-full items-center justify-between rounded-xl border border-emerald-500/80 bg-emerald-500 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-600 hover:bg-emerald-600 hover:shadow-[0_12px_24px_-16px_rgba(5,150,105,0.55)] dark:border-emerald-400/80 dark:bg-emerald-400 dark:text-slate-950 dark:hover:border-emerald-300 dark:hover:bg-emerald-300 dark:hover:shadow-[0_12px_24px_-16px_rgba(52,211,153,0.55)]"
+                  className="group mt-5 flex w-full items-center justify-between rounded-xl border border-emerald-500/80 bg-emerald-500 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-600 hover:bg-emerald-600 hover:shadow-[0_12px_24px_-16px_rgba(5,150,105,0.55)] dark:border-emerald-400/80 dark:bg-emerald-400 dark:text-slate-950 dark:hover:border-emerald-300 dark:hover:bg-emerald-300 dark:hover:shadow-[0_12px_24px_-16px_rgba(52,211,153,0.55)]"
                 >
-                  <span>Select Available Tests</span>
+                  <span>Presets</span>
                   <svg
                     viewBox="0 0 24 24"
                     className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1"
@@ -3820,52 +5016,154 @@ export function AggregateGraphsPanel({
                     <path d="m13 6 6 6-6 6" />
                   </svg>
                 </button>
-                <p className="mt-3 text-sm text-emerald-800 dark:text-emerald-200">
-                  {selectedTestCountLabel}
-                </p>
+                {hasManualTestSelection ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTestIds([]);
+                      setSelectedTestGroups([]);
+                    }}
+                    className="mt-2 w-full rounded-xl border border-emerald-300/80 bg-white px-3 py-2 text-sm font-medium text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-50 dark:border-emerald-500/45 dark:bg-slate-900/45 dark:text-emerald-200 dark:hover:border-emerald-400"
+                  >
+                    Use Filter Matches
+                  </button>
+                ) : null}
               </div>
             </aside>
 
             <div className="space-y-6">
-              {filteredFlowPoints.length > 0 ? (
+              <div className="fade-up-on-load-delay-1 flex flex-wrap items-center justify-between gap-3">
+                <ExplorerModeSegmentedControl
+                  selectedMode={selectedExplorerMode}
+                  onSelectedModeChange={setSelectedExplorerMode}
+                />
+                <p className="text-sm text-slate-500 dark:text-slate-300">
+                  {selectedExplorerModeConfig.subtitle}
+                </p>
+              </div>
+              {displayedModePoints.length > 0 ? (
                 <div className="fade-up-on-load-delay-1">
                   <ChartCard
                     eyebrow="Parent Runs"
                     title={
-                      isOtherClientDelayGraph
-                        ? "Other Client Delay"
-                        : "Connected Client Lines"
+                      selectedExplorerMode === "explore"
+                        ? selectedGraphView.title
+                        : selectedExplorerModeConfig.title
                     }
                     subtitle={
-                      isOtherClientDelayGraph
-                        ? "Two-client parent runs are plotted with flow completion time on the x axis and the other client's added delay on the y axis."
-                        : "Every parent run is shown on one plot with added delay on the x axis. Each run gets its own color, and that run's client points are connected directly."
+                      selectedExplorerMode === "explore"
+                        ? selectedGraphView.subtitle
+                        : selectedExplorerModeConfig.subtitle
                     }
                   >
-                    <div className="mb-4 flex justify-start">
-                      <GraphTypeDropdown
-                        selectedGraphType={selectedGraphType}
-                        onSelectedGraphTypeChange={setSelectedGraphType}
+                    <div className="mb-4 space-y-4">
+                      <ModeDescriptorPanel
+                        selectedMode={selectedExplorerMode}
+                        selectedViewId={selectedGraphViewId}
                       />
+                      <FlowSummaryStrip points={displayedModePoints} />
+                      {selectedExplorerMode === "explore" ? (
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <GraphViewSegmentedControl
+                            selectedViewId={selectedGraphViewId}
+                            onSelectedViewIdChange={setSelectedGraphViewId}
+                          />
+                          {selectedGraphViewId === "heatmap" ? (
+                            <PercentileSelector
+                              selectedPercentile={selectedPercentile}
+                              onSelectedPercentileChange={setSelectedPercentile}
+                            />
+                          ) : null}
+                        </div>
+                      ) : null}
+                      {selectedExplorerMode !== "explore" || !isOtherClientDelayGraph ? (
+                        <ClientFilterControl
+                          clientNumbers={allClientNumbers}
+                          selectedClientNumbers={visibleClientNumbers}
+                          onSelectedClientNumbersChange={setSelectedClientNumbers}
+                        />
+                      ) : null}
                     </div>
                     <SelectedTestGroupsBubble
                       selectedTestGroups={selectedTestGroups}
                     />
-                    {isOtherClientDelayGraph ? (
-                      <OtherClientDelayFlowChart points={filteredFlowPoints} />
-                    ) : (
-                      <ParentRunConnectionChart points={filteredFlowPoints} />
-                    )}
+                    {(() => {
+                      if (selectedExplorerMode === "compare") {
+                        return (
+                          <CohortComparisonPanel
+                            points={clientFilteredComparisonFlowPoints}
+                          />
+                        );
+                      }
+
+                      if (selectedExplorerMode === "facets") {
+                        return (
+                          <FacetGrid
+                            points={clientFilteredFlowPoints}
+                            rowValues={facetRowValues}
+                            columnValues={facetColumnValues}
+                          />
+                        );
+                      }
+
+                      if (!isOtherClientDelayGraph && displayedFlowPoints.length === 0) {
+                        return (
+                          <EmptyChartState text="No selected clients have flow completion data in the selected tests." />
+                        );
+                      }
+
+                      switch (selectedGraphViewId) {
+                        case "connected-runs":
+                          return (
+                            <ParentRunConnectionChart
+                              points={displayedFlowPoints}
+                            />
+                          );
+                        case "scatter":
+                          return (
+                            <ScatterPlot
+                              points={displayedFlowPoints}
+                              series={clientSeries}
+                            />
+                          );
+                        case "box-plot":
+                          return (
+                            <BoxPlot
+                              points={displayedFlowPoints}
+                              series={clientSeries}
+                            />
+                          );
+                        case "ecdf":
+                          return (
+                            <EcdfChart
+                              points={displayedFlowPoints}
+                              series={clientSeries}
+                            />
+                          );
+                        case "heatmap":
+                          return (
+                            <PercentileHeatmap
+                              points={displayedFlowPoints}
+                              series={clientSeries}
+                              percentileKey={selectedPercentile}
+                            />
+                          );
+                        case "other-client-delay":
+                          return (
+                            <OtherClientDelayFlowChart points={filteredFlowPoints} />
+                          );
+                      }
+                    })()}
                   </ChartCard>
                 </div>
               ) : (
                 <div className="fade-up-on-load-delay-1">
                   <ChartCard
-                    eyebrow="Test Selection"
-                    title="No Tests Selected"
-                    subtitle="Open the test selector to choose one or more parent runs to include in the aggregate graph."
+                    eyebrow="Filters"
+                    title="No Matching Runs"
+                    subtitle="Adjust the filters or clear the manual preset selection to bring runs back into the explorer."
                   >
-                    <EmptyChartState text="No tests are currently selected." />
+                    <EmptyChartState text="No flow completion data matches the current filters." />
                   </ChartCard>
                 </div>
               )}
