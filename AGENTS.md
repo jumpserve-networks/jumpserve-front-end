@@ -43,8 +43,12 @@ Do not commit real keys or tokens.
 - Canonical production URL: `https://jumpserve.quaint-lab.org`
 - Production `NEXT_PUBLIC_SITE_URL`: `https://jumpserve.quaint-lab.org`
 - Supabase Authentication Site URL: `https://jumpserve.quaint-lab.org`
-- Supabase allowed OAuth redirect URL: `https://jumpserve.quaint-lab.org/auth/callback`
-- Local OAuth redirect URL: `http://localhost:3000/auth/callback`
+- Supabase allowed OAuth redirect pattern: `https://jumpserve.quaint-lab.org/auth/callback*`
+- Local OAuth redirect pattern: `http://localhost:3000/auth/callback*`
+
+The trailing wildcard is required because the app adds a `next` query parameter to
+the callback URL. An exact callback URL does not match the resulting query string,
+so Supabase silently falls back to the configured Site URL.
 
 Keep the production callback URL in Supabase Authentication's Redirect URLs list. If
 it is missing, Supabase silently falls back to the configured Site URL after Google
