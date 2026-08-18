@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Last updated: 2026-02-22
+Last updated: 2026-08-17
 
 ## Project purpose
 
@@ -37,6 +37,21 @@ Required in `.env.local`:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
 Do not commit real keys or tokens.
+
+## Production and authentication
+
+- Canonical production URL: `https://jumpserve.quaint-lab.org`
+- Production `NEXT_PUBLIC_SITE_URL`: `https://jumpserve.quaint-lab.org`
+- Supabase Authentication Site URL: `https://jumpserve.quaint-lab.org`
+- Supabase allowed OAuth redirect URL: `https://jumpserve.quaint-lab.org/auth/callback`
+- Local OAuth redirect URL: `http://localhost:3000/auth/callback`
+
+Keep the production callback URL in Supabase Authentication's Redirect URLs list. If
+it is missing, Supabase silently falls back to the configured Site URL after Google
+authentication, and the callback route cannot exchange the OAuth code for a session.
+The production callback must not rely solely on `request.url` for its redirect origin:
+behind CloudFront, Next.js can see the internal origin as `localhost:3000`. Prefer
+`NEXT_PUBLIC_SITE_URL` and retain the canonical production fallback.
 
 ## Key files
 
