@@ -1,13 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
+import { Button } from "@/app/components/ui/button";
 import { getSafeNextPath } from "@/lib/auth-redirect";
 import { isGoogleAuthenticatedUser } from "@/lib/auth-provider";
 import { getConfiguredSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/client";
 
 type AuthStatus = "loading" | "logged-out" | "logged-in";
+
+type AuthButtonProps = {
+  placement?: "floating" | "inline";
+};
+
+export function GlobalAuthButton() {
+  const pathname = usePathname();
+
+  return pathname === "/login" ? null : <AuthButton />;
+}
 
 function GoogleIcon() {
   return (
@@ -58,7 +70,7 @@ function LoggedInIcon() {
   );
 }
 
-export function AuthButton() {
+export function AuthButton({ placement = "floating" }: AuthButtonProps) {
   const [supabase] = useState(() => createClient());
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [session, setSession] = useState<Session | null>(null);
@@ -162,7 +174,13 @@ export function AuthButton() {
     null;
 
   return (
-    <div className="fixed top-3 right-3 z-50 flex max-w-[calc(100vw-1.5rem)] flex-col items-end gap-2">
+    <div
+      className={
+        placement === "inline"
+          ? "flex flex-col items-center gap-2"
+          : "fixed top-3 right-3 z-50 flex max-w-[calc(100vw-1.5rem)] flex-col items-end gap-2"
+      }
+    >
       {status === "logged-in" ? (
         <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/80 bg-white/95 py-2 pr-2 pl-4 text-sm font-medium text-emerald-800 shadow-lg shadow-zinc-900/10 backdrop-blur dark:border-emerald-500/40 dark:bg-slate-900/88 dark:text-emerald-200 dark:shadow-black/40">
           <LoggedInIcon />
@@ -173,21 +191,24 @@ export function AuthButton() {
           ) : (
             <span>Logged in</span>
           )}
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="xs"
             onClick={handleSignOut}
             disabled={isSubmitting}
-            className="rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-wait disabled:opacity-60 dark:border-emerald-500/40 dark:bg-slate-800 dark:text-emerald-100 dark:hover:bg-slate-700"
+            className="h-auto rounded-full border-emerald-200 bg-white/80 px-3 py-1 font-semibold text-emerald-800 hover:bg-emerald-50 hover:text-emerald-800 disabled:cursor-wait disabled:opacity-60 dark:border-emerald-500/40 dark:bg-slate-800 dark:text-emerald-100 dark:hover:bg-slate-700 dark:hover:text-emerald-100"
           >
             {isSubmitting ? "Logging out..." : "Log out"}
-          </button>
+          </Button>
         </div>
       ) : (
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={handleGoogleLogin}
           disabled={status === "loading" || isSubmitting}
-          className="inline-flex items-center gap-2 rounded-full border border-rose-300/80 bg-white/95 px-4 py-2 text-sm font-medium text-slate-900 shadow-lg shadow-zinc-900/10 backdrop-blur transition hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-50 disabled:cursor-wait disabled:opacity-70 dark:border-slate-500 dark:bg-slate-900/88 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-800"
+          className="h-auto rounded-full border-rose-300/80 bg-white/95 px-4 py-2 text-slate-900 shadow-lg shadow-zinc-900/10 backdrop-blur hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-50 hover:text-slate-900 disabled:cursor-wait disabled:opacity-70 dark:border-slate-500 dark:bg-slate-900/88 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
         >
           <GoogleIcon />
           <span>
@@ -197,7 +218,7 @@ export function AuthButton() {
                 ? "Opening Google..."
                 : "Login with Google"}
           </span>
-        </button>
+        </Button>
       )}
 
       {errorMessage ? (

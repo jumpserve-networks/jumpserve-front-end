@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { Button } from "@/app/components/ui/button";
 import {
   getServerThemePreferenceSnapshot,
   getThemePreferenceSnapshot,
@@ -31,7 +32,7 @@ function getPreferenceLabel(preference: ThemePreference) {
 
 function LightThemeIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5">
       <path
         d="M12 4.5v-2M12 21.5v-2M4.5 12h-2M21.5 12h-2M6.22 6.22l-1.42-1.42M19.2 19.2l-1.42-1.42M17.78 6.22l1.42-1.42M6.8 19.2l1.42-1.42"
         fill="none"
@@ -46,7 +47,7 @@ function LightThemeIcon() {
 
 function DarkThemeIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5">
       <path
         d="M20.5 15.2A8.5 8.5 0 0 1 8.8 3.5 8.5 8.5 0 1 0 20.5 15.2Z"
         fill="currentColor"
@@ -57,7 +58,7 @@ function DarkThemeIcon() {
 
 function SystemThemeIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5">
       <rect
         x="3"
         y="4"
@@ -89,8 +90,10 @@ export function ThemeToggle() {
   const nextLabel = getPreferenceLabel(nextPreference);
 
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="icon"
       onClick={() => setThemePreference(nextPreference)}
       aria-label={`Theme: ${currentLabel}. Switch to ${nextLabel}.`}
       title={`Theme: ${currentLabel}. Switch to ${nextLabel}.`}
@@ -103,6 +106,6 @@ export function ThemeToggle() {
       ) : (
         <SystemThemeIcon />
       )}
-    </button>
+    </Button>
   );
 }

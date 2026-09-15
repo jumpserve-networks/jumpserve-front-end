@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Last updated: 2026-08-17
+Last updated: 2026-09-14
 
 ## Project purpose
 
@@ -16,6 +16,7 @@ The current primary UI is an "Emulated Run Explorer" graphing data from:
 - React `19.2.3`
 - TypeScript `5`
 - Tailwind CSS `4`
+- shadcn/ui (Base UI, with shared components in `app/components/ui`)
 - Supabase client libraries:
   - `@supabase/supabase-js`
   - `@supabase/ssr`
@@ -26,7 +27,9 @@ The current primary UI is an "Emulated Run Explorer" graphing data from:
 npm install
 npm run dev
 npm run lint
+npm test
 npm run build
+npm run ui:add -- <component>
 ```
 
 ## Environment
@@ -35,6 +38,11 @@ Required in `.env.local`:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+For benchmark launching, cancellation, and logs, also set
+`NEXT_PUBLIC_BENCHMARK_API_URL` to the deployed API base URL from
+`jumpserve-networks/jumpserve-infra` (without the `/benchmarks` suffix).
+Set it before building; Next.js embeds public environment variables in client code.
 
 Do not commit real keys or tokens.
 
@@ -118,6 +126,13 @@ Important columns currently used:
 
 ## Implementation notes
 
+- Use shadcn/ui components from `app/components/ui` for new shared UI controls and
+  Tailwind utilities for layout and styling. Add components with `npm run ui:add`.
+- Use Base UI primitives (`@base-ui/react`); keep `components.json` on the
+  `base-vega` style. Compose components with `render` and set `nativeButton={false}`
+  when a Button renders a non-button element such as a link.
+- Use `cn` from `@/lib/utils` to merge Tailwind classes. Keep shared color tokens in
+  `app/globals.css` and support the existing `.dark` theme toggle.
 - Supabase `numeric` / `bigint` values can arrive as strings; convert before chart math.
 - Keep server-side querying in server components where possible.
 - Preserve non-sensitive error messages for easier debugging.
