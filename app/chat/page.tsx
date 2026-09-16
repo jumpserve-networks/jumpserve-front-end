@@ -22,6 +22,8 @@ export default async function ChatPage({
       : null;
   const nextPath = parentRunId ? `/chat?parentRunId=${parentRunId}` : "/chat";
   const user = await requireGoogleUser(nextPath);
+  // A new page render is a new visit, including navigation to this same URL.
+  const visitKey = crypto.randomUUID();
   const initialMessage = parentRunId
     ? `Help me understand parent test run #${parentRunId} (/parent-run/${parentRunId}). Please look up its configuration and results, summarize throughput, round-trip time, and queueing delay, and highlight any notable behavior.`
     : "";
@@ -43,7 +45,7 @@ export default async function ChatPage({
         </div>
 
         <ChatPanel
-          key={parentRunId ?? "chat"}
+          key={visitKey}
           userEmail={user.email}
           initialMessage={initialMessage}
         />

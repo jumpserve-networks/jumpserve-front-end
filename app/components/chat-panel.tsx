@@ -240,20 +240,12 @@ export function ChatPanel({
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState(initialMessage);
   const [isLoading, setIsLoading] = useState(false);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(!initialMessage);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [supabase] = useState(() => createClient());
-  const [sessionId, setSessionId] = useState(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("jumpserve-chat-session");
-      if (stored) return stored;
-      const id = crypto.randomUUID();
-      localStorage.setItem("jumpserve-chat-session", id);
-      return id;
-    }
-    return crypto.randomUUID();
-  });
+  const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
+  const conversationVersion = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const loadSessions = useCallback(async () => {
@@ -262,33 +254,26 @@ export function ChatPanel({
       .select("id, updated_at, messages")
       .order("updated_at", { ascending: false })
       .limit(30);
-    if (data) {
-      setSessions(
-        data.map((s: any) => ({
+    return data
+      ? data.map((s: { id: string; updated_at: string; messages: unknown[] }) => ({
           id: s.id,
           updated_at: s.updated_at,
           preview: extractPreview(s.messages),
-        })),
-      );
-    }
+        }))
+      : null;
   }, [supabase]);
 
-  // Load current session history + session list on mount
+  // Visits start empty. Saved messages load only when selected in the sidebar.
   useEffect(() => {
-    async function loadHistory() {
-      const { data } = await supabase
-        .from("agent_sessions")
-        .select("messages")
-        .eq("id", sessionId)
-        .single();
-      if (data?.messages && Array.isArray(data.messages) && data.messages.length > 0) {
-        setMessages(parseSavedMessages(data.messages));
-      }
-      setHistoryLoaded(true);
-    }
-    loadHistory();
-    loadSessions();
-  }, [sessionId, supabase, loadSessions]);
+    let active = true;
+    void loadSessions().then((data) => {
+      if (active && data) setSessions(data);
+    });
+    return () => {
+      active = false;
+      conversationVersion.current += 1;
+    };
+  }, [loadSessions]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -297,6 +282,7 @@ export function ChatPanel({
   async function handleSend() {
     const text = input.trim();
     if (!text || isLoading || !historyLoaded) return;
+    const version = conversationVersion.current;
 
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: text }]);
@@ -304,11 +290,13 @@ export function ChatPanel({
 
     try {
       const result: AgentResponse = await sendMessage(text, sessionId, userEmail);
+      if (version !== conversationVersion.current) return;
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: result.response, toolEvents: result.tool_events },
       ]);
     } catch (err: unknown) {
+      if (version !== conversationVersion.current) return;
       const errorMessage = err instanceof Error ? err.message : "Unable to send your message. Please try again.";
       setInput(text);
       setMessages((prev) => [
@@ -316,30 +304,52 @@ export function ChatPanel({
         { role: "assistant", content: `Error: ${errorMessage}` },
       ]);
     } finally {
-      setIsLoading(false);
-      loadSessions(); // refresh sidebar after new message
+      if (version === conversationVersion.current) {
+        setIsLoading(false);
+        const data = await loadSessions();
+        if (version === conversationVersion.current && data) setSessions(data);
+      }
     }
   }
 
   function handleNewSession() {
-    const id = crypto.randomUUID();
-    localStorage.setItem("jumpserve-chat-session", id);
-    setSessionId(id);
+    conversationVersion.current += 1;
+    setSessionId(crypto.randomUUID());
     setMessages([]);
+    setInput("");
+    setIsLoading(false);
     setHistoryLoaded(true);
   }
 
-  function switchSession(id: string) {
-    localStorage.setItem("jumpserve-chat-session", id);
+  async function switchSession(id: string) {
+    const version = ++conversationVersion.current;
     setSessionId(id);
     setMessages([]);
+    setInput("");
+    setIsLoading(false);
     setHistoryLoaded(false);
+
+    try {
+      const { data, error } = await supabase
+        .from("agent_sessions")
+        .select("messages")
+        .eq("id", id)
+        .single();
+      if (version !== conversationVersion.current) return;
+      if (error) throw new Error(error.message);
+      setMessages(Array.isArray(data?.messages) ? parseSavedMessages(data.messages) : []);
+      setHistoryLoaded(true);
+    } catch {
+      if (version !== conversationVersion.current) return;
+      setMessages([{ role: "assistant", content: "Unable to load this conversation. Select it again to retry, or start a new chat." }]);
+    }
   }
 
   async function deleteSession(id: string) {
+    const version = conversationVersion.current;
     await supabase.from("agent_sessions").delete().eq("id", id);
     setSessions((prev) => prev.filter((s) => s.id !== id));
-    if (id === sessionId) {
+    if (id === sessionId && version === conversationVersion.current) {
       handleNewSession();
     }
   }
