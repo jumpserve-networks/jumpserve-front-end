@@ -159,6 +159,7 @@ function SessionSidebar({
 }) {
   return (
     <div
+      inert={!sidebarOpen}
       className={`flex flex-col border-r border-slate-200 bg-white transition-all dark:border-slate-700 dark:bg-slate-900 ${
         sidebarOpen ? "w-64" : "w-0 overflow-hidden border-r-0"
       }`}
@@ -229,12 +230,18 @@ function SessionSidebar({
 
 // ── Main ChatPanel ──────────────────────────────────────
 
-export function ChatPanel({ userEmail }: { userEmail?: string }) {
+export function ChatPanel({
+  userEmail,
+  initialMessage = "",
+}: {
+  userEmail?: string;
+  initialMessage?: string;
+}) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(initialMessage);
   const [isLoading, setIsLoading] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(!initialMessage);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [supabase] = useState(() => createClient());
   const [sessionId, setSessionId] = useState(() => {
@@ -289,7 +296,7 @@ export function ChatPanel({ userEmail }: { userEmail?: string }) {
 
   async function handleSend() {
     const text = input.trim();
-    if (!text || isLoading) return;
+    if (!text || isLoading || !historyLoaded) return;
 
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: text }]);
@@ -442,9 +449,10 @@ export function ChatPanel({ userEmail }: { userEmail?: string }) {
 
         {/* Input */}
         <div className="border-t border-slate-200 p-4 dark:border-slate-700">
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
+          <div className="flex items-end gap-2">
+            <textarea
+              rows={3}
+              aria-label="Chat message"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -455,12 +463,13 @@ export function ChatPanel({ userEmail }: { userEmail?: string }) {
               }}
               placeholder="Ask about benchmarks, results, or congestion control..."
               disabled={isLoading}
-              className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-400/30 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-rose-400"
+              className="min-w-0 flex-1 resize-y rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-400/30 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-rose-400"
             />
             <button
               type="button"
+              aria-label="Send message"
               onClick={handleSend}
-              disabled={isLoading || !input.trim()}
+              disabled={isLoading || !historyLoaded || !input.trim()}
               className="shrink-0 rounded-lg bg-rose-500 p-2.5 text-white transition hover:bg-rose-600 disabled:opacity-50"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

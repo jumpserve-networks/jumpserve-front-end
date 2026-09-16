@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { MessageCircle } from "lucide-react";
+import { Button } from "@/app/components/ui/button";
 import { ParentRunCharts } from "@/app/parent-run/[id]/parent-run-charts";
 import { requireGoogleUser } from "@/lib/auth";
 import { fetchParentRunSummary } from "@/lib/emulated-runs-data";
@@ -154,10 +156,18 @@ export default async function ParentRunPage({
                 </svg>
               </Link>
             </div>
-            <div className="min-w-0">
+            <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
                 Emulated Run Explorer | {parentRun.id}
               </h1>
+              <Button
+                nativeButton={false}
+                className="self-start sm:self-auto"
+                render={<Link href={`/chat?parentRunId=${parentRun.id}`} />}
+              >
+                <MessageCircle aria-hidden="true" />
+                Chat with AI
+              </Button>
             </div>
           </div>
           <div className="mb-6 grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-[minmax(0,2.4fr)_repeat(4,minmax(0,1fr))]">
