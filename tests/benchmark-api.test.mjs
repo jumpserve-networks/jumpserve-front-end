@@ -3,6 +3,7 @@ import { afterEach, beforeEach, test } from "node:test";
 import {
   cancelBenchmark,
   defaultConfig,
+  getBenchmarkLogs,
   launchBenchmark,
 } from "../lib/benchmark-api.ts";
 
@@ -11,6 +12,7 @@ const launched = { jobId: "job-123", instanceId: "i-123", status: "launching" };
 const operations = [
   ["launch", () => launchBenchmark(defaultConfig())],
   ["cancel", () => cancelBenchmark("job-123")],
+  ["logs", () => getBenchmarkLogs("job-123")],
 ];
 
 beforeEach(() => {
@@ -62,7 +64,7 @@ for (const [name, request] of operations) {
     t.mock.method(globalThis, "fetch", async () => Response.json(body));
 
     for (body of [null, [], {}, { jobId: 123, status: "launching" }]) {
-      await assert.rejects(request, /benchmark service returned an invalid/i);
+      await assert.rejects(request, /benchmark service returned (an )?invalid/i);
     }
   });
 }
@@ -78,6 +80,27 @@ test("invalid or relative API URLs cannot fall back to the frontend", async (t) 
   }
 
   assert.equal(fetchMock.mock.callCount(), 0);
+});
+
+test("logs use an encoded job ID, disable caching, and accept empty output during startup", async (t) => {
+  const controller = new AbortController();
+  const fetchMock = t.mock.method(globalThis, "fetch", async () => Response.json({ events: [], nextToken: null }));
+  assert.deepEqual(await getBenchmarkLogs("job/123?other=value", controller.signal), []);
+  const [url, options] = fetchMock.mock.calls[0].arguments;
+  assert.equal(url, "https://benchmarks.example.test/benchmarks/logs?jobId=job%2F123%3Fother%3Dvalue");
+  assert.equal(options.method, "GET");
+  assert.equal(options.cache, "no-store");
+  assert.equal(options.signal, controller.signal);
+});
+
+test("logs validate entries and preserve text for safe rendering", async (t) => {
+  let events;
+  t.mock.method(globalThis, "fetch", async () => Response.json({ events }));
+  for (events of [[null], [{ timestamp: "today", message: "test" }], [{ timestamp: 123, message: {} }]]) {
+    await assert.rejects(() => getBenchmarkLogs("job-123"), /invalid log entries/);
+  }
+  events = [{ timestamp: 123, message: "<script>text, not markup</script>" }];
+  assert.deepEqual(await getBenchmarkLogs("job-123"), events);
 });
 
 test("launch uses the configured API path and accepts the Lambda's text/plain JSON", async (t) => {

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   Select,
@@ -34,6 +35,8 @@ function parseNumberArray(value: string): number[] {
 }
 
 export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
+  const router = useRouter();
+  const launchPending = useRef(false);
   const [supabase] = useState(() => createClient());
   const [config, setConfig] = useState<BenchmarkConfig>(defaultConfig());
   const [savedConfigs, setSavedConfigs] = useState<SavedConfig[]>([]);
@@ -60,17 +63,21 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
   const [tagsText, setTagsText] = useState("");
   const [notes, setNotes] = useState("");
 
-  useEffect(() => {
-    loadConfigs();
-  }, []);
-
-  async function loadConfigs() {
+  const loadConfigs = useCallback(async () => {
     const { data } = await supabase
       .from("benchmark_configs")
       .select("id, name, description, config")
       .order("created_at", { ascending: false });
-    if (data) setSavedConfigs(data);
-  }
+    return data as SavedConfig[] | null;
+  }, [supabase]);
+
+  useEffect(() => {
+    let active = true;
+    void loadConfigs().then((data) => {
+      if (active && data) setSavedConfigs(data);
+    });
+    return () => { active = false; };
+  }, [loadConfigs]);
 
   function applyConfig(saved: SavedConfig) {
     setConfig(saved.config);
@@ -85,11 +92,11 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
     const finalConfig = buildFinalConfig();
     if (!finalConfig) return;
 
-    const row: any = {
+    const row = {
       name: configName.trim(),
       config: finalConfig,
+      ...(configDescription.trim() ? { description: configDescription.trim() } : {}),
     };
-    if (configDescription.trim()) row.description = configDescription.trim();
 
     const { error } = await supabase.from("benchmark_configs").insert(row);
 
@@ -99,7 +106,8 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
       setMessage({ type: "success", text: "Config saved!" });
       setConfigName("");
       setConfigDescription("");
-      loadConfigs();
+      const data = await loadConfigs();
+      if (data) setSavedConfigs(data);
     }
   }
 
@@ -114,7 +122,8 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
     } else {
       setSelectedConfigId(null);
       setMessage({ type: "success", text: "Config deleted" });
-      loadConfigs();
+      const data = await loadConfigs();
+      if (data) setSavedConfigs(data);
     }
   }
 
@@ -155,7 +164,7 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
             ...Array(numClients - startDelays.length).fill(0),
           ];
 
-    const finalConfig: any = {
+    const finalConfig: BenchmarkConfig = {
       ...config,
       client_delays_ms: delays,
       client_file_sizes_mbytes: fileSizes,
@@ -170,20 +179,19 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
   }
 
   async function handleLaunch() {
+    if (launchPending.current) return;
     setMessage(null);
     const finalConfig = buildFinalConfig();
     if (!finalConfig) return;
 
+    launchPending.current = true;
     setIsLaunching(true);
     try {
       const result = await launchBenchmark(finalConfig, userEmail);
-      setMessage({
-        type: "success",
-        text: `Benchmark launched! Job ID: ${result.jobId.slice(0, 8)}...`,
-      });
-    } catch (err: any) {
-      setMessage({ type: "error", text: err.message });
-    } finally {
+      router.push(`/benchmarks/${encodeURIComponent(result.jobId)}`);
+    } catch (err: unknown) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to launch benchmark. Please try again." });
+      launchPending.current = false;
       setIsLaunching(false);
     }
   }

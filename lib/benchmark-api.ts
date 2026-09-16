@@ -23,14 +23,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-async function postBenchmarkRequest(
+async function benchmarkRequest(
   path: string,
-  body: object,
+  options: RequestInit,
 ): Promise<Record<string, unknown>> {
   const res = await fetch(`${getBenchmarkApiUrl()}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(body),
+    headers: {
+      Accept: 'application/json',
+      ...(options.method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
+    },
+    ...options,
   });
 
   let data: unknown;
@@ -56,6 +58,31 @@ async function postBenchmarkRequest(
   return data;
 }
 
+function postBenchmarkRequest(path: string, body: object) {
+  return benchmarkRequest(path, { method: 'POST', body: JSON.stringify(body) });
+}
+
+export interface BenchmarkLogEntry {
+  timestamp: number;
+  message: string;
+}
+
+export async function getBenchmarkLogs(jobId: string, signal?: AbortSignal): Promise<BenchmarkLogEntry[]> {
+  const query = new URLSearchParams({ jobId });
+  const data = await benchmarkRequest(`/benchmarks/logs?${query}`, {
+    method: 'GET', cache: 'no-store', signal,
+  });
+
+  if (!Array.isArray(data.events) || !data.events.every((entry) =>
+    isRecord(entry) && typeof entry.timestamp === 'number' &&
+    Number.isFinite(entry.timestamp) && typeof entry.message === 'string'
+  )) {
+    throw new Error('The benchmark service returned invalid log entries. Please try again.');
+  }
+
+  return data.events as BenchmarkLogEntry[];
+}
+
 export interface BenchmarkConfig {
   num_clients: number;
   client_delays_ms: number[];
@@ -68,6 +95,9 @@ export interface BenchmarkConfig {
   script: string;
   loss_pct?: number;
   snapshot_interval_ms?: number;
+  experiment_name?: string;
+  tags?: string[];
+  notes?: string;
 }
 
 export interface LaunchResponse {

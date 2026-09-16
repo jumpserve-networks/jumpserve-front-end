@@ -310,7 +310,7 @@ export function BenchmarkStatus() {
             key={job.id}
             className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800/50"
           >
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span
@@ -331,7 +331,13 @@ export function BenchmarkStatus() {
                   </p>
                 )}
               </div>
-              <div className="flex shrink-0 gap-2">
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <Link
+                  href={`/benchmarks/${encodeURIComponent(job.id)}`}
+                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+                >
+                  View progress
+                </Link>
                 {isActive && (
                   <CancelButton jobId={job.id} onCancelled={fetchJobs} />
                 )}
