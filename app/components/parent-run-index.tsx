@@ -1,5 +1,7 @@
 "use client";
 
+import { FilterDropdown } from "@/app/components/ui/filter-dropdown";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -662,8 +664,10 @@ export function ParentRunIndex({
             <p className="block text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
               Number of clients
             </p>
-            <details className="group mt-2">
-              <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-rose-300/80 bg-white/80 px-3 py-2 text-sm text-slate-700 transition hover:border-rose-400 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100">
+            <FilterDropdown
+              label="Number of clients"
+              className="mt-2"
+              summary={
                 <span className="min-h-4 flex-1 truncate pr-2">
                   {selectedClientCounts.length > 0
                     ? selectedClientCounts
@@ -673,11 +677,9 @@ export function ParentRunIndex({
                         .join(", ")
                     : "(None selected)"}
                 </span>
-                <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-50 dark:bg-slate-800">
-                  <span className="h-2.5 w-2.5 rotate-45 border-b-2 border-r-2 border-slate-500 transition group-open:rotate-[225deg] dark:border-slate-300" />
-                </span>
-              </summary>
-              <div className="mt-2 space-y-1 rounded-2xl border border-rose-300/80 bg-white/80 p-2.5 dark:border-slate-500 dark:bg-slate-900/75">
+              }
+            >
+              <div className="space-y-1">
                 {filterOptions.clientCounts.map((option) => {
                   const clientCount = option.value;
 
@@ -714,14 +716,16 @@ export function ParentRunIndex({
                   );
                 })}
               </div>
-            </details>
+            </FilterDropdown>
           </div>
           <div className="mt-4">
             <p className="block text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
               CCA
             </p>
-            <details className="group mt-2">
-              <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-rose-300/80 bg-white/80 px-3 py-2 text-sm text-slate-700 transition hover:border-rose-400 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100">
+            <FilterDropdown
+              label="CCA"
+              className="mt-2"
+              summary={
                 <span className="min-h-4 flex-1 truncate pr-2">
                   {isOrderedCcaFilterEnabled &&
                   (selectedClientOneCcaLabels.length > 0 ||
@@ -740,11 +744,9 @@ export function ParentRunIndex({
                       ? selectedCcaLabels.join(", ")
                       : "(None selected)"}
                 </span>
-                <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-50 dark:bg-slate-800">
-                  <span className="h-2.5 w-2.5 rotate-45 border-b-2 border-r-2 border-slate-500 transition group-open:rotate-[225deg] dark:border-slate-300" />
-                </span>
-              </summary>
-              <div className="mt-2 space-y-1 rounded-2xl border border-rose-300/80 bg-white/80 p-2.5 dark:border-slate-500 dark:bg-slate-900/75">
+              }
+            >
+              <div className="space-y-1">
                 {filterOptions.ccaLabels.length > 0 ? (
                   <>
                     {(isFilterOptionSectionExpanded("cca")
@@ -928,24 +930,24 @@ export function ParentRunIndex({
                   </p>
                 )}
               </div>
-            </details>
+            </FilterDropdown>
           </div>
           <div className="mt-4">
             <p className="block text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
               Added Delay
             </p>
-            <details className="group mt-2">
-              <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-rose-300/80 bg-white/80 px-3 py-2 text-sm text-slate-700 transition hover:border-rose-400 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100">
+            <FilterDropdown
+              label="Added Delay"
+              className="mt-2"
+              summary={
                 <span className="min-h-4 flex-1 truncate pr-2">
                   {selectedAddedDelayValues.length > 0
                     ? formatSelectedValueSummary(selectedAddedDelayValues, "ms")
                     : "(None selected)"}
                 </span>
-                <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-50 dark:bg-slate-800">
-                  <span className="h-2.5 w-2.5 rotate-45 border-b-2 border-r-2 border-slate-500 transition group-open:rotate-[225deg] dark:border-slate-300" />
-                </span>
-              </summary>
-              <div className="mt-2 space-y-1 rounded-2xl border border-rose-300/80 bg-white/80 p-2.5 dark:border-slate-500 dark:bg-slate-900/75">
+              }
+            >
+              <div className="space-y-1">
                 {filterOptions.addedDelaysMs.length > 0 ? (
                   <>
                     {(isFilterOptionSectionExpanded("delay")
@@ -1004,24 +1006,24 @@ export function ParentRunIndex({
                   </p>
                 )}
               </div>
-            </details>
+            </FilterDropdown>
           </div>
           <div className="mt-4">
             <p className="block text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
               Client File Size
             </p>
-            <details className="group mt-2">
-              <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-rose-300/80 bg-white/80 px-3 py-2 text-sm text-slate-700 transition hover:border-rose-400 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100">
+            <FilterDropdown
+              label="Client File Size"
+              className="mt-2"
+              summary={
                 <span className="min-h-4 flex-1 truncate pr-2">
                   {selectedClientFileSizeValues.length > 0
                     ? formatSelectedValueSummary(selectedClientFileSizeValues, "MB")
                     : "(None selected)"}
                 </span>
-                <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-50 dark:bg-slate-800">
-                  <span className="h-2.5 w-2.5 rotate-45 border-b-2 border-r-2 border-slate-500 transition group-open:rotate-[225deg] dark:border-slate-300" />
-                </span>
-              </summary>
-              <div className="mt-2 space-y-1 rounded-2xl border border-rose-300/80 bg-white/80 p-2.5 dark:border-slate-500 dark:bg-slate-900/75">
+              }
+            >
+              <div className="space-y-1">
                 {(isFilterOptionSectionExpanded("client-file-size")
                   ? filterOptions.clientFileSizesMegabytes
                   : filterOptions.clientFileSizesMegabytes.slice(
@@ -1078,7 +1080,7 @@ export function ParentRunIndex({
                   </button>
                 ) : null}
               </div>
-            </details>
+            </FilterDropdown>
           </div>
           <button
             type="button"
@@ -1093,8 +1095,10 @@ export function ParentRunIndex({
                 <p className="block text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
                   Client Start Delay
                 </p>
-                <details className="group mt-2">
-                  <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-rose-300/80 bg-white/80 px-3 py-2 text-sm text-slate-700 transition hover:border-rose-400 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100">
+                <FilterDropdown
+                  label="Client Start Delay"
+                  className="mt-2"
+                  summary={
                     <span className="min-h-4 flex-1 truncate pr-2">
                       {selectedClientStartDelayValues.length > 0
                         ? formatSelectedValueSummary(
@@ -1103,11 +1107,9 @@ export function ParentRunIndex({
                           )
                         : "(None selected)"}
                     </span>
-                    <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-50 dark:bg-slate-800">
-                      <span className="h-2.5 w-2.5 rotate-45 border-b-2 border-r-2 border-slate-500 transition group-open:rotate-[225deg] dark:border-slate-300" />
-                    </span>
-                  </summary>
-                  <div className="mt-2 space-y-1 rounded-2xl border border-rose-300/80 bg-white/80 p-2.5 dark:border-slate-500 dark:bg-slate-900/75">
+                  }
+                >
+                  <div className="space-y-1">
                     {(isFilterOptionSectionExpanded("client-start-delay")
                       ? filterOptions.clientStartDelaysMs
                       : filterOptions.clientStartDelaysMs.slice(
@@ -1164,14 +1166,16 @@ export function ParentRunIndex({
                       </button>
                     ) : null}
                   </div>
-                </details>
+                </FilterDropdown>
               </div>
               <div className="mt-4">
                 <p className="block text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
                   Queue Buffer Size
                 </p>
-                <details className="group mt-2">
-                  <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-rose-300/80 bg-white/80 px-3 py-2 text-sm text-slate-700 transition hover:border-rose-400 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100">
+                <FilterDropdown
+                  label="Queue Buffer Size"
+                  className="mt-2"
+                  summary={
                     <span className="min-h-4 flex-1 truncate pr-2">
                       {selectedQueueBufferSizeValues.length > 0
                         ? formatSelectedValueSummary(
@@ -1180,11 +1184,9 @@ export function ParentRunIndex({
                           )
                         : "(None selected)"}
                     </span>
-                    <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-50 dark:bg-slate-800">
-                      <span className="h-2.5 w-2.5 rotate-45 border-b-2 border-r-2 border-slate-500 transition group-open:rotate-[225deg] dark:border-slate-300" />
-                    </span>
-                  </summary>
-                  <div className="mt-2 space-y-1 rounded-2xl border border-rose-300/80 bg-white/80 p-2.5 dark:border-slate-500 dark:bg-slate-900/75">
+                  }
+                >
+                  <div className="space-y-1">
                     {(isFilterOptionSectionExpanded("queue-buffer")
                       ? filterOptions.queueBufferSizesKilobyte
                       : filterOptions.queueBufferSizesKilobyte.slice(
@@ -1243,14 +1245,16 @@ export function ParentRunIndex({
                       </button>
                     ) : null}
                   </div>
-                </details>
+                </FilterDropdown>
               </div>
               <div className="mt-4">
                 <p className="block text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
                   Bottleneck Rate
                 </p>
-                <details className="group mt-2">
-                  <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-rose-300/80 bg-white/80 px-3 py-2 text-sm text-slate-700 transition hover:border-rose-400 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100">
+                <FilterDropdown
+                  label="Bottleneck Rate"
+                  className="mt-2"
+                  summary={
                     <span className="min-h-4 flex-1 truncate pr-2">
                       {selectedBottleneckRateValues.length > 0
                         ? formatSelectedValueSummary(
@@ -1259,11 +1263,9 @@ export function ParentRunIndex({
                           )
                         : "(None selected)"}
                     </span>
-                    <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-50 dark:bg-slate-800">
-                      <span className="h-2.5 w-2.5 rotate-45 border-b-2 border-r-2 border-slate-500 transition group-open:rotate-[225deg] dark:border-slate-300" />
-                    </span>
-                  </summary>
-                  <div className="mt-2 space-y-1 rounded-2xl border border-rose-300/80 bg-white/80 p-2.5 dark:border-slate-500 dark:bg-slate-900/75">
+                  }
+                >
+                  <div className="space-y-1">
                     {(isFilterOptionSectionExpanded("bottleneck-rate")
                       ? filterOptions.bottleneckRatesMegabit
                       : filterOptions.bottleneckRatesMegabit.slice(
@@ -1320,7 +1322,7 @@ export function ParentRunIndex({
                       </button>
                     ) : null}
                   </div>
-                </details>
+                </FilterDropdown>
               </div>
             </>
           ) : null}

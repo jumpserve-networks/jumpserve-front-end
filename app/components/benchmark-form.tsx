@@ -3,6 +3,13 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/components/ui/select";
+import {
   launchBenchmark,
   defaultConfig,
   AVAILABLE_CCAS,
@@ -214,28 +221,33 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
       {/* Load saved config */}
       {savedConfigs.length > 0 && (
         <div>
-          <label className={labelClasses}>Load Saved Config</label>
+          <label htmlFor="benchmark-saved-config" className={labelClasses}>Load Saved Config</label>
           <div className="flex gap-2">
-            <select
-              className={inputClasses}
-              value={selectedConfigId ?? ""}
-              onChange={(e) => {
-                const found = savedConfigs.find((c) => c.id === e.target.value);
+            <Select
+              items={savedConfigs.map((saved) => ({
+                value: saved.id,
+                label: `${saved.name}${saved.description ? ` — ${saved.description}` : ""}`,
+              }))}
+              value={selectedConfigId}
+              onValueChange={(value) => {
+                const found = savedConfigs.find((c) => c.id === value);
                 if (found) {
                   setSelectedConfigId(found.id);
                   applyConfig(found);
                 }
               }}
             >
-              <option value="" disabled>
-                Select a config...
-              </option>
-              {savedConfigs.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}{c.description ? ` — ${c.description}` : ""}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="benchmark-saved-config" className="w-full min-w-0">
+                <SelectValue placeholder="Select a config..." />
+              </SelectTrigger>
+              <SelectContent alignItemWithTrigger={false} align="start">
+                {savedConfigs.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}{c.description ? ` — ${c.description}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <button
               type="button"
               onClick={handleDeleteConfig}
@@ -251,18 +263,25 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
 
       {/* Script */}
       <div>
-        <label className={labelClasses}>Benchmark Script</label>
-        <select
-          className={inputClasses}
+        <label htmlFor="benchmark-script" className={labelClasses}>Benchmark Script</label>
+        <Select
+          items={AVAILABLE_SCRIPTS}
           value={config.script}
-          onChange={(e) => setConfig({ ...config, script: e.target.value })}
+          onValueChange={(value) => {
+            if (value !== null) setConfig({ ...config, script: value });
+          }}
         >
-          {AVAILABLE_SCRIPTS.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id="benchmark-script" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent alignItemWithTrigger={false} align="start">
+            {AVAILABLE_SCRIPTS.map((s) => (
+              <SelectItem key={s.value} value={s.value}>
+                {s.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Number of clients */}
@@ -393,17 +412,25 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
 
       {/* Metrics source */}
       <div>
-        <label className={labelClasses}>Metrics Source</label>
-        <select
-          className={inputClasses}
+        <label htmlFor="benchmark-metrics-source" className={labelClasses}>Metrics Source</label>
+        <Select
+          items={[
+            { value: "kernel", label: "Kernel" },
+            { value: "ss", label: "SS (out-of-band)" },
+          ]}
           value={config.snapshot_metrics_source}
-          onChange={(e) =>
-            setConfig({ ...config, snapshot_metrics_source: e.target.value })
-          }
+          onValueChange={(value) => {
+            if (value !== null) setConfig({ ...config, snapshot_metrics_source: value });
+          }}
         >
-          <option value="kernel">Kernel</option>
-          <option value="ss">SS (out-of-band)</option>
-        </select>
+          <SelectTrigger id="benchmark-metrics-source" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent alignItemWithTrigger={false} align="start">
+            <SelectItem value="kernel">Kernel</SelectItem>
+            <SelectItem value="ss">SS (out-of-band)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Experiment metadata */}

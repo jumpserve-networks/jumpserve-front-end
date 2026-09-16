@@ -1,5 +1,12 @@
 "use client";
 
+import { FilterDropdown } from "@/app/components/ui/filter-dropdown";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/app/components/ui/collapsible";
+
 import Link from "next/link";
 import { useId, useMemo, useState } from "react";
 import type { AggregateDelayGraphPoint } from "@/lib/emulated-runs-data";
@@ -5291,12 +5298,12 @@ export function AggregateGraphsPanel({
                           </span>
                         </span>
                       </label>
-                      <details className="group mt-3">
-                        <summary className="flex cursor-pointer list-none items-center justify-between rounded-xl border border-rose-100 bg-white/70 px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-rose-200 hover:bg-white dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:border-slate-600">
+                      <Collapsible className="group mt-3">
+                        <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-rose-100 bg-white/70 px-3 py-2 text-left text-xs font-medium text-slate-600 transition hover:border-rose-200 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:border-slate-600">
                           <span>{`View matched parent runs (${matchedTests.length})`}</span>
-                          <span className="ml-2 h-2 w-2 rotate-45 border-b-2 border-r-2 border-slate-500 transition group-open:rotate-[225deg] dark:border-slate-300" />
-                        </summary>
-                        <div className="mt-2 rounded-xl border border-rose-100 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-950/35">
+                          <span aria-hidden="true" className="ml-2 h-2 w-2 rotate-45 border-b-2 border-r-2 border-slate-500 transition group-data-open:rotate-[225deg] dark:border-slate-300" />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-2 rounded-xl border border-rose-100 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-950/35">
                           <p className="text-[11px] leading-5 text-slate-500 dark:text-slate-300">
                             {formatGroupCriteria(group)}
                           </p>
@@ -5316,8 +5323,8 @@ export function AggregateGraphsPanel({
                               No available tests match this category.
                             </p>
                           )}
-                        </div>
-                      </details>
+                        </CollapsibleContent>
+                      </Collapsible>
                     </div>
                   );
                 })}
@@ -5327,8 +5334,9 @@ export function AggregateGraphsPanel({
             <div className="mt-5 hidden min-h-0 flex-1 gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
               <aside className="min-h-0 overflow-y-auto rounded-2xl border border-rose-200/80 bg-[#fff3f8] p-4 dark:border-slate-600 dark:bg-slate-900/55">
                 <div>
-                  <details className="group">
-                    <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-rose-300/80 bg-white px-3 py-2 text-sm text-slate-700 transition hover:border-rose-400 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100">
+                  <FilterDropdown
+                    label="CCA"
+                    summary={
                       <span className="min-h-4 flex-1 pr-2">
                         <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
                           CCA
@@ -5339,11 +5347,9 @@ export function AggregateGraphsPanel({
                           )}
                         </span>
                       </span>
-                      <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-50 dark:bg-slate-800">
-                        <span className="h-2.5 w-2.5 rotate-45 border-b-2 border-r-2 border-slate-500 transition group-open:rotate-[225deg] dark:border-slate-300" />
-                      </span>
-                    </summary>
-                    <div className="mt-2 space-y-1 rounded-2xl border border-rose-200/80 bg-white p-2.5 dark:border-slate-600 dark:bg-slate-900/50">
+                    }
+                  >
+                    <div className="space-y-1">
                       {AVAILABLE_CCA_FILTERS.map((cca) => (
                         <label
                           key={cca}
@@ -5372,12 +5378,13 @@ export function AggregateGraphsPanel({
                         </label>
                       ))}
                     </div>
-                  </details>
+                  </FilterDropdown>
                 </div>
 
                 <div className="mt-4">
-                  <details className="group">
-                    <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-rose-300/80 bg-white px-3 py-2 text-sm text-slate-700 transition hover:border-rose-400 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100">
+                  <FilterDropdown
+                    label="Workload"
+                    summary={
                       <span className="min-h-4 flex-1 pr-2">
                         <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
                           Workload
@@ -5388,11 +5395,9 @@ export function AggregateGraphsPanel({
                           )}
                         </span>
                       </span>
-                      <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-50 dark:bg-slate-800">
-                        <span className="h-2.5 w-2.5 rotate-45 border-b-2 border-r-2 border-slate-500 transition group-open:rotate-[225deg] dark:border-slate-300" />
-                      </span>
-                    </summary>
-                    <div className="mt-2 space-y-1 rounded-2xl border border-rose-200/80 bg-white p-2.5 dark:border-slate-600 dark:bg-slate-900/50">
+                    }
+                  >
+                    <div className="space-y-1">
                       {AVAILABLE_WORKLOAD_FILTERS.map((workload) => (
                         <label
                           key={workload}
@@ -5423,12 +5428,13 @@ export function AggregateGraphsPanel({
                         </label>
                       ))}
                     </div>
-                  </details>
+                  </FilterDropdown>
                 </div>
 
                 <div className="mt-4">
-                  <details className="group">
-                    <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl border border-rose-300/80 bg-white px-3 py-2 text-sm text-slate-700 transition hover:border-rose-400 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100">
+                  <FilterDropdown
+                    label="Queue Buffer Size"
+                    summary={
                       <span className="min-h-4 flex-1 pr-2">
                         <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
                           Queue Buffer Size
@@ -5441,11 +5447,9 @@ export function AggregateGraphsPanel({
                           )}
                         </span>
                       </span>
-                      <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-rose-50 dark:bg-slate-800">
-                        <span className="h-2.5 w-2.5 rotate-45 border-b-2 border-r-2 border-slate-500 transition group-open:rotate-[225deg] dark:border-slate-300" />
-                      </span>
-                    </summary>
-                    <div className="mt-2 space-y-1 rounded-2xl border border-rose-200/80 bg-white p-2.5 dark:border-slate-600 dark:bg-slate-900/50">
+                    }
+                  >
+                    <div className="space-y-1">
                       {AVAILABLE_QUEUE_BUFFER_FILTERS.map((queueBufferSize) => (
                         <label
                           key={queueBufferSize}
@@ -5480,7 +5484,7 @@ export function AggregateGraphsPanel({
                         </label>
                       ))}
                     </div>
-                  </details>
+                  </FilterDropdown>
                 </div>
               </aside>
 
