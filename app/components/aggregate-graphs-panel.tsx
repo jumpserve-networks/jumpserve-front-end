@@ -4893,8 +4893,8 @@ export function AggregateGraphsPanel({
     : displayedModePoints.length;
 
   return (
-    <main className="space-atmosphere relative min-h-screen overflow-hidden p-5 sm:p-10">
-      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-7xl items-center justify-center py-3 sm:py-8">
+    <main className="space-atmosphere relative min-h-[var(--page-height)] overflow-hidden p-5 sm:p-10">
+      <div className="relative z-10 mx-auto flex min-h-[calc(var(--page-height)-5rem)] w-full max-w-7xl items-center justify-center py-3 sm:py-8">
         <section className="fade-up-on-load w-full rounded-[2rem] border border-rose-200/70 bg-[#fff8fc]/95 p-6 shadow-2xl dark:border-slate-600 dark:bg-slate-800/82 sm:p-8">
           <div className="flex items-start justify-between gap-4">
             <div>

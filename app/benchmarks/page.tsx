@@ -14,7 +14,7 @@ export default async function BenchmarksPage() {
   const user = await requireGoogleUser("/benchmarks");
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-[var(--page-height)] bg-slate-50 dark:bg-slate-950">
       <div className="mx-auto max-w-3xl px-4 py-12">
         <Link
           href="/"

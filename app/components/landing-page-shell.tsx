@@ -287,13 +287,13 @@ export function LandingPageShell({
   return (
     <>
     <main
-      className="space-atmosphere relative min-h-screen overflow-hidden"
+      className="space-atmosphere relative min-h-[var(--page-height)] overflow-hidden"
       style={{ fontFamily: LANDING_SERIF_FONT }}
     >
       {isThemeChooserVisible ? (
         <section className="absolute inset-0 z-[60]">
           <div className="absolute inset-0 bg-white/25 backdrop-blur-sm dark:bg-slate-950/35" />
-          <div className="relative z-10 flex min-h-screen flex-col justify-center px-4 py-6 sm:px-8">
+          <div className="relative z-10 flex min-h-[var(--page-height)] flex-col justify-center px-4 py-6 sm:px-8">
             <div className="mx-auto w-full max-w-7xl">
               <p
                 className="chooser-fade-up-late mt-24 -translate-y-16 text-center text-sm font-semibold uppercase tracking-[0.36em] text-slate-600 dark:text-slate-300 sm:mt-32 sm:-translate-y-20"
@@ -334,7 +334,7 @@ export function LandingPageShell({
         </section>
       ) : null}
 
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-6 py-8 sm:px-10">
+      <div className="relative z-10 mx-auto flex min-h-[var(--page-height)] w-full max-w-4xl items-center justify-center px-6 py-8 sm:px-10">
         <div className="w-full max-w-xl">
           <p className="mb-4 text-center text-2xl font-semibold tracking-[0.08em] text-slate-900 dark:text-slate-100">
             <span

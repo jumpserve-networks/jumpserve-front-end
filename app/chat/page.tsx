@@ -27,7 +27,7 @@ export default async function ChatPage({
     : "";
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-[var(--page-height)] bg-slate-50 dark:bg-slate-950">
       <div className="mx-auto max-w-5xl px-4 py-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <Link

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { GlobalAuthButton } from "@/app/components/auth-button";
+import { SiteHeader } from "@/app/components/site-header";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import {
   DARK_MEDIA_QUERY,
@@ -81,8 +81,8 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <SiteHeader />
         {children}
-        <GlobalAuthButton />
         <ThemeToggle />
       </body>
     </html>
