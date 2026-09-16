@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Last updated: 2026-09-14
+Last updated: 2026-09-16
 
 ## Project purpose
 
@@ -43,6 +43,10 @@ For benchmark launching, cancellation, and logs, also set
 `NEXT_PUBLIC_BENCHMARK_API_URL` to the deployed API base URL from
 `jumpserve-networks/jumpserve-infra` (without the `/benchmarks` suffix).
 Set it before building; Next.js embeds public environment variables in client code.
+
+For AI chat, also set `NEXT_PUBLIC_AGENT_URL` to the full `AgentFunctionUrl` output
+from `JumpServeAgentStack` in `jumpserve-infra`. Do not append `/chat`. Restart the
+development server after changing it, and set it before building for production.
 
 Do not commit real keys or tokens.
 

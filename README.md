@@ -78,5 +78,17 @@ Restart the development server after changing environment variables. For a
 production deployment, set this variable in the build environment and rebuild:
 Next.js embeds `NEXT_PUBLIC_*` values in the browser bundle at build time.
 
-Run the benchmark API regression tests with `npm test` (Node.js 22.18+ or 24+).
-These tests mock API requests and do not launch EC2 instances.
+## AI chat
+
+Set `NEXT_PUBLIC_AGENT_URL` in `.env.local` to the full `AgentFunctionUrl` output
+from `JumpServeAgentStack` in `jumpserve-infra`. Use the Lambda Function URL as
+provided, including its trailing slash; do not append `/chat` or `/benchmarks`.
+
+Restart the development server after changing this value. For production, set it
+in the build environment and rebuild so the browser bundle includes the endpoint.
+A missing value previously caused chat to post to the frontend page and attempt
+to parse its HTML as JSON. The client now rejects missing or invalid configuration
+before sending a request and reports non-JSON API responses clearly.
+
+Run the API regression tests with `npm test` (Node.js 22.18+ or 24+).
+These tests mock API requests and do not launch EC2 instances or invoke AI models.

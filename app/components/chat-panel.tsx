@@ -308,10 +308,12 @@ export function ChatPanel({
         ...prev,
         { role: "assistant", content: result.response, toolEvents: result.tool_events },
       ]);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Unable to send your message. Please try again.";
+      setInput(text);
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: `Error: ${err.message}` },
+        { role: "assistant", content: `Error: ${errorMessage}` },
       ]);
     } finally {
       setIsLoading(false);
