@@ -15,6 +15,8 @@ interface BenchmarkJob {
     client_delays_ms: number[];
     bottleneck_all_client_rate_mbit: number;
     script?: string;
+    topology?: string;
+    bottleneck_rates_mbit?: number[];
   };
   ec2_instance_id: string | null;
   parent_run_id: number | null;
@@ -72,7 +74,10 @@ function formatTime(iso: string) {
 function configSummary(config: BenchmarkJob["config"]) {
   const ccas = [...new Set(config.client_ccas)].join("/");
   const delays = config.client_delays_ms.join(",");
-  return `${config.num_clients} clients | ${ccas} | ${delays}ms | ${config.bottleneck_all_client_rate_mbit} Mbit`;
+  const rate = config.script === "netem_multi_bottleneck.py"
+    ? `${config.topology ?? "Topology missing"} | ${config.bottleneck_rates_mbit?.join(" / ") ?? "Rates missing"}`
+    : config.bottleneck_all_client_rate_mbit;
+  return `${config.num_clients} clients | ${ccas} | ${delays}ms | ${rate} Mbit`;
 }
 
 function ProgressBar({ status }: { status: string }) {

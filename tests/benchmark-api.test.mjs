@@ -5,6 +5,7 @@ import {
   defaultConfig,
   getBenchmarkLogs,
   launchBenchmark,
+  validateMultiBottleneckConfig,
 } from "../lib/benchmark-api.ts";
 
 const originalApiUrl = process.env.NEXT_PUBLIC_BENCHMARK_API_URL;
@@ -14,6 +15,38 @@ const operations = [
   ["cancel", () => cancelBenchmark("job-123")],
   ["logs", () => getBenchmarkLogs("job-123")],
 ];
+
+const multiConfig = {
+  ...defaultConfig(), script: 'netem_multi_bottleneck.py', topology: 'dumbbell',
+  bottleneck_rates_mbit: [100, 50], bottleneck_buffers_kbytes: [125, 64], client_groups: [1, 1],
+};
+
+test('multi-bottleneck sends topology, both link settings, and group sizes intact', async (t) => {
+  const fetchMock = t.mock.method(globalThis, 'fetch', async () => Response.json(launched));
+  for (const topology of ['parking-lot', 'dumbbell']) {
+    const config = { ...multiConfig, topology };
+    assert.deepEqual(await launchBenchmark(config), launched);
+    assert.deepEqual(JSON.parse(fetchMock.mock.calls.at(-1).arguments[1].body).config, config);
+  }
+});
+
+test('incomplete saved multi-bottleneck configs and invalid pairs never launch an instance', async (t) => {
+  const fetchMock = t.mock.method(globalThis, 'fetch', async () => { throw new Error('Must not launch'); });
+  for (const invalid of [
+    { topology: undefined }, { topology: 'unknown' }, { bottleneck_rates_mbit: [100] },
+    { bottleneck_rates_mbit: [100, NaN] }, { bottleneck_rates_mbit: [0, 50] },
+    { bottleneck_buffers_kbytes: [125, -1] }, { bottleneck_buffers_kbytes: [125, 125, 125] },
+    { client_groups: [2, 1] }, { client_groups: [0, 2] }, { client_groups: [1.5, 0.5] },
+  ]) {
+    const config = { ...multiConfig, ...invalid };
+    const error = validateMultiBottleneckConfig(config);
+    assert.ok(error);
+    await assert.rejects(() => launchBenchmark(config), { message: error });
+  }
+  assert.equal(fetchMock.mock.callCount(), 0);
+  assert.equal(validateMultiBottleneckConfig({ ...multiConfig, topology: 'parking-lot', client_groups: undefined }), null);
+  assert.equal(validateMultiBottleneckConfig(defaultConfig()), null);
+});
 
 beforeEach(() => {
   process.env.NEXT_PUBLIC_BENCHMARK_API_URL = "https://benchmarks.example.test";

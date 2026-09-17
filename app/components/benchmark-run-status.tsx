@@ -207,7 +207,9 @@ export function BenchmarkRunStatus({ initialJob }: { initialJob: BenchmarkJob })
               ["Requested by", job.requested_by || "Not recorded"],
               ["Clients", `${job.config.num_clients} (${job.config.client_ccas.join(", ")})`],
               ["Client delays", `${job.config.client_delays_ms.join(", ")} ms`],
-              ["Bottleneck rate", `${job.config.bottleneck_all_client_rate_mbit} Mbit/s`],
+              ...(job.config.script === "netem_multi_bottleneck.py"
+                ? [["Topology", job.config.topology || "Not recorded"], ["Bottleneck rates", `${job.config.bottleneck_rates_mbit?.join(" / ") ?? "Not recorded"} Mbit/s`]]
+                : [["Bottleneck rate", `${job.config.bottleneck_all_client_rate_mbit} Mbit/s`]]),
               ["Benchmark script", job.config.script || "Default script"],
             ].map(([label, value]) => <div key={label}><dt className="text-muted-foreground">{label}</dt><dd className="mt-1 break-words font-medium">{value}</dd></div>)}
           </dl>

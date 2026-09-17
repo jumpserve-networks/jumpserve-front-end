@@ -9,6 +9,8 @@ export interface BenchmarkJob {
     client_delays_ms: number[];
     bottleneck_all_client_rate_mbit: number;
     script?: string;
+    topology?: string;
+    bottleneck_rates_mbit?: number[];
     experiment_name?: string;
   };
   ec2_instance_id: string | null;

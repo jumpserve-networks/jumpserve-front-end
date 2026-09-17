@@ -93,6 +93,10 @@ export interface BenchmarkConfig {
   bottleneck_buffer_kbytes: number;
   snapshot_metrics_source: string;
   script: string;
+  topology?: 'parking-lot' | 'dumbbell';
+  bottleneck_rates_mbit?: number[];
+  bottleneck_buffers_kbytes?: number[];
+  client_groups?: number[];
   loss_pct?: number;
   snapshot_interval_ms?: number;
   experiment_name?: string;
@@ -111,6 +115,8 @@ export async function launchBenchmark(
   config: BenchmarkConfig,
   requestedBy?: string,
 ): Promise<LaunchResponse> {
+  const validationError = validateMultiBottleneckConfig(config);
+  if (validationError) throw new Error(validationError);
   const data = await postBenchmarkRequest('/benchmarks', {
     config,
     requested_by: requestedBy,
@@ -159,6 +165,32 @@ export const AVAILABLE_SCRIPTS = [
   { value: 'netem_nines.py', label: 'Netem Nines' },
   { value: 'netem_multi_bottleneck.py', label: 'Multi-Bottleneck (parking-lot / dumbbell)' },
 ] as const;
+
+export const AVAILABLE_TOPOLOGIES = [
+  { value: 'parking-lot', label: 'Parking lot (experimental)' },
+  { value: 'dumbbell', label: 'Dumbbell' },
+] as const;
+
+export function validateMultiBottleneckConfig(config: BenchmarkConfig): string | null {
+  if (config.script !== 'netem_multi_bottleneck.py') return null;
+  if (!AVAILABLE_TOPOLOGIES.some(({ value }) => value === config.topology)) {
+    return 'Choose a topology for the multi-bottleneck benchmark.';
+  }
+  if (config.bottleneck_rates_mbit?.length !== 2 ||
+      !config.bottleneck_rates_mbit.every((value) => Number.isFinite(value) && value >= 1 && value <= 10000)) {
+    return 'Enter two bottleneck rates between 1 and 10,000 Mbit/s.';
+  }
+  if (config.bottleneck_buffers_kbytes?.length !== 2 ||
+      !config.bottleneck_buffers_kbytes.every((value) => Number.isFinite(value) && value >= 0 && value <= 100000)) {
+    return 'Enter two buffer sizes between 0 and 100,000 KB.';
+  }
+  if (config.topology === 'dumbbell' && (
+    config.client_groups?.length !== 2 ||
+    !config.client_groups.every((value) => Number.isInteger(value) && value > 0) ||
+    config.client_groups.reduce((sum, value) => sum + value, 0) !== config.num_clients
+  )) return 'Enter two positive client group sizes that add up to the number of clients.';
+  return null;
+}
 
 export function defaultConfig(): BenchmarkConfig {
   return {

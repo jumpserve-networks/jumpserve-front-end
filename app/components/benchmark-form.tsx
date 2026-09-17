@@ -15,6 +15,8 @@ import {
   defaultConfig,
   AVAILABLE_CCAS,
   AVAILABLE_SCRIPTS,
+  AVAILABLE_TOPOLOGIES,
+  validateMultiBottleneckConfig,
   type BenchmarkConfig,
 } from "@/lib/benchmark-api";
 
@@ -62,6 +64,10 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
   const [experimentName, setExperimentName] = useState("");
   const [tagsText, setTagsText] = useState("");
   const [notes, setNotes] = useState("");
+  const [ratesText, setRatesText] = useState("100, 50");
+  const [buffersText, setBuffersText] = useState("125, 125");
+  const [groupsText, setGroupsText] = useState("1, 1");
+  const multiBottleneck = config.script === "netem_multi_bottleneck.py";
 
   const loadConfigs = useCallback(async () => {
     const { data } = await supabase
@@ -84,6 +90,12 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
     setDelaysText(saved.config.client_delays_ms.join(", "));
     setFileSizesText(saved.config.client_file_sizes_mbytes.join(", "));
     setStartDelaysText(saved.config.client_start_delays_ms.join(", "));
+    setRatesText((saved.config.bottleneck_rates_mbit ?? [100, 50]).join(", "));
+    setBuffersText((saved.config.bottleneck_buffers_kbytes ?? [125, 125]).join(", "));
+    setGroupsText((saved.config.client_groups ?? [Math.ceil(saved.config.num_clients / 2), Math.floor(saved.config.num_clients / 2)]).join(", "));
+    setExperimentName(saved.config.experiment_name ?? "");
+    setTagsText((saved.config.tags ?? []).join(", "));
+    setNotes(saved.config.notes ?? "");
     setMessage(null);
   }
 
@@ -170,6 +182,24 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
       client_file_sizes_mbytes: fileSizes,
       client_start_delays_ms: paddedStartDelays,
     };
+    if (multiBottleneck) {
+      // Keep invalid entries visible to validation instead of dropping them.
+      const parsePair = (text: string) => text.split(",").map((part) => part.trim() === "" ? NaN : Number(part));
+      finalConfig.bottleneck_rates_mbit = parsePair(ratesText);
+      finalConfig.bottleneck_buffers_kbytes = parsePair(buffersText);
+      if (config.topology === "dumbbell") finalConfig.client_groups = parsePair(groupsText);
+      else delete finalConfig.client_groups;
+      const error = validateMultiBottleneckConfig(finalConfig);
+      if (error) {
+        setMessage({ type: "error", text: error });
+        return null;
+      }
+    } else {
+      delete finalConfig.topology;
+      delete finalConfig.bottleneck_rates_mbit;
+      delete finalConfig.bottleneck_buffers_kbytes;
+      delete finalConfig.client_groups;
+    }
     if (experimentName.trim()) finalConfig.experiment_name = experimentName.trim();
     if (tagsText.trim()) {
       finalConfig.tags = tagsText.split(",").map((t) => t.trim()).filter(Boolean);
@@ -382,64 +412,111 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
         />
       </div>
 
-      {/* Bottleneck rate */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className={labelClasses}>Bottleneck Rate (Mbit/s)</label>
-          <input
-            type="number"
-            min={1}
-            max={10000}
-            className={inputClasses}
-            value={config.bottleneck_all_client_rate_mbit}
-            onChange={(e) =>
-              setConfig({
-                ...config,
-                bottleneck_all_client_rate_mbit: parseFloat(e.target.value) || 100,
-              })
-            }
-          />
+      {multiBottleneck ? (
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="benchmark-topology" className={labelClasses}>Network Topology</label>
+            <Select
+              items={AVAILABLE_TOPOLOGIES}
+              value={config.topology ?? null}
+              onValueChange={(value) => {
+                if (value === "parking-lot" || value === "dumbbell") setConfig({ ...config, topology: value });
+              }}
+            >
+              <SelectTrigger id="benchmark-topology" className="w-full">
+                <SelectValue placeholder="Choose a topology..." />
+              </SelectTrigger>
+              <SelectContent alignItemWithTrigger={false} align="start">
+                {AVAILABLE_TOPOLOGIES.map((topology) => (
+                  <SelectItem key={topology.value} value={topology.value}>{topology.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label htmlFor="benchmark-link-rates" className={labelClasses}>Bottleneck Rates (Mbit/s, comma-separated)</label>
+            <input id="benchmark-link-rates" className={inputClasses} value={ratesText} onChange={(e) => setRatesText(e.target.value)} />
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Two values, one per bottleneck.</p>
+          </div>
+          <div>
+            <label htmlFor="benchmark-link-buffers" className={labelClasses}>Buffer Sizes (KB, comma-separated)</label>
+            <input id="benchmark-link-buffers" className={inputClasses} value={buffersText} onChange={(e) => setBuffersText(e.target.value)} />
+          </div>
+          {config.topology === "dumbbell" && (
+            <div>
+              <label htmlFor="benchmark-client-groups" className={labelClasses}>Client Group Sizes (comma-separated)</label>
+              <input id="benchmark-client-groups" className={inputClasses} value={groupsText} onChange={(e) => setGroupsText(e.target.value)} />
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Two positive group sizes adding up to {config.num_clients}. Clients are assigned in order.</p>
+            </div>
+          )}
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            This runner records throughput; RTT, congestion window, and in-flight packet graphs are not available.
+            {config.topology === "parking-lot" && " Parking-lot shaping is experimental: currently only the first bottleneck rate and buffer are applied."}
+          </p>
         </div>
-        <div>
-          <label className={labelClasses}>Buffer Size (KB)</label>
-          <input
-            type="number"
-            min={0}
-            max={100000}
-            className={inputClasses}
-            value={config.bottleneck_buffer_kbytes}
-            onChange={(e) =>
-              setConfig({
-                ...config,
-                bottleneck_buffer_kbytes: parseFloat(e.target.value) || 125,
-              })
-            }
-          />
-        </div>
-      </div>
+      ) : (
+        <>
+          {/* Bottleneck rate */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClasses}>Bottleneck Rate (Mbit/s)</label>
+              <input
+                type="number"
+                min={1}
+                max={10000}
+                className={inputClasses}
+                value={config.bottleneck_all_client_rate_mbit}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    bottleneck_all_client_rate_mbit: parseFloat(e.target.value) || 100,
+                  })
+                }
+              />
+            </div>
+            <div>
+              <label className={labelClasses}>Buffer Size (KB)</label>
+              <input
+                type="number"
+                min={0}
+                max={100000}
+                className={inputClasses}
+                value={config.bottleneck_buffer_kbytes}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    bottleneck_buffer_kbytes: parseFloat(e.target.value) || 125,
+                  })
+                }
+              />
+            </div>
+          </div>
 
-      {/* Metrics source */}
-      <div>
-        <label htmlFor="benchmark-metrics-source" className={labelClasses}>Metrics Source</label>
-        <Select
-          items={[
-            { value: "kernel", label: "Kernel" },
-            { value: "ss", label: "SS (out-of-band)" },
-          ]}
-          value={config.snapshot_metrics_source}
-          onValueChange={(value) => {
-            if (value !== null) setConfig({ ...config, snapshot_metrics_source: value });
-          }}
-        >
-          <SelectTrigger id="benchmark-metrics-source" className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent alignItemWithTrigger={false} align="start">
-            <SelectItem value="kernel">Kernel</SelectItem>
-            <SelectItem value="ss">SS (out-of-band)</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+          {/* Metrics source */}
+          <div>
+            <label htmlFor="benchmark-metrics-source" className={labelClasses}>Metrics Source</label>
+            <Select
+              items={[
+                { value: "kernel", label: "Kernel" },
+                { value: "ss", label: "SS (out-of-band)" },
+              ]}
+              value={config.snapshot_metrics_source}
+              onValueChange={(value) => {
+                if (value !== null) setConfig({ ...config, snapshot_metrics_source: value });
+              }}
+            >
+              <SelectTrigger id="benchmark-metrics-source" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent alignItemWithTrigger={false} align="start">
+                <SelectItem value="kernel">Kernel</SelectItem>
+                <SelectItem value="ss">SS (out-of-band)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+        </>
+      )}
 
       {/* Experiment metadata */}
       <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
