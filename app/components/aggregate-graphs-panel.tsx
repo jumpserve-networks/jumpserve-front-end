@@ -1,5 +1,8 @@
 "use client";
 
+import { ResearchComparisonPanel } from "@/app/components/research-comparison-panel";
+import { buildSweepGroups, configurationLabel, formatSeconds, medianInterval, MIN_MEDIAN_REPEATS } from "@/lib/research-comparison";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/app/components/ui/table";
 import { Button } from "@/app/components/ui/button";
 import { Label } from "@/app/components/ui/label";
 import { Input } from "@/app/components/ui/input";
@@ -179,13 +182,6 @@ type AggregateGraphViewId =
 
 type PercentileKey = "p50" | "p90" | "max";
 
-type CohortDefinition = {
-  id: "a" | "b";
-  label: string;
-  cca: string;
-  color: string;
-};
-
 type FacetCell = {
   rowValue: number;
   columnValue: number;
@@ -208,10 +204,6 @@ type AvailableTestGroupOption = {
 const AVAILABLE_CCA_FILTERS = ["bbr", "cubic"] as const;
 const AVAILABLE_WORKLOAD_FILTERS = [10, 50, 100, 200] as const;
 const AVAILABLE_QUEUE_BUFFER_FILTERS = [125, 500] as const;
-const DEFAULT_COHORTS: CohortDefinition[] = [
-  { id: "a", label: "BBR", cca: "bbr", color: "#0d9488" },
-  { id: "b", label: "CUBIC", cca: "cubic", color: "#dc2626" },
-];
 const GROUP_CLIENT_1_DELAY_MS = 10;
 const GROUP_CLIENT_2_DELAY_RANGE = {
   min: 11,
@@ -362,7 +354,7 @@ const AGGREGATE_GRAPH_VIEWS: Array<{
     label: "Box Plot",
     title: "FCT Distribution by Delay",
     subtitle:
-      "Median, quartiles, and min/max are grouped by added delay and client.",
+      "Inspect one configuration at a time, with repetition counts and median confidence intervals.",
   },
   {
     id: "ecdf",
@@ -405,7 +397,7 @@ const EXPLORER_MODES: Array<{
     label: "Compare Cohorts",
     title: "BBR vs CUBIC",
     subtitle:
-      "Compare flow completion distributions for BBR and CUBIC under the same filters.",
+      "Compare BBR and CUBIC only where complete recorded configurations match.",
   },
   {
     id: "facets",
@@ -502,7 +494,7 @@ const MODE_DESCRIPTOR_ITEMS = [
   },
   {
     title: "Compare Cohorts",
-    text: "Compares BBR and CUBIC under the same non-CCA filters.",
+    text: "Matches configurations, reports parent-run repetitions, and estimates uncertainty.",
   },
   {
     title: "Facet Grid",
@@ -542,7 +534,7 @@ function formatFlowCompletionTimeLabel(value: number) {
     return "n/a";
   }
 
-  if (value >= 1000) {
+  if (Math.abs(value) >= 1000) {
     return `${formatAxisValue(value / 1000)} s`;
   }
 
@@ -1807,220 +1799,6 @@ function FlowSummaryStrip({ points }: { points: FlowPoint[] }) {
   );
 }
 
-function getPointCca(point: FlowPoint) {
-  return point.congestionControlAlgorithmName?.toLowerCase() ?? "n/a";
-}
-
-function formatSignedFlowDelta(value: number) {
-  const sign = value > 0 ? "+" : "";
-  return `${sign}${formatFlowCompletionTimeLabel(value)}`;
-}
-
-function CohortComparisonPanel({
-  points,
-  cohorts = DEFAULT_COHORTS,
-}: {
-  points: FlowPoint[];
-  cohorts?: CohortDefinition[];
-}) {
-  const cohortEntries = cohorts.map((cohort) => {
-    const cohortPoints = points.filter((point) => getPointCca(point) === cohort.cca);
-    const summary = buildFlowSummary(cohortPoints);
-
-    return {
-      ...cohort,
-      points: cohortPoints,
-      summary,
-    };
-  });
-  const [left, right] = cohortEntries;
-
-  if (!left || !right) {
-    return <EmptyChartState text="Two cohorts are required for comparison." />;
-  }
-
-  const deltas =
-    left.summary && right.summary
-      ? [
-          {
-            label: "Median Delta",
-            value: formatSignedFlowDelta(right.summary.median - left.summary.median),
-          },
-          {
-            label: "p90 Delta",
-            value: formatSignedFlowDelta(right.summary.p90 - left.summary.p90),
-          },
-          {
-            label: "Max Delta",
-            value: formatSignedFlowDelta(right.summary.max - left.summary.max),
-          },
-        ]
-      : [];
-
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
-        {cohortEntries.map((entry) => (
-          <div
-            key={entry.id}
-            className="rounded-lg border border-border bg-card p-4"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold tracking-normal text-muted-foreground">
-                  Cohort {entry.id.toUpperCase()}
-                </p>
-                <h3 className="mt-1 text-lg font-semibold text-foreground">
-                  {entry.label}
-                </h3>
-              </div>
-              <span
-                className="h-3 w-3 rounded-full"
-                style={{ backgroundColor: entry.color }}
-              />
-            </div>
-            {entry.summary ? (
-              <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                <span className="text-muted-foreground">
-                  Parent runs
-                </span>
-                <span className="text-right font-semibold text-foreground">
-                  {entry.summary.parentRuns}
-                </span>
-                <span className="text-muted-foreground">
-                  Points
-                </span>
-                <span className="text-right font-semibold text-foreground">
-                  {entry.summary.plottedPoints}
-                </span>
-                <span className="text-muted-foreground">
-                  Median
-                </span>
-                <span className="text-right font-semibold text-foreground">
-                  {formatFlowCompletionTimeLabel(entry.summary.median)}
-                </span>
-                <span className="text-muted-foreground">p90</span>
-                <span className="text-right font-semibold text-foreground">
-                  {formatFlowCompletionTimeLabel(entry.summary.p90)}
-                </span>
-                <span className="text-muted-foreground">Max</span>
-                <span className="text-right font-semibold text-foreground">
-                  {formatFlowCompletionTimeLabel(entry.summary.max)}
-                </span>
-              </div>
-            ) : (
-              <p className="mt-4 text-sm text-muted-foreground">
-                No points match this cohort under the current filters.
-              </p>
-            )}
-          </div>
-        ))}
-        <div className="rounded-lg border border-border bg-accent p-4 dark:border-primary/40 lg:min-w-44">
-          <p className="text-[11px] font-semibold tracking-normal text-primary">
-            B - A
-          </p>
-          {deltas.length > 0 ? (
-            <div className="mt-4 space-y-3">
-              {deltas.map((delta) => (
-                <div key={delta.label}>
-                  <p className="text-xs text-primary">
-                    {delta.label}
-                  </p>
-                  <p className="mt-0.5 text-lg font-semibold text-foreground">
-                    {delta.value}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-4 text-sm text-primary">
-              Need data in both cohorts.
-            </p>
-          )}
-        </div>
-      </div>
-      <CohortEcdfChart cohorts={cohortEntries} />
-    </div>
-  );
-}
-
-function CohortEcdfChart({
-  cohorts,
-}: {
-  cohorts: Array<CohortDefinition & { points: FlowPoint[] }>;
-}) {
-  const populatedCohorts = cohorts.filter((cohort) => cohort.points.length > 0);
-
-  if (populatedCohorts.length === 0) {
-    return <EmptyChartState text="No cohort points are available for comparison." />;
-  }
-
-  const maxFlowCompletion = Math.max(
-    ...populatedCohorts.flatMap((cohort) =>
-      cohort.points.map((point) => point.flowCompletionTimeMs),
-    ),
-    1,
-  );
-  const plottedCohorts = populatedCohorts.map((cohort) => {
-    const sortedPoints = cohort.points
-      .slice()
-      .sort((left, right) => left.flowCompletionTimeMs - right.flowCompletionTimeMs);
-    const plottedPoints = sortedPoints.map((point, index) => ({
-      x: scaleChartX(point.flowCompletionTimeMs, maxFlowCompletion),
-      y: scaleChartY(((index + 1) / sortedPoints.length) * 100, 100),
-    }));
-
-    return {
-      ...cohort,
-      path: buildEcdfPath(plottedPoints),
-    };
-  });
-
-  return (
-    <svg
-      viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[44vh] min-h-[320px] w-full overflow-visible rounded-lg bg-card text-muted-foreground"
-      role="img"
-      aria-label="ECDF comparison of cohort flow completion time"
-    >
-      {renderChartAxes({
-        xAxisLabel: "Flow Completion Time",
-        yAxisLabel: "Runs Completed (%)",
-        xTicks: renderXAxisTicks(maxFlowCompletion, (value) =>
-          formatFlowCompletionTimeLabel(value),
-        ),
-        yTicks: renderYAxisTicks(100, (value) => `${formatAxisValue(value)}%`),
-      })}
-      {plottedCohorts.map((cohort, index) => (
-        <g key={cohort.id}>
-          {cohort.path ? (
-            <path
-              d={cohort.path}
-              fill="none"
-              stroke={cohort.color}
-              strokeWidth={3.2}
-              strokeLinecap="round"
-            />
-          ) : null}
-          <text
-            x={CHART_WIDTH - CHART_PADDING.right - 140}
-            y={CHART_PADDING.top + 18 + index * 22}
-            className="fill-slate-700 text-[12px] font-semibold dark:fill-slate-200"
-          >
-            {cohort.label}
-          </text>
-          <circle
-            cx={CHART_WIDTH - CHART_PADDING.right - 155}
-            cy={CHART_PADDING.top + 14 + index * 22}
-            r={5}
-            fill={cohort.color}
-          />
-        </g>
-      ))}
-    </svg>
-  );
-}
-
 function FacetGrid({
   points,
   rowValues,
@@ -3158,7 +2936,44 @@ function OtherClientDelayFlowChart({
   );
 }
 
-function BoxPlot({
+function BoxPlot({ points, series }: { points: AggregateDelayGraphPoint[]; series: ClientSeries[] }) {
+  const coverage = useMemo(() => buildSweepGroups(points), [points]);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const groups = [...coverage.groups].sort((a, b) => new Set(b.points.map(p => p.delayAddedMs)).size - new Set(a.points.map(p => p.delayAddedMs)).size);
+  const selected = groups.find(g => g.key === selectedKey) ?? groups[0];
+  const selectedPoints = (selected?.points ?? []).filter((point): point is FlowPoint => point.flowCompletionTimeMs !== null && Number.isFinite(point.flowCompletionTimeMs));
+  const buckets = (() => {
+    if (!selected) return [];
+    return [...new Set(selectedPoints.map(p => p.delayAddedMs))].sort((a, b) => a - b).map(delay => {
+      const rows = selectedPoints.filter(p => p.delayAddedMs === delay);
+      const values = rows.map(p => p.flowCompletionTimeMs);
+      return { delay, rows, median: quantile([...values].sort((a, b) => a - b), .5), interval: medianInterval(values) };
+    });
+  })();
+  if (!selected) return <EmptyChartState text={`No sweep has a complete supported launch configuration. ${coverage.excluded} points excluded; imported runs without launch provenance remain available in the exploratory views.`} />;
+  const counts = buckets.map(b => b.rows.length);
+  const min = Math.min(...counts), max = Math.max(...counts);
+  const label = (group: typeof selected) => `Client ${group.clientNumber} · ${group.configuration.clients.map(c => c.cca).join(" / ")} · ${configurationLabel(group.configuration, group.clientNumber)}`;
+  return <div className="min-w-0 space-y-4">
+    <p className="text-sm leading-6 text-muted-foreground">Each view holds the recorded workload, competing clients, link, queue, and launch settings fixed while varying one client’s delay. Select a configuration to inspect its sweep. Boxes describe FCT spread; their widths do not encode sample size.</p>
+    <FilterDropdown label="Sweep configuration" summary={label(selected)}>
+      {groups.map(group => <Button key={group.key} variant="ghost" aria-pressed={group.key === selected.key} onClick={() => setSelectedKey(group.key)} className="h-auto w-full justify-start whitespace-normal text-left">{label(group)}</Button>)}
+    </FilterDropdown>
+    <p className="text-sm font-medium">{buckets.length} observed delay levels · {min === max ? `${min} parent runs per level` : `Unbalanced: ${min}–${max} parent runs per level`} · {coverage.excluded} points excluded</p>
+    <p className="text-xs leading-5 text-muted-foreground">The planned delay grid is not recorded, so absent levels cannot be counted. These are observed repetitions, not evidence of a balanced sweep. A single delay level cannot establish a delay effect. Median intervals require {MIN_MEDIAN_REPEATS} parent runs per level and assume independent repetitions; they are exploratory, pointwise intervals.</p>
+    <RawBoxPlot points={selectedPoints} series={series.filter(s => s.clientNumber === selected.clientNumber)} />
+    <Table>
+      <TableHeader><TableRow><TableHead>Added delay</TableHead><TableHead>Parent runs (n)</TableHead><TableHead>Median FCT</TableHead><TableHead>95% median CI</TableHead></TableRow></TableHeader>
+      <TableBody>{buckets.map(bucket => <TableRow key={bucket.delay}>
+        <TableCell>{bucket.delay} ms</TableCell><TableCell>{bucket.rows.length}</TableCell>
+        <TableCell>{formatSeconds(bucket.median)}</TableCell>
+        <TableCell>{bucket.interval ? `${formatSeconds(bucket.interval.low)} to ${formatSeconds(bucket.interval.high)}` : "Insufficient repetitions"}</TableCell>
+      </TableRow>)}</TableBody>
+    </Table>
+  </div>;
+}
+
+function RawBoxPlot({
   points,
   series,
 }: {
@@ -3274,11 +3089,12 @@ function BoxPlot({
           );
         }),
         yTicks: renderYAxisTicks(maxFlowCompletion, (value) =>
-          formatFlowCompletionTimeLabel(value),
+          formatSeconds(value),
         ),
       })}
       {positionedStats.map((stat) => (
         <g key={`${stat.delayAddedMs}-${stat.clientNumber}`}>
+          <text x={stat.centerX} y={stat.maxY - 8} textAnchor="middle" className="fill-current text-[11px]">n={stat.count}</text>
           <line
             x1={stat.centerX}
             x2={stat.centerX}
@@ -3337,7 +3153,7 @@ function BoxPlot({
             height={Math.max(stat.q1Y - stat.q3Y + 16, 24)}
             fill="transparent"
             tabIndex={0}
-            aria-label={`Client ${stat.clientNumber}, added delay ${formatAxisValue(stat.delayAddedMs)} ms, median ${formatFlowCompletionTimeLabel(stat.median)}, count ${stat.count}`}
+            aria-label={`Client ${stat.clientNumber}, added delay ${formatAxisValue(stat.delayAddedMs)} ms, median ${formatSeconds(stat.median)}, count ${stat.count}`}
             onMouseEnter={() =>
               setHoveredStat({
                 clientNumber: stat.clientNumber,
@@ -3402,21 +3218,21 @@ function BoxPlot({
             y={tooltipPosition.y + 56}
             className="fill-slate-300 text-[11px]"
           >
-            {`Median: ${formatFlowCompletionTimeLabel(hoveredStat.median)}`}
+            {`Median: ${formatSeconds(hoveredStat.median)}`}
           </text>
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 74}
             className="fill-slate-300 text-[11px]"
           >
-            {`Q1-Q3: ${formatFlowCompletionTimeLabel(hoveredStat.q1)} to ${formatFlowCompletionTimeLabel(hoveredStat.q3)}`}
+            {`Q1-Q3: ${formatSeconds(hoveredStat.q1)} to ${formatSeconds(hoveredStat.q3)}`}
           </text>
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 92}
             className="fill-slate-300 text-[11px]"
           >
-            {`Min-Max: ${formatFlowCompletionTimeLabel(hoveredStat.min)} to ${formatFlowCompletionTimeLabel(hoveredStat.max)}`}
+            {`Min-Max: ${formatSeconds(hoveredStat.min)} to ${formatSeconds(hoveredStat.max)}`}
           </text>
         </g>
       ) : null}
@@ -4417,7 +4233,7 @@ export function AggregateGraphsPanel({
   const availableTests = useMemo(
     () =>
       Array.from(
-        flowPoints.reduce(
+        data.reduce(
           (tests, point) => {
             const existing = tests.get(point.parentRunId);
 
@@ -4585,7 +4401,7 @@ export function AggregateGraphsPanel({
             .sort((left, right) => left.clientNumber - right.clientNumber),
         }))
         .sort((left, right) => right.parentRunId - left.parentRunId),
-    [flowPoints],
+    [data],
   );
   const [selectedCcas, setSelectedCcas] = useState<string[]>([]);
   const [selectedWorkloads, setSelectedWorkloads] = useState<number[]>([]);
@@ -4931,8 +4747,8 @@ export function AggregateGraphsPanel({
                 Aggregate Graphs
               </h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                Showing {displayedPlottedPointCount} plotted parent-run/client
-                points across {displayedParentRunCount} active tests.
+                Filtered dataset: {displayedPlottedPointCount} client measurements
+                across {displayedParentRunCount} active tests.
               </p>
             </div>
             <Link
@@ -5073,7 +4889,7 @@ export function AggregateGraphsPanel({
               </div>
             </aside>
 
-            <div className="space-y-6">
+            <div className="min-w-0 space-y-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <ExplorerModeSegmentedControl
                   selectedMode={selectedExplorerMode}
@@ -5083,7 +4899,7 @@ export function AggregateGraphsPanel({
                   {selectedExplorerModeConfig.subtitle}
                 </p>
               </div>
-              {displayedModePoints.length > 0 ? (
+              {(displayedModePoints.length > 0 || selectedExplorerMode === "compare") ? (
                 <div className="">
                   <ChartCard
                     eyebrow="Parent Runs"
@@ -5103,7 +4919,7 @@ export function AggregateGraphsPanel({
                         selectedMode={selectedExplorerMode}
                         selectedViewId={selectedGraphViewId}
                       />
-                      <FlowSummaryStrip points={displayedModePoints} />
+                      {selectedExplorerMode !== "compare" && selectedGraphViewId !== "box-plot" && <FlowSummaryStrip points={displayedModePoints} />}
                       {selectedExplorerMode === "explore" ? (
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <GraphViewSegmentedControl
@@ -5132,8 +4948,9 @@ export function AggregateGraphsPanel({
                     {(() => {
                       if (selectedExplorerMode === "compare") {
                         return (
-                          <CohortComparisonPanel
-                            points={clientFilteredComparisonFlowPoints}
+                          <ResearchComparisonPanel
+                            points={data.filter(point => activeComparisonTestIds.includes(point.parentRunId))}
+                            selectedClients={visibleClientNumbers}
                           />
                         );
                       }
@@ -5171,7 +4988,7 @@ export function AggregateGraphsPanel({
                         case "box-plot":
                           return (
                             <BoxPlot
-                              points={displayedFlowPoints}
+                              points={data.filter(point => activeTestIds.includes(point.parentRunId) && visibleClientNumbers.includes(point.clientNumber))}
                               series={clientSeries}
                             />
                           );

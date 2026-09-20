@@ -156,6 +156,10 @@ Important columns currently used:
 - Supabase `numeric` / `bigint` values can arrive as strings; convert before chart math.
 - Keep server-side querying in server components where possible.
 - Preserve non-sensitive error messages for easier debugging.
+- Research comparisons must use complete recorded configuration matches and
+  parent runs as the replication unit. Keep units consistent, expose exclusions
+  and sample counts, and never infer paired trials from run order. Follow
+  `docs/research-comparisons.md` when changing estimates or confidence intervals.
 - Prefer adding new metrics in `METRICS` within `app/components/emulated-runs-dashboard.tsx`.
 
 ## Suggested next improvements

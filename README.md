@@ -66,6 +66,15 @@ the next sign-in. Theme preferences remain available through the shared toggle.
 `npm test` covers redirect safety, deep-link continuity, module availability, and
 route ownership alongside the existing API tests.
 
+## Research comparisons
+
+Compare Cohorts now requires matching complete recorded configurations and gives
+each configuration equal weight. It reports independent parent-run repetition
+counts, exclusions, and exploratory confidence intervals when replication is
+sufficient. The Box Plot view isolates a delay sweep and shows coverage per level.
+See [the analysis contract](docs/research-comparisons.md) for estimands, matching
+rules, missing-data behavior, bootstrap assumptions, and limitations.
+
 ## UI components
 
 Use shadcn/ui components from `app/components/ui`, Base UI for interactive

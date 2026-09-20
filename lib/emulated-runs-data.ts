@@ -1,3 +1,5 @@
+import { loadAggregateResearchData } from "@/lib/aggregate-research-data";
+import type { ResearchConfiguration } from "@/lib/research-comparison";
 import type {
   EmulatedParentRun,
   EmulatedPerSecondStat,
@@ -54,6 +56,7 @@ export type ParentRunIndexFilters = {
 };
 
 export type AggregateDelayGraphPoint = {
+  configuration: ResearchConfiguration;
   parentRunId: number;
   numberOfClients: number;
   clientNumber: number;
@@ -1439,117 +1442,6 @@ export async function fetchCachedParentRunDashboardData(parentRunId: number) {
   return getCachedParentRunDashboardData(parentRunId);
 }
 
-export async function fetchAggregateDelayGraphData(): Promise<
-  AggregateDelayGraphPoint[]
-> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("emulated_runs")
-    .select(
-      "emulated_parent_run_id, client_number, delay_added, client_start_delay_ms, flow_completion_time_ms, client_file_size_megabytes, congestion_control_algorithms(name), emulated_parent_runs(number_of_clients, queue_buffer_size_kilobyte, bottleneck_rate_megabit)",
-    )
-    .order("delay_added", { ascending: true });
-
-  if (error) {
-    throw new Error(`Failed to load emulated_runs: ${error.message}`);
-  }
-
-  type RawAggregateRun = {
-    emulated_parent_run_id: number | null;
-    client_number: number | null;
-    delay_added: number | null;
-    client_start_delay_ms: number | null;
-    flow_completion_time_ms: number | null;
-    client_file_size_megabytes: NumericLike;
-    congestion_control_algorithms:
-      | { name: string | null }
-      | Array<{ name: string | null }>
-      | null;
-    emulated_parent_runs:
-      | {
-          number_of_clients: number | null;
-          queue_buffer_size_kilobyte: NumericLike;
-          bottleneck_rate_megabit: NumericLike;
-        }
-      | Array<{
-          number_of_clients: number | null;
-          queue_buffer_size_kilobyte: NumericLike;
-          bottleneck_rate_megabit: NumericLike;
-        }>
-      | null;
-  };
-
-  const points: AggregateDelayGraphPoint[] = [];
-
-  for (const run of (data ?? []) as RawAggregateRun[]) {
-    let numberOfClients: number | null = null;
-    let queueBufferSizeKilobyte: number | null = null;
-    let bottleneckRateMegabit: number | null = null;
-    if (Array.isArray(run.emulated_parent_runs)) {
-      numberOfClients = run.emulated_parent_runs[0]?.number_of_clients ?? null;
-      queueBufferSizeKilobyte = toNumber(
-        run.emulated_parent_runs[0]?.queue_buffer_size_kilobyte ?? null,
-      );
-      bottleneckRateMegabit = toNumber(
-        run.emulated_parent_runs[0]?.bottleneck_rate_megabit ?? null,
-      );
-    } else if (run.emulated_parent_runs) {
-      numberOfClients = run.emulated_parent_runs.number_of_clients;
-      queueBufferSizeKilobyte = toNumber(
-        run.emulated_parent_runs.queue_buffer_size_kilobyte,
-      );
-      bottleneckRateMegabit = toNumber(
-        run.emulated_parent_runs.bottleneck_rate_megabit,
-      );
-    }
-
-    let congestionControlAlgorithmName: string | null = null;
-    if (Array.isArray(run.congestion_control_algorithms)) {
-      congestionControlAlgorithmName =
-        run.congestion_control_algorithms[0]?.name ?? null;
-    } else if (run.congestion_control_algorithms) {
-      congestionControlAlgorithmName = run.congestion_control_algorithms.name;
-    }
-
-    if (
-      run.emulated_parent_run_id === null ||
-      run.delay_added === null ||
-      numberOfClients === null ||
-      run.client_number === null
-    ) {
-      continue;
-    }
-
-    points.push({
-      parentRunId: run.emulated_parent_run_id,
-      numberOfClients,
-      clientNumber: run.client_number,
-      delayAddedMs: run.delay_added,
-      clientStartDelayMs: run.client_start_delay_ms,
-      flowCompletionTimeMs:
-        run.flow_completion_time_ms !== null && run.flow_completion_time_ms > 0
-          ? roundToHundredth(run.flow_completion_time_ms)
-          : null,
-      averageThroughputMbps: null,
-      runCount: 1,
-      congestionControlAlgorithmName,
-      clientFileSizeMegabytes: toNumber(run.client_file_size_megabytes),
-      queueBufferSizeKilobyte,
-      bottleneckRateMegabit,
-    });
-  }
-
-  return points.sort((left, right) => {
-      if (left.numberOfClients !== right.numberOfClients) {
-        return left.numberOfClients - right.numberOfClients;
-      }
-      if (left.clientNumber !== right.clientNumber) {
-        return left.clientNumber - right.clientNumber;
-      }
-      if (left.delayAddedMs !== right.delayAddedMs) {
-        return left.delayAddedMs - right.delayAddedMs;
-      }
-      return left.parentRunId - right.parentRunId;
-    });
+export async function fetchAggregateDelayGraphData(): Promise<AggregateDelayGraphPoint[]> {
+  return loadAggregateResearchData(await createClient());
 }
