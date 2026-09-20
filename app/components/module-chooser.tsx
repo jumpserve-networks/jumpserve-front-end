@@ -65,9 +65,6 @@ export function ModuleChooser({ nextPath }: { nextPath?: string }) {
             );
           })}
         </div>
-        <p className="mt-8 text-sm leading-6 text-foreground/80">
-          More test modules, including CDN tests, will be added here as they become available.
-        </p>
       </div>
     </main>
   );
