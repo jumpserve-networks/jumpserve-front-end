@@ -30,7 +30,7 @@ export function FilterDropdown({
       <PopoverTrigger
         render={<Button variant="outline" />}
         className={cn(
-          "group h-auto min-h-10 w-full min-w-0 justify-between rounded-xl px-3 py-2 text-left font-normal whitespace-normal data-popup-open:border-ring",
+          "group h-auto min-h-10 w-full min-w-0 justify-between rounded-md px-3 py-2 text-left font-normal whitespace-normal data-popup-open:border-ring",
           className,
         )}
       >
@@ -43,7 +43,7 @@ export function FilterDropdown({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="max-h-[min(28rem,var(--available-height))] w-(--anchor-width) max-w-(--available-width) gap-0 overflow-y-auto overscroll-contain rounded-xl p-2.5"
+        className="max-h-[min(28rem,var(--available-height))] w-(--anchor-width) max-w-(--available-width) gap-0 overflow-y-auto overscroll-contain rounded-md p-2.5"
       >
         <PopoverTitle className="sr-only">{label} filters</PopoverTitle>
         {children}

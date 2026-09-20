@@ -281,7 +281,7 @@ function SortIndicator({
       className={`ml-2 inline-flex transition-transform ${
         direction === "asc" ? "rotate-180" : "rotate-0"
       } ${
-        isActive ? "text-slate-700 dark:text-slate-100" : "text-slate-300 dark:text-slate-500"
+        isActive ? "text-foreground" : "text-muted-foreground"
       }`}
     >
       <svg
@@ -638,15 +638,14 @@ export function ParentRunIndex({
 
   return (
     <section className="w-full max-w-7xl">
-      <div className="grid gap-7 lg:grid-cols-[300px_minmax(0,1fr)]">
-        <article className="fade-up-on-load relative h-fit overflow-hidden rounded-3xl border border-rose-200/80 bg-[linear-gradient(165deg,rgba(255,250,253,0.98)_0%,rgba(255,241,248,0.96)_100%)] p-5 shadow-[0_20px_45px_rgba(190,24,93,0.12)] backdrop-blur-sm dark:border-slate-600/70 dark:bg-[linear-gradient(165deg,rgba(30,41,59,0.9)_0%,rgba(51,65,85,0.82)_100%)] dark:shadow-none lg:sticky lg:top-6">
-          <div className="pointer-events-none absolute -right-7 -top-7 h-28 w-28 rounded-full bg-rose-200/60 blur-2xl dark:bg-teal-500/25" />
+      <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <article className="relative h-fit overflow-hidden rounded-lg border border-border bg-card p-5 lg:sticky lg:top-6">
           <div className="relative">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-200">
+              <p className="text-xs font-semibold tracking-normal text-muted-foreground dark:text-foreground">
                 Filters
               </p>
-              <span className="rounded-full border border-rose-300/80 bg-rose-50/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-rose-700 dark:border-slate-500 dark:bg-slate-800/75 dark:text-slate-100">
+              <span className="rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
                 {activeFilterCount} active
               </span>
             </div>
@@ -654,7 +653,7 @@ export function ParentRunIndex({
           <div className="mt-4">
             <Label
               htmlFor="parent-run-search"
-              className="block text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300"
+              className="block text-xs tracking-normal text-muted-foreground"
             >
               Parent run ID search
             </Label>
@@ -664,11 +663,11 @@ export function ParentRunIndex({
               value={runSearchQuery}
               onChange={(event) => setRunSearchQuery(event.target.value)}
               placeholder="e.g. 1042"
-              className="mt-2 w-full rounded-2xl border border-rose-300/80 bg-white/80 px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:ring-teal-700/60"
+              className="mt-2 w-full rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
             />
           </div>
           <div className="mt-4">
-            <p className="block text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
+            <p className="block text-xs tracking-normal text-muted-foreground">
               Number of clients
             </p>
             <FilterDropdown
@@ -693,7 +692,7 @@ export function ParentRunIndex({
                   return (
                   <Label
                     key={clientCount}
-                    className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
+                    className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-foreground transition hover:bg-accent"
                   >
                     <span className="flex items-center gap-2">
                       <Checkbox
@@ -711,11 +710,11 @@ export function ParentRunIndex({
                             current.filter((value) => value !== clientCount),
                           );
                         }}
-                        className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
+                        className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                       />
                       <span>{clientCount} clients</span>
                     </span>
-                    <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
+                    <span className="rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
                       {clientCountOptionCounts.get(clientCount) ?? 0}
                     </span>
                   </Label>
@@ -725,7 +724,7 @@ export function ParentRunIndex({
             </FilterDropdown>
           </div>
           <div className="mt-4">
-            <p className="block text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
+            <p className="block text-xs tracking-normal text-muted-foreground">
               CCA
             </p>
             <FilterDropdown
@@ -764,7 +763,7 @@ export function ParentRunIndex({
                       return (
                     <Label
                       key={ccaLabel}
-                      className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
+                      className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-foreground transition hover:bg-accent"
                     >
                       <span className="flex min-w-0 items-center gap-2">
                         <Checkbox
@@ -782,11 +781,11 @@ export function ParentRunIndex({
                               current.filter((value) => value !== ccaLabel),
                             );
                           }}
-                          className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
+                          className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                         />
                         <span className="truncate">{ccaLabel}</span>
                       </span>
-                      <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
+                      <span className="shrink-0 rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
                         {ccaOptionCounts.get(ccaLabel) ?? 0}
                       </span>
                     </Label>
@@ -798,7 +797,7 @@ export function ParentRunIndex({
                         size="sm"
                         type="button"
                         onClick={() => toggleFilterOptionSection("cca")}
-                        className="h-auto whitespace-normal w-full rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
+                        className="h-auto whitespace-normal w-full rounded-lg border border-border bg-accent px-3 py-2 text-xs font-semibold tracking-normal text-primary transition hover:border-border hover:bg-accent dark:bg-card dark:text-foreground"
                       >
                         {isFilterOptionSectionExpanded("cca")
                           ? "Show less"
@@ -812,18 +811,18 @@ export function ParentRunIndex({
                       onClick={() =>
                         setIsOrderedCcaFilterEnabled((current) => !current)
                       }
-                      className={`h-auto whitespace-normal w-full rounded-xl border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] transition ${
+                      className={`h-auto whitespace-normal w-full rounded-lg border px-3 py-2 text-xs font-semibold tracking-normal transition ${
                         isOrderedCcaFilterEnabled
-                          ? "border-teal-500 bg-teal-50 text-teal-800 dark:border-teal-400 dark:bg-teal-500/15 dark:text-teal-100"
-                          : "border-rose-200 bg-white/80 text-slate-700 hover:border-rose-300 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
+                          ? "border-primary/40 bg-accent text-primary"
+                          : "border-border bg-card text-foreground hover:border-border hover:bg-accent"
                       }`}
                     >
                       Ordered only
                     </Button>
                     {isOrderedCcaFilterEnabled ? (
-                      <div className="space-y-3 rounded-2xl border border-teal-200 bg-teal-50/45 p-2.5 dark:border-teal-500/40 dark:bg-teal-500/10">
+                      <div className="space-y-3 rounded-lg border border-border bg-accent p-2.5 dark:border-primary/40">
                         <div>
-                          <p className="px-1.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-teal-800 dark:text-teal-100">
+                          <p className="px-1.5 pb-1 text-[11px] font-semibold tracking-normal text-primary">
                             Client 1
                           </p>
                           <div className="space-y-1">
@@ -834,7 +833,7 @@ export function ParentRunIndex({
                                 return (
                                   <Label
                                     key={`client-1-${ccaLabel}`}
-                                    className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-white/70 dark:text-slate-100 dark:hover:bg-slate-700/60"
+                                    className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-foreground transition hover:bg-card dark:hover:bg-accent"
                                   >
                                     <span className="flex min-w-0 items-center gap-2">
                                       <Checkbox
@@ -858,25 +857,25 @@ export function ParentRunIndex({
                                               ),
                                           );
                                         }}
-                                        className="h-3.5 w-3.5 rounded border-teal-500 focus:ring-teal-500 dark:border-teal-300"
+                                        className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                                       />
                                       <span className="truncate">{ccaLabel}</span>
                                     </span>
-                                    <span className="shrink-0 rounded-full border border-teal-200 bg-white/80 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-teal-800 dark:border-teal-500/40 dark:bg-slate-800 dark:text-teal-100">
+                                    <span className="shrink-0 rounded-full border border-border bg-card px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:border-primary/40">
                                       {clientOneCcaOptionCounts.get(ccaLabel) ?? 0}
                                     </span>
                                   </Label>
                                 );
                               })
                             ) : (
-                              <p className="px-1.5 py-1 text-xs text-slate-500 dark:text-slate-300">
+                              <p className="px-1.5 py-1 text-xs text-muted-foreground">
                                 No client 1 CCA values found.
                               </p>
                             )}
                           </div>
                         </div>
                         <div>
-                          <p className="px-1.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-teal-800 dark:text-teal-100">
+                          <p className="px-1.5 pb-1 text-[11px] font-semibold tracking-normal text-primary">
                             Client 2
                           </p>
                           <div className="space-y-1">
@@ -887,7 +886,7 @@ export function ParentRunIndex({
                                 return (
                                   <Label
                                     key={`client-2-${ccaLabel}`}
-                                    className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-white/70 dark:text-slate-100 dark:hover:bg-slate-700/60"
+                                    className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-foreground transition hover:bg-card dark:hover:bg-accent"
                                   >
                                     <span className="flex min-w-0 items-center gap-2">
                                       <Checkbox
@@ -911,18 +910,18 @@ export function ParentRunIndex({
                                               ),
                                           );
                                         }}
-                                        className="h-3.5 w-3.5 rounded border-teal-500 focus:ring-teal-500 dark:border-teal-300"
+                                        className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                                       />
                                       <span className="truncate">{ccaLabel}</span>
                                     </span>
-                                    <span className="shrink-0 rounded-full border border-teal-200 bg-white/80 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-teal-800 dark:border-teal-500/40 dark:bg-slate-800 dark:text-teal-100">
+                                    <span className="shrink-0 rounded-full border border-border bg-card px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:border-primary/40">
                                       {clientTwoCcaOptionCounts.get(ccaLabel) ?? 0}
                                     </span>
                                   </Label>
                                 );
                               })
                             ) : (
-                              <p className="px-1.5 py-1 text-xs text-slate-500 dark:text-slate-300">
+                              <p className="px-1.5 py-1 text-xs text-muted-foreground">
                                 No client 2 CCA values found.
                               </p>
                             )}
@@ -932,7 +931,7 @@ export function ParentRunIndex({
                     ) : null}
                   </>
                 ) : (
-                  <p className="px-1.5 py-1 text-xs text-slate-500 dark:text-slate-300">
+                  <p className="px-1.5 py-1 text-xs text-muted-foreground">
                     No CCA values found.
                   </p>
                 )}
@@ -940,7 +939,7 @@ export function ParentRunIndex({
             </FilterDropdown>
           </div>
           <div className="mt-4">
-            <p className="block text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
+            <p className="block text-xs tracking-normal text-muted-foreground">
               Added Delay
             </p>
             <FilterDropdown
@@ -966,7 +965,7 @@ export function ParentRunIndex({
                       return (
                     <Label
                       key={value}
-                      className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
+                      className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-foreground transition hover:bg-accent"
                     >
                       <span className="flex min-w-0 items-center gap-2">
                         <Checkbox
@@ -984,11 +983,11 @@ export function ParentRunIndex({
                               current.filter((currentValue) => currentValue !== value),
                             );
                           }}
-                          className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
+                          className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                         />
                         <span className="truncate">{formatNumber(value)} ms</span>
                       </span>
-                      <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
+                      <span className="shrink-0 rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
                         {addedDelayOptionCounts.get(value) ?? 0}
                       </span>
                     </Label>
@@ -1000,7 +999,7 @@ export function ParentRunIndex({
                         size="sm"
                         type="button"
                         onClick={() => toggleFilterOptionSection("delay")}
-                        className="h-auto whitespace-normal w-full rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
+                        className="h-auto whitespace-normal w-full rounded-lg border border-border bg-accent px-3 py-2 text-xs font-semibold tracking-normal text-primary transition hover:border-border hover:bg-accent dark:bg-card dark:text-foreground"
                       >
                         {isFilterOptionSectionExpanded("delay")
                           ? "Show less"
@@ -1009,7 +1008,7 @@ export function ParentRunIndex({
                     ) : null}
                   </>
                 ) : (
-                  <p className="px-1.5 py-1 text-xs text-slate-500 dark:text-slate-300">
+                  <p className="px-1.5 py-1 text-xs text-muted-foreground">
                     No delay values found.
                   </p>
                 )}
@@ -1017,7 +1016,7 @@ export function ParentRunIndex({
             </FilterDropdown>
           </div>
           <div className="mt-4">
-            <p className="block text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
+            <p className="block text-xs tracking-normal text-muted-foreground">
               Client File Size
             </p>
             <FilterDropdown
@@ -1044,7 +1043,7 @@ export function ParentRunIndex({
                   return (
                   <Label
                     key={value}
-                    className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
+                    className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-foreground transition hover:bg-accent"
                   >
                     <span className="flex min-w-0 items-center gap-2">
                       <Checkbox
@@ -1062,13 +1061,13 @@ export function ParentRunIndex({
                             current.filter((currentValue) => currentValue !== value),
                           );
                         }}
-                        className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
+                        className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                       />
                       <span className="truncate">
                         {formatNumber(value)} MB
                       </span>
                     </span>
-                    <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
+                    <span className="shrink-0 rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
                       {clientFileSizeOptionCounts.get(value) ?? 0}
                     </span>
                   </Label>
@@ -1081,7 +1080,7 @@ export function ParentRunIndex({
                     size="sm"
                     type="button"
                     onClick={() => toggleFilterOptionSection("client-file-size")}
-                    className="h-auto whitespace-normal w-full rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
+                    className="h-auto whitespace-normal w-full rounded-lg border border-border bg-accent px-3 py-2 text-xs font-semibold tracking-normal text-primary transition hover:border-border hover:bg-accent dark:bg-card dark:text-foreground"
                   >
                     {isFilterOptionSectionExpanded("client-file-size")
                       ? "Show less"
@@ -1096,14 +1095,14 @@ export function ParentRunIndex({
             size="sm"
             type="button"
             onClick={() => setAreExtraFiltersVisible((current) => !current)}
-            className="h-auto whitespace-normal mt-4 inline-flex w-auto rounded-lg border border-rose-300/80 bg-white/90 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/75 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/85"
+            className="h-auto whitespace-normal mt-4 inline-flex w-auto rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold tracking-normal text-foreground transition hover:border-primary/40 hover:bg-accent dark:hover:border-border"
           >
             {areExtraFiltersVisible ? "Show less" : "Show more filters"}
           </Button>
           {areExtraFiltersVisible ? (
             <>
               <div className="mt-4">
-                <p className="block text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
+                <p className="block text-xs tracking-normal text-muted-foreground">
                   Client Start Delay
                 </p>
                 <FilterDropdown
@@ -1133,7 +1132,7 @@ export function ParentRunIndex({
                       return (
                       <Label
                         key={value}
-                        className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
+                        className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-foreground transition hover:bg-accent"
                       >
                         <span className="flex min-w-0 items-center gap-2">
                           <Checkbox
@@ -1153,11 +1152,11 @@ export function ParentRunIndex({
                                 ),
                               );
                             }}
-                            className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
+                            className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                           />
                           <span className="truncate">{formatNumber(value)} ms</span>
                         </span>
-                        <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
+                        <span className="shrink-0 rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
                           {clientStartDelayOptionCounts.get(value) ?? 0}
                         </span>
                       </Label>
@@ -1170,7 +1169,7 @@ export function ParentRunIndex({
                         size="sm"
                         type="button"
                         onClick={() => toggleFilterOptionSection("client-start-delay")}
-                        className="h-auto whitespace-normal w-full rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
+                        className="h-auto whitespace-normal w-full rounded-lg border border-border bg-accent px-3 py-2 text-xs font-semibold tracking-normal text-primary transition hover:border-border hover:bg-accent dark:bg-card dark:text-foreground"
                       >
                         {isFilterOptionSectionExpanded("client-start-delay")
                           ? "Show less"
@@ -1181,7 +1180,7 @@ export function ParentRunIndex({
                 </FilterDropdown>
               </div>
               <div className="mt-4">
-                <p className="block text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
+                <p className="block text-xs tracking-normal text-muted-foreground">
                   Queue Buffer Size
                 </p>
                 <FilterDropdown
@@ -1211,7 +1210,7 @@ export function ParentRunIndex({
                       return (
                       <Label
                         key={value}
-                        className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
+                        className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-foreground transition hover:bg-accent"
                       >
                         <span className="flex min-w-0 items-center gap-2">
                           <Checkbox
@@ -1231,13 +1230,13 @@ export function ParentRunIndex({
                                 ),
                               );
                             }}
-                            className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
+                            className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                           />
                           <span className="truncate">
                             {formatNumber(value)} kbytes
                           </span>
                         </span>
-                        <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
+                        <span className="shrink-0 rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
                           {queueBufferSizeOptionCounts.get(value) ?? 0}
                         </span>
                       </Label>
@@ -1250,7 +1249,7 @@ export function ParentRunIndex({
                         size="sm"
                         type="button"
                         onClick={() => toggleFilterOptionSection("queue-buffer")}
-                        className="h-auto whitespace-normal w-full rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
+                        className="h-auto whitespace-normal w-full rounded-lg border border-border bg-accent px-3 py-2 text-xs font-semibold tracking-normal text-primary transition hover:border-border hover:bg-accent dark:bg-card dark:text-foreground"
                       >
                         {isFilterOptionSectionExpanded("queue-buffer")
                           ? "Show less"
@@ -1261,7 +1260,7 @@ export function ParentRunIndex({
                 </FilterDropdown>
               </div>
               <div className="mt-4">
-                <p className="block text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
+                <p className="block text-xs tracking-normal text-muted-foreground">
                   Bottleneck Rate
                 </p>
                 <FilterDropdown
@@ -1291,7 +1290,7 @@ export function ParentRunIndex({
                       return (
                       <Label
                         key={value}
-                        className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
+                        className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-foreground transition hover:bg-accent"
                       >
                         <span className="flex min-w-0 items-center gap-2">
                           <Checkbox
@@ -1311,11 +1310,11 @@ export function ParentRunIndex({
                                 ),
                               );
                             }}
-                            className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
+                            className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                           />
                           <span className="truncate">{formatNumber(value)} mbit</span>
                         </span>
-                        <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
+                        <span className="shrink-0 rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
                           {bottleneckRateOptionCounts.get(value) ?? 0}
                         </span>
                       </Label>
@@ -1328,7 +1327,7 @@ export function ParentRunIndex({
                         size="sm"
                         type="button"
                         onClick={() => toggleFilterOptionSection("bottleneck-rate")}
-                        className="h-auto whitespace-normal w-full rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
+                        className="h-auto whitespace-normal w-full rounded-lg border border-border bg-accent px-3 py-2 text-xs font-semibold tracking-normal text-primary transition hover:border-border hover:bg-accent dark:bg-card dark:text-foreground"
                       >
                         {isFilterOptionSectionExpanded("bottleneck-rate")
                           ? "Show less"
@@ -1357,17 +1356,17 @@ export function ParentRunIndex({
               setSelectedBottleneckRateValues([]);
               setSelectedQueueBufferSizeValues([]);
             }}
-            className="h-auto whitespace-normal mt-4 w-full rounded-xl border border-rose-300/80 bg-white/90 px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/75 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/85"
+            className="h-auto whitespace-normal mt-4 w-full rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold tracking-normal text-foreground transition hover:border-primary/40 hover:bg-accent dark:hover:border-border"
           >
             Clear filters
           </Button>
         </article>
 
-        <article className="fade-up-on-load-delay-1 relative flex min-h-[32rem] flex-col rounded-3xl border border-rose-200/70 bg-[linear-gradient(165deg,rgba(255,250,253,0.98)_0%,rgba(255,245,250,0.97)_100%)] p-6 shadow-[0_22px_50px_rgba(15,23,42,0.12)] backdrop-blur-sm dark:border-slate-600/70 dark:bg-[linear-gradient(165deg,rgba(30,41,59,0.91)_0%,rgba(51,65,85,0.83)_100%)] dark:shadow-none sm:p-8 lg:min-h-[calc(100dvh-9rem)]">
+        <article className="relative flex min-h-[32rem] flex-col rounded-lg border border-border bg-card p-6 sm:p-8 lg:min-h-[calc(100dvh-9rem)]">
           <Link
             href={EMULATED_TESTS_MODULE.href}
             aria-label="Go to emulated tests module"
-            className="absolute top-6 right-6 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-300/80 bg-[#fff5fb] text-slate-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/85 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
+            className="absolute top-6 right-6 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-foreground transition hover:border-primary/40 hover:bg-accent dark:hover:border-border"
           >
             <svg
               viewBox="0 0 24 24"
@@ -1383,30 +1382,30 @@ export function ParentRunIndex({
               <path d="M10 20v-6h4v6" />
             </svg>
           </Link>
-          <p className="text-center text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
-            Jumpserve
+          <p className="text-xs font-medium text-muted-foreground">
+            Experiment results
           </p>
-          <h1 className="mt-2 text-center text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
-            Parent Runs
+          <h1 className="mt-2 pr-12 text-2xl font-semibold tracking-tight text-foreground">
+            Test lookup
           </h1>
-          <p className="mt-2 text-center text-sm text-slate-600 dark:text-slate-200">
-            Search and open a parent run.
+          <p className="mt-2 text-sm text-muted-foreground">
+            Search experiments and inspect measurements for each client.
           </p>
-          <p className="mt-5 text-center text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">
-            showing {pageData.parentRuns.length} of {totalCount} total tests
+          <p className="mt-5 text-xs text-muted-foreground">
+            Showing {pageData.parentRuns.length} of {totalCount} tests
           </p>
           <div className="mt-4 flex justify-end">
-            <div className="inline-flex rounded-xl border border-rose-200 bg-white/90 p-1 dark:border-slate-500 dark:bg-slate-800/75">
+            <div className="inline-flex rounded-lg border border-border bg-card p-1">
               <Button
                 variant="ghost"
                 size="sm"
                 type="button"
                 aria-label="Table view"
                 onClick={() => setParentRunView("list")}
-                className={`h-auto whitespace-normal inline-flex items-center justify-center rounded-lg p-4 transition active:scale-95 ${
+                className={`h-auto whitespace-normal inline-flex items-center justify-center rounded-md p-2 transition  ${
                   parentRunView === "list"
-                    ? "bg-slate-700 text-white dark:bg-slate-600"
-                    : "text-slate-700 hover:bg-rose-50 active:bg-rose-100 dark:text-slate-100 dark:hover:bg-slate-700 dark:active:bg-slate-600"
+                    ? "bg-accent text-accent-foreground"
+                    : "text-foreground hover:bg-accent active:bg-accent dark:active:bg-slate-600"
                 }`}
               >
                 <ListViewIcon />
@@ -1417,10 +1416,10 @@ export function ParentRunIndex({
                 type="button"
                 aria-label="Grid view"
                 onClick={() => setParentRunView("grid")}
-                className={`h-auto whitespace-normal inline-flex items-center justify-center rounded-lg p-4 transition active:scale-95 ${
+                className={`h-auto whitespace-normal inline-flex items-center justify-center rounded-md p-2 transition  ${
                   parentRunView === "grid"
-                    ? "bg-slate-700 text-white dark:bg-slate-600"
-                    : "text-slate-700 hover:bg-rose-50 active:bg-rose-100 dark:text-slate-100 dark:hover:bg-slate-700 dark:active:bg-slate-600"
+                    ? "bg-accent text-accent-foreground"
+                    : "text-foreground hover:bg-accent active:bg-accent dark:active:bg-slate-600"
                 }`}
               >
                 <GridViewIcon />
@@ -1429,7 +1428,7 @@ export function ParentRunIndex({
           </div>
 
           <div
-            className={`fade-up-on-load-delay-2 mx-auto mt-4 min-h-0 flex-1 overflow-y-auto px-1 pb-1 ${
+            className={` mx-auto mt-4 min-h-0 flex-1 overflow-y-auto px-1 pb-1 ${
               parentRunView === "list"
                 ? "max-w-6xl"
                 : "grid max-w-6xl content-start gap-3 md:grid-cols-2 xl:grid-cols-3"
@@ -1437,17 +1436,17 @@ export function ParentRunIndex({
           >
             {sortedParentRuns.length > 0 ? (
               parentRunView === "list" ? (
-                <div className="overflow-x-auto rounded-3xl border border-rose-200/80 bg-[linear-gradient(165deg,#fff7fb_0%,#fff0f7_100%)] dark:border-slate-600 dark:bg-[linear-gradient(165deg,rgba(51,65,85,0.78)_0%,rgba(71,85,105,0.72)_100%)]">
+                <div className="overflow-x-auto rounded-lg border border-border bg-card">
                   <Table className="w-full table-fixed border-collapse">
                     <TableHeader>
-                      <TableRow className="border-b border-rose-200/80 bg-white/65 dark:border-slate-500 dark:bg-slate-800/45">
-                        <TableHead className="w-[24%] px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                      <TableRow className="border-b border-border bg-card">
+                        <TableHead className="w-[24%] px-3 py-2.5 text-left text-[11px] font-semibold tracking-normal text-muted-foreground">
                           <Button
                             variant="ghost"
                             size="sm"
                             type="button"
                             onClick={() => toggleParentRunSort("run")}
-                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[10px] hover:text-slate-700 dark:hover:text-slate-100"
+                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[11px] hover:text-foreground"
                           >
                             Run
                             <SortIndicator
@@ -1456,13 +1455,13 @@ export function ParentRunIndex({
                             />
                           </Button>
                         </TableHead>
-                        <TableHead className="w-[10%] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                        <TableHead className="w-[10%] px-2.5 py-2.5 text-left text-[11px] font-semibold tracking-normal text-muted-foreground">
                           <Button
                             variant="ghost"
                             size="sm"
                             type="button"
                             onClick={() => toggleParentRunSort("elapsedSeconds")}
-                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[10px] hover:text-slate-700 dark:hover:text-slate-100"
+                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[11px] hover:text-foreground"
                           >
                             Elapsed
                             <SortIndicator
@@ -1471,13 +1470,13 @@ export function ParentRunIndex({
                             />
                           </Button>
                         </TableHead>
-                        <TableHead className="w-[17%] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                        <TableHead className="w-[17%] px-2.5 py-2.5 text-left text-[11px] font-semibold tracking-normal text-muted-foreground">
                           <Button
                             variant="ghost"
                             size="sm"
                             type="button"
                             onClick={() => toggleParentRunSort("flowCompletionTime")}
-                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[10px] hover:text-slate-700 dark:hover:text-slate-100"
+                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[11px] hover:text-foreground"
                           >
                             Flow Times
                             <SortIndicator
@@ -1486,13 +1485,13 @@ export function ParentRunIndex({
                             />
                           </Button>
                         </TableHead>
-                        <TableHead className="w-[12%] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                        <TableHead className="w-[12%] px-2.5 py-2.5 text-left text-[11px] font-semibold tracking-normal text-muted-foreground">
                           <Button
                             variant="ghost"
                             size="sm"
                             type="button"
                             onClick={() => toggleParentRunSort("totalFileSize")}
-                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[10px] hover:text-slate-700 dark:hover:text-slate-100"
+                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[11px] hover:text-foreground"
                           >
                             File Size
                             <SortIndicator
@@ -1501,13 +1500,13 @@ export function ParentRunIndex({
                             />
                           </Button>
                         </TableHead>
-                        <TableHead className="w-[14%] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                        <TableHead className="w-[14%] px-2.5 py-2.5 text-left text-[11px] font-semibold tracking-normal text-muted-foreground">
                           <Button
                             variant="ghost"
                             size="sm"
                             type="button"
                             onClick={() => toggleParentRunSort("clientStartDelay")}
-                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[10px] hover:text-slate-700 dark:hover:text-slate-100"
+                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[11px] hover:text-foreground"
                           >
                             Start Delay
                             <SortIndicator
@@ -1516,13 +1515,13 @@ export function ParentRunIndex({
                             />
                           </Button>
                         </TableHead>
-                        <TableHead className="w-[11%] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                        <TableHead className="w-[11%] px-2.5 py-2.5 text-left text-[11px] font-semibold tracking-normal text-muted-foreground">
                           <Button
                             variant="ghost"
                             size="sm"
                             type="button"
                             onClick={() => toggleParentRunSort("queueBufferSize")}
-                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[10px] hover:text-slate-700 dark:hover:text-slate-100"
+                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[11px] hover:text-foreground"
                           >
                             Queue
                             <SortIndicator
@@ -1531,13 +1530,13 @@ export function ParentRunIndex({
                             />
                           </Button>
                         </TableHead>
-                        <TableHead className="w-[12%] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                        <TableHead className="w-[12%] px-2.5 py-2.5 text-left text-[11px] font-semibold tracking-normal text-muted-foreground">
                           <Button
                             variant="ghost"
                             size="sm"
                             type="button"
                             onClick={() => toggleParentRunSort("bottleneckRate")}
-                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[10px] hover:text-slate-700 dark:hover:text-slate-100"
+                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[11px] hover:text-foreground"
                           >
                             Bottleneck
                             <SortIndicator
@@ -1560,35 +1559,35 @@ export function ParentRunIndex({
                               router.push(getParentRunHref(parentRun.id));
                             }
                           }}
-                          className="cursor-pointer border-b border-rose-100/80 align-top transition hover:bg-white/50 focus-visible:bg-white/50 focus-visible:outline-none last:border-b-0 dark:border-slate-600/70 dark:hover:bg-slate-800/30 dark:focus-visible:bg-slate-800/30"
+                          className="cursor-pointer border-b border-border align-top transition hover:bg-card focus-visible:bg-card focus-visible:outline-none last:border-b-0 dark:hover:bg-accent"
                         >
                           <TableCell className="px-3 py-3 align-top">
                             <Link
                               href={getParentRunHref(parentRun.id)}
                               className="block min-w-0"
                             >
-                              <div className="flex flex-col gap-1 text-xs text-slate-500 dark:text-slate-300">
+                              <div className="flex flex-col gap-1 text-xs text-muted-foreground">
                                 <span className="uppercase tracking-[0.16em]">
                                   {parentRun.clientCount} client{parentRun.clientCount === 1 ? "" : "s"}
                                 </span>
                               </div>
-                              <span className="mt-1.5 block min-w-0 break-words text-sm font-medium leading-5 text-slate-800 dark:text-slate-100">
+                              <span className="mt-1.5 block min-w-0 break-words text-sm font-medium leading-5 text-foreground">
                                 {parentRun.clientSummaryLine}
                               </span>
-                              <span className="mt-2 block text-xs uppercase tracking-[0.14em] text-slate-500 transition hover:text-rose-700 dark:text-slate-200 dark:hover:text-white">
+                              <span className="mt-2 block text-xs tracking-normal text-muted-foreground transition hover:text-primary dark:text-foreground dark:hover:text-white">
                                 Parent #{parentRun.id}
                               </span>
-                              <span className="mt-1.5 block text-xs text-slate-500 dark:text-slate-200">
+                              <span className="mt-1.5 block text-xs text-muted-foreground dark:text-foreground">
                                 {formatCreatedAt(parentRun.createdAt)}
                               </span>
                             </Link>
                           </TableCell>
-                          <TableCell className="px-2.5 py-3 text-xs leading-5 text-slate-600 dark:text-slate-200">
+                          <TableCell className="px-2.5 py-3 text-xs leading-5 text-muted-foreground dark:text-foreground">
                             {parentRun.chartDurationSeconds === null
                               ? "None"
                               : `${formatNumber(parentRun.chartDurationSeconds)} s`}
                           </TableCell>
-                          <TableCell className="px-2.5 py-3 text-xs leading-5 text-slate-600 dark:text-slate-200">
+                          <TableCell className="px-2.5 py-3 text-xs leading-5 text-muted-foreground dark:text-foreground">
                             <div className="flex flex-wrap gap-x-2 gap-y-1">
                               {parentRun.clientFlowCompletionTimes.length > 0 ? (
                                 parentRun.clientFlowCompletionTimes.map((flow) => (
@@ -1602,20 +1601,20 @@ export function ParentRunIndex({
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="px-2.5 py-3 text-xs leading-5 text-slate-600 dark:text-slate-200">
+                          <TableCell className="px-2.5 py-3 text-xs leading-5 text-muted-foreground dark:text-foreground">
                             {parentRun.totalClientFileSizeMegabytes === null
                               ? "None"
                               : `${formatNumber(parentRun.totalClientFileSizeMegabytes)} MB`}
                           </TableCell>
-                          <TableCell className="px-2.5 py-3 text-xs leading-5 text-slate-600 dark:text-slate-200">
+                          <TableCell className="px-2.5 py-3 text-xs leading-5 text-muted-foreground dark:text-foreground">
                             {formatValueList(parentRun.clientStartDelayMsValues, "ms")}
                           </TableCell>
-                          <TableCell className="px-2.5 py-3 text-xs leading-5 text-slate-600 dark:text-slate-200">
+                          <TableCell className="px-2.5 py-3 text-xs leading-5 text-muted-foreground dark:text-foreground">
                             {parentRun.queueBufferSizeKilobyte === null
                               ? "None"
                               : `${formatNumber(parentRun.queueBufferSizeKilobyte)} kbytes`}
                           </TableCell>
-                          <TableCell className="px-2.5 py-3 text-xs leading-5 text-slate-600 dark:text-slate-200">
+                          <TableCell className="px-2.5 py-3 text-xs leading-5 text-muted-foreground dark:text-foreground">
                             {parentRun.bottleneckRateMegabit === null
                               ? "None"
                               : `${formatNumber(parentRun.bottleneckRateMegabit)} mbit`}
@@ -1629,13 +1628,13 @@ export function ParentRunIndex({
                 sortedParentRuns.map((parentRun) => (
                   <article
                     key={parentRun.id}
-                    className="group rounded-3xl border border-rose-200/80 bg-[linear-gradient(165deg,#fff7fb_0%,#fff0f7_100%)] px-5 py-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-rose-300 hover:shadow-[0_14px_28px_rgba(190,24,93,0.16)] dark:border-slate-600 dark:bg-[linear-gradient(165deg,rgba(51,65,85,0.78)_0%,rgba(71,85,105,0.72)_100%)] dark:hover:border-slate-400 dark:hover:shadow-none"
+                    className="group rounded-lg border border-border bg-card px-5 py-4 text-left transition duration-200 hover:border-border "
                   >
                     <Link
                       href={getParentRunHref(parentRun.id)}
                       className="block min-w-0"
                     >
-                      <div className="flex flex-col gap-1 text-sm text-slate-500 dark:text-slate-300 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                      <div className="flex flex-col gap-1 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                         <span className="uppercase tracking-[0.18em]">
                           {parentRun.clientCount} client{parentRun.clientCount === 1 ? "" : "s"}
                         </span>
@@ -1647,14 +1646,14 @@ export function ParentRunIndex({
                         </span>
                       </div>
                       <div className="mt-2">
-                        <span className="block min-w-0 text-base font-medium text-slate-800 dark:text-slate-100">
+                        <span className="block min-w-0 text-base font-medium text-foreground">
                           {parentRun.clientSummaryLine}
                         </span>
                       </div>
-                      <span className="mt-2.5 block text-sm uppercase tracking-[0.16em] text-slate-500 transition group-hover:text-rose-700 dark:text-slate-200 dark:group-hover:text-white">
+                      <span className="mt-2.5 block text-sm tracking-normal text-muted-foreground transition group-hover:text-primary dark:text-foreground dark:group-hover:text-white">
                         Parent #{parentRun.id}
                       </span>
-                      <span className="mt-1.5 block text-xs text-slate-500 dark:text-slate-200">
+                      <span className="mt-1.5 block text-xs text-muted-foreground dark:text-foreground">
                         {formatCreatedAt(parentRun.createdAt)}
                       </span>
                     </Link>
@@ -1662,13 +1661,13 @@ export function ParentRunIndex({
                 ))
               )
             ) : (
-              <div className="rounded-2xl border border-dashed border-rose-300/80 bg-[#fff5fb] px-4 py-8 text-center text-sm text-slate-600 dark:border-slate-500 dark:bg-slate-700/45 dark:text-slate-200">
+              <div className="rounded-lg border border-dashed border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground dark:text-foreground">
                 No parent runs matched your filters.
               </div>
             )}
           </div>
           {pageLoadError ? (
-            <p className="mt-4 text-center text-sm text-rose-700 dark:text-rose-300">
+            <p role="alert" className="mt-4 text-sm text-destructive">
               {pageLoadError}
             </p>
           ) : null}
@@ -1681,7 +1680,7 @@ export function ParentRunIndex({
                   type="button"
                   onClick={() => void loadPage(currentPage - 1)}
                   disabled={isLoadingPage || currentPage <= 1}
-                  className="h-auto whitespace-normal rounded-xl border border-rose-300/80 bg-white/90 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-500 dark:bg-slate-800/80 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
+                  className="h-auto whitespace-normal rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition hover:border-primary/40 hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60 dark:hover:border-border"
                 >
                   Prev
                 </Button>
@@ -1694,7 +1693,7 @@ export function ParentRunIndex({
                   return (
                     <div key={pageNumber} className="contents">
                       {shouldShowGap ? (
-                        <span className="px-1 text-sm text-slate-500 dark:text-slate-300">
+                        <span className="px-1 text-sm text-muted-foreground">
                           ...
                         </span>
                       ) : null}
@@ -1704,10 +1703,10 @@ export function ParentRunIndex({
                         type="button"
                         onClick={() => void loadPage(pageNumber)}
                         disabled={isLoadingPage}
-                        className={`h-auto whitespace-normal min-w-10 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                        className={`h-auto whitespace-normal min-w-10 rounded-lg border px-3 py-2 text-sm font-medium transition ${
                           pageNumber === currentPage
-                            ? "border-slate-700 bg-slate-700 text-white dark:border-slate-300 dark:bg-slate-200 dark:text-slate-900"
-                            : "border-rose-300/80 bg-white/90 text-slate-700 hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/80 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-card text-foreground hover:border-primary/40 hover:bg-accent dark:hover:border-border"
                         }`}
                       >
                         {pageNumber}
@@ -1721,7 +1720,7 @@ export function ParentRunIndex({
                   type="button"
                   onClick={() => void loadPage(currentPage + 1)}
                   disabled={isLoadingPage || currentPage >= totalPages}
-                  className="h-auto whitespace-normal rounded-xl border border-rose-300/80 bg-white/90 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-500 dark:bg-slate-800/80 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
+                  className="h-auto whitespace-normal rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition hover:border-primary/40 hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60 dark:hover:border-border"
                 >
                   Next
                 </Button>
@@ -1739,7 +1738,7 @@ export function ParentRunIndex({
               >
                 <Label
                   htmlFor="page-jump-input"
-                  className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300"
+                  className="text-xs font-semibold tracking-normal text-muted-foreground"
                 >
                   Go to page
                 </Label>
@@ -1749,20 +1748,20 @@ export function ParentRunIndex({
                   inputMode="numeric"
                   value={pageJumpValue}
                   onChange={(event) => setPageJumpValue(event.target.value)}
-                  className="w-16 rounded-xl border border-rose-300/80 bg-white/90 px-3 py-2 text-center text-sm text-slate-900 shadow-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:ring-teal-700/60"
+                  className="w-16 rounded-lg border border-border bg-card px-3 py-2 text-center text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
                 />
                 <Button
                   variant="ghost"
                   size="sm"
                   type="submit"
                   disabled={isLoadingPage}
-                  className="h-auto whitespace-normal rounded-xl border border-rose-300/80 bg-white/90 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-500 dark:bg-slate-800/80 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
+                  className="h-auto whitespace-normal rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition hover:border-primary/40 hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60 dark:hover:border-border"
                 >
                   Go
                 </Button>
               </form>
               {isLoadingPage ? (
-                <p className="text-sm text-slate-500 dark:text-slate-300">
+                <p className="text-sm text-muted-foreground">
                   Loading page {pageJumpValue}...
                 </p>
               ) : null}

@@ -30,16 +30,16 @@ export default async function ChatPage({
     : "";
 
   return (
-    <div className="min-h-[var(--page-height)] bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-[var(--page-height)] bg-muted dark:bg-background">
       <div className="mx-auto max-w-5xl px-4 py-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <Link
             href={parentRunId ? `/parent-run/${parentRunId}` : EMULATED_TESTS_MODULE.href}
-            className="inline-flex items-center gap-1 text-sm text-slate-500 transition hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
           >
             &larr; {parentRunId ? `Test run #${parentRunId}` : "Emulated tests"}
           </Link>
-          <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+          <h1 className="text-lg font-bold text-foreground">
             JumpServe AI
           </h1>
           <div className="hidden w-16 sm:block" />

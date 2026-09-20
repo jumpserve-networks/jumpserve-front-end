@@ -15,19 +15,19 @@ export default async function BenchmarksPage() {
   const user = await requireGoogleUser("/benchmarks");
 
   return (
-    <div className="min-h-[var(--page-height)] bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-[var(--page-height)] bg-muted dark:bg-background">
       <div className="mx-auto max-w-3xl px-4 py-12">
         <Link
           href={EMULATED_TESTS_MODULE.href}
-          className="mb-6 inline-flex items-center gap-1 text-sm text-slate-500 transition hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+          className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
         >
           &larr; Emulated tests
         </Link>
 
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+        <h1 className="text-2xl font-bold text-foreground">
           Benchmarks
         </h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        <p className="mt-1 text-sm text-muted-foreground">
           Configure and launch TCP congestion control benchmarks on fresh EC2
           instances.
         </p>

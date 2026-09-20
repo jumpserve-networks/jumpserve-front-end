@@ -435,11 +435,11 @@ export function EmulatedRunChartsPanel({
         <>
           {selectedRuns.length > 0 ? (
             <>
-              <p className="mb-3 text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+              <p className="mb-3 text-xs tracking-normal text-muted-foreground">
                 {totalSampleCount} total samples across selected child runs
               </p>
               <div
-                className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-4"
+                className="grid min-w-0 gap-4 md:grid-cols-2"
                 onMouseLeave={() => setHoveredMetricId(null)}
               >
                 {METRICS.map((metric) => (
@@ -483,7 +483,7 @@ export function EmulatedRunChartsPanel({
         {expandedMetric ? (
           <DialogContent
             showCloseButton={false}
-            className="flex max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-7xl sm:max-w-7xl flex-col overflow-hidden rounded-2xl border border-slate-600/70 bg-slate-800/92 p-3 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-4"
+            className="flex max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-7xl sm:max-w-7xl flex-col overflow-hidden rounded-lg border border-border bg-slate-800/92 p-3 sm:max-h-[calc(100dvh-2rem)] sm:p-4"
             aria-describedby={undefined}
           >
             <div className="mb-3 flex shrink-0 items-start justify-between gap-3 px-1">
@@ -495,7 +495,7 @@ export function EmulatedRunChartsPanel({
                 size="sm"
                 type="button"
                 onClick={() => setExpandedMetricId(null)}
-                className="h-auto whitespace-normal shrink-0 rounded-lg border border-slate-500 bg-slate-700/90 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-slate-600"
+                className="h-auto whitespace-normal shrink-0 rounded-lg border border-border bg-slate-700/90 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-slate-600"
               >
                 Close
               </Button>
@@ -530,25 +530,24 @@ export function EmulatedRunsDashboard({
   initialSelectedParentRunId?: number | null;
 }) {
   return (
-    <section className="w-full max-w-6xl rounded-3xl border border-rose-200/70 bg-[#fff8fc]/95 p-6 shadow-2xl backdrop-blur-sm dark:border-slate-600/70 dark:bg-slate-800/78 sm:p-8">
-      <div className="mb-8 border-b border-rose-200/80 pb-6 dark:border-slate-600">
+    <section className="w-full max-w-6xl rounded-lg border border-border bg-card p-6 sm:p-8">
+      <div className="mb-8 border-b border-border pb-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
-              Jumpserve
+            <p className="text-xs font-medium text-muted-foreground">
+              Client measurements
             </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
               Emulated Run Explorer
             </h1>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-              Compare all child <code>emulated_runs</code>{" "}
-              on shared charts from <code>emulated_snapshot_stats</code>.
+            <p className="mt-2 text-sm text-muted-foreground">
+              Compare throughput, round-trip time, queueing delay, and congestion windows for each client.
             </p>
           </div>
           <Link
             href={EMULATED_TESTS_MODULE.href}
             aria-label="Go to emulated tests module"
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-300/80 bg-[#fff5fb] text-slate-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/85 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-foreground transition hover:border-primary/40 hover:bg-accent dark:hover:border-border"
           >
             <svg
               viewBox="0 0 24 24"
@@ -578,7 +577,7 @@ export function EmulatedRunsDashboard({
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-rose-300/80 bg-[#fff3f8] p-8 text-center text-sm text-slate-600 dark:border-slate-500 dark:bg-slate-700/45 dark:text-slate-200">
+    <div className="rounded-lg border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground dark:text-foreground">
       {text}
     </div>
   );
@@ -634,10 +633,10 @@ function MetricChart({
   const cardShellClassName = `min-w-0 transition-opacity duration-[240ms] ${
     isDimmed ? "opacity-65" : "opacity-100"
   }`;
-  const cardClassName = `min-w-0 rounded-2xl border border-rose-200/80 bg-[#fff8fc] p-3 shadow-sm transition-[border-color,box-shadow] duration-200 dark:border-slate-600 dark:bg-slate-800/55 sm:p-4 ${
+  const cardClassName = `min-w-0 rounded-lg border border-border bg-card p-3 transition-[border-color,box-shadow] duration-200 sm:p-4 ${
     isDimmed
       ? ""
-      : `${isActive ? "border-rose-500 shadow-lg dark:border-slate-400 dark:shadow-none" : ""} focus-within:border-rose-500 focus-within:shadow-lg dark:focus-within:border-slate-400 dark:focus-within:shadow-none`
+      : `${isActive ? "border-primary/40 dark:border-border " : ""} focus-within:border-ring `
   }`;
   const activeRunId = pinnedRunId ?? hoveredRunId;
   const displayedPoint = pinnedPoint ?? hoveredPoint;
@@ -715,10 +714,10 @@ function MetricChart({
           className={`${cardClassName} ${onExpand ? "cursor-pointer" : ""}`}
           onClick={onExpand}
         >
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <h2 className="text-sm font-semibold text-foreground">
             {title}
           </h2>
-          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+          <p className="mt-3 text-sm text-muted-foreground">
             No points available for this metric.
           </p>
         </article>
@@ -888,14 +887,14 @@ function MetricChart({
   const hasVisibleSeries = interactiveSeriesForRender.length > 0;
 
   const chartClassName = isExpanded
-    ? "h-[min(58dvh,34rem)] min-h-[16rem] w-full touch-pan-y overflow-visible rounded-xl bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600 sm:h-[min(64dvh,38rem)]"
-    : "h-48 w-full touch-pan-y overflow-visible rounded-xl bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600 sm:h-44";
+    ? "h-[min(58dvh,34rem)] min-h-[16rem] w-full touch-pan-y overflow-visible rounded-lg bg-card text-muted-foreground sm:h-[min(64dvh,38rem)]"
+    : "h-48 w-full touch-pan-y overflow-visible rounded-lg bg-card text-muted-foreground sm:h-56";
   const axisTickTextClass = isExpanded
     ? "fill-slate-500 text-[16px] font-medium dark:fill-slate-300"
-    : "fill-slate-500 text-[9px] dark:fill-slate-400";
+    : "fill-slate-500 text-[11px] dark:fill-slate-400";
   const axisLabelTextClass = isExpanded
     ? "fill-slate-600 text-[18px] font-medium dark:fill-slate-300"
-    : "fill-slate-500 text-[10px] dark:fill-slate-400";
+    : "fill-slate-500 text-[11px] dark:fill-slate-400";
   const hoverActivationRadius = 10;
   const hoverTargetStrokeWidth = isExpanded ? 24 : 18;
   const hoverTargetPointRadius = isExpanded ? 14 : 10;
@@ -1270,7 +1269,7 @@ function MetricChart({
           x={leftPadding + plotWidth / 2}
           y={topPadding + plotHeight / 2}
           textAnchor="middle"
-          className={isExpanded ? "fill-slate-500 text-[12px]" : "fill-slate-500 text-[10px]"}
+          className={isExpanded ? "fill-slate-500 text-[12px]" : "fill-slate-500 text-[11px]"}
         >
           All series hidden. Use the legend to show them again.
         </text>
@@ -1518,7 +1517,7 @@ function MetricChart({
                     cx={companionPoint.x}
                     cy={companionPoint.y}
                     r={isExpanded ? 4.6 : 4}
-                    fill="#fff8fc"
+                    fill="var(--card)"
                     stroke={runSeries.color}
                     strokeWidth={1.8}
                     pointerEvents="none"
@@ -1616,8 +1615,8 @@ function MetricChart({
                       y={headerY}
                       className={
                         isExpanded
-                          ? "fill-slate-900 text-[10px]"
-                          : "fill-slate-900 text-[9px]"
+                          ? "fill-slate-900 text-[11px]"
+                          : "fill-slate-900 text-[11px]"
                       }
                       fontWeight={700}
                     >
@@ -1636,8 +1635,8 @@ function MetricChart({
                             y={0}
                             className={
                               isExpanded
-                                ? "fill-slate-700 text-[10px]"
-                                : "fill-slate-700 text-[9px]"
+                                ? "fill-slate-700 text-[11px]"
+                                : "fill-slate-700 text-[11px]"
                             }
                           >
                             {isCwndMetric
@@ -1713,7 +1712,7 @@ function MetricChart({
             <text
               x={calloutX + 10}
               y={calloutY + (isExpanded ? 15 : 14)}
-              className={isExpanded ? "fill-slate-900 text-[10px]" : "fill-slate-900 text-[9px]"}
+              className={isExpanded ? "fill-slate-900 text-[11px]" : "fill-slate-900 text-[11px]"}
               fontWeight={700}
             >
               {displayedPoint.runSummary}
@@ -1721,7 +1720,7 @@ function MetricChart({
             <text
               x={calloutX + 10}
               y={calloutY + (isExpanded ? 31 : 27)}
-              className={isExpanded ? "fill-slate-700 text-[10px]" : "fill-slate-700 text-[9px]"}
+              className={isExpanded ? "fill-slate-700 text-[11px]" : "fill-slate-700 text-[11px]"}
             >
               {isCwndMetric
                 ? `cwnd (${unit}): ${formatScaleValue(displayedPoint.yValue)}`
@@ -1730,7 +1729,7 @@ function MetricChart({
             <text
               x={calloutX + 10}
               y={calloutY + (isExpanded ? 43 : 38)}
-              className={isExpanded ? "fill-slate-700 text-[10px]" : "fill-slate-700 text-[9px]"}
+              className={isExpanded ? "fill-slate-700 text-[11px]" : "fill-slate-700 text-[11px]"}
             >
               {isCwndMetric
                 ? `in-flight (${unit}): ${
@@ -1744,7 +1743,7 @@ function MetricChart({
               <text
                 x={calloutX + 10}
                 y={calloutY + (isExpanded ? 55 : 49)}
-                className={isExpanded ? "fill-slate-700 text-[10px]" : "fill-slate-700 text-[9px]"}
+                className={isExpanded ? "fill-slate-700 text-[11px]" : "fill-slate-700 text-[11px]"}
               >
                 x (seconds): {formatSecondsValue(displayedPoint.xValue)}
               </text>
@@ -1788,11 +1787,11 @@ function MetricChart({
           onClick={onExpand}
         >
         <div className="flex items-start justify-between gap-3">
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <h2 className="text-sm font-semibold text-foreground">
             {title}
           </h2>
           {onExpand ? (
-            <span className="hidden text-[11px] text-slate-500 dark:text-slate-400 sm:inline">
+            <span className="hidden text-xs text-muted-foreground sm:inline">
               Click chart to enlarge
             </span>
           ) : null}
@@ -1800,7 +1799,7 @@ function MetricChart({
         <div
           className={
             onExpand
-              ? "mt-3 touch-pan-y rounded-xl"
+              ? "mt-3 touch-pan-y rounded-lg"
               : "mt-3"
           }
         >
@@ -1810,7 +1809,7 @@ function MetricChart({
               size="sm"
               type="button"
               onClick={onExpand}
-              className="h-auto whitespace-normal block w-full touch-pan-y cursor-pointer rounded-xl text-left outline-none focus-visible:outline-none focus-visible:ring-0"
+              className="h-auto whitespace-normal block w-full touch-pan-y cursor-pointer rounded-lg p-0 text-left outline-none hover:bg-transparent focus-visible:ring-2 focus-visible:ring-ring"
               aria-label={`Expand ${title} chart`}
             >
               {chartSvg}
@@ -1820,7 +1819,7 @@ function MetricChart({
           )}
         </div>
         {isCwndMetric ? (
-          <p className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
+          <p className="mt-3 text-xs text-muted-foreground">
             Solid line shows cwnd. Dashed line shows in-flight packets for the
             same client.
           </p>
@@ -1839,12 +1838,12 @@ function MetricChart({
               key={runSeries.runId}
               type="button"
               aria-pressed={!isHidden}
-              className={`h-auto whitespace-normal group max-w-full rounded-lg border bg-[#fff3f8] px-2.5 py-1 text-left text-[11px] text-slate-700 transition-[border-color,box-shadow,opacity] dark:bg-slate-700/45 dark:text-slate-100 ${
+              className={`h-auto whitespace-normal group max-w-full rounded-lg border bg-card px-2.5 py-1 text-left text-xs text-foreground transition-[border-color,box-shadow,opacity] ${
                 isHidden
-                  ? "border-rose-200/70 opacity-45 dark:border-slate-600/60"
+                  ? "border-border opacity-45"
                   : isActive
-                    ? "cursor-pointer border-rose-200/90 hover:border-rose-300 hover:shadow-sm dark:border-slate-600 dark:hover:border-slate-400 dark:hover:shadow-none"
-                    : "cursor-pointer border-rose-200/70 opacity-60 dark:border-slate-600/60"
+                    ? "cursor-pointer border-border hover:border-border "
+                    : "cursor-pointer border-border opacity-60"
               }`}
               title={runSeries.label}
               onClick={(event) => {

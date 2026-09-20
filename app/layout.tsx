@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SiteHeader } from "@/app/components/site-header";
-import { ThemeToggle } from "@/app/components/theme-toggle";
 import {
   DARK_MEDIA_QUERY,
   STORAGE_KEY,
@@ -83,7 +82,6 @@ export default function RootLayout({
       >
         <SiteHeader />
         {children}
-        <ThemeToggle />
       </body>
     </html>
   );

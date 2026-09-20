@@ -151,7 +151,7 @@ export function BenchmarkRunStatus({ initialJob }: { initialJob: BenchmarkJob })
             {steps.map((step, index) => (
               <li key={step.title} aria-current={step.state === "current" ? "step" : undefined} className="flex gap-3">
                 <span aria-hidden="true" className={cn("flex size-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
-                  step.state === "complete" && "border-emerald-600 bg-emerald-600 text-white dark:border-emerald-500 dark:bg-emerald-500 dark:text-slate-950",
+                  step.state === "complete" && "border-emerald-600 bg-emerald-600 text-primary-foreground dark:border-emerald-500 dark:bg-emerald-500",
                   step.state === "current" && "border-primary bg-primary/10 text-primary",
                   step.state === "failed" && "border-destructive text-destructive",
                   (step.state === "waiting" || step.state === "unconfirmed") && "text-muted-foreground") }>

@@ -29,7 +29,7 @@ interface BenchmarkJob {
 
 const STATUS_STYLES: Record<string, string> = {
   pending:
-    "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
+    "bg-muted text-muted-foreground dark:bg-card",
   launching:
     "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
   installing:
@@ -45,7 +45,7 @@ const STATUS_STYLES: Record<string, string> = {
   terminated:
     "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300",
   cancelled:
-    "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
+    "bg-muted text-muted-foreground dark:bg-card",
 };
 
 const PHASE_ORDER = [
@@ -90,7 +90,7 @@ function ProgressBar({ status }: { status: string }) {
   return (
     <div className="mt-2 flex items-center gap-1">
       {PHASE_ORDER.map((phase, idx) => {
-        let color = "bg-slate-200 dark:bg-slate-700";
+        let color = "bg-slate-200 dark:bg-card";
         if (idx < currentIdx) color = "bg-emerald-400 dark:bg-emerald-500";
         else if (idx === currentIdx && ACTIVE_STATUSES.has(status))
           color = "bg-blue-400 dark:bg-blue-500 animate-pulse";
@@ -99,7 +99,7 @@ function ProgressBar({ status }: { status: string }) {
         return (
           <div key={phase} className="flex-1 flex flex-col items-center gap-0.5">
             <div className={`h-1.5 w-full rounded-full ${color}`} />
-            <span className="text-[10px] text-slate-400 dark:text-slate-500">
+            <span className="text-[11px] text-muted-foreground">
               {phase === "completed" ? "done" : phase}
             </span>
           </div>
@@ -152,14 +152,14 @@ function LogViewer({ jobId }: { jobId: string }) {
         size="sm"
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="h-auto whitespace-normal text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+        className="h-auto whitespace-normal text-xs font-medium text-muted-foreground hover:text-foreground"
       >
         {expanded ? "Hide logs" : "Show logs"}
       </Button>
       {expanded && (
         <div className="mt-1 max-h-60 overflow-y-auto rounded-md bg-slate-900 p-3 font-mono text-xs text-green-400">
           {logs.length === 0 ? (
-            <span className="text-slate-500">
+            <span className="text-muted-foreground">
               Waiting for logs...
             </span>
           ) : (
@@ -235,7 +235,7 @@ function LiveMetrics({ jobId }: { jobId: string }) {
           RTT: {latestMetrics.round_trip_time_ms.toFixed(1)} ms
         </span>
       )}
-      <span className="text-slate-400">
+      <span className="text-muted-foreground">
         {snapshotCount} snapshots
       </span>
     </div>
@@ -321,7 +321,7 @@ export function BenchmarkStatus() {
 
   if (loading) {
     return (
-      <p className="text-sm text-slate-500 dark:text-slate-400">
+      <p className="text-sm text-muted-foreground">
         Loading jobs...
       </p>
     );
@@ -329,7 +329,7 @@ export function BenchmarkStatus() {
 
   if (jobs.length === 0) {
     return (
-      <p className="text-sm text-slate-500 dark:text-slate-400">
+      <p className="text-sm text-muted-foreground">
         No benchmark jobs yet. Run one above!
       </p>
     );
@@ -343,7 +343,7 @@ export function BenchmarkStatus() {
         return (
           <div
             key={job.id}
-            className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800/50"
+            className="rounded-lg border border-border bg-card p-4"
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 flex-1">
@@ -353,11 +353,11 @@ export function BenchmarkStatus() {
                   >
                     {job.status}
                   </span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                  <span className="text-xs text-muted-foreground">
                     {formatTime(job.created_at)}
                   </span>
                 </div>
-                <p className="mt-1 truncate text-sm text-slate-700 dark:text-slate-300">
+                <p className="mt-1 truncate text-sm text-foreground dark:text-muted-foreground">
                   {configSummary(job.config)}
                 </p>
                 {job.error_message && (
@@ -369,7 +369,7 @@ export function BenchmarkStatus() {
               <div className="flex shrink-0 flex-wrap gap-2">
                 <Link
                   href={`/benchmarks/${encodeURIComponent(job.id)}`}
-                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted dark:hover:bg-accent"
                 >
                   View progress
                 </Link>
@@ -379,7 +379,7 @@ export function BenchmarkStatus() {
                 {job.status === "completed" && job.parent_run_id && (
                   <Link
                     href={`/parent-run/${job.parent_run_id}`}
-                    className="rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-rose-600"
+                    className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:bg-primary/90"
                   >
                     View Results
                   </Link>

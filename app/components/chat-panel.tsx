@@ -163,12 +163,12 @@ function SessionSidebar({
   return (
     <div
       inert={!sidebarOpen}
-      className={`flex flex-col border-b border-slate-200 sm:border-r sm:border-b-0 bg-white transition-all dark:border-slate-700 dark:bg-slate-900 ${
+      className={`flex flex-col border-b border-border sm:border-r sm:border-b-0 bg-card transition-all ${
         sidebarOpen ? "max-h-48 w-full shrink-0 sm:max-h-none sm:w-64" : "h-0 w-0 overflow-hidden border-0 sm:h-auto"
       }`}
     >
       <div className="flex items-center justify-between px-3 py-3">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+        <h3 className="text-sm font-semibold text-foreground">
           Chats
         </h3>
         <Button
@@ -176,7 +176,7 @@ function SessionSidebar({
           size="sm"
           onClick={onToggleSidebar}
           aria-label="Hide chat history"
-          className="h-auto whitespace-normal rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+          className="h-auto whitespace-normal rounded p-1 text-muted-foreground hover:bg-muted hover:text-muted-foreground dark:hover:bg-accent"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -190,7 +190,7 @@ function SessionSidebar({
 
         size="sm"
         onClick={onNewSession}
-        className="h-auto whitespace-normal mx-3 mb-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-500 transition hover:border-rose-400 hover:text-rose-500 dark:border-slate-600 dark:text-slate-400"
+        className="h-auto whitespace-normal mx-3 mb-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground transition hover:border-primary/40 hover:text-primary"
       >
         + New Chat
       </Button>
@@ -201,8 +201,8 @@ function SessionSidebar({
             key={s.id}
             className={`group mb-1 flex items-start gap-1 rounded-lg px-2.5 py-2 text-sm transition ${
               s.id === activeSessionId
-                ? "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"
-                : "text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
+                ? "bg-accent text-primary"
+                : "text-muted-foreground hover:bg-muted dark:hover:bg-accent"
             }`}
           >
             <Button
@@ -212,7 +212,7 @@ function SessionSidebar({
               className="h-auto whitespace-normal block min-w-0 flex-1 px-0 text-left"
             >
               <p className="truncate text-xs font-medium">{s.preview}</p>
-              <p className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500">
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
                 {new Date(s.updated_at).toLocaleDateString(undefined, {
                   month: "short",
                   day: "numeric",
@@ -228,7 +228,7 @@ function SessionSidebar({
                 e.stopPropagation();
                 onDeleteSession(s.id);
               }}
-              className="h-auto whitespace-normal mt-0.5 shrink-0 rounded p-1 text-slate-300 opacity-0 transition hover:text-red-500 group-hover:opacity-100 focus-visible:opacity-100 dark:text-slate-600 dark:hover:text-red-400"
+              className="h-auto whitespace-normal mt-0.5 shrink-0 rounded p-1 text-muted-foreground opacity-0 transition hover:text-red-500 group-hover:opacity-100 focus-visible:opacity-100 dark:hover:text-red-400"
               title="Delete chat"
               aria-label={`Delete chat: ${s.preview}`}
             >
@@ -370,10 +370,10 @@ export function ChatPanel({
   }
 
   const mdClasses =
-    "text-sm [&_table]:w-full [&_table]:border-collapse [&_table]:my-2 [&_th]:border [&_th]:border-slate-300 [&_th]:bg-slate-200/50 [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:font-semibold [&_td]:border [&_td]:border-slate-300 [&_td]:px-2 [&_td]:py-1 dark:[&_th]:border-slate-600 dark:[&_th]:bg-slate-700/50 dark:[&_td]:border-slate-600 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1 [&_li]:my-0.5 [&_p]:my-1 [&_pre]:bg-slate-800 [&_pre]:text-slate-200 [&_pre]:rounded [&_pre]:p-2 [&_pre]:my-2 [&_pre]:overflow-x-auto [&_code]:text-rose-500 [&_h1]:text-lg [&_h1]:font-bold [&_h1]:my-2 [&_h2]:text-base [&_h2]:font-bold [&_h2]:my-2 [&_h3]:font-bold [&_h3]:my-1";
+    "text-sm [&_table]:w-full [&_table]:border-collapse [&_table]:my-2 [&_th]:border [&_th]:border-border [&_th]:bg-slate-200/50 [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:font-semibold [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 dark:[&_th]:bg-card [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1 [&_li]:my-0.5 [&_p]:my-1 [&_pre]:bg-slate-800 [&_pre]:text-slate-200 [&_pre]:rounded [&_pre]:p-2 [&_pre]:my-2 [&_pre]:overflow-x-auto [&_code]:text-primary [&_h1]:text-lg [&_h1]:font-bold [&_h1]:my-2 [&_h2]:text-base [&_h2]:font-bold [&_h2]:my-2 [&_h3]:font-bold [&_h3]:my-1";
 
   return (
-    <div className="flex flex-col sm:flex-row h-[calc(var(--page-height)-8rem)] min-h-96 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-950">
+    <div className="flex flex-col sm:flex-row h-[calc(var(--page-height)-8rem)] min-h-96 overflow-hidden rounded-lg border border-border bg-card dark:bg-background">
       {/* Sidebar */}
       <SessionSidebar
         sessions={sessions}
@@ -394,7 +394,7 @@ export function ChatPanel({
               variant="ghost"
               size="sm"
               onClick={() => setSidebarOpen(true)}
-              className="h-auto whitespace-normal mb-2 rounded-lg border border-slate-200 p-2 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600 dark:border-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+              className="h-auto whitespace-normal mb-2 rounded-lg border border-border p-2 text-muted-foreground transition hover:bg-muted hover:text-muted-foreground dark:hover:bg-accent"
               title="Show chat history"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -406,7 +406,7 @@ export function ChatPanel({
           {messages.length === 0 && historyLoaded && (
             <div className="flex h-full items-center justify-center">
               <div className="text-center">
-                <p className="text-lg font-medium text-slate-400 dark:text-slate-500">
+                <p className="text-lg font-medium text-muted-foreground">
                   Ask me anything about your benchmarks
                 </p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
@@ -421,7 +421,7 @@ export function ChatPanel({
                       key={suggestion}
                       type="button"
                       onClick={() => setInput(suggestion)}
-                      className="h-auto max-w-full whitespace-normal rounded-full border border-slate-200 px-3 py-1.5 text-xs text-slate-600 transition hover:border-rose-300 hover:text-rose-600 dark:border-slate-700 dark:text-slate-400 dark:hover:border-rose-500 dark:hover:text-rose-400"
+                      className="h-auto max-w-full whitespace-normal rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition hover:border-border hover:text-primary dark:hover:border-primary/40"
                     >
                       {suggestion}
                     </Button>
@@ -437,10 +437,10 @@ export function ChatPanel({
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                className={`max-w-[85%] rounded-lg px-4 py-3 ${
                   msg.role === "user"
-                    ? "bg-rose-500 text-white"
-                    : "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-foreground dark:bg-card"
                 }`}
               >
                 {msg.toolEvents && msg.toolEvents.length > 0 && (
@@ -465,7 +465,7 @@ export function ChatPanel({
 
           {isLoading && (
             <div className="flex justify-start">
-              <div className="rounded-2xl bg-slate-100 px-4 py-3 dark:bg-slate-800">
+              <div className="rounded-lg bg-muted px-4 py-3 dark:bg-card">
                 <div className="flex items-center gap-1.5">
                   <div className="h-2 w-2 animate-bounce rounded-full bg-slate-400" />
                   <div className="h-2 w-2 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: "0.1s" }} />
@@ -479,7 +479,7 @@ export function ChatPanel({
         </div>
 
         {/* Input */}
-        <div className="border-t border-slate-200 p-4 dark:border-slate-700">
+        <div className="border-t border-border p-4">
           <div className="flex items-end gap-2">
             <Textarea
               rows={3}
@@ -494,7 +494,7 @@ export function ChatPanel({
               }}
               placeholder="Ask about benchmarks, results, or congestion control..."
               disabled={isLoading}
-              className="min-w-0 flex-1 resize-y rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-400/30 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-rose-400"
+              className="min-w-0 flex-1 resize-y rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground transition focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-60"
             />
             <Button
               variant="ghost"
@@ -503,7 +503,7 @@ export function ChatPanel({
               aria-label="Send message"
               onClick={handleSend}
               disabled={isLoading || !historyLoaded || !input.trim()}
-              className="h-auto whitespace-normal shrink-0 rounded-lg bg-rose-500 p-2.5 text-white transition hover:bg-rose-600 disabled:opacity-50"
+              className="h-auto whitespace-normal shrink-0 rounded-lg bg-primary p-2.5 text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />

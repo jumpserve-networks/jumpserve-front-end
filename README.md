@@ -90,6 +90,15 @@ Use Base UI's `render` prop for composition. When a Button renders a link, set
 
 Use `cn` from `@/lib/utils` to merge conditional Tailwind classes. Shared theme
 tokens live in `app/globals.css` and follow the existing `.dark` theme toggle.
+Use neutral surfaces, subtle borders, compact typography, and the shared blue
+accent for application controls. Reserve additional colors for chart series and
+meaningful status indicators. Avoid decorative gradients, page-entry animations,
+and oversized shadows. The theme control lives in the shared header.
+
+SVG charts inside buttons must retain `role="img"`: the shared Button excludes
+these content graphics from its default icon sizing. Keep run charts in a
+maximum of two columns so axes and measurements remain readable.
+
 Buttons, inputs, textareas, checkboxes, tables, tabs, selection controls, and
 modal dialogs use the shared components across benchmarks, chat, and explorers.
 `npm run lint` rejects native buttons, selects, textareas, tables, and ordinary

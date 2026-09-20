@@ -50,27 +50,6 @@ function GoogleIcon() {
   );
 }
 
-function LoggedInIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className="h-4 w-4"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <circle cx="12" cy="12" r="9" fill="currentColor" opacity="0.14" />
-      <path
-        d="M8 12.2 10.7 15l5.8-6.1"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 export function AuthButton({ placement = "floating" }: AuthButtonProps) {
   const [supabase] = useState(() => createClient());
   const [status, setStatus] = useState<AuthStatus>("loading");
@@ -185,10 +164,10 @@ export function AuthButton({ placement = "floating" }: AuthButtonProps) {
       }
     >
       {status === "logged-in" ? (
-        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/80 bg-white/95 py-2 pr-2 pl-4 text-sm font-medium text-emerald-800 shadow-lg shadow-zinc-900/10 backdrop-blur dark:border-emerald-500/40 dark:bg-slate-900/88 dark:text-emerald-200 dark:shadow-black/40">
-          <LoggedInIcon />
+        <div className="inline-flex min-w-0 items-center gap-3 text-sm">
           {userLabel ? (
-            <span className={cn("max-w-44 truncate text-emerald-700/80 dark:text-emerald-200/75", placement === "header" && "hidden sm:inline sm:max-w-32")}>
+            <span title={userLabel}
+            className={cn("max-w-44 truncate text-muted-foreground", placement === "header" && "hidden sm:inline sm:max-w-32")}>
               {userLabel}
             </span>
           ) : (
@@ -197,10 +176,10 @@ export function AuthButton({ placement = "floating" }: AuthButtonProps) {
           <Button
             type="button"
             variant="outline"
-            size="xs"
+            size="sm"
             onClick={handleSignOut}
             disabled={isSubmitting}
-            className="h-auto rounded-full border-emerald-200 bg-white/80 px-3 py-1 font-semibold text-emerald-800 hover:bg-emerald-50 hover:text-emerald-800 disabled:cursor-wait disabled:opacity-60 dark:border-emerald-500/40 dark:bg-slate-800 dark:text-emerald-100 dark:hover:bg-slate-700 dark:hover:text-emerald-100"
+            className="disabled:cursor-wait"
           >
             {isSubmitting ? "Logging out..." : "Log out"}
           </Button>
@@ -211,7 +190,7 @@ export function AuthButton({ placement = "floating" }: AuthButtonProps) {
           variant="outline"
           onClick={handleGoogleLogin}
           disabled={status === "loading" || isSubmitting}
-          className={cn("h-auto rounded-full border-rose-300/80 bg-white/95 px-4 py-2 text-slate-900 shadow-lg shadow-zinc-900/10 backdrop-blur hover:-translate-y-0.5 hover:border-rose-400 hover:bg-rose-50 hover:text-slate-900 disabled:cursor-wait disabled:opacity-70 dark:border-slate-500 dark:bg-slate-900/88 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100", placement === "header" && "px-3 text-xs sm:text-sm")}
+          className={cn("disabled:cursor-wait", placement === "inline" && "w-full", placement === "header" && "h-8 px-3 text-xs sm:text-sm")}
         >
           <GoogleIcon />
           <span>
@@ -225,7 +204,7 @@ export function AuthButton({ placement = "floating" }: AuthButtonProps) {
       )}
 
       {errorMessage ? (
-        <p className={cn("max-w-sm rounded-2xl border border-red-200 bg-red-50/95 px-3 py-2 text-sm text-red-700 shadow-lg dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200", placement === "header" && "absolute top-full right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)]")}>
+        <p className={cn("max-w-sm rounded-lg border border-red-200 bg-red-50/95 px-3 py-2 text-sm text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200", placement === "header" && "absolute top-full right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)]")}>
           {errorMessage}
         </p>
       ) : null}

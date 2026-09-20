@@ -108,28 +108,28 @@ export function AnimatedImageUploadPanel() {
   }
 
   return (
-    <section className="w-full rounded-3xl border border-rose-200/70 bg-[#fff8fc]/95 p-6 shadow-xl dark:border-slate-600 dark:bg-slate-800/82">
+    <section className="w-full rounded-lg border border-border bg-card p-6">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
+          <p className="text-xs font-semibold tracking-normal text-primary">
             Animated Upload
           </p>
-          <h2 className="mt-3 text-2xl font-semibold text-slate-900 dark:text-slate-100">
+          <h2 className="mt-3 text-2xl font-semibold text-foreground">
             Upload an animated image from your computer
           </h2>
-          <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
             The old location-style prompt is replaced with a local file picker.
             This accepts GIF, WebP, APNG/PNG, and AVIF files so you can choose an
             animated image directly from disk.
           </p>
         </div>
 
-        <div className="w-full max-w-sm rounded-2xl border border-rose-200 bg-white/90 p-4 shadow-sm dark:border-slate-500 dark:bg-slate-900/70">
+        <div className="w-full max-w-sm rounded-lg border border-border bg-card p-4">
           <Label
             htmlFor={inputId}
-            className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-dashed border-rose-300 bg-rose-50/70 p-4 text-sm text-slate-700 transition hover:border-rose-400 hover:bg-rose-100/70 dark:border-slate-500 dark:bg-slate-800/80 dark:text-slate-200 dark:hover:border-slate-400 dark:hover:bg-slate-700/80"
+            className="flex cursor-pointer flex-col gap-3 rounded-lg border border-dashed border-border bg-accent p-4 text-sm text-foreground transition hover:border-primary/40 hover:bg-accent dark:bg-card dark:hover:border-border"
           >
-            <span className="font-medium text-slate-900 dark:text-slate-100">
+            <span className="font-medium text-foreground">
               Choose animated image
             </span>
             <span>
@@ -146,15 +146,15 @@ export function AnimatedImageUploadPanel() {
           </Label>
 
           {errorMessage ? (
-            <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
+            <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">
               {errorMessage}
             </p>
           ) : null}
 
           {selectedImage ? (
             <div className="mt-4 space-y-3">
-              <div className="rounded-2xl border border-teal-200 bg-teal-50/80 p-3 text-sm text-slate-700 dark:border-teal-500/40 dark:bg-teal-500/10 dark:text-slate-200">
-                <p className="font-medium text-slate-900 dark:text-slate-100">
+              <div className="rounded-lg border border-border bg-accent p-3 text-sm text-foreground dark:border-primary/40">
+                <p className="font-medium text-foreground">
                   {selectedImage.file.name}
                 </p>
                 <p className="mt-1">
@@ -163,7 +163,7 @@ export function AnimatedImageUploadPanel() {
                 </p>
               </div>
 
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950/95 dark:border-slate-600">
+              <div className="overflow-hidden rounded-lg border border-border bg-slate-950/95">
                 <Image
                   src={selectedImage.previewUrl}
                   alt={`Preview of ${selectedImage.file.name}`}
@@ -175,7 +175,7 @@ export function AnimatedImageUploadPanel() {
               </div>
             </div>
           ) : (
-            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-4 text-sm text-muted-foreground">
               No file selected yet.
             </p>
           )}

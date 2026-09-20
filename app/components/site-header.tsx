@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutGrid } from "lucide-react";
 import { GlobalAuthButton } from "@/app/components/auth-button";
+import { ThemeToggle } from "@/app/components/theme-toggle";
 import { Button, buttonVariants } from "@/app/components/ui/button";
 import { getTestModuleForPath, isModuleSectionActive } from "@/lib/test-modules";
 import { cn } from "@/lib/utils";
@@ -19,11 +20,14 @@ export function SiteHeader() {
           <Link
             href="/"
             aria-label="JumpServe modules"
-            className="shrink-0 rounded-md text-lg font-bold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+            className="shrink-0 rounded-md text-lg font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
           >
             JumpServe
           </Link>
-          <GlobalAuthButton placement="header" />
+          <div className="flex min-w-0 items-center gap-3">
+            <ThemeToggle />
+            <GlobalAuthButton placement="header" />
+          </div>
         </div>
 
         {testModule ? (
@@ -32,7 +36,7 @@ export function SiteHeader() {
               <Link
                 href={testModule.href}
                 aria-current={pathname === testModule.href ? "page" : undefined}
-                className="rounded-md text-sm leading-5 font-semibold text-foreground outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring sm:text-base"
+                className="rounded-md text-sm leading-5 font-medium text-foreground outline-none hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {testModule.name}
               </Link>
@@ -52,7 +56,7 @@ export function SiteHeader() {
                         className={cn(
                           buttonVariants({ variant: active ? "secondary" : "ghost" }),
                           "w-full px-2 text-xs sm:px-3 sm:text-sm",
-                          active ? "bg-accent font-semibold text-accent-foreground ring-1 ring-inset ring-primary/30" : "text-muted-foreground",
+                          active ? "bg-accent font-semibold text-accent-foreground" : "text-muted-foreground",
                         )}
                       >
                         {section.label}

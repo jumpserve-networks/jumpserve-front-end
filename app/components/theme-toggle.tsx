@@ -97,7 +97,7 @@ export function ThemeToggle() {
       onClick={() => setThemePreference(nextPreference)}
       aria-label={`Theme: ${currentLabel}. Switch to ${nextLabel}.`}
       title={`Theme: ${currentLabel}. Switch to ${nextLabel}.`}
-      className="fixed right-3 bottom-3 z-50 flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200/70 bg-white/90 text-zinc-700 shadow-lg shadow-zinc-900/10 backdrop-blur transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60 dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-100 dark:shadow-black/40 dark:focus-visible:ring-zinc-500/70"
+      className="size-8 shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-foreground"
     >
       {preference === "light" ? (
         <LightThemeIcon />

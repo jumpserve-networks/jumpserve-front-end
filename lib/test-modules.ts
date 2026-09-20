@@ -37,13 +37,13 @@ export const EMULATED_TESTS_MODULE = {
     {
       href: "/benchmarks",
       label: "Run Benchmark",
-      description: "Configure and launch emulated benchmarks on fresh EC2 instances.",
+      description: "Configure workloads, network conditions, and congestion control algorithms.",
       paths: ["/benchmarks"],
     },
     {
       href: "/chat",
       label: "Chat with AI",
-      description: "Run emulated tests and analyze results in natural language.",
+      description: "Query experiment results and discuss congestion control behavior.",
       paths: ["/chat"],
     },
   ],

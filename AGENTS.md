@@ -146,6 +146,11 @@ Important columns currently used:
   when a Button renders a non-button element such as a link.
 - Use `cn` from `@/lib/utils` to merge Tailwind classes. Keep shared color tokens in
   `app/globals.css` and support the existing `.dark` theme toggle.
+- Keep the interface restrained: neutral surfaces, subtle borders, compact
+  typography, and a single blue accent for controls. Reserve other colors for
+  chart series and status. Avoid decorative gradients and page-entry animations.
+- Preserve `role="img"` on SVG charts inside buttons so shared icon sizing does
+  not shrink them. Use at most two columns for run charts on desktop.
 - Supabase `numeric` / `bigint` values can arrive as strings; convert before chart math.
 - Keep server-side querying in server components where possible.
 - Preserve non-sensitive error messages for easier debugging.

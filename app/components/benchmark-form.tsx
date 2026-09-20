@@ -255,9 +255,9 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
   }
 
   const inputClasses =
-    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 transition focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-400/30 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-rose-400";
+    "w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground transition focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30";
   const labelClasses =
-    "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1";
+    "block text-sm font-medium text-foreground dark:text-muted-foreground mb-1";
 
   return (
     <div className="space-y-6">
@@ -297,7 +297,7 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
               type="button"
               onClick={handleDeleteConfig}
               disabled={!selectedConfigId}
-              className="h-auto whitespace-normal whitespace-nowrap rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-30 dark:border-red-500/40 dark:bg-slate-800 dark:text-red-400 dark:hover:bg-red-500/10"
+              className="h-auto whitespace-normal whitespace-nowrap rounded-lg border border-red-300 bg-card px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-30 dark:border-red-500/40 dark:text-red-400 dark:hover:bg-red-500/10"
               title="Delete selected config"
             >
               Delete
@@ -356,7 +356,7 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
           onChange={(e) => setDelaysText(e.target.value)}
           placeholder="10, 60"
         />
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+        <p className="mt-1 text-xs text-muted-foreground">
           One value per client
         </p>
       </div>
@@ -383,8 +383,8 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
               onClick={() => handleCcaToggle(cca)}
               className={`h-auto whitespace-normal rounded-full px-2.5 py-0.5 text-xs font-medium transition ${
                 config.client_ccas.includes(cca)
-                  ? "bg-rose-500 text-white"
-                  : "bg-slate-200 text-slate-600 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               }`}
             >
               {cca}
@@ -445,7 +445,7 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
           <div>
             <Label htmlFor="benchmark-link-rates" className={labelClasses}>Bottleneck Rates (Mbit/s, comma-separated)</Label>
             <Input id="benchmark-link-rates" className={inputClasses} value={ratesText} onChange={(e) => setRatesText(e.target.value)} />
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Two values, one per bottleneck.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Two values, one per bottleneck.</p>
           </div>
           <div>
             <Label htmlFor="benchmark-link-buffers" className={labelClasses}>Buffer Sizes (KB, comma-separated)</Label>
@@ -455,10 +455,10 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
             <div>
               <Label htmlFor="benchmark-client-groups" className={labelClasses}>Client Group Sizes (comma-separated)</Label>
               <Input id="benchmark-client-groups" className={inputClasses} value={groupsText} onChange={(e) => setGroupsText(e.target.value)} />
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Two positive group sizes adding up to {config.num_clients}. Clients are assigned in order.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Two positive group sizes adding up to {config.num_clients}. Clients are assigned in order.</p>
             </div>
           )}
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-muted-foreground">
             This runner records throughput; RTT, congestion window, and in-flight packet graphs are not available.
             {config.topology === "parking-lot" && " Parking-lot shaping is experimental: currently only the first bottleneck rate and buffer are applied."}
           </p>
@@ -528,8 +528,8 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
       )}
 
       {/* Experiment metadata */}
-      <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
-        <p className="mb-3 text-sm font-medium text-slate-600 dark:text-slate-400">
+      <div className="border-t border-border pt-4">
+        <p className="mb-3 text-sm font-medium text-muted-foreground">
           Experiment Metadata (optional)
         </p>
         <div className="space-y-3">
@@ -583,7 +583,7 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
             type="button"
             onClick={handleSaveConfig}
             disabled={!configName.trim()}
-            className="h-auto whitespace-normal whitespace-nowrap rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+            className="h-auto whitespace-normal whitespace-nowrap rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted disabled:opacity-50 dark:text-muted-foreground dark:hover:bg-accent"
           >
             Save Config
           </Button>
@@ -605,7 +605,7 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
         type="button"
         onClick={handleLaunch}
         disabled={isLaunching}
-        className="h-auto whitespace-normal w-full rounded-lg bg-rose-500 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-rose-600 disabled:cursor-wait disabled:opacity-60"
+        className="h-auto whitespace-normal w-full rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-wait disabled:opacity-60"
       >
         {isLaunching ? "Launching..." : "Run Benchmark"}
       </Button>

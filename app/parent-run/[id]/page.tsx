@@ -90,16 +90,16 @@ export default async function ParentRunPage({
 
   if (!parentRun) {
     return (
-      <main className="space-atmosphere relative min-h-[var(--page-height)] p-4 sm:p-10">
+      <main className="bg-background relative min-h-[var(--page-height)] p-4 sm:p-10">
         <div className="relative z-10 mx-auto flex w-full items-start justify-center py-3 sm:py-8">
-          <section className="w-full max-w-4xl rounded-3xl border border-rose-200/70 bg-[#fff8fc]/95 p-10 text-center shadow-xl dark:border-slate-600 dark:bg-slate-800/82">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
+          <section className="w-full max-w-4xl rounded-lg border border-border bg-card p-10 text-center">
+            <p className="text-xs font-semibold tracking-normal text-primary">
               Jumpserve
             </p>
-            <h1 className="mt-3 text-3xl font-semibold text-slate-900 dark:text-slate-100">
+            <h1 className="mt-3 text-3xl font-semibold text-foreground">
               No parent run data found
             </h1>
-            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+            <p className="mt-3 text-sm text-muted-foreground">
               No rows were returned from <code>emulated_parent_runs</code>.
             </p>
           </section>
@@ -109,18 +109,18 @@ export default async function ParentRunPage({
   }
 
   return (
-    <main className="space-atmosphere relative box-border min-h-[var(--page-height)] p-2 sm:p-6">
+    <main className="bg-background relative box-border min-h-[var(--page-height)] p-2 sm:p-6">
       <div className="relative z-10 mx-auto flex w-full items-start justify-center py-1 sm:py-3">
-        <section className="w-full max-w-6xl rounded-2xl border border-rose-200/70 bg-[#fff8fc]/95 p-4 shadow-2xl backdrop-blur-sm dark:border-slate-600/70 dark:bg-slate-800/78 sm:rounded-3xl sm:p-8">
-          <div className="mb-6 border-b border-rose-200/80 pb-2.5 dark:border-slate-600 sm:mb-8 sm:pb-3">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
+        <section className="w-full max-w-6xl rounded-lg border border-border bg-card p-4 sm:rounded-lg sm:p-8">
+          <div className="mb-6 border-b border-border pb-2.5 sm:mb-8 sm:pb-3">
+            <p className="mb-3 text-xs font-semibold tracking-normal text-primary">
               Jumpserve
             </p>
             <div className="mb-5 flex items-center justify-between gap-3">
               <Link
                 href={`/test-lookup?page=${returnPage}`}
                 aria-label={`Return to test lookup page ${returnPage}`}
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-rose-300/80 bg-[#fff5fb] px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/85 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground transition hover:border-primary/40 hover:bg-accent dark:hover:border-border"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -139,7 +139,7 @@ export default async function ParentRunPage({
               <Link
                 href={EMULATED_TESTS_MODULE.href}
                 aria-label="Go to emulated tests module"
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-300/80 bg-[#fff5fb] text-slate-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/85 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-foreground transition hover:border-primary/40 hover:bg-accent dark:hover:border-border"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -158,7 +158,7 @@ export default async function ParentRunPage({
               </Link>
             </div>
             <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
                 Emulated Run Explorer | {parentRun.id}
               </h1>
               <Button
@@ -172,19 +172,19 @@ export default async function ParentRunPage({
             </div>
           </div>
           <div className="mb-6 grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-[minmax(0,2.4fr)_repeat(4,minmax(0,1fr))]">
-            <article className="min-w-0 rounded-2xl border border-rose-200/80 bg-[#fff3f8] p-4 dark:border-slate-600 dark:bg-slate-800/55 sm:col-span-2 lg:col-span-1">
-              <div className="flex flex-col gap-1 text-sm text-slate-500 dark:text-slate-300">
+            <article className="min-w-0 rounded-lg border border-border bg-card p-4 sm:col-span-2 lg:col-span-1">
+              <div className="flex flex-col gap-1 text-sm text-muted-foreground">
                 <span className="uppercase tracking-[0.18em]">
                   {parentRun.clientCount} client{parentRun.clientCount === 1 ? "" : "s"}
                 </span>
               </div>
-              <p className="mt-2 break-words text-base font-medium text-slate-800 dark:text-slate-100">
+              <p className="mt-2 break-words text-base font-medium text-foreground">
                 {parentRun.clientSummaryLine}
               </p>
-              <p className="mt-2.5 text-sm uppercase tracking-[0.16em] text-slate-500 dark:text-slate-200">
+              <p className="mt-2.5 text-sm tracking-normal text-muted-foreground dark:text-foreground">
                 Parent #{parentRun.id}
               </p>
-              <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-200">
+              <p className="mt-1.5 text-xs text-muted-foreground dark:text-foreground">
                 {formatCreatedAt(parentRun.createdAt)}
               </p>
             </article>
@@ -234,11 +234,11 @@ function SummaryCard({
   value: string;
 }) {
   return (
-    <article className="min-w-0 rounded-2xl border border-rose-200/80 bg-[#fff3f8] p-4 dark:border-slate-600 dark:bg-slate-800/55">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+    <article className="min-w-0 rounded-lg border border-border bg-card p-4">
+      <p className="text-xs font-semibold tracking-normal text-muted-foreground">
         {label}
       </p>
-      <p className="mt-2 break-words text-sm font-medium text-slate-800 dark:text-slate-100">
+      <p className="mt-2 break-words text-sm font-medium text-foreground">
         {value}
       </p>
     </article>
@@ -248,14 +248,14 @@ function SummaryCard({
 function ChartsLoadingFallback() {
   return (
     <div className="space-y-4">
-      <p className="text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+      <p className="text-xs tracking-normal text-muted-foreground">
         Loading chart data...
       </p>
-      <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid min-w-0 gap-4 md:grid-cols-2">
         {Array.from({ length: 4 }, (_, index) => (
           <div
             key={index}
-            className="h-[320px] animate-pulse rounded-2xl border border-rose-200/80 bg-[#fff3f8] dark:border-slate-600 dark:bg-slate-800/55"
+            className="h-[320px] animate-pulse rounded-lg border border-border bg-card"
           />
         ))}
       </div>

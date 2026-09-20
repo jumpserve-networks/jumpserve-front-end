@@ -14,17 +14,17 @@ export async function TestLookupHome({
   });
 
   return (
-    <main className="space-atmosphere relative min-h-[var(--page-height)] overflow-hidden p-5 font-sans sm:p-10">
+    <main className="bg-background relative min-h-[var(--page-height)] overflow-hidden p-5 font-sans sm:p-10">
       <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-4 py-3 sm:py-8">
         <div className="flex w-full items-start justify-center">
           {parentRunPage.parentRuns.length > 0 ? (
             <ParentRunIndex initialPage={parentRunPage} />
           ) : (
-            <section className="relative w-full max-w-4xl rounded-3xl border border-rose-200/70 bg-[#fff8fc]/95 p-10 text-center shadow-xl dark:border-slate-600 dark:bg-slate-800/82">
+            <section className="relative w-full max-w-4xl rounded-lg border border-border bg-card p-10 text-center">
               <Link
                 href={EMULATED_TESTS_MODULE.href}
                 aria-label="Go to emulated tests module"
-                className="absolute top-6 right-6 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-300/80 bg-[#fff5fb] text-slate-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/85 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
+                className="absolute top-6 right-6 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-foreground transition hover:border-primary/40 hover:bg-accent dark:hover:border-border"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -40,13 +40,13 @@ export async function TestLookupHome({
                   <path d="M10 20v-6h4v6" />
                 </svg>
               </Link>
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
+              <p className="text-xs font-semibold tracking-normal text-primary">
                 Jumpserve
               </p>
-              <h1 className="mt-3 text-3xl font-semibold text-slate-900 dark:text-slate-100">
+              <h1 className="mt-3 text-3xl font-semibold text-foreground">
                 No parent run data found
               </h1>
-              <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+              <p className="mt-3 text-sm text-muted-foreground">
                 No rows were returned from <code>emulated_parent_runs</code>.
               </p>
             </section>

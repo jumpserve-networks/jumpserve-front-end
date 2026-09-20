@@ -4,6 +4,7 @@ import { Button } from "@/app/components/ui/button";
 import { Label } from "@/app/components/ui/label";
 import { Input } from "@/app/components/ui/input";
 import { Checkbox } from "@/app/components/ui/checkbox";
+import { ChevronDown } from "lucide-react";
 
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/app/components/ui/dialog";
 import { ToggleGroup, ToggleGroupItem } from "@/app/components/ui/toggle-group";
@@ -750,7 +751,7 @@ function renderYAxisTicks(maxValue: number, formatLabel: (value: number) => stri
           x={CHART_PADDING.left - 10}
           y={y + 3}
           textAnchor="end"
-          className="fill-slate-500 text-[10px] dark:fill-slate-400"
+          className="fill-slate-500 text-[11px] dark:fill-slate-400"
         >
           {formatLabel(tick)}
         </text>
@@ -771,7 +772,7 @@ function renderYAxisTicksForDomain(
 ) {
   const ticks = buildLinearTicksForDomain(minValue, maxValue);
   const textClassName =
-    options?.textClassName ?? "fill-slate-500 text-[10px] dark:fill-slate-400";
+    options?.textClassName ?? "fill-slate-500 text-[11px] dark:fill-slate-400";
   const tickStrokeWidth = options?.tickStrokeWidth ?? 1;
   const gridStrokeWidth = options?.gridStrokeWidth ?? 1;
 
@@ -834,7 +835,7 @@ function renderXAxisTicks(
           x={x}
           y={CHART_HEIGHT - CHART_PADDING.bottom + 21}
           textAnchor="middle"
-          className="fill-slate-500 text-[10px] dark:fill-slate-400"
+          className="fill-slate-500 text-[11px] dark:fill-slate-400"
         >
           {formatLabel(tick)}
         </text>
@@ -854,7 +855,7 @@ function renderXAxisTicksForDomain(
 ) {
   const ticks = buildLinearTicksForDomain(minValue, maxValue, 7);
   const textClassName =
-    options?.textClassName ?? "fill-slate-500 text-[10px] dark:fill-slate-400";
+    options?.textClassName ?? "fill-slate-500 text-[11px] dark:fill-slate-400";
   const tickStrokeWidth = options?.tickStrokeWidth ?? 1;
 
   return ticks.map((tick) => {
@@ -951,17 +952,17 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <article className="rounded-[1.75rem] border border-rose-200/80 bg-[#fff3f8] p-4 shadow-inner dark:border-slate-600 dark:bg-slate-900/60 sm:p-5">
+    <article className="rounded-lg border border-border bg-card p-4 sm:p-5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+          <p className="text-xs font-semibold tracking-normal text-muted-foreground">
             {eyebrow}
           </p>
-          <h2 className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">
+          <h2 className="mt-2 text-xl font-semibold text-foreground">
             {title}
           </h2>
         </div>
-        <p className="max-w-xl text-sm text-slate-500 dark:text-slate-300">
+        <p className="max-w-xl text-sm text-muted-foreground">
           {subtitle}
         </p>
       </div>
@@ -972,7 +973,7 @@ function ChartCard({
 
 function EmptyChartState({ text }: { text: string }) {
   return (
-    <div className="flex h-[320px] items-center justify-center rounded-[1.3rem] border border-dashed border-rose-300/80 bg-[#fff2f8] text-center text-sm text-slate-500 dark:border-slate-600 dark:bg-slate-900/65 dark:text-slate-300">
+    <div className="flex h-[320px] items-center justify-center rounded-lg border border-dashed border-border bg-card text-center text-sm text-muted-foreground">
       {text}
     </div>
   );
@@ -992,15 +993,15 @@ function DescriptorList({
           key={item.title}
           className={
             compact
-              ? "rounded-xl border border-emerald-200/70 bg-white/70 px-3 py-2 dark:border-emerald-500/30 dark:bg-slate-950/25"
-              : "rounded-2xl border border-rose-100/90 bg-white/85 p-3 dark:border-slate-700 dark:bg-slate-900/45"
+              ? "rounded-lg border border-border bg-card px-3 py-2 dark:border-primary/40 dark:bg-background"
+              : "rounded-lg border border-border bg-card p-3"
           }
         >
           <dt
             className={
               compact
-                ? "text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-300"
-                : "text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400"
+                ? "text-[11px] font-semibold tracking-normal text-foreground"
+                : "text-[11px] font-semibold tracking-normal text-muted-foreground"
             }
           >
             {item.title}
@@ -1008,8 +1009,8 @@ function DescriptorList({
           <dd
             className={
               compact
-                ? "mt-1 text-xs leading-5 text-emerald-900 dark:text-emerald-100"
-                : "mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300"
+                ? "mt-1 text-xs leading-5 text-foreground"
+                : "mt-1 text-sm leading-5 text-muted-foreground"
             }
           >
             {item.text}
@@ -1022,19 +1023,15 @@ function DescriptorList({
 
 function PageDescriptorPanel() {
   return (
-    <section className="mt-6 rounded-[1.5rem] border border-rose-200/80 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-900/35">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-            Quick Glossary
-          </p>
-          <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
-            What the aggregate page is showing
-          </h2>
-        </div>
-      </div>
-      <DescriptorList items={PAGE_DESCRIPTOR_ITEMS} />
-    </section>
+    <Collapsible className="group mt-5 border-y border-border py-2">
+      <CollapsibleTrigger render={<Button variant="ghost" className="w-full justify-between px-0 text-muted-foreground" />}>
+        About these measurements
+        <ChevronDown aria-hidden="true" className="size-4 transition-transform group-data-open:rotate-180" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="py-3">
+        <DescriptorList items={PAGE_DESCRIPTOR_ITEMS} />
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -1061,15 +1058,15 @@ function ModeDescriptorPanel({
       : null;
 
   return (
-    <div className="rounded-2xl border border-rose-100/90 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-900/45">
+    <div className="rounded-lg border border-border bg-card p-3">
       <div className="grid gap-3 md:grid-cols-2">
         {mode ? (
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+            <p className="text-[11px] font-semibold tracking-normal text-muted-foreground">
               Current Section
             </p>
-            <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">
-              <span className="font-semibold text-slate-900 dark:text-slate-100">
+            <p className="mt-1 text-sm leading-5 text-muted-foreground">
+              <span className="font-semibold text-foreground">
                 {mode.title}
               </span>
               {`: ${mode.text}`}
@@ -1078,11 +1075,11 @@ function ModeDescriptorPanel({
         ) : null}
         {view ? (
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+            <p className="text-[11px] font-semibold tracking-normal text-muted-foreground">
               Current Chart
             </p>
-            <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">
-              <span className="font-semibold text-slate-900 dark:text-slate-100">
+            <p className="mt-1 text-sm leading-5 text-muted-foreground">
+              <span className="font-semibold text-foreground">
                 {view.title}
               </span>
               {`: ${view.text}`}
@@ -1118,10 +1115,10 @@ function GraphViewSegmentedControl({
           <ToggleGroupItem value={view.id}
             key={view.id}
             type="button"
-            className={`h-auto whitespace-normal rounded-xl border px-3 py-2 text-sm font-medium transition ${
+            className={`h-auto whitespace-normal rounded-lg border px-3 py-2 text-sm font-medium transition ${
               isSelected
-                ? "border-teal-500 bg-teal-500 text-white shadow-sm dark:border-teal-300 dark:bg-teal-300 dark:text-slate-950"
-                : "border-rose-200/80 bg-white text-slate-700 hover:border-rose-300 hover:bg-rose-50 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-500"
+                ? "border-primary/40 bg-primary text-primary-foreground dark:border-border"
+                : "border-border bg-card text-foreground hover:border-border hover:bg-accent"
             }`}
           >
             {view.label}
@@ -1146,7 +1143,7 @@ function ExplorerModeSegmentedControl({
         const option = EXPLORER_MODES.find((item) => item.id === values[0]);
         if (option) onSelectedModeChange(option.id);
       }}
-      className="inline-flex flex-wrap gap-2 rounded-2xl border border-rose-200/80 bg-white/80 p-1 dark:border-slate-600 dark:bg-slate-900/50"
+      className="inline-flex flex-wrap gap-2 rounded-lg border border-border bg-card p-1"
 
       aria-label="Explorer mode"
     >
@@ -1157,10 +1154,10 @@ function ExplorerModeSegmentedControl({
           <ToggleGroupItem value={mode.id}
             key={mode.id}
             type="button"
-            className={`h-auto whitespace-normal rounded-xl px-3 py-2 text-sm font-semibold transition ${
+            className={`h-auto whitespace-normal rounded-lg px-3 py-2 text-sm font-semibold transition ${
               isSelected
-                ? "bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-950"
-                : "text-slate-600 hover:bg-rose-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent"
             }`}
           >
             {mode.label}
@@ -1197,10 +1194,10 @@ function PercentileSelector({
             key={option.value}
             type="button"
 
-            className={`h-auto whitespace-normal rounded-xl border px-3 py-2 text-sm font-medium transition ${
+            className={`h-auto whitespace-normal rounded-lg border px-3 py-2 text-sm font-medium transition ${
               isSelected
-                ? "border-rose-500 bg-rose-500 text-white shadow-sm dark:border-rose-300 dark:bg-rose-300 dark:text-slate-950"
-                : "border-rose-200/80 bg-white text-slate-700 hover:border-rose-300 hover:bg-rose-50 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-500"
+                ? "border-primary/40 bg-primary text-primary-foreground dark:border-border"
+                : "border-border bg-card text-foreground hover:border-border hover:bg-accent"
             }`}
           >
             {option.label}
@@ -1224,14 +1221,14 @@ function TextFilterControl({
 }) {
   return (
     <Label className="flex min-w-[13rem] flex-1 flex-col gap-1.5">
-      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+      <span className="text-[11px] font-semibold tracking-normal text-muted-foreground">
         {label}
       </span>
       <Input
         value={value}
         onChange={(event) => onValueChange(event.target.value)}
         placeholder={placeholder}
-        className="h-10 rounded-xl border border-rose-200/80 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-teal-700/50"
+        className="h-10 rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
       />
     </Label>
   );
@@ -1256,7 +1253,7 @@ function StringFilterChips({
 
   return (
     <div className="space-y-1.5">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+      <p className="text-[11px] font-semibold tracking-normal text-muted-foreground">
         {label}
       </p>
       <div className="flex flex-wrap gap-2">
@@ -1276,10 +1273,10 @@ function StringFilterChips({
                     : [...selectedValues, option].sort((a, b) => a.localeCompare(b)),
                 )
               }
-              className={`h-auto whitespace-normal rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition ${
+              className={`h-auto whitespace-normal rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
                 isSelected
-                  ? "border-teal-500 bg-teal-500 text-white dark:border-teal-300 dark:bg-teal-300 dark:text-slate-950"
-                  : "border-rose-200/80 bg-white text-slate-700 hover:border-rose-300 hover:bg-rose-50 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-500"
+                  ? "border-primary/40 bg-primary text-primary-foreground dark:border-border"
+                  : "border-border bg-card text-foreground hover:border-border hover:bg-accent"
               }`}
             >
               {formatLabel(option)}
@@ -1310,7 +1307,7 @@ function NumberFilterChips({
 
   return (
     <div className="space-y-1.5">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+      <p className="text-[11px] font-semibold tracking-normal text-muted-foreground">
         {label}
       </p>
       <div className="flex flex-wrap gap-2">
@@ -1330,10 +1327,10 @@ function NumberFilterChips({
                     : [...selectedValues, option].sort((a, b) => a - b),
                 )
               }
-              className={`h-auto whitespace-normal rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition ${
+              className={`h-auto whitespace-normal rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
                 isSelected
-                  ? "border-teal-500 bg-teal-500 text-white dark:border-teal-300 dark:bg-teal-300 dark:text-slate-950"
-                  : "border-rose-200/80 bg-white text-slate-700 hover:border-rose-300 hover:bg-rose-50 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-500"
+                  ? "border-primary/40 bg-primary text-primary-foreground dark:border-border"
+                  : "border-border bg-card text-foreground hover:border-border hover:bg-accent"
               }`}
             >
               {formatLabel(option)}
@@ -1376,10 +1373,10 @@ function ClientFilterControl({
                   : [...selectedClientNumbers, clientNumber].sort((a, b) => a - b),
               )
             }
-            className={`h-auto whitespace-normal inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+            className={`h-auto whitespace-normal inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition ${
               isSelected
-                ? "border-rose-400 bg-rose-50 text-slate-900 dark:border-slate-400 dark:bg-slate-700/90 dark:text-slate-100"
-                : "border-rose-200/80 bg-white text-slate-700 hover:border-rose-300 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-500"
+                ? "border-primary/40 bg-accent text-foreground dark:border-border dark:bg-card"
+                : "border-border bg-card text-foreground hover:border-border"
             }`}
           >
             <span
@@ -1405,15 +1402,15 @@ function SelectedTestGroupsBubble({
 
   return (
     <div
-      className="relative mb-3 rounded-2xl border border-teal-200 bg-white/95 px-3 py-2 shadow-lg shadow-teal-900/10 dark:border-teal-500/45 dark:bg-slate-950/95 dark:shadow-black/25"
+      className="relative mb-3 rounded-lg border border-border bg-card px-3 py-2 dark:border-primary/40 dark:bg-background "
       aria-label="Selected test groups"
     >
-      <div className="absolute left-8 top-full h-3 w-3 -translate-y-1/2 rotate-45 border-b border-r border-teal-200 bg-white/95 dark:border-teal-500/45 dark:bg-slate-950/95" />
+      <div className="absolute left-8 top-full h-3 w-3 -translate-y-1/2 rotate-45 border-b border-r border-border bg-card dark:border-primary/40 dark:bg-background" />
       <div className="relative flex flex-wrap items-center gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-teal-700 dark:text-teal-300">
+        <span className="text-xs font-semibold tracking-normal text-primary">
           Viewing
         </span>
-        <span className="rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-800 dark:border-teal-500/50 dark:bg-teal-500/15 dark:text-teal-200">
+        <span className="rounded-full border border-border bg-accent px-2 py-0.5 text-xs font-semibold text-primary dark:border-primary/40">
           {`${selectedTestGroups.length} ${
             selectedTestGroups.length === 1 ? "group" : "groups"
           }`}
@@ -1423,7 +1420,7 @@ function SelectedTestGroupsBubble({
             <span
               key={groupLabel}
               title={groupLabel}
-              className="max-w-full truncate rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 font-mono text-[11px] leading-none text-slate-700 dark:border-slate-600 dark:bg-slate-800/85 dark:text-slate-100 sm:max-w-[22rem]"
+              className="max-w-full truncate rounded-full border border-border bg-accent px-2.5 py-1 font-mono text-xs leading-none text-foreground dark:bg-card sm:max-w-[22rem]"
             >
               {groupLabel}
             </span>
@@ -1796,12 +1793,12 @@ function FlowSummaryStrip({ points }: { points: FlowPoint[] }) {
       {items.map((item) => (
         <div
           key={item.label}
-          className="rounded-2xl border border-rose-100/90 bg-white/85 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/45"
+          className="rounded-lg border border-border bg-card px-3 py-2"
         >
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+          <p className="text-[11px] font-semibold tracking-normal text-muted-foreground">
             {item.label}
           </p>
-          <p className="mt-1 truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <p className="mt-1 truncate text-sm font-semibold text-foreground">
             {item.value}
           </p>
         </div>
@@ -1866,14 +1863,14 @@ function CohortComparisonPanel({
         {cohortEntries.map((entry) => (
           <div
             key={entry.id}
-            className="rounded-2xl border border-rose-100/90 bg-white/85 p-4 dark:border-slate-700 dark:bg-slate-900/45"
+            className="rounded-lg border border-border bg-card p-4"
           >
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                <p className="text-[11px] font-semibold tracking-normal text-muted-foreground">
                   Cohort {entry.id.toUpperCase()}
                 </p>
-                <h3 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
+                <h3 className="mt-1 text-lg font-semibold text-foreground">
                   {entry.label}
                 </h3>
               </div>
@@ -1884,59 +1881,59 @@ function CohortComparisonPanel({
             </div>
             {entry.summary ? (
               <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                <span className="text-slate-500 dark:text-slate-400">
+                <span className="text-muted-foreground">
                   Parent runs
                 </span>
-                <span className="text-right font-semibold text-slate-900 dark:text-slate-100">
+                <span className="text-right font-semibold text-foreground">
                   {entry.summary.parentRuns}
                 </span>
-                <span className="text-slate-500 dark:text-slate-400">
+                <span className="text-muted-foreground">
                   Points
                 </span>
-                <span className="text-right font-semibold text-slate-900 dark:text-slate-100">
+                <span className="text-right font-semibold text-foreground">
                   {entry.summary.plottedPoints}
                 </span>
-                <span className="text-slate-500 dark:text-slate-400">
+                <span className="text-muted-foreground">
                   Median
                 </span>
-                <span className="text-right font-semibold text-slate-900 dark:text-slate-100">
+                <span className="text-right font-semibold text-foreground">
                   {formatFlowCompletionTimeLabel(entry.summary.median)}
                 </span>
-                <span className="text-slate-500 dark:text-slate-400">p90</span>
-                <span className="text-right font-semibold text-slate-900 dark:text-slate-100">
+                <span className="text-muted-foreground">p90</span>
+                <span className="text-right font-semibold text-foreground">
                   {formatFlowCompletionTimeLabel(entry.summary.p90)}
                 </span>
-                <span className="text-slate-500 dark:text-slate-400">Max</span>
-                <span className="text-right font-semibold text-slate-900 dark:text-slate-100">
+                <span className="text-muted-foreground">Max</span>
+                <span className="text-right font-semibold text-foreground">
                   {formatFlowCompletionTimeLabel(entry.summary.max)}
                 </span>
               </div>
             ) : (
-              <p className="mt-4 text-sm text-slate-500 dark:text-slate-300">
+              <p className="mt-4 text-sm text-muted-foreground">
                 No points match this cohort under the current filters.
               </p>
             )}
           </div>
         ))}
-        <div className="rounded-2xl border border-teal-100 bg-teal-50/80 p-4 dark:border-teal-500/35 dark:bg-teal-950/25 lg:min-w-44">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">
+        <div className="rounded-lg border border-border bg-accent p-4 dark:border-primary/40 lg:min-w-44">
+          <p className="text-[11px] font-semibold tracking-normal text-primary">
             B - A
           </p>
           {deltas.length > 0 ? (
             <div className="mt-4 space-y-3">
               {deltas.map((delta) => (
                 <div key={delta.label}>
-                  <p className="text-xs text-teal-800/75 dark:text-teal-200/75">
+                  <p className="text-xs text-primary">
                     {delta.label}
                   </p>
-                  <p className="mt-0.5 text-lg font-semibold text-slate-900 dark:text-slate-100">
+                  <p className="mt-0.5 text-lg font-semibold text-foreground">
                     {delta.value}
                   </p>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="mt-4 text-sm text-teal-800 dark:text-teal-200">
+            <p className="mt-4 text-sm text-primary">
               Need data in both cohorts.
             </p>
           )}
@@ -1982,7 +1979,7 @@ function CohortEcdfChart({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[44vh] min-h-[320px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[44vh] min-h-[320px] w-full overflow-visible rounded-lg bg-card text-muted-foreground"
       role="img"
       aria-label="ECDF comparison of cohort flow completion time"
     >
@@ -2065,7 +2062,7 @@ function FacetGrid({
         {columnValues.map((queueSize) => (
           <div
             key={`queue-${queueSize}`}
-            className="rounded-xl border border-rose-100 bg-white/80 px-3 py-2 text-center text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/45 dark:text-slate-200"
+            className="rounded-lg border border-border bg-card px-3 py-2 text-center text-xs font-semibold text-foreground"
           >
             {`${formatAxisValue(queueSize)} KB Queue`}
           </div>
@@ -2073,7 +2070,7 @@ function FacetGrid({
         {rowValues.flatMap((rowValue) => [
           <div
             key={`workload-${rowValue}`}
-            className="flex items-center rounded-xl border border-rose-100 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900/45 dark:text-slate-200"
+            className="flex items-center rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground"
           >
             {`${formatAxisValue(rowValue)} MB`}
           </div>,
@@ -2107,7 +2104,7 @@ function FacetCellChart({ points }: { points: FlowPoint[] }) {
 
   if (!summary) {
     return (
-      <div className="flex min-h-[170px] items-center justify-center rounded-2xl border border-dashed border-rose-200 bg-white/70 p-3 text-xs text-slate-400 dark:border-slate-700 dark:bg-slate-900/35 dark:text-slate-500">
+      <div className="flex min-h-[170px] items-center justify-center rounded-lg border border-dashed border-border bg-card p-3 text-xs text-muted-foreground">
         No data
       </div>
     );
@@ -2128,36 +2125,36 @@ function FacetCellChart({ points }: { points: FlowPoint[] }) {
   }));
 
   return (
-    <div className="rounded-2xl border border-rose-100 bg-white/85 p-3 dark:border-slate-700 dark:bg-slate-900/45">
+    <div className="rounded-lg border border-border bg-card p-3">
       <div className="mb-2 grid grid-cols-3 gap-1 text-center">
         <div>
-          <p className="text-[9px] uppercase tracking-[0.1em] text-slate-400">
+          <p className="text-[11px] tracking-normal text-muted-foreground">
             Points
           </p>
-          <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">
+          <p className="text-xs font-semibold text-foreground">
             {summary.plottedPoints}
           </p>
         </div>
         <div>
-          <p className="text-[9px] uppercase tracking-[0.1em] text-slate-400">
+          <p className="text-[11px] tracking-normal text-muted-foreground">
             Median
           </p>
-          <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">
+          <p className="text-xs font-semibold text-foreground">
             {formatFlowCompletionTimeLabel(summary.median)}
           </p>
         </div>
         <div>
-          <p className="text-[9px] uppercase tracking-[0.1em] text-slate-400">
+          <p className="text-[11px] tracking-normal text-muted-foreground">
             p90
           </p>
-          <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">
+          <p className="text-xs font-semibold text-foreground">
             {formatFlowCompletionTimeLabel(summary.p90)}
           </p>
         </div>
       </div>
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="h-36 w-full rounded-xl bg-[#fff2f8] text-slate-300 dark:bg-slate-950/45 dark:text-slate-600"
+        className="h-36 w-full rounded-lg bg-card text-muted-foreground dark:bg-background"
         role="img"
         aria-label="Facet scatter of flow completion time versus added delay"
       >
@@ -2191,7 +2188,7 @@ function FacetCellChart({ points }: { points: FlowPoint[] }) {
           x={padding.left + innerWidth / 2}
           y={height - 7}
           textAnchor="middle"
-          className="fill-slate-500 text-[9px] dark:fill-slate-400"
+          className="fill-slate-500 text-[11px] dark:fill-slate-400"
         >
           Added Delay
         </text>
@@ -2200,7 +2197,7 @@ function FacetCellChart({ points }: { points: FlowPoint[] }) {
           y={padding.top + innerHeight / 2}
           transform={`rotate(-90 11 ${padding.top + innerHeight / 2})`}
           textAnchor="middle"
-          className="fill-slate-500 text-[9px] dark:fill-slate-400"
+          className="fill-slate-500 text-[11px] dark:fill-slate-400"
         >
           FCT
         </text>
@@ -2256,7 +2253,7 @@ function ScatterPlot({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-lg bg-card text-muted-foreground"
       role="img"
       aria-label="Run-level scatter plot of added delay versus flow completion time"
       onMouseLeave={() => setHoveredPoint(null)}
@@ -2339,42 +2336,42 @@ function ScatterPlot({
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 20}
-            className="fill-white text-[11px] font-semibold"
+            className="fill-white text-xs font-semibold"
           >
             {`Client ${hoveredPoint.clientNumber}`}
           </text>
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 38}
-            className="fill-slate-200 text-[10px]"
+            className="fill-slate-200 text-[11px]"
           >
             {`Parent run: #${hoveredPoint.parentRunId}`}
           </text>
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 56}
-            className="fill-slate-300 text-[10px]"
+            className="fill-slate-300 text-[11px]"
           >
             {`Added delay: ${formatAxisValue(hoveredPoint.delayAddedMs)} ms`}
           </text>
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 74}
-            className="fill-slate-300 text-[10px]"
+            className="fill-slate-300 text-[11px]"
           >
             {`Flow completion: ${formatFlowCompletionTimeLabel(hoveredPoint.flowCompletionTimeMs)}`}
           </text>
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 92}
-            className="fill-slate-300 text-[10px]"
+            className="fill-slate-300 text-[11px]"
           >
             {`Queue buffer: ${formatQueueBufferLabel(hoveredPoint.queueBufferSizeKilobyte)}`}
           </text>
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 110}
-            className="fill-slate-300 text-[10px]"
+            className="fill-slate-300 text-[11px]"
           >
             {`Workload: ${formatWorkloadLabel(hoveredPoint.clientFileSizeMegabytes)}`}
           </text>
@@ -2690,7 +2687,7 @@ function ParentRunConnectionChart({
     <div className="space-y-4">
       <svg
         viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-        className={`h-[48vh] min-h-[340px] w-full select-none overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600 ${
+        className={`h-[48vh] min-h-[340px] w-full select-none overflow-visible rounded-lg bg-card text-muted-foreground ${
           isZoomed ? (panState ? "cursor-grabbing" : "cursor-grab") : ""
         }`}
         style={{ userSelect: "none" }}
@@ -2904,7 +2901,7 @@ function ParentRunConnectionChart({
         ) : null}
       </svg>
       <div className="flex flex-wrap items-center justify-center gap-2">
-        <span className="text-xs text-slate-600 dark:text-slate-300">
+        <span className="text-xs text-muted-foreground">
           Double-click to zoom. Drag to pan while zoomed in.
         </span>
         <Button
@@ -2913,7 +2910,7 @@ function ParentRunConnectionChart({
           type="button"
           onClick={handleZoomOut}
           disabled={!isZoomed}
-          className="h-auto whitespace-normal rounded-xl border border-rose-200/80 bg-white px-3 py-2 text-sm text-slate-700 transition enabled:hover:border-rose-300 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-200 dark:enabled:hover:border-slate-500"
+          className="h-auto whitespace-normal rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground transition enabled:hover:border-border disabled:cursor-not-allowed disabled:opacity-45"
         >
           Zoom out
         </Button>
@@ -2926,7 +2923,7 @@ function ParentRunConnectionChart({
             setHoveredPoint(null);
           }}
           disabled={!isZoomed}
-          className="h-auto whitespace-normal rounded-xl border border-rose-200/80 bg-white px-3 py-2 text-sm text-slate-700 transition enabled:hover:border-rose-300 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-200 dark:enabled:hover:border-slate-500"
+          className="h-auto whitespace-normal rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground transition enabled:hover:border-border disabled:cursor-not-allowed disabled:opacity-45"
         >
           Reset zoom
         </Button>
@@ -3024,7 +3021,7 @@ function OtherClientDelayFlowChart({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[48vh] min-h-[340px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[48vh] min-h-[340px] w-full overflow-visible rounded-lg bg-card text-muted-foreground"
       role="img"
       aria-label="Scatter plot of flow completion time versus the other client's added delay"
       onMouseLeave={() => setHoveredPoint(null)}
@@ -3243,7 +3240,7 @@ function BoxPlot({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-lg bg-card text-muted-foreground"
       role="img"
       aria-label="Box plot of flow completion time grouped by added delay"
       onMouseLeave={() => setHoveredStat(null)}
@@ -3269,7 +3266,7 @@ function BoxPlot({
                 x={x}
                 y={CHART_HEIGHT - CHART_PADDING.bottom + 21}
                 textAnchor="middle"
-                className="fill-slate-500 text-[10px] dark:fill-slate-400"
+                className="fill-slate-500 text-[11px] dark:fill-slate-400"
               >
                 {formatAxisValue(delayAddedMs)}
               </text>
@@ -3389,35 +3386,35 @@ function BoxPlot({
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 20}
-            className="fill-white text-[11px] font-semibold"
+            className="fill-white text-xs font-semibold"
           >
             {`Client ${hoveredStat.clientNumber}`}
           </text>
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 38}
-            className="fill-slate-200 text-[10px]"
+            className="fill-slate-200 text-[11px]"
           >
             {`Delay: ${formatAxisValue(hoveredStat.delayAddedMs)} ms | Runs: ${hoveredStat.count}`}
           </text>
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 56}
-            className="fill-slate-300 text-[10px]"
+            className="fill-slate-300 text-[11px]"
           >
             {`Median: ${formatFlowCompletionTimeLabel(hoveredStat.median)}`}
           </text>
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 74}
-            className="fill-slate-300 text-[10px]"
+            className="fill-slate-300 text-[11px]"
           >
             {`Q1-Q3: ${formatFlowCompletionTimeLabel(hoveredStat.q1)} to ${formatFlowCompletionTimeLabel(hoveredStat.q3)}`}
           </text>
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 92}
-            className="fill-slate-300 text-[10px]"
+            className="fill-slate-300 text-[11px]"
           >
             {`Min-Max: ${formatFlowCompletionTimeLabel(hoveredStat.min)} to ${formatFlowCompletionTimeLabel(hoveredStat.max)}`}
           </text>
@@ -3496,7 +3493,7 @@ function EcdfChart({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-lg bg-card text-muted-foreground"
       role="img"
       aria-label="Empirical cumulative distribution of flow completion time"
       onMouseLeave={() => setHoveredPoint(null)}
@@ -3583,49 +3580,49 @@ function EcdfChart({
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 20}
-            className="fill-white text-[11px] font-semibold"
+            className="fill-white text-xs font-semibold"
           >
             {`Client ${hoveredPoint.clientNumber}`}
           </text>
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 38}
-            className="fill-slate-200 text-[10px]"
+            className="fill-slate-200 text-[11px]"
           >
             {`Parent run: #${hoveredPoint.parentRunId}`}
           </text>
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 56}
-            className="fill-slate-300 text-[10px]"
+            className="fill-slate-300 text-[11px]"
           >
             {`Flow completion: ${formatFlowCompletionTimeLabel(hoveredPoint.flowCompletionTimeMs)}`}
           </text>
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 74}
-            className="fill-slate-300 text-[10px]"
+            className="fill-slate-300 text-[11px]"
           >
             {`Percentile: ${formatAxisValue(hoveredPoint.percentile)}%`}
           </text>
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 92}
-            className="fill-slate-300 text-[10px]"
+            className="fill-slate-300 text-[11px]"
           >
             {`Added delay: ${formatAxisValue(hoveredPoint.delayAddedMs)} ms`}
           </text>
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 110}
-            className="fill-slate-300 text-[10px]"
+            className="fill-slate-300 text-[11px]"
           >
             {`Queue buffer: ${formatQueueBufferLabel(hoveredPoint.queueBufferSizeKilobyte)}`}
           </text>
           <text
             x={tooltipPosition.x + 14}
             y={tooltipPosition.y + 128}
-            className="fill-slate-300 text-[10px]"
+            className="fill-slate-300 text-[11px]"
           >
             {`Workload: ${formatWorkloadLabel(hoveredPoint.clientFileSizeMegabytes)}`}
           </text>
@@ -3810,7 +3807,7 @@ function RidgelinePlot({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${chartHeight}`}
-      className="w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="w-full overflow-visible rounded-lg bg-card text-muted-foreground"
       role="img"
         aria-label="Ridgeline plot of flow completion distributions by added delay and client"
     >
@@ -3847,7 +3844,7 @@ function RidgelinePlot({
             x={ridgePadding.left - 10}
             y={ridge.baselineY + 3}
             textAnchor="end"
-            className="fill-slate-500 text-[10px] dark:fill-slate-400"
+            className="fill-slate-500 text-[11px] dark:fill-slate-400"
           >
             {`${formatAxisValue(ridge.delayAddedMs)} | C${ridge.clientNumber}`}
           </text>
@@ -3872,7 +3869,7 @@ function RidgelinePlot({
               x={x}
               y={chartHeight - ridgePadding.bottom + 21}
               textAnchor="middle"
-              className="fill-slate-500 text-[10px] dark:fill-slate-400"
+              className="fill-slate-500 text-[11px] dark:fill-slate-400"
             >
               {formatFlowCompletionTimeLabel(tick)}
             </text>
@@ -3982,7 +3979,7 @@ function ViolinPlot({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-lg bg-card text-muted-foreground"
       role="img"
       aria-label="Violin plot of flow completion time by delay and client"
     >
@@ -4009,7 +4006,7 @@ function ViolinPlot({
                 x={x}
                 y={CHART_HEIGHT - CHART_PADDING.bottom + 21}
                 textAnchor="middle"
-                className="fill-slate-500 text-[10px] dark:fill-slate-400"
+                className="fill-slate-500 text-[11px] dark:fill-slate-400"
               >
                 {formatAxisValue(delayAddedMs)}
               </text>
@@ -4078,7 +4075,7 @@ function DensityGridChart({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-lg bg-card text-muted-foreground"
       role="img"
         aria-label="Density grid of flow completion time by added delay and client"
     >
@@ -4102,7 +4099,7 @@ function DensityGridChart({
                 x={x}
                 y={CHART_HEIGHT - CHART_PADDING.bottom + 21}
                 textAnchor="middle"
-                className="fill-slate-500 text-[10px] dark:fill-slate-400"
+                className="fill-slate-500 text-[11px] dark:fill-slate-400"
               >
                 {formatAxisValue(delayAddedMs)}
               </text>
@@ -4201,7 +4198,7 @@ function MedianSlopeChart({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[48vh] min-h-[340px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[48vh] min-h-[340px] w-full overflow-visible rounded-lg bg-card text-muted-foreground"
       role="img"
       aria-label="Slope chart comparing median flow completion time between two delay levels"
     >
@@ -4224,7 +4221,7 @@ function MedianSlopeChart({
                   x={tick.x}
                   y={CHART_HEIGHT - CHART_PADDING.bottom + 21}
                   textAnchor="middle"
-                  className="fill-slate-500 text-[10px] dark:fill-slate-400"
+                  className="fill-slate-500 text-[11px] dark:fill-slate-400"
                 >
                   {tick.label}
                 </text>
@@ -4256,7 +4253,7 @@ function MedianSlopeChart({
             <text
               x={rightX + 10}
               y={toY + 4}
-              className="fill-slate-600 text-[11px] dark:fill-slate-300"
+              className="fill-slate-600 text-xs dark:fill-slate-300"
             >
               {entry.label}
             </text>
@@ -4320,7 +4317,7 @@ function PercentileHeatmap({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[48vh] min-h-[340px] w-full overflow-visible rounded-[1.3rem] bg-[#fff2f8] text-slate-300 dark:bg-slate-900/65 dark:text-slate-600"
+      className="h-[48vh] min-h-[340px] w-full overflow-visible rounded-lg bg-card text-muted-foreground"
       role="img"
       aria-label="Heatmap of percentile flow completion time by delay and client"
     >
@@ -4344,7 +4341,7 @@ function PercentileHeatmap({
                 x={x}
                 y={CHART_HEIGHT - CHART_PADDING.bottom + 21}
                 textAnchor="middle"
-                className="fill-slate-500 text-[10px] dark:fill-slate-400"
+                className="fill-slate-500 text-[11px] dark:fill-slate-400"
               >
                 {formatAxisValue(delayAddedMs)}
               </text>
@@ -4361,7 +4358,7 @@ function PercentileHeatmap({
               x={CHART_PADDING.left - 10}
               y={y + 3}
               textAnchor="end"
-              className="fill-slate-500 text-[10px] dark:fill-slate-400"
+              className="fill-slate-500 text-[11px] dark:fill-slate-400"
             >
               {entry.label}
             </text>
@@ -4391,7 +4388,7 @@ function PercentileHeatmap({
               x={x + cellWidth / 2}
               y={y + cellHeight / 2 + 4}
               textAnchor="middle"
-              className="fill-white text-[10px] font-medium"
+              className="fill-white text-[11px] font-medium"
             >
               {formatAxisValue(stat.value)}
             </text>
@@ -4922,25 +4919,25 @@ export function AggregateGraphsPanel({
     : displayedModePoints.length;
 
   return (
-    <main className="space-atmosphere relative min-h-[var(--page-height)] overflow-hidden p-5 sm:p-10">
-      <div className="relative z-10 mx-auto flex min-h-[calc(var(--page-height)-5rem)] w-full max-w-7xl items-center justify-center py-3 sm:py-8">
-        <section className="fade-up-on-load w-full rounded-[2rem] border border-rose-200/70 bg-[#fff8fc]/95 p-6 shadow-2xl dark:border-slate-600 dark:bg-slate-800/82 sm:p-8">
+    <main className="bg-background relative min-h-[var(--page-height)] overflow-hidden p-5 sm:p-10">
+      <div className="mx-auto w-full max-w-7xl">
+        <section className="w-full rounded-lg border border-border bg-card p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
-                Jumpserve
+              <p className="text-xs font-medium text-muted-foreground">
+                Comparative analysis
               </p>
-              <h1 className="mt-3 text-3xl font-semibold text-slate-900 dark:text-slate-100">
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground">
                 Aggregate Graphs
               </h1>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+              <p className="mt-2 text-sm text-muted-foreground">
                 Showing {displayedPlottedPointCount} plotted parent-run/client
                 points across {displayedParentRunCount} active tests.
               </p>
             </div>
             <Link
               href={EMULATED_TESTS_MODULE.href}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-300/80 bg-[#fff5fb] text-slate-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/85 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-foreground transition hover:border-primary/40 hover:bg-accent dark:hover:border-border"
               aria-label="Go to emulated tests module"
             >
               <svg
@@ -4961,15 +4958,15 @@ export function AggregateGraphsPanel({
 
           <PageDescriptorPanel />
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="mt-6 grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
             <aside className="flex items-start">
-              <div className="fade-up-on-load-delay-2 w-full rounded-[1.75rem] border border-emerald-200/80 bg-emerald-50/95 p-4 shadow-inner shadow-emerald-900/5 dark:border-emerald-500/35 dark:bg-emerald-950/30 sm:p-5">
+              <div className="w-full rounded-lg border border-border bg-muted/40 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
+                    <p className="text-xs font-semibold tracking-normal text-foreground">
                       Filters
                     </p>
-                    <p className="mt-2 text-sm text-emerald-800 dark:text-emerald-200">
+                    <p className="mt-2 text-sm text-foreground">
                       {hasManualTestSelection
                         ? `${selectedTestCountLabel} from presets`
                         : `${selectedTestCountLabel} from filters`}
@@ -4980,7 +4977,7 @@ export function AggregateGraphsPanel({
                     size="sm"
                     type="button"
                     onClick={clearInlineFilters}
-                    className="h-auto whitespace-normal rounded-xl border border-emerald-300/80 bg-white px-3 py-2 text-xs font-semibold text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-50 dark:border-emerald-500/45 dark:bg-slate-900/45 dark:text-emerald-200 dark:hover:border-emerald-400"
+                    className="h-auto whitespace-normal rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:border-primary/40 hover:bg-accent dark:border-primary/40"
                   >
                     Reset
                   </Button>
@@ -5028,18 +5025,21 @@ export function AggregateGraphsPanel({
                     onValueChange={setParentRunSearchQuery}
                   />
                 </div>
-                <div className="mt-5 rounded-2xl border border-emerald-200/70 bg-emerald-100/55 p-3 dark:border-emerald-500/30 dark:bg-emerald-950/20">
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">
-                    Filter Meanings
-                  </p>
-                  <DescriptorList items={FILTER_DESCRIPTOR_ITEMS} compact />
-                </div>
+                <Collapsible className="group mt-4 border-t border-border pt-2">
+                  <CollapsibleTrigger render={<Button variant="ghost" size="sm" className="w-full justify-between px-0 text-muted-foreground" />}>
+                    Filter definitions
+                    <ChevronDown aria-hidden="true" className="size-4 transition-transform group-data-open:rotate-180" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-2">
+                    <DescriptorList items={FILTER_DESCRIPTOR_ITEMS} compact />
+                  </CollapsibleContent>
+                </Collapsible>
                 <Button
                   variant="ghost"
                   size="sm"
                   type="button"
                   onClick={() => setIsTestModalOpen(true)}
-                  className="h-auto whitespace-normal group mt-5 flex w-full items-center justify-between rounded-xl border border-emerald-500/80 bg-emerald-500 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-600 hover:bg-emerald-600 hover:shadow-[0_12px_24px_-16px_rgba(5,150,105,0.55)] dark:border-emerald-400/80 dark:bg-emerald-400 dark:text-slate-950 dark:hover:border-emerald-300 dark:hover:bg-emerald-300 dark:hover:shadow-[0_12px_24px_-16px_rgba(52,211,153,0.55)]"
+                  className="h-auto whitespace-normal group mt-5 flex w-full items-center justify-between rounded-lg border border-primary/40 bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:border-primary/40 hover:bg-primary/90 dark:hover:border-border "
                 >
                   <span>Presets</span>
                   <svg
@@ -5065,7 +5065,7 @@ export function AggregateGraphsPanel({
                       setSelectedTestIds([]);
                       setSelectedTestGroups([]);
                     }}
-                    className="h-auto whitespace-normal mt-2 w-full rounded-xl border border-emerald-300/80 bg-white px-3 py-2 text-sm font-medium text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-50 dark:border-emerald-500/45 dark:bg-slate-900/45 dark:text-emerald-200 dark:hover:border-emerald-400"
+                    className="h-auto whitespace-normal mt-2 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition hover:border-primary/40 hover:bg-accent dark:border-primary/40"
                   >
                     Use Filter Matches
                   </Button>
@@ -5074,17 +5074,17 @@ export function AggregateGraphsPanel({
             </aside>
 
             <div className="space-y-6">
-              <div className="fade-up-on-load-delay-1 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <ExplorerModeSegmentedControl
                   selectedMode={selectedExplorerMode}
                   onSelectedModeChange={setSelectedExplorerMode}
                 />
-                <p className="text-sm text-slate-500 dark:text-slate-300">
+                <p className="text-sm text-muted-foreground">
                   {selectedExplorerModeConfig.subtitle}
                 </p>
               </div>
               {displayedModePoints.length > 0 ? (
-                <div className="fade-up-on-load-delay-1">
+                <div className="">
                   <ChartCard
                     eyebrow="Parent Runs"
                     title={
@@ -5199,7 +5199,7 @@ export function AggregateGraphsPanel({
                   </ChartCard>
                 </div>
               ) : (
-                <div className="fade-up-on-load-delay-1">
+                <div className="">
                   <ChartCard
                     eyebrow="Filters"
                     title="No Matching Runs"
@@ -5217,19 +5217,19 @@ export function AggregateGraphsPanel({
       <Dialog open={isTestModalOpen} onOpenChange={setIsTestModalOpen}>
           <DialogContent
             showCloseButton={false}
-            className="flex min-h-[60vh] max-h-[84vh] w-full max-w-[calc(100%-2rem)] sm:max-w-5xl flex-col overflow-hidden rounded-[1.75rem] border border-rose-200/80 bg-[#fff8fc] p-5 shadow-2xl dark:border-slate-600 dark:bg-slate-800 sm:p-6"
+            className="flex min-h-[60vh] max-h-[84vh] w-full max-w-[calc(100%-2rem)] sm:max-w-5xl flex-col overflow-hidden rounded-lg border border-border bg-card p-5 sm:p-6"
           >
             <div className="flex shrink-0 items-start justify-between gap-4">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                <p className="text-xs font-semibold tracking-normal text-muted-foreground">
                   Aggregate Tests
                 </p>
                 <DialogTitle
-                  className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100"
+                  className="mt-2 text-2xl font-semibold text-foreground"
                 >
                   Select Available Tests
                 </DialogTitle>
-                <DialogDescription className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                <DialogDescription className="mt-2 text-sm text-muted-foreground">
                   Choose prepared test groups, then inspect or adjust the matched
                   parent runs.
                 </DialogDescription>
@@ -5239,7 +5239,7 @@ export function AggregateGraphsPanel({
                 size="sm"
                 type="button"
                 onClick={() => setIsTestModalOpen(false)}
-                className="h-auto whitespace-normal inline-flex h-10 w-10 items-center justify-center rounded-xl border border-rose-300/80 bg-white text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:hover:border-slate-400"
+                className="h-auto whitespace-normal inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-foreground transition hover:border-primary/40 hover:bg-accent dark:hover:border-border"
                 aria-label="Close test selection modal"
               >
                 <svg
@@ -5257,13 +5257,13 @@ export function AggregateGraphsPanel({
               </Button>
             </div>
 
-            <section className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-rose-200/80 bg-white/75 shadow-inner dark:border-slate-600 dark:bg-slate-900/35">
-              <div className="shrink-0 border-b border-rose-200/80 bg-white/95 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/95">
+            <section className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">
+              <div className="shrink-0 border-b border-border bg-card px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                  <h3 className="text-xs font-semibold tracking-normal text-muted-foreground">
                     Test Groups
                   </h3>
-                  <span className="rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-800 dark:border-teal-500/45 dark:bg-teal-500/15 dark:text-teal-200">
+                  <span className="rounded-full border border-border bg-accent px-2.5 py-1 text-xs font-semibold text-primary dark:border-primary/40">
                     {selectedTestCountLabel}
                   </span>
                 </div>
@@ -5279,10 +5279,10 @@ export function AggregateGraphsPanel({
                   return (
                     <div
                       key={group.label}
-                      className={`rounded-2xl border p-3 text-sm transition ${
+                      className={`rounded-lg border p-3 text-sm transition ${
                         isSelected
-                          ? "border-teal-300 bg-teal-50/85 text-slate-900 shadow-sm dark:border-teal-500/60 dark:bg-teal-500/12 dark:text-slate-100"
-                          : "border-rose-100/80 bg-white text-slate-700 hover:border-rose-200 hover:bg-[#fffafd] dark:border-slate-700 dark:bg-slate-900/45 dark:text-slate-100 dark:hover:border-slate-600 dark:hover:bg-slate-900/70"
+                          ? "border-border bg-accent text-foreground dark:border-primary/40"
+                          : "border-border bg-card text-foreground hover:border-border hover:bg-card dark:hover:bg-accent"
                       }`}
                     >
                       <Label className="flex cursor-pointer items-start gap-3">
@@ -5294,45 +5294,45 @@ export function AggregateGraphsPanel({
                               checked,
                             )
                           }
-                          className="mt-1 h-4 w-4 shrink-0 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
+                          className="mt-1 h-4 w-4 shrink-0 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                         />
                         <span className="min-w-0 flex-1">
                           <span className="flex flex-wrap items-start justify-between gap-2">
-                            <span className="text-base font-semibold leading-6 text-slate-900 dark:text-slate-100">
+                            <span className="text-base font-semibold leading-6 text-foreground">
                               {formatGroupScenarioLabel(group)}
                             </span>
-                            <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
+                            <span className="shrink-0 rounded-full border border-border bg-accent px-2 py-0.5 text-xs font-semibold text-primary dark:bg-card dark:text-foreground">
                               {`${matchedTests.length} ${
                                 matchedTests.length === 1 ? "test" : "tests"
                               }`}
                             </span>
                           </span>
-                          <span className="mt-1 block break-words font-mono text-[11px] leading-4 text-slate-500 dark:text-slate-400">
+                          <span className="mt-1 block break-words font-mono text-xs leading-4 text-muted-foreground">
                             {formatGroupFileLabel(group.label)}
                           </span>
                           <span className="mt-3 flex flex-wrap gap-1.5">
-                            <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 ring-1 ring-rose-100 dark:bg-slate-950/40 dark:text-slate-200 dark:ring-slate-700">
+                            <span className="rounded-full bg-card px-2 py-1 text-xs font-semibold text-muted-foreground ring-1 ring-ring/30 dark:bg-background dark:text-foreground dark:ring-slate-700">
                               {`${group.client1Cca.toUpperCase()} / ${group.client2Cca.toUpperCase()}`}
                             </span>
-                            <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 ring-1 ring-rose-100 dark:bg-slate-950/40 dark:text-slate-200 dark:ring-slate-700">
+                            <span className="rounded-full bg-card px-2 py-1 text-xs font-semibold text-muted-foreground ring-1 ring-ring/30 dark:bg-background dark:text-foreground dark:ring-slate-700">
                               {`${formatAxisValue(group.bottleneckRateMegabit)} mbit`}
                             </span>
-                            <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 ring-1 ring-rose-100 dark:bg-slate-950/40 dark:text-slate-200 dark:ring-slate-700">
+                            <span className="rounded-full bg-card px-2 py-1 text-xs font-semibold text-muted-foreground ring-1 ring-ring/30 dark:bg-background dark:text-foreground dark:ring-slate-700">
                               {`${formatAxisValue(group.queueBufferSizeKilobyte)} KB queue`}
                             </span>
-                            <span className="rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 ring-1 ring-rose-100 dark:bg-slate-950/40 dark:text-slate-200 dark:ring-slate-700">
+                            <span className="rounded-full bg-card px-2 py-1 text-xs font-semibold text-muted-foreground ring-1 ring-ring/30 dark:bg-background dark:text-foreground dark:ring-slate-700">
                               {`${workloadMegabytes} MB`}
                             </span>
                           </span>
                         </span>
                       </Label>
                       <Collapsible className="group mt-3">
-                        <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-rose-100 bg-white/70 px-3 py-2 text-left text-xs font-medium text-slate-600 transition hover:border-rose-200 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:border-slate-600">
+                        <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-border bg-card px-3 py-2 text-left text-xs font-medium text-muted-foreground transition hover:border-border hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:text-foreground">
                           <span>{`View matched parent runs (${matchedTests.length})`}</span>
-                          <span aria-hidden="true" className="ml-2 h-2 w-2 rotate-45 border-b-2 border-r-2 border-slate-500 transition group-data-open:rotate-[225deg] dark:border-slate-300" />
+                          <span aria-hidden="true" className="ml-2 h-2 w-2 rotate-45 border-b-2 border-r-2 border-border transition group-data-open:rotate-[225deg]" />
                         </CollapsibleTrigger>
-                        <CollapsibleContent className="mt-2 rounded-xl border border-rose-100 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-950/35">
-                          <p className="text-[11px] leading-5 text-slate-500 dark:text-slate-300">
+                        <CollapsibleContent className="mt-2 rounded-lg border border-border bg-card p-3 dark:bg-background">
+                          <p className="text-xs leading-5 text-muted-foreground">
                             {formatGroupCriteria(group)}
                           </p>
                           {matchedTests.length > 0 ? (
@@ -5340,14 +5340,14 @@ export function AggregateGraphsPanel({
                               {matchedTests.map((test) => (
                                 <li
                                   key={test.parentRunId}
-                                  className="rounded-lg bg-rose-50/70 px-2 py-1.5 font-mono text-[11px] leading-5 text-slate-700 dark:bg-slate-800/65 dark:text-slate-100"
+                                  className="rounded-lg bg-accent px-2 py-1.5 font-mono text-xs leading-5 text-foreground dark:bg-card"
                                 >
                                   {formatGroupMatchedTestParameters(test)}
                                 </li>
                               ))}
                             </ul>
                           ) : (
-                            <p className="mt-2 text-xs text-slate-500 dark:text-slate-300">
+                            <p className="mt-2 text-xs text-muted-foreground">
                               No available tests match this category.
                             </p>
                           )}
@@ -5360,13 +5360,13 @@ export function AggregateGraphsPanel({
             </section>
 
             <div className="mt-5 hidden min-h-0 flex-1 gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
-              <aside className="min-h-0 overflow-y-auto rounded-2xl border border-rose-200/80 bg-[#fff3f8] p-4 dark:border-slate-600 dark:bg-slate-900/55">
+              <aside className="min-h-0 overflow-y-auto rounded-lg border border-border bg-card p-4">
                 <div>
                   <FilterDropdown
                     label="CCA"
                     summary={
                       <span className="min-h-4 flex-1 pr-2">
-                        <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                        <span className="block text-xs font-semibold tracking-normal text-muted-foreground">
                           CCA
                         </span>
                         <span className="mt-1 block truncate">
@@ -5381,7 +5381,7 @@ export function AggregateGraphsPanel({
                       {AVAILABLE_CCA_FILTERS.map((cca) => (
                         <Label
                           key={cca}
-                          className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
+                          className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-foreground transition hover:bg-accent"
                         >
                           <span className="flex min-w-0 items-center gap-2">
                             <Checkbox
@@ -5395,11 +5395,11 @@ export function AggregateGraphsPanel({
                                     : current.filter((value) => value !== cca),
                                 )
                               }
-                              className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
+                              className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                             />
                             <span className="truncate uppercase">{cca}</span>
                           </span>
-                          <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
+                          <span className="rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
                             {ccaOptionCounts.get(cca) ?? 0}
                           </span>
                         </Label>
@@ -5413,7 +5413,7 @@ export function AggregateGraphsPanel({
                     label="Workload"
                     summary={
                       <span className="min-h-4 flex-1 pr-2">
-                        <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                        <span className="block text-xs font-semibold tracking-normal text-muted-foreground">
                           Workload
                         </span>
                         <span className="mt-1 block truncate">
@@ -5428,7 +5428,7 @@ export function AggregateGraphsPanel({
                       {AVAILABLE_WORKLOAD_FILTERS.map((workload) => (
                         <Label
                           key={workload}
-                          className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
+                          className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-foreground transition hover:bg-accent"
                         >
                           <span className="flex min-w-0 items-center gap-2">
                             <Checkbox
@@ -5444,11 +5444,11 @@ export function AggregateGraphsPanel({
                                     : current.filter((value) => value !== workload),
                                 )
                               }
-                              className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
+                              className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                             />
                             <span className="truncate">{`${workload}MB`}</span>
                           </span>
-                          <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
+                          <span className="rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
                             {workloadOptionCounts.get(workload) ?? 0}
                           </span>
                         </Label>
@@ -5462,7 +5462,7 @@ export function AggregateGraphsPanel({
                     label="Queue Buffer Size"
                     summary={
                       <span className="min-h-4 flex-1 pr-2">
-                        <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                        <span className="block text-xs font-semibold tracking-normal text-muted-foreground">
                           Queue Buffer Size
                         </span>
                         <span className="mt-1 block truncate">
@@ -5479,7 +5479,7 @@ export function AggregateGraphsPanel({
                       {AVAILABLE_QUEUE_BUFFER_FILTERS.map((queueBufferSize) => (
                         <Label
                           key={queueBufferSize}
-                          className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
+                          className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-foreground transition hover:bg-accent"
                         >
                           <span className="flex min-w-0 items-center gap-2">
                             <Checkbox
@@ -5499,11 +5499,11 @@ export function AggregateGraphsPanel({
                                       ),
                                 )
                               }
-                              className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
+                              className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                             />
                             <span className="truncate">{`${queueBufferSize}KB`}</span>
                           </span>
-                          <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
+                          <span className="rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
                             {queueBufferOptionCounts.get(queueBufferSize) ?? 0}
                           </span>
                         </Label>
@@ -5513,8 +5513,8 @@ export function AggregateGraphsPanel({
                 </div>
               </aside>
 
-              <div className="min-h-0 overflow-y-auto rounded-2xl border border-rose-200/80 bg-white dark:border-slate-600 dark:bg-slate-900/45">
-                <div className="border-b border-rose-200/80 px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:border-slate-600 dark:text-slate-400">
+              <div className="min-h-0 overflow-y-auto rounded-lg border border-border bg-card">
+                <div className="border-b border-border px-4 py-3 text-xs font-semibold tracking-normal text-muted-foreground">
                   Parent Run
                 </div>
                 {filteredAvailableTests.length > 0 ? (
@@ -5542,7 +5542,7 @@ export function AggregateGraphsPanel({
                         onClick={() => toggleTestSelection(test.parentRunId)}
                         className={`h-auto whitespace-normal block w-full cursor-pointer px-4 py-3 text-left text-sm transition ${
                           isSelected
-                            ? `border-x border-rose-300 bg-rose-100 text-slate-900 dark:border-slate-400 dark:bg-slate-700/70 dark:text-slate-100 ${
+                            ? `border-x border-border bg-accent text-foreground dark:bg-card ${
                                 previousSelected
                                   ? "border-t-0"
                                   : "rounded-t-xl border-t"
@@ -5551,7 +5551,7 @@ export function AggregateGraphsPanel({
                                   ? "border-b-0"
                                   : "rounded-b-xl border-b"
                               }`
-                            : "border-b border-rose-100/80 bg-white text-slate-700 hover:bg-rose-50/70 dark:border-slate-700/80 dark:bg-slate-900/20 dark:text-slate-200 dark:hover:bg-slate-800/60"
+                            : "border-b border-border bg-card text-foreground hover:bg-accent"
                         }`}
                       >
                         <span className="block min-w-0">
@@ -5566,7 +5566,7 @@ export function AggregateGraphsPanel({
                                 : `${formatAxisValue(test.bottleneckRateMegabit)} mbit`
                             }`}
                           </span>
-                          <span className="mt-1 block text-xs text-slate-600 dark:text-slate-300">
+                          <span className="mt-1 block text-xs text-muted-foreground">
                             {test.clientDetails.length > 0
                               ? test.clientDetails
                                   .map(
@@ -5594,7 +5594,7 @@ export function AggregateGraphsPanel({
                     );
                   })
                 ) : (
-                  <div className="flex h-40 items-center justify-center px-6 text-sm text-slate-500 dark:text-slate-300">
+                  <div className="flex h-40 items-center justify-center px-6 text-sm text-muted-foreground">
                     No tests match the current filters.
                   </div>
                 )}
@@ -5603,7 +5603,7 @@ export function AggregateGraphsPanel({
 
             <div className="mt-5 flex shrink-0 flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm text-slate-600 dark:text-slate-300">
+                <p className="text-sm text-muted-foreground">
                   {selectedTestCountLabel}
                 </p>
                 <Button
@@ -5611,7 +5611,7 @@ export function AggregateGraphsPanel({
                   size="sm"
                   type="button"
                   onClick={() => setSelectedTestIds([])}
-                  className="h-auto whitespace-normal rounded-xl border border-rose-200/80 bg-white px-3 py-2 text-sm text-slate-700 transition hover:border-rose-300 hover:bg-rose-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+                  className="h-auto whitespace-normal rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground transition hover:border-border hover:bg-accent"
                 >
                   Deselect All
                 </Button>
@@ -5622,7 +5622,7 @@ export function AggregateGraphsPanel({
                   size="sm"
                   type="button"
                   onClick={toggleAllTests}
-                  className="h-auto whitespace-normal rounded-xl border border-rose-200/80 bg-white px-3 py-2 text-sm text-slate-700 transition hover:border-rose-300 hover:bg-rose-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+                  className="h-auto whitespace-normal rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground transition hover:border-border hover:bg-accent"
                 >
                   Select All
                 </Button>
@@ -5631,7 +5631,7 @@ export function AggregateGraphsPanel({
                   size="sm"
                   type="button"
                   onClick={() => setIsTestModalOpen(false)}
-                  className="h-auto whitespace-normal rounded-xl border border-rose-300/80 bg-rose-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-600 dark:border-rose-400"
+                  className="h-auto whitespace-normal rounded-lg border border-border bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 dark:border-primary/40"
                 >
                   Done
                 </Button>
