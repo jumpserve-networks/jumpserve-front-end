@@ -51,17 +51,21 @@ test("all existing tools and result URLs belong to the emulated module", () => {
 });
 
 test("global, unavailable, external and similarly prefixed routes do not inherit emulated tools", () => {
-  for (const path of ["/", "/login", "/api/parent-runs", "/benchmarks-other", "/chatty", "/modules/congestion-control-emulated-other", "/modules/congestion-control-real-world", "/modules/cdn", "//example.com/chat", "/chat\\evil", "/chat\nevil"]) {
+  for (const path of ["/", "/login", "/api/parent-runs", "/benchmarks-other", "/chatty", "/modules/congestion-control-emulated-other", "/modules/cdn", "//example.com/chat", "/chat\\evil", "/chat\nevil"]) {
     assert.equal(getTestModuleForPath(path), undefined, path);
   }
   assert.equal(getTestModuleForPath(getSafeNextPath("/benchmarks/../login")), undefined);
 });
 
-test("module availability keeps planned real-world tests out of launch navigation", () => {
+test("real-world tools and results belong to their own available module", () => {
   const testModule = getTestModule("congestion-control-real-world");
   assert.equal(testModule.name, "Congestion Control Real World Tests");
-  assert.equal(testModule.status, "coming-soon");
-  assert.deepEqual(testModule.sections, []);
+  assert.equal(testModule.status, "available");
+  for (const path of [testModule.href, "/real-world", "/real-world/job-123"]) {
+    assert.equal(getTestModuleForPath(path), testModule);
+    assert.notEqual(getPostLoginPath(path), "/");
+  }
+  assert.equal(getTestModuleForPath("/real-world-other"), undefined);
   assert.equal(getTestModule("unknown"), undefined);
 });
 

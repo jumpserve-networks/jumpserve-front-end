@@ -46,10 +46,21 @@ The header shows the current module, its tools, and an **All modules** link.
 Module selection is navigation, not an authorization boundary; every protected
 page still requires the existing Google authentication.
 
-**Congestion Control Real World Tests** (`congestion-control-real-world`) is the
-next planned module. Its chooser card is disabled and marked **Coming soon**.
-There is no real-world launcher or results view yet. CDN and other networking
-modules can follow without reusing the emulated tools or data implicitly.
+**Congestion Control Real World Tests** (`congestion-control-real-world`) opens
+`/real-world` for EC2 placement, server CCA, shared bottleneck settings, test
+launching, and history. `/real-world/[jobId]` shows lifecycle, cancellation,
+machine placement, receiver throughput, and signed raw-report downloads.
+It uses authenticated `/real-world/*` endpoints on the existing
+`NEXT_PUBLIC_BENCHMARK_API_URL`; the backend validates the Supabase access token.
+Deploy the matching infrastructure/runtime before publishing this UI.
+
+Each run creates one server, one bottleneck, and 1–16 receivers. AWS Regions,
+Availability Zones, and compatible instance offerings come from the account's
+live catalog. Disabled choices explain opt-in or compatibility restrictions.
+The workload is simultaneous TCP bulk transfer for a selected duration; CCAs are
+CUBIC, stock Linux BBR, and Reno. Per-machine results remain separate from the
+emulated comparison tools. EC2/network resources are removed after each run;
+raw evidence and metadata are retained in private S3 and DynamoDB respectively.
 
 `lib/test-modules.ts` is the module catalog: stable IDs, names, availability,
 home routes, and tool navigation. A new module needs its own pages, data queries,

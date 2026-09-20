@@ -8,8 +8,12 @@ Last updated: 2026-09-20
 visitors see a public overview at `/` and sign in at `/login`. After sign-in,
 users choose a module at `/`. All current application tools belong to
 **Congestion Control Emulated Tests** (`congestion-control-emulated`).
-**Congestion Control Real World Tests** (`congestion-control-real-world`) is the
-next planned module and is displayed as **Coming soon**.
+**Congestion Control Real World Tests** (`congestion-control-real-world`) provides
+the separate EC2 launcher/history at `/real-world` and results at
+`/real-world/[jobId]`. Its authenticated `/real-world/*` API shares the benchmark
+API origin, with separate DynamoDB metadata and private S3 reports. Each test
+creates a server, bottleneck, and 1–16 receivers; do not mix its duration-based
+throughput results with emulated file completion times.
 
 Define module names, availability, home routes, and tool ownership in
 `lib/test-modules.ts`. Existing emulated tool URLs remain valid. New modules need

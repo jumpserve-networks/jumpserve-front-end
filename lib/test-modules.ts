@@ -55,10 +55,10 @@ export const TEST_MODULES: readonly TestModule[] = [
     id: "congestion-control-real-world",
     name: "Congestion Control Real World Tests",
     description:
-      "Measure congestion control behavior across real network paths. This is the next module planned for JumpServe.",
-    status: "coming-soon",
+      "Measure congestion control across AWS network paths using a server, a shared bottleneck, and independently placed receivers.",
+    status: "available",
     href: "/modules/congestion-control-real-world",
-    sections: [],
+    sections: [{ href: "/real-world", label: "Real World Tests", description: "Launch EC2 tests, choose machine locations, and inspect results.", paths: ["/real-world"] }],
   },
 ];
 

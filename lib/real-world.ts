@@ -1,0 +1,47 @@
+export const REAL_WORLD_CCAS = ["cubic", "bbr", "reno"] as const;
+export type Placement = { region: string; zone_id: string; instance_type: string };
+export type AwsRegion = { region: string; enabled: boolean; opt_in_status: string };
+export type AwsZone = { zone_id: string; name: string; type: string; available: boolean; reason: string | null; instance_types: string[] };
+export type RealWorldConfig = {
+  server: Placement; bottleneck: Placement; receivers: Placement[];
+  cca: typeof REAL_WORLD_CCAS[number]; duration_seconds: number; rate_mbit: number; buffer_kbytes: number; notes: string;
+};
+export type RealWorldJob = {
+  job_id: string; status: string; created_at: number; updated_at: number; deadline: number;
+  config: RealWorldConfig; cancel_requested?: boolean; error?: string; cleanup_error?: string;
+  runtime_revision: string; outcome?: string;
+  nodes: (Placement & { name: string; role: string; instance_id?: string; image_id?: string; state?: string })[];
+  results?: { receiver: string; received_mbit_per_second: number; received_bytes: number; seconds: number; start_epoch: number }[];
+};
+export const emptyPlacement = (): Placement => ({ region: "", zone_id: "", instance_type: "" });
+export function defaultRealWorldConfig(): RealWorldConfig {
+  return { server: emptyPlacement(), bottleneck: emptyPlacement(), receivers: [emptyPlacement(), emptyPlacement()],
+    cca: "cubic", duration_seconds: 60, rate_mbit: 100, buffer_kbytes: 125, notes: "" };
+}
+export function isRealWorldTerminal(status: string) {
+  return ["completed", "failed", "cancelled"].includes(status);
+}
+export function validateRealWorldConfig(config: RealWorldConfig): string | null {
+  if (!REAL_WORLD_CCAS.includes(config.cca)) return "Choose a supported server CCA.";
+  if (config.receivers.length < 1 || config.receivers.length > 16) return "Choose between 1 and 16 receivers.";
+  const machines = [config.server, config.bottleneck, ...config.receivers];
+  if (machines.some((node) => !node.region || !node.zone_id || !node.instance_type)) {
+    return "Choose a Region, Availability Zone, and instance type for every machine.";
+  }
+  for (const [name, value, min, max] of [
+    ["Duration (seconds)", config.duration_seconds, 10, 600],
+    ["Bottleneck rate (Mbit/s)", config.rate_mbit, 1, 1000],
+    ["Buffer (decimal kB)", config.buffer_kbytes, 2, 10000],
+  ] as const) {
+    if (!Number.isInteger(value) || value < min || value > max) return `${name} must be an integer from ${min} to ${max}.`;
+  }
+  if (config.notes.length > 4000) return "Notes must be at most 4,000 characters.";
+  return null;
+}
+
+export const REAL_WORLD_STAGES: Record<string, string> = {
+  provisioning: "Creating EC2 instances", bootstrapping: "Preparing machines", configuring: "Configuring the network",
+  checking: "Checking routes and connectivity", starting: "Scheduling simultaneous transfers", running: "Measuring TCP transfers",
+  cleaning: "Terminating instances and removing network resources", completed: "Completed · resources removed",
+  failed: "Failed · resources removed", cancelled: "Cancelled · resources removed",
+};
