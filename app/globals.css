@@ -5,7 +5,7 @@
 
 :root {
   /* Keep viewport-sized pages below the responsive shared header. */
-  --site-header-height: 10rem;
+  --site-header-height: 4.5rem;
   --page-height: calc(100dvh - var(--site-header-height));
   --background: #f2f1f0;
   --foreground: #0f172a;
@@ -56,15 +56,19 @@
   --scrollbar-thumb-hover: rgba(15, 118, 110, 0.66);
 }
 
+:root:has([data-slot="site-header"][data-module]) {
+  --site-header-height: 13rem;
+}
+
 @media (min-width: 640px) {
-  :root {
-    --site-header-height: 7rem;
+  :root:has([data-slot="site-header"][data-module]) {
+    --site-header-height: 9rem;
   }
 }
 
 @media (min-width: 1280px) {
-  :root {
-    --site-header-height: 4.5rem;
+  :root:has([data-slot="site-header"][data-module]) {
+    --site-header-height: 7.5rem;
   }
 }
 

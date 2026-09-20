@@ -1,27 +1,19 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
-import { LandingPageShell } from "@/app/components/landing-page-shell";
+import { ModuleChooser } from "@/app/components/module-chooser";
 import { requireGoogleUser } from "@/lib/auth";
-import {
-  THEME_PREFERENCE_COOKIE_NAME,
-  parsePreference,
-} from "@/lib/theme-preference-shared";
 
 export const metadata: Metadata = {
-  title: "Jumpserve",
-  description: "Landing page for Jumpserve's emulation run explorer and aggregate graph tools.",
+  title: "Test Modules",
+  description: "Choose a JumpServe module for network testing and analysis.",
 };
 
-export default async function Home() {
-  await requireGoogleUser("/");
-
-  const cookieStore = await cookies();
-  const initialHasStoredThemePreference =
-    parsePreference(cookieStore.get(THEME_PREFERENCE_COOKIE_NAME)?.value) !== null;
-
-  return (
-    <LandingPageShell
-      initialHasStoredThemePreference={initialHasStoredThemePreference}
-    />
-  );
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string | string[] }>;
+}) {
+  const { next } = await searchParams;
+  const nextPath = typeof next === "string" ? next : undefined;
+  await requireGoogleUser(nextPath ? `/?${new URLSearchParams({ next: nextPath })}` : "/");
+  return <ModuleChooser nextPath={nextPath} />;
 }

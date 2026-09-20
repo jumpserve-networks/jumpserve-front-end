@@ -1,5 +1,8 @@
 "use client";
 
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/app/components/ui/alert-dialog";
+import { Button } from "@/app/components/ui/button";
+
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -124,7 +127,7 @@ function LogViewer({ jobId }: { jobId: string }) {
       );
       if (res.ok) {
         const data = await res.json();
-        if (data.events?.length > 0) setLogs(data.events);
+        return data.events as LogEntry[] | undefined;
       }
     } catch {
       // Logs may not be available yet
@@ -133,20 +136,26 @@ function LogViewer({ jobId }: { jobId: string }) {
 
   useEffect(() => {
     if (!expanded) return;
-    fetchLogs();
-    const interval = setInterval(fetchLogs, 5_000);
-    return () => clearInterval(interval);
+    let active = true;
+    const refresh = () => void fetchLogs().then((events) => {
+      if (active && events?.length) setLogs(events);
+    });
+    refresh();
+    const interval = setInterval(refresh, 5_000);
+    return () => { active = false; clearInterval(interval); };
   }, [expanded, fetchLogs]);
 
   return (
     <div className="mt-2">
-      <button
+      <Button
+        variant="ghost"
+        size="sm"
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+        className="h-auto whitespace-normal text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
       >
         {expanded ? "Hide logs" : "Show logs"}
-      </button>
+      </Button>
       {expanded && (
         <div className="mt-1 max-h-60 overflow-y-auto rounded-md bg-slate-900 p-3 font-mono text-xs text-green-400">
           {logs.length === 0 ? (
@@ -198,10 +207,10 @@ function LiveMetrics({ jobId }: { jobId: string }) {
         },
         (payload) => {
           setSnapshotCount((c) => c + 1);
-          const row = payload.new as any;
+          const row = payload.new;
           setLatestMetrics({
-            megabits_per_second: parseFloat(row.megabits_per_second),
-            round_trip_time_ms: parseFloat(row.round_trip_time_ms),
+            megabits_per_second: parseFloat(String(row.megabits_per_second)),
+            round_trip_time_ms: parseFloat(String(row.round_trip_time_ms)),
           });
         },
       )
@@ -241,30 +250,42 @@ function CancelButton({
   onCancelled: () => void;
 }) {
   const [cancelling, setCancelling] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleCancel() {
-    if (!confirm("Cancel this benchmark? The EC2 instance will be terminated."))
-      return;
     setCancelling(true);
+    setError(null);
     try {
       await cancelBenchmark(jobId);
+      setOpen(false);
       onCancelled();
-    } catch (err: any) {
-      alert(`Failed to cancel: ${err.message}`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Unable to cancel this benchmark.");
     } finally {
       setCancelling(false);
     }
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleCancel}
-      disabled={cancelling}
-      className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-500/40 dark:bg-slate-800 dark:text-red-400 dark:hover:bg-red-500/10"
-    >
-      {cancelling ? "Cancelling..." : "Cancel"}
-    </button>
+    <AlertDialog open={open} onOpenChange={(nextOpen) => { if (!cancelling) { setOpen(nextOpen); setError(null); } }}>
+      <AlertDialogTrigger render={<Button variant="outline" size="sm" className="text-destructive" />}>
+        Cancel
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Cancel this benchmark?</AlertDialogTitle>
+          <AlertDialogDescription>The EC2 instance will be terminated.</AlertDialogDescription>
+        </AlertDialogHeader>
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={cancelling}>Keep running</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={handleCancel} disabled={cancelling}>
+            {cancelling ? "Cancelling..." : "Cancel benchmark"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -273,21 +294,30 @@ export function BenchmarkStatus() {
   const [jobs, setJobs] = useState<BenchmarkJob[]>([]);
   const [loading, setLoading] = useState(true);
 
-  async function fetchJobs() {
+  const loadJobs = useCallback(async () => {
     const { data } = await supabase
       .from("benchmark_jobs")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(20);
-    if (data) setJobs(data);
-    setLoading(false);
+    return data as BenchmarkJob[] | null;
+  }, [supabase]);
+
+  function fetchJobs() {
+    void loadJobs().then((data) => { if (data) setJobs(data); });
   }
 
   useEffect(() => {
-    fetchJobs();
-    const interval = setInterval(fetchJobs, 5_000);
-    return () => clearInterval(interval);
-  }, []);
+    let active = true;
+    const refresh = () => void loadJobs().then((data) => {
+      if (!active) return;
+      if (data) setJobs(data);
+      setLoading(false);
+    });
+    refresh();
+    const interval = setInterval(refresh, 5_000);
+    return () => { active = false; clearInterval(interval); };
+  }, [loadJobs]);
 
   if (loading) {
     return (

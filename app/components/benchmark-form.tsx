@@ -1,5 +1,10 @@
 "use client";
 
+import { Label } from "@/app/components/ui/label";
+import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
+import { Textarea } from "@/app/components/ui/textarea";
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -259,7 +264,7 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
       {/* Load saved config */}
       {savedConfigs.length > 0 && (
         <div>
-          <label htmlFor="benchmark-saved-config" className={labelClasses}>Load Saved Config</label>
+          <Label htmlFor="benchmark-saved-config" className={labelClasses}>Load Saved Config</Label>
           <div className="flex gap-2">
             <Select
               items={savedConfigs.map((saved) => ({
@@ -286,22 +291,24 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
                 ))}
               </SelectContent>
             </Select>
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               type="button"
               onClick={handleDeleteConfig}
               disabled={!selectedConfigId}
-              className="whitespace-nowrap rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-30 dark:border-red-500/40 dark:bg-slate-800 dark:text-red-400 dark:hover:bg-red-500/10"
+              className="h-auto whitespace-normal whitespace-nowrap rounded-lg border border-red-300 bg-white px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-30 dark:border-red-500/40 dark:bg-slate-800 dark:text-red-400 dark:hover:bg-red-500/10"
               title="Delete selected config"
             >
               Delete
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {/* Script */}
       <div>
-        <label htmlFor="benchmark-script" className={labelClasses}>Benchmark Script</label>
+        <Label htmlFor="benchmark-script" className={labelClasses}>Benchmark Script</Label>
         <Select
           items={AVAILABLE_SCRIPTS}
           value={config.script}
@@ -324,8 +331,8 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
 
       {/* Number of clients */}
       <div>
-        <label className={labelClasses}>Number of Clients</label>
-        <input
+        <Label htmlFor="benchmark-num-clients" className={labelClasses}>Number of Clients</Label>
+        <Input id="benchmark-num-clients"
           type="number"
           min={1}
           max={10}
@@ -339,10 +346,10 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
 
       {/* Client delays */}
       <div>
-        <label className={labelClasses}>
+        <Label htmlFor="benchmark-delays" className={labelClasses}>
           Client Delays (ms, comma-separated)
-        </label>
-        <input
+        </Label>
+        <Input id="benchmark-delays"
           type="text"
           className={inputClasses}
           value={delaysText}
@@ -356,10 +363,10 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
 
       {/* Client CCAs */}
       <div>
-        <label className={labelClasses}>
+        <Label htmlFor="benchmark-ccas" className={labelClasses}>
           Client CCAs (comma-separated)
-        </label>
-        <input
+        </Label>
+        <Input id="benchmark-ccas"
           type="text"
           className={inputClasses}
           value={config.client_ccas.join(", ")}
@@ -368,28 +375,30 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
         />
         <div className="mt-2 flex flex-wrap gap-1.5">
           {AVAILABLE_CCAS.map((cca) => (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               key={cca}
               type="button"
               onClick={() => handleCcaToggle(cca)}
-              className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition ${
+              className={`h-auto whitespace-normal rounded-full px-2.5 py-0.5 text-xs font-medium transition ${
                 config.client_ccas.includes(cca)
                   ? "bg-rose-500 text-white"
                   : "bg-slate-200 text-slate-600 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
               }`}
             >
               {cca}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
 
       {/* File sizes */}
       <div>
-        <label className={labelClasses}>
+        <Label htmlFor="benchmark-file-sizes" className={labelClasses}>
           Client File Sizes (MB, comma-separated)
-        </label>
-        <input
+        </Label>
+        <Input id="benchmark-file-sizes"
           type="text"
           className={inputClasses}
           value={fileSizesText}
@@ -400,10 +409,10 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
 
       {/* Start delays */}
       <div>
-        <label className={labelClasses}>
+        <Label htmlFor="benchmark-start-delays" className={labelClasses}>
           Client Start Delays (ms, comma-separated)
-        </label>
-        <input
+        </Label>
+        <Input id="benchmark-start-delays"
           type="text"
           className={inputClasses}
           value={startDelaysText}
@@ -415,7 +424,7 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
       {multiBottleneck ? (
         <div className="space-y-4">
           <div>
-            <label htmlFor="benchmark-topology" className={labelClasses}>Network Topology</label>
+            <Label htmlFor="benchmark-topology" className={labelClasses}>Network Topology</Label>
             <Select
               items={AVAILABLE_TOPOLOGIES}
               value={config.topology ?? null}
@@ -434,18 +443,18 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
             </Select>
           </div>
           <div>
-            <label htmlFor="benchmark-link-rates" className={labelClasses}>Bottleneck Rates (Mbit/s, comma-separated)</label>
-            <input id="benchmark-link-rates" className={inputClasses} value={ratesText} onChange={(e) => setRatesText(e.target.value)} />
+            <Label htmlFor="benchmark-link-rates" className={labelClasses}>Bottleneck Rates (Mbit/s, comma-separated)</Label>
+            <Input id="benchmark-link-rates" className={inputClasses} value={ratesText} onChange={(e) => setRatesText(e.target.value)} />
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Two values, one per bottleneck.</p>
           </div>
           <div>
-            <label htmlFor="benchmark-link-buffers" className={labelClasses}>Buffer Sizes (KB, comma-separated)</label>
-            <input id="benchmark-link-buffers" className={inputClasses} value={buffersText} onChange={(e) => setBuffersText(e.target.value)} />
+            <Label htmlFor="benchmark-link-buffers" className={labelClasses}>Buffer Sizes (KB, comma-separated)</Label>
+            <Input id="benchmark-link-buffers" className={inputClasses} value={buffersText} onChange={(e) => setBuffersText(e.target.value)} />
           </div>
           {config.topology === "dumbbell" && (
             <div>
-              <label htmlFor="benchmark-client-groups" className={labelClasses}>Client Group Sizes (comma-separated)</label>
-              <input id="benchmark-client-groups" className={inputClasses} value={groupsText} onChange={(e) => setGroupsText(e.target.value)} />
+              <Label htmlFor="benchmark-client-groups" className={labelClasses}>Client Group Sizes (comma-separated)</Label>
+              <Input id="benchmark-client-groups" className={inputClasses} value={groupsText} onChange={(e) => setGroupsText(e.target.value)} />
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Two positive group sizes adding up to {config.num_clients}. Clients are assigned in order.</p>
             </div>
           )}
@@ -459,8 +468,8 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
           {/* Bottleneck rate */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelClasses}>Bottleneck Rate (Mbit/s)</label>
-              <input
+              <Label htmlFor="benchmark-rate" className={labelClasses}>Bottleneck Rate (Mbit/s)</Label>
+              <Input id="benchmark-rate"
                 type="number"
                 min={1}
                 max={10000}
@@ -475,8 +484,8 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
               />
             </div>
             <div>
-              <label className={labelClasses}>Buffer Size (KB)</label>
-              <input
+              <Label htmlFor="benchmark-buffer" className={labelClasses}>Buffer Size (KB)</Label>
+              <Input id="benchmark-buffer"
                 type="number"
                 min={0}
                 max={100000}
@@ -494,7 +503,7 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
 
           {/* Metrics source */}
           <div>
-            <label htmlFor="benchmark-metrics-source" className={labelClasses}>Metrics Source</label>
+            <Label htmlFor="benchmark-metrics-source" className={labelClasses}>Metrics Source</Label>
             <Select
               items={[
                 { value: "kernel", label: "Kernel" },
@@ -525,8 +534,8 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
         </p>
         <div className="space-y-3">
           <div>
-            <label className={labelClasses}>Experiment Name</label>
-            <input
+            <Label htmlFor="benchmark-name" className={labelClasses}>Experiment Name</Label>
+            <Input id="benchmark-name"
               type="text"
               className={inputClasses}
               value={experimentName}
@@ -535,8 +544,8 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
             />
           </div>
           <div>
-            <label className={labelClasses}>Tags (comma-separated)</label>
-            <input
+            <Label htmlFor="benchmark-tags" className={labelClasses}>Tags (comma-separated)</Label>
+            <Input id="benchmark-tags"
               type="text"
               className={inputClasses}
               value={tagsText}
@@ -545,8 +554,8 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
             />
           </div>
           <div>
-            <label className={labelClasses}>Notes</label>
-            <textarea
+            <Label htmlFor="benchmark-notes" className={labelClasses}>Notes</Label>
+            <Textarea id="benchmark-notes"
               className={inputClasses + " resize-none"}
               rows={2}
               value={notes}
@@ -560,25 +569,29 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
       {/* Save config */}
       <div className="space-y-2">
         <div className="flex gap-2">
-          <input
+          <Input
             type="text"
             className={inputClasses}
+            aria-label="Config name"
             value={configName}
             onChange={(e) => setConfigName(e.target.value)}
             placeholder="Config name..."
           />
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             type="button"
             onClick={handleSaveConfig}
             disabled={!configName.trim()}
-            className="whitespace-nowrap rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+            className="h-auto whitespace-normal whitespace-nowrap rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             Save Config
-          </button>
+          </Button>
         </div>
-        <input
+        <Input
           type="text"
           className={inputClasses}
+          aria-label="Config description"
           value={configDescription}
           onChange={(e) => setConfigDescription(e.target.value)}
           placeholder="Description (optional) — e.g. 2-client fairness test at 100 Mbit"
@@ -586,14 +599,16 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
       </div>
 
       {/* Launch */}
-      <button
+      <Button
+        variant="ghost"
+        size="sm"
         type="button"
         onClick={handleLaunch}
         disabled={isLaunching}
-        className="w-full rounded-lg bg-rose-500 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-rose-600 disabled:cursor-wait disabled:opacity-60"
+        className="h-auto whitespace-normal w-full rounded-lg bg-rose-500 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-rose-600 disabled:cursor-wait disabled:opacity-60"
       >
         {isLaunching ? "Launching..." : "Run Benchmark"}
-      </button>
+      </Button>
 
       {/* Message */}
       {message && (

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EMULATED_TESTS_MODULE } from "@/lib/test-modules";
 import { ParentRunIndex } from "@/app/components/parent-run-index";
 import { fetchParentRunsForIndexPage } from "@/lib/emulated-runs-data";
 
@@ -21,8 +22,8 @@ export async function TestLookupHome({
           ) : (
             <section className="relative w-full max-w-4xl rounded-3xl border border-rose-200/70 bg-[#fff8fc]/95 p-10 text-center shadow-xl dark:border-slate-600 dark:bg-slate-800/82">
               <Link
-                href="/"
-                aria-label="Go to home"
+                href={EMULATED_TESTS_MODULE.href}
+                aria-label="Go to emulated tests module"
                 className="absolute top-6 right-6 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-300/80 bg-[#fff5fb] text-slate-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/85 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
               >
                 <svg

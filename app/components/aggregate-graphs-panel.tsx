@@ -1,5 +1,12 @@
 "use client";
 
+import { Button } from "@/app/components/ui/button";
+import { Label } from "@/app/components/ui/label";
+import { Input } from "@/app/components/ui/input";
+import { Checkbox } from "@/app/components/ui/checkbox";
+
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/app/components/ui/dialog";
+import { ToggleGroup, ToggleGroupItem } from "@/app/components/ui/toggle-group";
 import { FilterDropdown } from "@/app/components/ui/filter-dropdown";
 import {
   Collapsible,
@@ -8,6 +15,7 @@ import {
 } from "@/app/components/ui/collapsible";
 
 import Link from "next/link";
+import { EMULATED_TESTS_MODULE } from "@/lib/test-modules";
 import { useId, useMemo, useState } from "react";
 import type { AggregateDelayGraphPoint } from "@/lib/emulated-runs-data";
 
@@ -1094,28 +1102,33 @@ function GraphViewSegmentedControl({
   onSelectedViewIdChange: (viewId: AggregateGraphViewId) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2" role="tablist" aria-label="Chart view">
+    <ToggleGroup
+      value={[selectedViewId]}
+      onValueChange={(values) => {
+        const option = AGGREGATE_GRAPH_VIEWS.find((item) => item.id === values[0]);
+        if (option) onSelectedViewIdChange(option.id);
+      }}
+      className="flex flex-wrap gap-2"
+      aria-label="Chart view"
+    >
       {AGGREGATE_GRAPH_VIEWS.map((view) => {
         const isSelected = selectedViewId === view.id;
 
         return (
-          <button
+          <ToggleGroupItem value={view.id}
             key={view.id}
             type="button"
-            role="tab"
-            aria-selected={isSelected}
-            onClick={() => onSelectedViewIdChange(view.id)}
-            className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
+            className={`h-auto whitespace-normal rounded-xl border px-3 py-2 text-sm font-medium transition ${
               isSelected
                 ? "border-teal-500 bg-teal-500 text-white shadow-sm dark:border-teal-300 dark:bg-teal-300 dark:text-slate-950"
                 : "border-rose-200/80 bg-white text-slate-700 hover:border-rose-300 hover:bg-rose-50 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-500"
             }`}
           >
             {view.label}
-          </button>
+          </ToggleGroupItem>
         );
       })}
-    </div>
+    </ToggleGroup>
   );
 }
 
@@ -1127,32 +1140,34 @@ function ExplorerModeSegmentedControl({
   onSelectedModeChange: (mode: AggregateExplorerMode) => void;
 }) {
   return (
-    <div
+    <ToggleGroup
+      value={[selectedMode]}
+      onValueChange={(values) => {
+        const option = EXPLORER_MODES.find((item) => item.id === values[0]);
+        if (option) onSelectedModeChange(option.id);
+      }}
       className="inline-flex flex-wrap gap-2 rounded-2xl border border-rose-200/80 bg-white/80 p-1 dark:border-slate-600 dark:bg-slate-900/50"
-      role="tablist"
+
       aria-label="Explorer mode"
     >
       {EXPLORER_MODES.map((mode) => {
         const isSelected = selectedMode === mode.id;
 
         return (
-          <button
+          <ToggleGroupItem value={mode.id}
             key={mode.id}
             type="button"
-            role="tab"
-            aria-selected={isSelected}
-            onClick={() => onSelectedModeChange(mode.id)}
-            className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+            className={`h-auto whitespace-normal rounded-xl px-3 py-2 text-sm font-semibold transition ${
               isSelected
                 ? "bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-950"
                 : "text-slate-600 hover:bg-rose-50 dark:text-slate-300 dark:hover:bg-slate-800"
             }`}
           >
             {mode.label}
-          </button>
+          </ToggleGroupItem>
         );
       })}
-    </div>
+    </ToggleGroup>
   );
 }
 
@@ -1164,30 +1179,35 @@ function PercentileSelector({
   onSelectedPercentileChange: (percentile: PercentileKey) => void;
 }) {
   return (
-    <div
+    <ToggleGroup
+      value={[selectedPercentile]}
+      onValueChange={(values) => {
+        const option = PERCENTILE_OPTIONS.find((item) => item.value === values[0]);
+        if (option) onSelectedPercentileChange(option.value);
+      }}
       className="flex flex-wrap gap-2"
-      role="group"
+
       aria-label="Heatmap percentile"
     >
       {PERCENTILE_OPTIONS.map((option) => {
         const isSelected = selectedPercentile === option.value;
 
         return (
-          <button
+          <ToggleGroupItem value={option.value}
             key={option.value}
             type="button"
-            onClick={() => onSelectedPercentileChange(option.value)}
-            className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
+
+            className={`h-auto whitespace-normal rounded-xl border px-3 py-2 text-sm font-medium transition ${
               isSelected
                 ? "border-rose-500 bg-rose-500 text-white shadow-sm dark:border-rose-300 dark:bg-rose-300 dark:text-slate-950"
                 : "border-rose-200/80 bg-white text-slate-700 hover:border-rose-300 hover:bg-rose-50 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-500"
             }`}
           >
             {option.label}
-          </button>
+          </ToggleGroupItem>
         );
       })}
-    </div>
+    </ToggleGroup>
   );
 }
 
@@ -1203,17 +1223,17 @@ function TextFilterControl({
   onValueChange: (value: string) => void;
 }) {
   return (
-    <label className="flex min-w-[13rem] flex-1 flex-col gap-1.5">
+    <Label className="flex min-w-[13rem] flex-1 flex-col gap-1.5">
       <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
         {label}
       </span>
-      <input
+      <Input
         value={value}
         onChange={(event) => onValueChange(event.target.value)}
         placeholder={placeholder}
         className="h-10 rounded-xl border border-rose-200/80 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-teal-700/50"
       />
-    </label>
+    </Label>
   );
 }
 
@@ -1244,7 +1264,9 @@ function StringFilterChips({
           const isSelected = selectedValues.includes(option);
 
           return (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               key={option}
               type="button"
               onClick={() =>
@@ -1254,14 +1276,14 @@ function StringFilterChips({
                     : [...selectedValues, option].sort((a, b) => a.localeCompare(b)),
                 )
               }
-              className={`rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition ${
+              className={`h-auto whitespace-normal rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition ${
                 isSelected
                   ? "border-teal-500 bg-teal-500 text-white dark:border-teal-300 dark:bg-teal-300 dark:text-slate-950"
                   : "border-rose-200/80 bg-white text-slate-700 hover:border-rose-300 hover:bg-rose-50 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-500"
               }`}
             >
               {formatLabel(option)}
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -1296,7 +1318,9 @@ function NumberFilterChips({
           const isSelected = selectedValues.includes(option);
 
           return (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               key={option}
               type="button"
               onClick={() =>
@@ -1306,14 +1330,14 @@ function NumberFilterChips({
                     : [...selectedValues, option].sort((a, b) => a - b),
                 )
               }
-              className={`rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition ${
+              className={`h-auto whitespace-normal rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition ${
                 isSelected
                   ? "border-teal-500 bg-teal-500 text-white dark:border-teal-300 dark:bg-teal-300 dark:text-slate-950"
                   : "border-rose-200/80 bg-white text-slate-700 hover:border-rose-300 hover:bg-rose-50 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-500"
               }`}
             >
               {formatLabel(option)}
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -1340,7 +1364,9 @@ function ClientFilterControl({
         const isSelected = selectedClientNumbers.includes(clientNumber);
 
         return (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             key={clientNumber}
             type="button"
             onClick={() =>
@@ -1350,7 +1376,7 @@ function ClientFilterControl({
                   : [...selectedClientNumbers, clientNumber].sort((a, b) => a - b),
               )
             }
-            className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+            className={`h-auto whitespace-normal inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition ${
               isSelected
                 ? "border-rose-400 bg-rose-50 text-slate-900 dark:border-slate-400 dark:bg-slate-700/90 dark:text-slate-100"
                 : "border-rose-200/80 bg-white text-slate-700 hover:border-rose-300 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 dark:hover:border-slate-500"
@@ -1361,7 +1387,7 @@ function ClientFilterControl({
               style={{ backgroundColor: colorForClientPoint(clientNumber) }}
             />
             <span>{`Client ${clientNumber}`}</span>
-          </button>
+          </Button>
         );
       })}
     </div>
@@ -2881,25 +2907,29 @@ function ParentRunConnectionChart({
         <span className="text-xs text-slate-600 dark:text-slate-300">
           Double-click to zoom. Drag to pan while zoomed in.
         </span>
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           type="button"
           onClick={handleZoomOut}
           disabled={!isZoomed}
-          className="rounded-xl border border-rose-200/80 bg-white px-3 py-2 text-sm text-slate-700 transition enabled:hover:border-rose-300 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-200 dark:enabled:hover:border-slate-500"
+          className="h-auto whitespace-normal rounded-xl border border-rose-200/80 bg-white px-3 py-2 text-sm text-slate-700 transition enabled:hover:border-rose-300 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-200 dark:enabled:hover:border-slate-500"
         >
           Zoom out
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
           type="button"
           onClick={() => {
             setZoomDomain(null);
             setHoveredPoint(null);
           }}
           disabled={!isZoomed}
-          className="rounded-xl border border-rose-200/80 bg-white px-3 py-2 text-sm text-slate-700 transition enabled:hover:border-rose-300 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-200 dark:enabled:hover:border-slate-500"
+          className="h-auto whitespace-normal rounded-xl border border-rose-200/80 bg-white px-3 py-2 text-sm text-slate-700 transition enabled:hover:border-rose-300 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-200 dark:enabled:hover:border-slate-500"
         >
           Reset zoom
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -4377,7 +4407,6 @@ export function AggregateGraphsPanel({
 }: {
   data: AggregateDelayGraphPoint[];
 }) {
-  const testModalTitleId = useId().replace(/:/g, "");
   const flowPoints = useMemo(
     () =>
       data
@@ -4910,9 +4939,9 @@ export function AggregateGraphsPanel({
               </p>
             </div>
             <Link
-              href="/"
+              href={EMULATED_TESTS_MODULE.href}
               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-300/80 bg-[#fff5fb] text-slate-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/85 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
-              aria-label="Go to home"
+              aria-label="Go to emulated tests module"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -4946,13 +4975,15 @@ export function AggregateGraphsPanel({
                         : `${selectedTestCountLabel} from filters`}
                     </p>
                   </div>
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     type="button"
                     onClick={clearInlineFilters}
-                    className="rounded-xl border border-emerald-300/80 bg-white px-3 py-2 text-xs font-semibold text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-50 dark:border-emerald-500/45 dark:bg-slate-900/45 dark:text-emerald-200 dark:hover:border-emerald-400"
+                    className="h-auto whitespace-normal rounded-xl border border-emerald-300/80 bg-white px-3 py-2 text-xs font-semibold text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-50 dark:border-emerald-500/45 dark:bg-slate-900/45 dark:text-emerald-200 dark:hover:border-emerald-400"
                   >
                     Reset
-                  </button>
+                  </Button>
                 </div>
                 <div className="mt-5 space-y-4">
                   <StringFilterChips
@@ -5003,10 +5034,12 @@ export function AggregateGraphsPanel({
                   </p>
                   <DescriptorList items={FILTER_DESCRIPTOR_ITEMS} compact />
                 </div>
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   type="button"
                   onClick={() => setIsTestModalOpen(true)}
-                  className="group mt-5 flex w-full items-center justify-between rounded-xl border border-emerald-500/80 bg-emerald-500 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-600 hover:bg-emerald-600 hover:shadow-[0_12px_24px_-16px_rgba(5,150,105,0.55)] dark:border-emerald-400/80 dark:bg-emerald-400 dark:text-slate-950 dark:hover:border-emerald-300 dark:hover:bg-emerald-300 dark:hover:shadow-[0_12px_24px_-16px_rgba(52,211,153,0.55)]"
+                  className="h-auto whitespace-normal group mt-5 flex w-full items-center justify-between rounded-xl border border-emerald-500/80 bg-emerald-500 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-600 hover:bg-emerald-600 hover:shadow-[0_12px_24px_-16px_rgba(5,150,105,0.55)] dark:border-emerald-400/80 dark:bg-emerald-400 dark:text-slate-950 dark:hover:border-emerald-300 dark:hover:bg-emerald-300 dark:hover:shadow-[0_12px_24px_-16px_rgba(52,211,153,0.55)]"
                 >
                   <span>Presets</span>
                   <svg
@@ -5022,18 +5055,20 @@ export function AggregateGraphsPanel({
                     <path d="M5 12h14" />
                     <path d="m13 6 6 6-6 6" />
                   </svg>
-                </button>
+                </Button>
                 {hasManualTestSelection ? (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     type="button"
                     onClick={() => {
                       setSelectedTestIds([]);
                       setSelectedTestGroups([]);
                     }}
-                    className="mt-2 w-full rounded-xl border border-emerald-300/80 bg-white px-3 py-2 text-sm font-medium text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-50 dark:border-emerald-500/45 dark:bg-slate-900/45 dark:text-emerald-200 dark:hover:border-emerald-400"
+                    className="h-auto whitespace-normal mt-2 w-full rounded-xl border border-emerald-300/80 bg-white px-3 py-2 text-sm font-medium text-emerald-800 transition hover:border-emerald-400 hover:bg-emerald-50 dark:border-emerald-500/45 dark:bg-slate-900/45 dark:text-emerald-200 dark:hover:border-emerald-400"
                   >
                     Use Filter Matches
-                  </button>
+                  </Button>
                 ) : null}
               </div>
             </aside>
@@ -5179,38 +5214,32 @@ export function AggregateGraphsPanel({
         </section>
       </div>
 
-      {isTestModalOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4"
-          onClick={() => setIsTestModalOpen(false)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={testModalTitleId}
-            className="flex min-h-[60vh] max-h-[84vh] w-full max-w-5xl flex-col overflow-hidden rounded-[1.75rem] border border-rose-200/80 bg-[#fff8fc] p-5 shadow-2xl dark:border-slate-600 dark:bg-slate-800 sm:p-6"
-            onClick={(event) => event.stopPropagation()}
+      <Dialog open={isTestModalOpen} onOpenChange={setIsTestModalOpen}>
+          <DialogContent
+            showCloseButton={false}
+            className="flex min-h-[60vh] max-h-[84vh] w-full max-w-[calc(100%-2rem)] sm:max-w-5xl flex-col overflow-hidden rounded-[1.75rem] border border-rose-200/80 bg-[#fff8fc] p-5 shadow-2xl dark:border-slate-600 dark:bg-slate-800 sm:p-6"
           >
             <div className="flex shrink-0 items-start justify-between gap-4">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
                   Aggregate Tests
                 </p>
-                <h2
-                  id={testModalTitleId}
+                <DialogTitle
                   className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100"
                 >
                   Select Available Tests
-                </h2>
-                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                </DialogTitle>
+                <DialogDescription className="mt-2 text-sm text-slate-600 dark:text-slate-300">
                   Choose prepared test groups, then inspect or adjust the matched
                   parent runs.
-                </p>
+                </DialogDescription>
               </div>
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 type="button"
                 onClick={() => setIsTestModalOpen(false)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-rose-300/80 bg-white text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:hover:border-slate-400"
+                className="h-auto whitespace-normal inline-flex h-10 w-10 items-center justify-center rounded-xl border border-rose-300/80 bg-white text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:hover:border-slate-400"
                 aria-label="Close test selection modal"
               >
                 <svg
@@ -5225,7 +5254,7 @@ export function AggregateGraphsPanel({
                   <path d="M6 6l12 12" />
                   <path d="M18 6 6 18" />
                 </svg>
-              </button>
+              </Button>
             </div>
 
             <section className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-rose-200/80 bg-white/75 shadow-inner dark:border-slate-600 dark:bg-slate-900/35">
@@ -5256,17 +5285,16 @@ export function AggregateGraphsPanel({
                           : "border-rose-100/80 bg-white text-slate-700 hover:border-rose-200 hover:bg-[#fffafd] dark:border-slate-700 dark:bg-slate-900/45 dark:text-slate-100 dark:hover:border-slate-600 dark:hover:bg-slate-900/70"
                       }`}
                     >
-                      <label className="flex cursor-pointer items-start gap-3">
-                        <input
-                          type="checkbox"
+                      <Label className="flex cursor-pointer items-start gap-3">
+                        <Checkbox
                           checked={isSelected}
-                          onChange={(event) =>
+                          onCheckedChange={(checked) =>
                             handleTestGroupSelection(
                               group.label,
-                              event.target.checked,
+                              checked,
                             )
                           }
-                          className="mt-1 h-4 w-4 shrink-0 rounded border-rose-400 text-teal-700 focus:ring-teal-500 dark:border-slate-400"
+                          className="mt-1 h-4 w-4 shrink-0 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
                         />
                         <span className="min-w-0 flex-1">
                           <span className="flex flex-wrap items-start justify-between gap-2">
@@ -5297,7 +5325,7 @@ export function AggregateGraphsPanel({
                             </span>
                           </span>
                         </span>
-                      </label>
+                      </Label>
                       <Collapsible className="group mt-3">
                         <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between rounded-xl border border-rose-100 bg-white/70 px-3 py-2 text-left text-xs font-medium text-slate-600 transition hover:border-rose-200 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:border-slate-600">
                           <span>{`View matched parent runs (${matchedTests.length})`}</span>
@@ -5351,31 +5379,30 @@ export function AggregateGraphsPanel({
                   >
                     <div className="space-y-1">
                       {AVAILABLE_CCA_FILTERS.map((cca) => (
-                        <label
+                        <Label
                           key={cca}
                           className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
                         >
                           <span className="flex min-w-0 items-center gap-2">
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               checked={selectedCcas.includes(cca)}
-                              onChange={(event) =>
+                              onCheckedChange={(checked) =>
                                 setSelectedCcas((current) =>
-                                  event.target.checked
+                                  checked
                                     ? current.includes(cca)
                                       ? current
                                       : [...current, cca]
                                     : current.filter((value) => value !== cca),
                                 )
                               }
-                              className="h-3.5 w-3.5 rounded border-rose-400 text-teal-700 focus:ring-teal-500 dark:border-slate-400"
+                              className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
                             />
                             <span className="truncate uppercase">{cca}</span>
                           </span>
                           <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
                             {ccaOptionCounts.get(cca) ?? 0}
                           </span>
-                        </label>
+                        </Label>
                       ))}
                     </div>
                   </FilterDropdown>
@@ -5399,17 +5426,16 @@ export function AggregateGraphsPanel({
                   >
                     <div className="space-y-1">
                       {AVAILABLE_WORKLOAD_FILTERS.map((workload) => (
-                        <label
+                        <Label
                           key={workload}
                           className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
                         >
                           <span className="flex min-w-0 items-center gap-2">
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               checked={selectedWorkloads.includes(workload)}
-                              onChange={(event) =>
+                              onCheckedChange={(checked) =>
                                 setSelectedWorkloads((current) =>
-                                  event.target.checked
+                                  checked
                                     ? current.includes(workload)
                                       ? current
                                       : [...current, workload].sort(
@@ -5418,14 +5444,14 @@ export function AggregateGraphsPanel({
                                     : current.filter((value) => value !== workload),
                                 )
                               }
-                              className="h-3.5 w-3.5 rounded border-rose-400 text-teal-700 focus:ring-teal-500 dark:border-slate-400"
+                              className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
                             />
                             <span className="truncate">{`${workload}MB`}</span>
                           </span>
                           <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
                             {workloadOptionCounts.get(workload) ?? 0}
                           </span>
-                        </label>
+                        </Label>
                       ))}
                     </div>
                   </FilterDropdown>
@@ -5451,19 +5477,18 @@ export function AggregateGraphsPanel({
                   >
                     <div className="space-y-1">
                       {AVAILABLE_QUEUE_BUFFER_FILTERS.map((queueBufferSize) => (
-                        <label
+                        <Label
                           key={queueBufferSize}
                           className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
                         >
                           <span className="flex min-w-0 items-center gap-2">
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               checked={selectedQueueBufferSizes.includes(
                                 queueBufferSize,
                               )}
-                              onChange={(event) =>
+                              onCheckedChange={(checked) =>
                                 setSelectedQueueBufferSizes((current) =>
-                                  event.target.checked
+                                  checked
                                     ? current.includes(queueBufferSize)
                                       ? current
                                       : [...current, queueBufferSize].sort(
@@ -5474,14 +5499,14 @@ export function AggregateGraphsPanel({
                                       ),
                                 )
                               }
-                              className="h-3.5 w-3.5 rounded border-rose-400 text-teal-700 focus:ring-teal-500 dark:border-slate-400"
+                              className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
                             />
                             <span className="truncate">{`${queueBufferSize}KB`}</span>
                           </span>
                           <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
                             {queueBufferOptionCounts.get(queueBufferSize) ?? 0}
                           </span>
-                        </label>
+                        </Label>
                       ))}
                     </div>
                   </FilterDropdown>
@@ -5509,11 +5534,13 @@ export function AggregateGraphsPanel({
                       );
 
                     return (
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         key={test.parentRunId}
                         type="button"
                         onClick={() => toggleTestSelection(test.parentRunId)}
-                        className={`block w-full cursor-pointer px-4 py-3 text-left text-sm transition ${
+                        className={`h-auto whitespace-normal block w-full cursor-pointer px-4 py-3 text-left text-sm transition ${
                           isSelected
                             ? `border-x border-rose-300 bg-rose-100 text-slate-900 dark:border-slate-400 dark:bg-slate-700/70 dark:text-slate-100 ${
                                 previousSelected
@@ -5563,7 +5590,7 @@ export function AggregateGraphsPanel({
                               : "No client configuration available"}
                           </span>
                         </span>
-                      </button>
+                      </Button>
                     );
                   })
                 ) : (
@@ -5579,34 +5606,39 @@ export function AggregateGraphsPanel({
                 <p className="text-sm text-slate-600 dark:text-slate-300">
                   {selectedTestCountLabel}
                 </p>
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   type="button"
                   onClick={() => setSelectedTestIds([])}
-                  className="rounded-xl border border-rose-200/80 bg-white px-3 py-2 text-sm text-slate-700 transition hover:border-rose-300 hover:bg-rose-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+                  className="h-auto whitespace-normal rounded-xl border border-rose-200/80 bg-white px-3 py-2 text-sm text-slate-700 transition hover:border-rose-300 hover:bg-rose-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
                 >
                   Deselect All
-                </button>
+                </Button>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   type="button"
                   onClick={toggleAllTests}
-                  className="rounded-xl border border-rose-200/80 bg-white px-3 py-2 text-sm text-slate-700 transition hover:border-rose-300 hover:bg-rose-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
+                  className="h-auto whitespace-normal rounded-xl border border-rose-200/80 bg-white px-3 py-2 text-sm text-slate-700 transition hover:border-rose-300 hover:bg-rose-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:hover:border-slate-500"
                 >
                   Select All
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   type="button"
                   onClick={() => setIsTestModalOpen(false)}
-                  className="rounded-xl border border-rose-300/80 bg-rose-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-600 dark:border-rose-400"
+                  className="h-auto whitespace-normal rounded-xl border border-rose-300/80 bg-rose-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-600 dark:border-rose-400"
                 >
                   Done
-                </button>
+                </Button>
               </div>
             </div>
-          </div>
-        </div>
-      ) : null}
+          </DialogContent>
+      </Dialog>
     </main>
   );
 }

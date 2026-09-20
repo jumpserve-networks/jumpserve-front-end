@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ChatPanel } from "@/app/components/chat-panel";
 import { requireGoogleUser } from "@/lib/auth";
 import Link from "next/link";
+import { EMULATED_TESTS_MODULE } from "@/lib/test-modules";
 
 export const dynamic = "force-dynamic";
 
@@ -33,10 +34,10 @@ export default async function ChatPage({
       <div className="mx-auto max-w-5xl px-4 py-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <Link
-            href={parentRunId ? `/parent-run/${parentRunId}` : "/"}
+            href={parentRunId ? `/parent-run/${parentRunId}` : EMULATED_TESTS_MODULE.href}
             className="inline-flex items-center gap-1 text-sm text-slate-500 transition hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
           >
-            &larr; {parentRunId ? `Test run #${parentRunId}` : "Home"}
+            &larr; {parentRunId ? `Test run #${parentRunId}` : "Emulated tests"}
           </Link>
           <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">
             JumpServe AI

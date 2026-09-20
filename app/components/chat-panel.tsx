@@ -1,5 +1,8 @@
 "use client";
 
+import { Button } from "@/app/components/ui/button";
+import { Textarea } from "@/app/components/ui/textarea";
+
 import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -9,7 +12,7 @@ import { sendMessage, type AgentResponse } from "@/lib/agent-api";
 interface Message {
   role: "user" | "assistant";
   content: string;
-  toolEvents?: Array<{ name: string; input: any }>;
+  toolEvents?: Array<{ name: string; input: unknown }>;
 }
 
 interface SessionSummary {
@@ -57,49 +60,54 @@ function ToolEventBadge({ name }: { name: string }) {
  *
  * We merge consecutive assistant messages so tool badges appear with the final text.
  */
-function parseSavedMessages(raw: any[]): Message[] {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function textFromBlock(block: unknown): string {
+  if (typeof block === "string") return block;
+  return isRecord(block) && typeof block.text === "string" ? block.text : "";
+}
+
+function parseSavedMessages(raw: unknown[]): Message[] {
   const msgs: Message[] = [];
-  let pendingToolEvents: Array<{ name: string; input: any }> = [];
+  let pendingToolEvents: Array<{ name: string; input: unknown }> = [];
 
   for (const m of raw) {
-    if (!m.role || !m.content) continue;
+    if (!isRecord(m) || !m.role || !m.content) continue;
     const blocks = Array.isArray(m.content) ? m.content : [m.content];
 
     if (m.role === "user") {
       // Check if this is a toolResult message (skip it)
       const hasToolResult = blocks.some(
-        (b: any) => typeof b === "object" && b.toolResult,
+        (b: unknown) => isRecord(b) && b.toolResult,
       );
       if (hasToolResult) continue;
 
       // Regular user message
       const text = blocks
-        .map((b: any) => {
-          if (typeof b === "string") return b;
-          if (b.text) return b.text;
-          return "";
-        })
+        .map(textFromBlock)
         .join("");
       if (text) msgs.push({ role: "user", content: text });
     } else if (m.role === "assistant") {
       let text = "";
-      const toolEvents: Array<{ name: string; input: any }> = [];
+      const toolEvents: Array<{ name: string; input: unknown }> = [];
 
       for (const block of blocks) {
         if (typeof block === "string") {
           text += block;
-        } else if (block.text) {
+        } else if (!isRecord(block)) {
+          continue;
+        } else if (typeof block.text === "string") {
           text += block.text;
-        } else if (block.toolUse) {
+        } else if (isRecord(block.toolUse) && typeof block.toolUse.name === "string") {
           toolEvents.push({
             name: block.toolUse.name,
             input: block.toolUse.input,
           });
         }
         // Also handle the {"type": "text"/"tool_use"} format as fallback
-        else if (block.type === "text" && block.text) {
-          text += block.text;
-        } else if (block.type === "tool_use") {
+        else if (block.type === "tool_use" && typeof block.name === "string") {
           toolEvents.push({ name: block.name, input: block.input });
         }
       }
@@ -122,19 +130,14 @@ function parseSavedMessages(raw: any[]): Message[] {
   return msgs;
 }
 
-function extractPreview(messages: any[]): string {
+function extractPreview(messages: unknown[]): string {
   if (!Array.isArray(messages)) return "Empty chat";
-  const firstUser = messages.find(
-    (m: any) =>
-      m.role === "user" &&
-      Array.isArray(m.content) &&
-      !m.content.some((b: any) => b.toolResult),
+  const firstUser = messages.find((message) =>
+    isRecord(message) && message.role === "user" && Array.isArray(message.content) &&
+    !message.content.some((block: unknown) => isRecord(block) && block.toolResult),
   );
-  if (!firstUser) return "Empty chat";
-  const blocks = Array.isArray(firstUser.content) ? firstUser.content : [firstUser.content];
-  const text = blocks
-    .map((b: any) => (typeof b === "string" ? b : b.text || ""))
-    .join("");
+  if (!isRecord(firstUser) || !Array.isArray(firstUser.content)) return "Empty chat";
+  const text = firstUser.content.map(textFromBlock).join("");
   return text.slice(0, 50) + (text.length > 50 ? "..." : "");
 }
 
@@ -160,30 +163,37 @@ function SessionSidebar({
   return (
     <div
       inert={!sidebarOpen}
-      className={`flex flex-col border-r border-slate-200 bg-white transition-all dark:border-slate-700 dark:bg-slate-900 ${
-        sidebarOpen ? "w-64" : "w-0 overflow-hidden border-r-0"
+      className={`flex flex-col border-b border-slate-200 sm:border-r sm:border-b-0 bg-white transition-all dark:border-slate-700 dark:bg-slate-900 ${
+        sidebarOpen ? "max-h-48 w-full shrink-0 sm:max-h-none sm:w-64" : "h-0 w-0 overflow-hidden border-0 sm:h-auto"
       }`}
     >
       <div className="flex items-center justify-between px-3 py-3">
         <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
           Chats
         </h3>
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={onToggleSidebar}
-          className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+          aria-label="Hide chat history"
+          className="h-auto whitespace-normal rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
           </svg>
-        </button>
+        </Button>
       </div>
 
-      <button
+      <Button
+
+        variant="ghost"
+
+        size="sm"
         onClick={onNewSession}
-        className="mx-3 mb-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-500 transition hover:border-rose-400 hover:text-rose-500 dark:border-slate-600 dark:text-slate-400"
+        className="h-auto whitespace-normal mx-3 mb-2 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-500 transition hover:border-rose-400 hover:text-rose-500 dark:border-slate-600 dark:text-slate-400"
       >
         + New Chat
-      </button>
+      </Button>
 
       <div className="flex-1 overflow-y-auto px-2">
         {sessions.map((s) => (
@@ -195,9 +205,11 @@ function SessionSidebar({
                 : "text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
             }`}
           >
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => onSwitchSession(s.id)}
-              className="min-w-0 flex-1 text-left"
+              className="h-auto whitespace-normal block min-w-0 flex-1 px-0 text-left"
             >
               <p className="truncate text-xs font-medium">{s.preview}</p>
               <p className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500">
@@ -208,19 +220,22 @@ function SessionSidebar({
                   minute: "2-digit",
                 })}
               </p>
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={(e) => {
                 e.stopPropagation();
                 onDeleteSession(s.id);
               }}
-              className="mt-0.5 shrink-0 rounded p-1 text-slate-300 opacity-0 transition hover:text-red-500 group-hover:opacity-100 dark:text-slate-600 dark:hover:text-red-400"
+              className="h-auto whitespace-normal mt-0.5 shrink-0 rounded p-1 text-slate-300 opacity-0 transition hover:text-red-500 group-hover:opacity-100 focus-visible:opacity-100 dark:text-slate-600 dark:hover:text-red-400"
               title="Delete chat"
+              aria-label={`Delete chat: ${s.preview}`}
             >
               <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
               </svg>
-            </button>
+            </Button>
           </div>
         ))}
       </div>
@@ -358,7 +373,7 @@ export function ChatPanel({
     "text-sm [&_table]:w-full [&_table]:border-collapse [&_table]:my-2 [&_th]:border [&_th]:border-slate-300 [&_th]:bg-slate-200/50 [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:font-semibold [&_td]:border [&_td]:border-slate-300 [&_td]:px-2 [&_td]:py-1 dark:[&_th]:border-slate-600 dark:[&_th]:bg-slate-700/50 dark:[&_td]:border-slate-600 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1 [&_li]:my-0.5 [&_p]:my-1 [&_pre]:bg-slate-800 [&_pre]:text-slate-200 [&_pre]:rounded [&_pre]:p-2 [&_pre]:my-2 [&_pre]:overflow-x-auto [&_code]:text-rose-500 [&_h1]:text-lg [&_h1]:font-bold [&_h1]:my-2 [&_h2]:text-base [&_h2]:font-bold [&_h2]:my-2 [&_h3]:font-bold [&_h3]:my-1";
 
   return (
-    <div className="flex h-[calc(var(--page-height)-8rem)] min-h-96 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-950">
+    <div className="flex flex-col sm:flex-row h-[calc(var(--page-height)-8rem)] min-h-96 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-950">
       {/* Sidebar */}
       <SessionSidebar
         sessions={sessions}
@@ -371,19 +386,21 @@ export function ChatPanel({
       />
 
       {/* Main chat area */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Messages */}
         <div className="flex-1 overflow-y-auto space-y-4 p-4">
           {!sidebarOpen && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setSidebarOpen(true)}
-              className="mb-2 rounded-lg border border-slate-200 p-2 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600 dark:border-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+              className="h-auto whitespace-normal mb-2 rounded-lg border border-slate-200 p-2 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600 dark:border-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-300"
               title="Show chat history"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
               </svg>
-            </button>
+            </Button>
           )}
 
           {messages.length === 0 && historyLoaded && (
@@ -398,14 +415,16 @@ export function ChatPanel({
                     "Show my recent jobs",
                     "What CCAs are available?",
                   ].map((suggestion) => (
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       key={suggestion}
                       type="button"
                       onClick={() => setInput(suggestion)}
-                      className="rounded-full border border-slate-200 px-3 py-1.5 text-xs text-slate-600 transition hover:border-rose-300 hover:text-rose-600 dark:border-slate-700 dark:text-slate-400 dark:hover:border-rose-500 dark:hover:text-rose-400"
+                      className="h-auto max-w-full whitespace-normal rounded-full border border-slate-200 px-3 py-1.5 text-xs text-slate-600 transition hover:border-rose-300 hover:text-rose-600 dark:border-slate-700 dark:text-slate-400 dark:hover:border-rose-500 dark:hover:text-rose-400"
                     >
                       {suggestion}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -462,7 +481,7 @@ export function ChatPanel({
         {/* Input */}
         <div className="border-t border-slate-200 p-4 dark:border-slate-700">
           <div className="flex items-end gap-2">
-            <textarea
+            <Textarea
               rows={3}
               aria-label="Chat message"
               value={input}
@@ -477,17 +496,19 @@ export function ChatPanel({
               disabled={isLoading}
               className="min-w-0 flex-1 resize-y rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-400/30 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-rose-400"
             />
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               type="button"
               aria-label="Send message"
               onClick={handleSend}
               disabled={isLoading || !historyLoaded || !input.trim()}
-              className="shrink-0 rounded-lg bg-rose-500 p-2.5 text-white transition hover:bg-rose-600 disabled:opacity-50"
+              className="h-auto whitespace-normal shrink-0 rounded-lg bg-rose-500 p-2.5 text-white transition hover:bg-rose-600 disabled:opacity-50"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
               </svg>
-            </button>
+            </Button>
           </div>
         </div>
       </div>

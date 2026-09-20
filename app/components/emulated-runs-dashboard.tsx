@@ -1,9 +1,12 @@
 //add here
 "use client";
 
+import { Button } from "@/app/components/ui/button";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { createPortal } from "react-dom";
+import { EMULATED_TESTS_MODULE } from "@/lib/test-modules";
+import { Dialog, DialogContent, DialogTitle } from "@/app/components/ui/dialog";
 
 export type EmulatedParentRun = {
   id: number;
@@ -425,20 +428,6 @@ export function EmulatedRunChartsPanel({
         )
       : null;
 
-  useEffect(() => {
-    if (!expandedMetric) {
-      return;
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setExpandedMetricId(null);
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [expandedMetric]);
 
   return (
     <>
@@ -487,47 +476,44 @@ export function EmulatedRunChartsPanel({
       ) : (
         <EmptyState text="No parent run selected." />
       )}
-      {expandedMetric && typeof document !== "undefined"
-        ? createPortal(
-            <div
-              className="fixed inset-0 z-[70] flex items-center justify-center overflow-hidden bg-slate-950/70 p-2 backdrop-blur-sm sm:p-4"
-              onClick={() => setExpandedMetricId(null)}
-            >
-              <div
-                className="flex max-h-[calc(100dvh-1rem)] w-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-slate-600/70 bg-slate-800/92 p-3 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-4"
-                role="dialog"
-                aria-modal="true"
-                aria-label={`Expanded View: ${expandedMetric.title}`}
-                onClick={(event) => event.stopPropagation()}
+      <Dialog
+        open={Boolean(expandedMetric)}
+        onOpenChange={(open) => { if (!open) setExpandedMetricId(null); }}
+      >
+        {expandedMetric ? (
+          <DialogContent
+            showCloseButton={false}
+            className="flex max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-7xl sm:max-w-7xl flex-col overflow-hidden rounded-2xl border border-slate-600/70 bg-slate-800/92 p-3 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-4"
+            aria-describedby={undefined}
+          >
+            <div className="mb-3 flex shrink-0 items-start justify-between gap-3 px-1">
+              <DialogTitle className="min-w-0 text-sm font-semibold text-slate-100 sm:text-base">
+                Expanded View: {expandedMetric.title}
+              </DialogTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                onClick={() => setExpandedMetricId(null)}
+                className="h-auto whitespace-normal shrink-0 rounded-lg border border-slate-500 bg-slate-700/90 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-slate-600"
               >
-                <div className="mb-3 flex shrink-0 items-start justify-between gap-3 px-1">
-                  <h3 className="min-w-0 text-sm font-semibold text-slate-100 sm:text-base">
-                    Expanded View: {expandedMetric.title}
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={() => setExpandedMetricId(null)}
-                    className="shrink-0 rounded-lg border border-slate-500 bg-slate-700/90 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-slate-600"
-                  >
-                    Close
-                  </button>
-                </div>
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
-                  <MetricChart
-                    metricId={expandedMetric.id}
-                    series={chartSeries}
-                    title={expandedMetric.title}
-                    unit={expandedMetric.unit}
-                    accessor={expandedMetric.accessor}
-                    throughputAxisMaxMbps={throughputAxisMaxMbps}
-                    size="expanded"
-                  />
-                </div>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
+                Close
+              </Button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+              <MetricChart
+                metricId={expandedMetric.id}
+                series={chartSeries}
+                title={expandedMetric.title}
+                unit={expandedMetric.unit}
+                accessor={expandedMetric.accessor}
+                throughputAxisMaxMbps={throughputAxisMaxMbps}
+                size="expanded"
+              />
+            </div>
+          </DialogContent>
+        ) : null}
+      </Dialog>
     </>
   );
 }
@@ -560,8 +546,8 @@ export function EmulatedRunsDashboard({
             </p>
           </div>
           <Link
-            href="/"
-            aria-label="Go to home"
+            href={EMULATED_TESTS_MODULE.href}
+            aria-label="Go to emulated tests module"
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-300/80 bg-[#fff5fb] text-slate-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/85 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
           >
             <svg
@@ -1819,14 +1805,16 @@ function MetricChart({
           }
         >
           {onExpand ? (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               type="button"
               onClick={onExpand}
-              className="block w-full touch-pan-y cursor-pointer rounded-xl text-left outline-none focus-visible:outline-none focus-visible:ring-0"
+              className="h-auto whitespace-normal block w-full touch-pan-y cursor-pointer rounded-xl text-left outline-none focus-visible:outline-none focus-visible:ring-0"
               aria-label={`Expand ${title} chart`}
             >
               {chartSvg}
-            </button>
+            </Button>
           ) : (
             chartSvg
           )}
@@ -1845,11 +1833,13 @@ function MetricChart({
             );
 
             return (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               key={runSeries.runId}
               type="button"
               aria-pressed={!isHidden}
-              className={`group max-w-full rounded-lg border bg-[#fff3f8] px-2.5 py-1 text-left text-[11px] text-slate-700 transition-[border-color,box-shadow,opacity] dark:bg-slate-700/45 dark:text-slate-100 ${
+              className={`h-auto whitespace-normal group max-w-full rounded-lg border bg-[#fff3f8] px-2.5 py-1 text-left text-[11px] text-slate-700 transition-[border-color,box-shadow,opacity] dark:bg-slate-700/45 dark:text-slate-100 ${
                 isHidden
                   ? "border-rose-200/70 opacity-45 dark:border-slate-600/60"
                   : isActive
@@ -1908,7 +1898,7 @@ function MetricChart({
               <span className={`break-words ${isHidden ? "line-through" : ""}`}>
               {runSeries.shortLabel}
               </span>
-            </button>
+            </Button>
             );
           })}
         </div>

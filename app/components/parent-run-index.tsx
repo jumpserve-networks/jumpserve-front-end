@@ -1,8 +1,15 @@
 "use client";
 
+import { Label } from "@/app/components/ui/label";
+import { Input } from "@/app/components/ui/input";
+import { Checkbox } from "@/app/components/ui/checkbox";
+import { Button } from "@/app/components/ui/button";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/app/components/ui/table";
+
 import { FilterDropdown } from "@/app/components/ui/filter-dropdown";
 
 import Link from "next/link";
+import { EMULATED_TESTS_MODULE } from "@/lib/test-modules";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
@@ -645,13 +652,13 @@ export function ParentRunIndex({
             </div>
           </div>
           <div className="mt-4">
-            <label
+            <Label
               htmlFor="parent-run-search"
               className="block text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300"
             >
               Parent run ID search
-            </label>
-            <input
+            </Label>
+            <Input
               id="parent-run-search"
               type="text"
               value={runSearchQuery}
@@ -684,16 +691,15 @@ export function ParentRunIndex({
                   const clientCount = option.value;
 
                   return (
-                  <label
+                  <Label
                     key={clientCount}
                     className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
                   >
                     <span className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={selectedClientCounts.includes(clientCount)}
-                        onChange={(event) => {
-                          if (event.target.checked) {
+                        onCheckedChange={(checked) => {
+                          if (checked) {
                             setSelectedClientCounts((current) =>
                               current.includes(clientCount)
                                 ? current
@@ -705,14 +711,14 @@ export function ParentRunIndex({
                             current.filter((value) => value !== clientCount),
                           );
                         }}
-                        className="h-3.5 w-3.5 rounded border-rose-400 text-teal-700 focus:ring-teal-500 dark:border-slate-400"
+                        className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
                       />
                       <span>{clientCount} clients</span>
                     </span>
                     <span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
                       {clientCountOptionCounts.get(clientCount) ?? 0}
                     </span>
-                  </label>
+                  </Label>
                   );
                 })}
               </div>
@@ -756,16 +762,15 @@ export function ParentRunIndex({
                       const ccaLabel = option.value;
 
                       return (
-                    <label
+                    <Label
                       key={ccaLabel}
                       className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
                     >
                       <span className="flex min-w-0 items-center gap-2">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={selectedCcaLabels.includes(ccaLabel)}
-                          onChange={(event) => {
-                            if (event.target.checked) {
+                          onCheckedChange={(checked) => {
+                            if (checked) {
                               setSelectedCcaLabels((current) =>
                                 current.includes(ccaLabel)
                                   ? current
@@ -777,40 +782,44 @@ export function ParentRunIndex({
                               current.filter((value) => value !== ccaLabel),
                             );
                           }}
-                          className="h-3.5 w-3.5 rounded border-rose-400 text-teal-700 focus:ring-teal-500 dark:border-slate-400"
+                          className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
                         />
                         <span className="truncate">{ccaLabel}</span>
                       </span>
                       <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
                         {ccaOptionCounts.get(ccaLabel) ?? 0}
                       </span>
-                    </label>
+                    </Label>
                       );
                     })}
                     {filterOptions.ccaLabels.length > FILTER_OPTION_PREVIEW_COUNT ? (
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         type="button"
                         onClick={() => toggleFilterOptionSection("cca")}
-                        className="w-full rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
+                        className="h-auto whitespace-normal w-full rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
                       >
                         {isFilterOptionSectionExpanded("cca")
                           ? "Show less"
                           : `Show more (${filterOptions.ccaLabels.length - FILTER_OPTION_PREVIEW_COUNT})`}
-                      </button>
+                      </Button>
                     ) : null}
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       type="button"
                       onClick={() =>
                         setIsOrderedCcaFilterEnabled((current) => !current)
                       }
-                      className={`w-full rounded-xl border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] transition ${
+                      className={`h-auto whitespace-normal w-full rounded-xl border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] transition ${
                         isOrderedCcaFilterEnabled
                           ? "border-teal-500 bg-teal-50 text-teal-800 dark:border-teal-400 dark:bg-teal-500/15 dark:text-teal-100"
                           : "border-rose-200 bg-white/80 text-slate-700 hover:border-rose-300 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
                       }`}
                     >
                       Ordered only
-                    </button>
+                    </Button>
                     {isOrderedCcaFilterEnabled ? (
                       <div className="space-y-3 rounded-2xl border border-teal-200 bg-teal-50/45 p-2.5 dark:border-teal-500/40 dark:bg-teal-500/10">
                         <div>
@@ -823,18 +832,17 @@ export function ParentRunIndex({
                                 const ccaLabel = option.value;
 
                                 return (
-                                  <label
+                                  <Label
                                     key={`client-1-${ccaLabel}`}
                                     className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-white/70 dark:text-slate-100 dark:hover:bg-slate-700/60"
                                   >
                                     <span className="flex min-w-0 items-center gap-2">
-                                      <input
-                                        type="checkbox"
+                                      <Checkbox
                                         checked={selectedClientOneCcaLabels.includes(
                                           ccaLabel,
                                         )}
-                                        onChange={(event) => {
-                                          if (event.target.checked) {
+                                        onCheckedChange={(checked) => {
+                                          if (checked) {
                                             setSelectedClientOneCcaLabels(
                                               (current) =>
                                                 current.includes(ccaLabel)
@@ -850,14 +858,14 @@ export function ParentRunIndex({
                                               ),
                                           );
                                         }}
-                                        className="h-3.5 w-3.5 rounded border-teal-500 text-teal-700 focus:ring-teal-500 dark:border-teal-300"
+                                        className="h-3.5 w-3.5 rounded border-teal-500 focus:ring-teal-500 dark:border-teal-300"
                                       />
                                       <span className="truncate">{ccaLabel}</span>
                                     </span>
                                     <span className="shrink-0 rounded-full border border-teal-200 bg-white/80 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-teal-800 dark:border-teal-500/40 dark:bg-slate-800 dark:text-teal-100">
                                       {clientOneCcaOptionCounts.get(ccaLabel) ?? 0}
                                     </span>
-                                  </label>
+                                  </Label>
                                 );
                               })
                             ) : (
@@ -877,18 +885,17 @@ export function ParentRunIndex({
                                 const ccaLabel = option.value;
 
                                 return (
-                                  <label
+                                  <Label
                                     key={`client-2-${ccaLabel}`}
                                     className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-white/70 dark:text-slate-100 dark:hover:bg-slate-700/60"
                                   >
                                     <span className="flex min-w-0 items-center gap-2">
-                                      <input
-                                        type="checkbox"
+                                      <Checkbox
                                         checked={selectedClientTwoCcaLabels.includes(
                                           ccaLabel,
                                         )}
-                                        onChange={(event) => {
-                                          if (event.target.checked) {
+                                        onCheckedChange={(checked) => {
+                                          if (checked) {
                                             setSelectedClientTwoCcaLabels(
                                               (current) =>
                                                 current.includes(ccaLabel)
@@ -904,14 +911,14 @@ export function ParentRunIndex({
                                               ),
                                           );
                                         }}
-                                        className="h-3.5 w-3.5 rounded border-teal-500 text-teal-700 focus:ring-teal-500 dark:border-teal-300"
+                                        className="h-3.5 w-3.5 rounded border-teal-500 focus:ring-teal-500 dark:border-teal-300"
                                       />
                                       <span className="truncate">{ccaLabel}</span>
                                     </span>
                                     <span className="shrink-0 rounded-full border border-teal-200 bg-white/80 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-teal-800 dark:border-teal-500/40 dark:bg-slate-800 dark:text-teal-100">
                                       {clientTwoCcaOptionCounts.get(ccaLabel) ?? 0}
                                     </span>
-                                  </label>
+                                  </Label>
                                 );
                               })
                             ) : (
@@ -957,16 +964,15 @@ export function ParentRunIndex({
                       const value = option.value;
 
                       return (
-                    <label
+                    <Label
                       key={value}
                       className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
                     >
                       <span className="flex min-w-0 items-center gap-2">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={selectedAddedDelayValues.includes(value)}
-                          onChange={(event) => {
-                            if (event.target.checked) {
+                          onCheckedChange={(checked) => {
+                            if (checked) {
                               setSelectedAddedDelayValues((current) =>
                                 current.includes(value)
                                   ? current
@@ -978,26 +984,28 @@ export function ParentRunIndex({
                               current.filter((currentValue) => currentValue !== value),
                             );
                           }}
-                          className="h-3.5 w-3.5 rounded border-rose-400 text-teal-700 focus:ring-teal-500 dark:border-slate-400"
+                          className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
                         />
                         <span className="truncate">{formatNumber(value)} ms</span>
                       </span>
                       <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
                         {addedDelayOptionCounts.get(value) ?? 0}
                       </span>
-                    </label>
+                    </Label>
                       );
                     })}
                     {filterOptions.addedDelaysMs.length > FILTER_OPTION_PREVIEW_COUNT ? (
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         type="button"
                         onClick={() => toggleFilterOptionSection("delay")}
-                        className="w-full rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
+                        className="h-auto whitespace-normal w-full rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
                       >
                         {isFilterOptionSectionExpanded("delay")
                           ? "Show less"
                           : `Show more (${filterOptions.addedDelaysMs.length - FILTER_OPTION_PREVIEW_COUNT})`}
-                      </button>
+                      </Button>
                     ) : null}
                   </>
                 ) : (
@@ -1034,16 +1042,15 @@ export function ParentRunIndex({
                   const value = option.value;
 
                   return (
-                  <label
+                  <Label
                     key={value}
                     className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
                   >
                     <span className="flex min-w-0 items-center gap-2">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={selectedClientFileSizeValues.includes(value)}
-                        onChange={(event) => {
-                          if (event.target.checked) {
+                        onCheckedChange={(checked) => {
+                          if (checked) {
                             setSelectedClientFileSizeValues((current) =>
                               current.includes(value)
                                 ? current
@@ -1055,7 +1062,7 @@ export function ParentRunIndex({
                             current.filter((currentValue) => currentValue !== value),
                           );
                         }}
-                        className="h-3.5 w-3.5 rounded border-rose-400 text-teal-700 focus:ring-teal-500 dark:border-slate-400"
+                        className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
                       />
                       <span className="truncate">
                         {formatNumber(value)} MB
@@ -1064,31 +1071,35 @@ export function ParentRunIndex({
                     <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
                       {clientFileSizeOptionCounts.get(value) ?? 0}
                     </span>
-                  </label>
+                  </Label>
                   );
                 })}
                 {filterOptions.clientFileSizesMegabytes.length >
                 FILTER_OPTION_PREVIEW_COUNT ? (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     type="button"
                     onClick={() => toggleFilterOptionSection("client-file-size")}
-                    className="w-full rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
+                    className="h-auto whitespace-normal w-full rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
                   >
                     {isFilterOptionSectionExpanded("client-file-size")
                       ? "Show less"
                       : `Show more (${filterOptions.clientFileSizesMegabytes.length - FILTER_OPTION_PREVIEW_COUNT})`}
-                  </button>
+                  </Button>
                 ) : null}
               </div>
             </FilterDropdown>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             type="button"
             onClick={() => setAreExtraFiltersVisible((current) => !current)}
-            className="mt-4 inline-flex w-auto rounded-lg border border-rose-300/80 bg-white/90 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/75 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/85"
+            className="h-auto whitespace-normal mt-4 inline-flex w-auto rounded-lg border border-rose-300/80 bg-white/90 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/75 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/85"
           >
             {areExtraFiltersVisible ? "Show less" : "Show more filters"}
-          </button>
+          </Button>
           {areExtraFiltersVisible ? (
             <>
               <div className="mt-4">
@@ -1120,16 +1131,15 @@ export function ParentRunIndex({
                       const value = option.value;
 
                       return (
-                      <label
+                      <Label
                         key={value}
                         className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
                       >
                         <span className="flex min-w-0 items-center gap-2">
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={selectedClientStartDelayValues.includes(value)}
-                            onChange={(event) => {
-                              if (event.target.checked) {
+                            onCheckedChange={(checked) => {
+                              if (checked) {
                                 setSelectedClientStartDelayValues((current) =>
                                   current.includes(value)
                                     ? current
@@ -1143,27 +1153,29 @@ export function ParentRunIndex({
                                 ),
                               );
                             }}
-                            className="h-3.5 w-3.5 rounded border-rose-400 text-teal-700 focus:ring-teal-500 dark:border-slate-400"
+                            className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
                           />
                           <span className="truncate">{formatNumber(value)} ms</span>
                         </span>
                         <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
                           {clientStartDelayOptionCounts.get(value) ?? 0}
                         </span>
-                      </label>
+                      </Label>
                       );
                     })}
                     {filterOptions.clientStartDelaysMs.length >
                     FILTER_OPTION_PREVIEW_COUNT ? (
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         type="button"
                         onClick={() => toggleFilterOptionSection("client-start-delay")}
-                        className="w-full rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
+                        className="h-auto whitespace-normal w-full rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
                       >
                         {isFilterOptionSectionExpanded("client-start-delay")
                           ? "Show less"
                           : `Show more (${filterOptions.clientStartDelaysMs.length - FILTER_OPTION_PREVIEW_COUNT})`}
-                      </button>
+                      </Button>
                     ) : null}
                   </div>
                 </FilterDropdown>
@@ -1197,16 +1209,15 @@ export function ParentRunIndex({
                       const value = option.value;
 
                       return (
-                      <label
+                      <Label
                         key={value}
                         className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
                       >
                         <span className="flex min-w-0 items-center gap-2">
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={selectedQueueBufferSizeValues.includes(value)}
-                            onChange={(event) => {
-                              if (event.target.checked) {
+                            onCheckedChange={(checked) => {
+                              if (checked) {
                                 setSelectedQueueBufferSizeValues((current) =>
                                   current.includes(value)
                                     ? current
@@ -1220,7 +1231,7 @@ export function ParentRunIndex({
                                 ),
                               );
                             }}
-                            className="h-3.5 w-3.5 rounded border-rose-400 text-teal-700 focus:ring-teal-500 dark:border-slate-400"
+                            className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
                           />
                           <span className="truncate">
                             {formatNumber(value)} kbytes
@@ -1229,20 +1240,22 @@ export function ParentRunIndex({
                         <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
                           {queueBufferSizeOptionCounts.get(value) ?? 0}
                         </span>
-                      </label>
+                      </Label>
                       );
                     })}
                     {filterOptions.queueBufferSizesKilobyte.length >
                     FILTER_OPTION_PREVIEW_COUNT ? (
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         type="button"
                         onClick={() => toggleFilterOptionSection("queue-buffer")}
-                        className="w-full rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
+                        className="h-auto whitespace-normal w-full rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
                       >
                         {isFilterOptionSectionExpanded("queue-buffer")
                           ? "Show less"
                           : `Show more (${filterOptions.queueBufferSizesKilobyte.length - FILTER_OPTION_PREVIEW_COUNT})`}
-                      </button>
+                      </Button>
                     ) : null}
                   </div>
                 </FilterDropdown>
@@ -1276,16 +1289,15 @@ export function ParentRunIndex({
                       const value = option.value;
 
                       return (
-                      <label
+                      <Label
                         key={value}
                         className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-xs text-slate-700 transition hover:bg-rose-50/90 dark:text-slate-100 dark:hover:bg-slate-700/60"
                       >
                         <span className="flex min-w-0 items-center gap-2">
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={selectedBottleneckRateValues.includes(value)}
-                            onChange={(event) => {
-                              if (event.target.checked) {
+                            onCheckedChange={(checked) => {
+                              if (checked) {
                                 setSelectedBottleneckRateValues((current) =>
                                   current.includes(value)
                                     ? current
@@ -1299,34 +1311,38 @@ export function ParentRunIndex({
                                 ),
                               );
                             }}
-                            className="h-3.5 w-3.5 rounded border-rose-400 text-teal-700 focus:ring-teal-500 dark:border-slate-400"
+                            className="h-3.5 w-3.5 rounded border-rose-400 focus:ring-teal-500 dark:border-slate-400"
                           />
                           <span className="truncate">{formatNumber(value)} mbit</span>
                         </span>
                         <span className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold tracking-[0.08em] text-rose-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200">
                           {bottleneckRateOptionCounts.get(value) ?? 0}
                         </span>
-                      </label>
+                      </Label>
                       );
                     })}
                     {filterOptions.bottleneckRatesMegabit.length >
                     FILTER_OPTION_PREVIEW_COUNT ? (
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         type="button"
                         onClick={() => toggleFilterOptionSection("bottleneck-rate")}
-                        className="w-full rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
+                        className="h-auto whitespace-normal w-full rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
                       >
                         {isFilterOptionSectionExpanded("bottleneck-rate")
                           ? "Show less"
                           : `Show more (${filterOptions.bottleneckRatesMegabit.length - FILTER_OPTION_PREVIEW_COUNT})`}
-                      </button>
+                      </Button>
                     ) : null}
                   </div>
                 </FilterDropdown>
               </div>
             </>
           ) : null}
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             type="button"
             onClick={() => {
               setRunSearchQuery("");
@@ -1341,16 +1357,16 @@ export function ParentRunIndex({
               setSelectedBottleneckRateValues([]);
               setSelectedQueueBufferSizeValues([]);
             }}
-            className="mt-4 w-full rounded-xl border border-rose-300/80 bg-white/90 px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/75 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/85"
+            className="h-auto whitespace-normal mt-4 w-full rounded-xl border border-rose-300/80 bg-white/90 px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/75 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/85"
           >
             Clear filters
-          </button>
+          </Button>
         </article>
 
         <article className="fade-up-on-load-delay-1 relative flex min-h-[32rem] flex-col rounded-3xl border border-rose-200/70 bg-[linear-gradient(165deg,rgba(255,250,253,0.98)_0%,rgba(255,245,250,0.97)_100%)] p-6 shadow-[0_22px_50px_rgba(15,23,42,0.12)] backdrop-blur-sm dark:border-slate-600/70 dark:bg-[linear-gradient(165deg,rgba(30,41,59,0.91)_0%,rgba(51,65,85,0.83)_100%)] dark:shadow-none sm:p-8 lg:min-h-[calc(100dvh-9rem)]">
           <Link
-            href="/"
-            aria-label="Go to home"
+            href={EMULATED_TESTS_MODULE.href}
+            aria-label="Go to emulated tests module"
             className="absolute top-6 right-6 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-300/80 bg-[#fff5fb] text-slate-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/85 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
           >
             <svg
@@ -1381,30 +1397,34 @@ export function ParentRunIndex({
           </p>
           <div className="mt-4 flex justify-end">
             <div className="inline-flex rounded-xl border border-rose-200 bg-white/90 p-1 dark:border-slate-500 dark:bg-slate-800/75">
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 type="button"
                 aria-label="Table view"
                 onClick={() => setParentRunView("list")}
-                className={`inline-flex items-center justify-center rounded-lg p-4 transition active:scale-95 ${
+                className={`h-auto whitespace-normal inline-flex items-center justify-center rounded-lg p-4 transition active:scale-95 ${
                   parentRunView === "list"
                     ? "bg-slate-700 text-white dark:bg-slate-600"
                     : "text-slate-700 hover:bg-rose-50 active:bg-rose-100 dark:text-slate-100 dark:hover:bg-slate-700 dark:active:bg-slate-600"
                 }`}
               >
                 <ListViewIcon />
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 type="button"
                 aria-label="Grid view"
                 onClick={() => setParentRunView("grid")}
-                className={`inline-flex items-center justify-center rounded-lg p-4 transition active:scale-95 ${
+                className={`h-auto whitespace-normal inline-flex items-center justify-center rounded-lg p-4 transition active:scale-95 ${
                   parentRunView === "grid"
                     ? "bg-slate-700 text-white dark:bg-slate-600"
                     : "text-slate-700 hover:bg-rose-50 active:bg-rose-100 dark:text-slate-100 dark:hover:bg-slate-700 dark:active:bg-slate-600"
                 }`}
               >
                 <GridViewIcon />
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -1418,105 +1438,119 @@ export function ParentRunIndex({
             {sortedParentRuns.length > 0 ? (
               parentRunView === "list" ? (
                 <div className="overflow-x-auto rounded-3xl border border-rose-200/80 bg-[linear-gradient(165deg,#fff7fb_0%,#fff0f7_100%)] dark:border-slate-600 dark:bg-[linear-gradient(165deg,rgba(51,65,85,0.78)_0%,rgba(71,85,105,0.72)_100%)]">
-                  <table className="w-full table-fixed border-collapse">
-                    <thead>
-                      <tr className="border-b border-rose-200/80 bg-white/65 dark:border-slate-500 dark:bg-slate-800/45">
-                        <th className="w-[24%] px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
-                          <button
+                  <Table className="w-full table-fixed border-collapse">
+                    <TableHeader>
+                      <TableRow className="border-b border-rose-200/80 bg-white/65 dark:border-slate-500 dark:bg-slate-800/45">
+                        <TableHead className="w-[24%] px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             type="button"
                             onClick={() => toggleParentRunSort("run")}
-                            className="flex w-full items-center justify-between gap-2 text-left hover:text-slate-700 dark:hover:text-slate-100"
+                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[10px] hover:text-slate-700 dark:hover:text-slate-100"
                           >
                             Run
                             <SortIndicator
                               isActive={parentRunSortColumn === "run"}
                               direction={parentRunSortDirection}
                             />
-                          </button>
-                        </th>
-                        <th className="w-[10%] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
-                          <button
+                          </Button>
+                        </TableHead>
+                        <TableHead className="w-[10%] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             type="button"
                             onClick={() => toggleParentRunSort("elapsedSeconds")}
-                            className="flex w-full items-center justify-between gap-2 text-left hover:text-slate-700 dark:hover:text-slate-100"
+                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[10px] hover:text-slate-700 dark:hover:text-slate-100"
                           >
                             Elapsed
                             <SortIndicator
                               isActive={parentRunSortColumn === "elapsedSeconds"}
                               direction={parentRunSortDirection}
                             />
-                          </button>
-                        </th>
-                        <th className="w-[17%] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
-                          <button
+                          </Button>
+                        </TableHead>
+                        <TableHead className="w-[17%] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             type="button"
                             onClick={() => toggleParentRunSort("flowCompletionTime")}
-                            className="flex w-full items-center justify-between gap-2 text-left hover:text-slate-700 dark:hover:text-slate-100"
+                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[10px] hover:text-slate-700 dark:hover:text-slate-100"
                           >
                             Flow Times
                             <SortIndicator
                               isActive={parentRunSortColumn === "flowCompletionTime"}
                               direction={parentRunSortDirection}
                             />
-                          </button>
-                        </th>
-                        <th className="w-[12%] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
-                          <button
+                          </Button>
+                        </TableHead>
+                        <TableHead className="w-[12%] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             type="button"
                             onClick={() => toggleParentRunSort("totalFileSize")}
-                            className="flex w-full items-center justify-between gap-2 text-left hover:text-slate-700 dark:hover:text-slate-100"
+                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[10px] hover:text-slate-700 dark:hover:text-slate-100"
                           >
                             File Size
                             <SortIndicator
                               isActive={parentRunSortColumn === "totalFileSize"}
                               direction={parentRunSortDirection}
                             />
-                          </button>
-                        </th>
-                        <th className="w-[14%] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
-                          <button
+                          </Button>
+                        </TableHead>
+                        <TableHead className="w-[14%] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             type="button"
                             onClick={() => toggleParentRunSort("clientStartDelay")}
-                            className="flex w-full items-center justify-between gap-2 text-left hover:text-slate-700 dark:hover:text-slate-100"
+                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[10px] hover:text-slate-700 dark:hover:text-slate-100"
                           >
                             Start Delay
                             <SortIndicator
                               isActive={parentRunSortColumn === "clientStartDelay"}
                               direction={parentRunSortDirection}
                             />
-                          </button>
-                        </th>
-                        <th className="w-[11%] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
-                          <button
+                          </Button>
+                        </TableHead>
+                        <TableHead className="w-[11%] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             type="button"
                             onClick={() => toggleParentRunSort("queueBufferSize")}
-                            className="flex w-full items-center justify-between gap-2 text-left hover:text-slate-700 dark:hover:text-slate-100"
+                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[10px] hover:text-slate-700 dark:hover:text-slate-100"
                           >
                             Queue
                             <SortIndicator
                               isActive={parentRunSortColumn === "queueBufferSize"}
                               direction={parentRunSortDirection}
                             />
-                          </button>
-                        </th>
-                        <th className="w-[12%] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
-                          <button
+                          </Button>
+                        </TableHead>
+                        <TableHead className="w-[12%] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300">
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             type="button"
                             onClick={() => toggleParentRunSort("bottleneckRate")}
-                            className="flex w-full items-center justify-between gap-2 text-left hover:text-slate-700 dark:hover:text-slate-100"
+                            className="h-auto whitespace-normal flex w-full min-w-0 items-center justify-between gap-1 px-0 py-0 text-left text-[10px] hover:text-slate-700 dark:hover:text-slate-100"
                           >
                             Bottleneck
                             <SortIndicator
                               isActive={parentRunSortColumn === "bottleneckRate"}
                               direction={parentRunSortDirection}
                             />
-                          </button>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                          </Button>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {sortedParentRuns.map((parentRun) => (
-                        <tr
+                        <TableRow
                           key={parentRun.id}
                           tabIndex={0}
                           onClick={() => router.push(getParentRunHref(parentRun.id))}
@@ -1528,7 +1562,7 @@ export function ParentRunIndex({
                           }}
                           className="cursor-pointer border-b border-rose-100/80 align-top transition hover:bg-white/50 focus-visible:bg-white/50 focus-visible:outline-none last:border-b-0 dark:border-slate-600/70 dark:hover:bg-slate-800/30 dark:focus-visible:bg-slate-800/30"
                         >
-                          <td className="px-3 py-3 align-top">
+                          <TableCell className="px-3 py-3 align-top">
                             <Link
                               href={getParentRunHref(parentRun.id)}
                               className="block min-w-0"
@@ -1548,13 +1582,13 @@ export function ParentRunIndex({
                                 {formatCreatedAt(parentRun.createdAt)}
                               </span>
                             </Link>
-                          </td>
-                          <td className="px-2.5 py-3 text-xs leading-5 text-slate-600 dark:text-slate-200">
+                          </TableCell>
+                          <TableCell className="px-2.5 py-3 text-xs leading-5 text-slate-600 dark:text-slate-200">
                             {parentRun.chartDurationSeconds === null
                               ? "None"
                               : `${formatNumber(parentRun.chartDurationSeconds)} s`}
-                          </td>
-                          <td className="px-2.5 py-3 text-xs leading-5 text-slate-600 dark:text-slate-200">
+                          </TableCell>
+                          <TableCell className="px-2.5 py-3 text-xs leading-5 text-slate-600 dark:text-slate-200">
                             <div className="flex flex-wrap gap-x-2 gap-y-1">
                               {parentRun.clientFlowCompletionTimes.length > 0 ? (
                                 parentRun.clientFlowCompletionTimes.map((flow) => (
@@ -1567,29 +1601,29 @@ export function ParentRunIndex({
                                 <span>None</span>
                               )}
                             </div>
-                          </td>
-                          <td className="px-2.5 py-3 text-xs leading-5 text-slate-600 dark:text-slate-200">
+                          </TableCell>
+                          <TableCell className="px-2.5 py-3 text-xs leading-5 text-slate-600 dark:text-slate-200">
                             {parentRun.totalClientFileSizeMegabytes === null
                               ? "None"
                               : `${formatNumber(parentRun.totalClientFileSizeMegabytes)} MB`}
-                          </td>
-                          <td className="px-2.5 py-3 text-xs leading-5 text-slate-600 dark:text-slate-200">
+                          </TableCell>
+                          <TableCell className="px-2.5 py-3 text-xs leading-5 text-slate-600 dark:text-slate-200">
                             {formatValueList(parentRun.clientStartDelayMsValues, "ms")}
-                          </td>
-                          <td className="px-2.5 py-3 text-xs leading-5 text-slate-600 dark:text-slate-200">
+                          </TableCell>
+                          <TableCell className="px-2.5 py-3 text-xs leading-5 text-slate-600 dark:text-slate-200">
                             {parentRun.queueBufferSizeKilobyte === null
                               ? "None"
                               : `${formatNumber(parentRun.queueBufferSizeKilobyte)} kbytes`}
-                          </td>
-                          <td className="px-2.5 py-3 text-xs leading-5 text-slate-600 dark:text-slate-200">
+                          </TableCell>
+                          <TableCell className="px-2.5 py-3 text-xs leading-5 text-slate-600 dark:text-slate-200">
                             {parentRun.bottleneckRateMegabit === null
                               ? "None"
                               : `${formatNumber(parentRun.bottleneckRateMegabit)} mbit`}
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </div>
               ) : (
                 sortedParentRuns.map((parentRun) => (
@@ -1641,14 +1675,16 @@ export function ParentRunIndex({
           {totalPages > 1 ? (
             <div className="mt-5 flex flex-col items-center gap-3">
               <div className="flex flex-wrap items-center justify-center gap-2">
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   type="button"
                   onClick={() => void loadPage(currentPage - 1)}
                   disabled={isLoadingPage || currentPage <= 1}
-                  className="rounded-xl border border-rose-300/80 bg-white/90 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-500 dark:bg-slate-800/80 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
+                  className="h-auto whitespace-normal rounded-xl border border-rose-300/80 bg-white/90 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-500 dark:bg-slate-800/80 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
                 >
                   Prev
-                </button>
+                </Button>
                 {visiblePageNumbers.map((pageNumber, index) => {
                   const previousPageNumber = visiblePageNumbers[index - 1];
                   const shouldShowGap =
@@ -1662,29 +1698,33 @@ export function ParentRunIndex({
                           ...
                         </span>
                       ) : null}
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         type="button"
                         onClick={() => void loadPage(pageNumber)}
                         disabled={isLoadingPage}
-                        className={`min-w-10 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                        className={`h-auto whitespace-normal min-w-10 rounded-xl border px-3 py-2 text-sm font-medium transition ${
                           pageNumber === currentPage
                             ? "border-slate-700 bg-slate-700 text-white dark:border-slate-300 dark:bg-slate-200 dark:text-slate-900"
                             : "border-rose-300/80 bg-white/90 text-slate-700 hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/80 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
                         }`}
                       >
                         {pageNumber}
-                      </button>
+                      </Button>
                     </div>
                   );
                 })}
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   type="button"
                   onClick={() => void loadPage(currentPage + 1)}
                   disabled={isLoadingPage || currentPage >= totalPages}
-                  className="rounded-xl border border-rose-300/80 bg-white/90 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-500 dark:bg-slate-800/80 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
+                  className="h-auto whitespace-normal rounded-xl border border-rose-300/80 bg-white/90 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-500 dark:bg-slate-800/80 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
                 >
                   Next
-                </button>
+                </Button>
               </div>
               <form
                 className="flex items-center gap-2"
@@ -1697,13 +1737,13 @@ export function ParentRunIndex({
                   }
                 }}
               >
-                <label
+                <Label
                   htmlFor="page-jump-input"
                   className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-300"
                 >
                   Go to page
-                </label>
-                <input
+                </Label>
+                <Input
                   id="page-jump-input"
                   type="text"
                   inputMode="numeric"
@@ -1711,13 +1751,15 @@ export function ParentRunIndex({
                   onChange={(event) => setPageJumpValue(event.target.value)}
                   className="w-16 rounded-xl border border-rose-300/80 bg-white/90 px-3 py-2 text-center text-sm text-slate-900 shadow-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200 dark:border-slate-500 dark:bg-slate-900/75 dark:text-slate-100 dark:focus:ring-teal-700/60"
                 />
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   type="submit"
                   disabled={isLoadingPage}
-                  className="rounded-xl border border-rose-300/80 bg-white/90 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-500 dark:bg-slate-800/80 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
+                  className="h-auto whitespace-normal rounded-xl border border-rose-300/80 bg-white/90 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-rose-400 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-500 dark:bg-slate-800/80 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
                 >
                   Go
-                </button>
+                </Button>
               </form>
               {isLoadingPage ? (
                 <p className="text-sm text-slate-500 dark:text-slate-300">

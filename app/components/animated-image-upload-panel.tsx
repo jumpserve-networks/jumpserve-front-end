@@ -1,5 +1,7 @@
 "use client";
 
+import { Label } from "@/app/components/ui/label";
+
 import Image from "next/image";
 import { useEffect, useId, useState } from "react";
 
@@ -123,7 +125,7 @@ export function AnimatedImageUploadPanel() {
         </div>
 
         <div className="w-full max-w-sm rounded-2xl border border-rose-200 bg-white/90 p-4 shadow-sm dark:border-slate-500 dark:bg-slate-900/70">
-          <label
+          <Label
             htmlFor={inputId}
             className="flex cursor-pointer flex-col gap-3 rounded-2xl border border-dashed border-rose-300 bg-rose-50/70 p-4 text-sm text-slate-700 transition hover:border-rose-400 hover:bg-rose-100/70 dark:border-slate-500 dark:bg-slate-800/80 dark:text-slate-200 dark:hover:border-slate-400 dark:hover:bg-slate-700/80"
           >
@@ -141,7 +143,7 @@ export function AnimatedImageUploadPanel() {
               onChange={handleFileChange}
               className="sr-only"
             />
-          </label>
+          </Label>
 
           {errorMessage ? (
             <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200">

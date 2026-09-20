@@ -31,6 +31,36 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+## Test modules
+
+After Google sign-in, `/` presents the module chooser. The current module is
+**Congestion Control Emulated Tests** (`congestion-control-emulated`), with a home
+at `/modules/congestion-control-emulated`. Its tools retain their existing URLs:
+`/test-lookup`, `/parent-run/[id]`, `/aggregate-graphs`, `/benchmarks`, and `/chat`.
+The header shows the current module, its tools, and an **All modules** link.
+Module selection is navigation, not an authorization boundary; every protected
+page still requires the existing Google authentication.
+
+**Congestion Control Real World Tests** (`congestion-control-real-world`) is the
+next planned module. Its chooser card is disabled and marked **Coming soon**.
+There is no real-world launcher or results view yet. CDN and other networking
+modules can follow without reusing the emulated tools or data implicitly.
+
+`lib/test-modules.ts` is the module catalog: stable IDs, names, availability,
+home routes, and tool navigation. A new module needs its own pages, data queries,
+and backend integration before marking it available. Unknown or unavailable
+module home routes return 404. Existing run IDs, database tables, benchmark APIs,
+and agent endpoints remain scoped to emulated congestion-control tests.
+
+OAuth completion and the authenticated `/login` redirect both open the chooser.
+A requested tool URL is carried in its `next` parameter and resumed when the user
+chooses that module. External and unrecognized destinations cannot become module
+links. Choosing a module does not persist a default that bypasses the chooser on
+the next sign-in. Theme preferences remain available through the shared toggle.
+
+`npm test` covers redirect safety, deep-link continuity, module availability, and
+route ownership alongside the existing API tests.
+
 ## UI components
 
 Use shadcn/ui components from `app/components/ui`, Base UI for interactive
@@ -60,7 +90,15 @@ Use Base UI's `render` prop for composition. When a Button renders a link, set
 
 Use `cn` from `@/lib/utils` to merge conditional Tailwind classes. Shared theme
 tokens live in `app/globals.css` and follow the existing `.dark` theme toggle.
-The login page uses the shared Card and Button components.
+Buttons, inputs, textareas, checkboxes, tables, tabs, selection controls, and
+modal dialogs use the shared components across benchmarks, chat, and explorers.
+`npm run lint` rejects native buttons, selects, textareas, tables, and ordinary
+inputs outside `app/components/ui`; the visually hidden native file picker is
+allowed. Keep custom charts as SVG and use Tailwind for their surrounding layout.
+
+When adding components, verify their state selectors against the installed Base
+UI version (for example, `data-[orientation=horizontal]` for tabs). Check keyboard
+navigation, dialog focus restoration, and both themes after changing primitives.
 
 ## Supabase Helpers
 

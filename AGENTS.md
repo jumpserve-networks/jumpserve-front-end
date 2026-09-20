@@ -1,14 +1,19 @@
 # AGENTS.md
 
-Last updated: 2026-09-16
+Last updated: 2026-09-20
 
 ## Project purpose
 
-`jumpserve-front-end` is a Next.js app that reads Supabase data and visualizes emulation metrics.
-The current primary UI is an "Emulated Run Explorer" graphing data from:
+`jumpserve-front-end` is a Next.js app for networking test modules. After sign-in,
+users choose a module at `/`. All current application tools belong to
+**Congestion Control Emulated Tests** (`congestion-control-emulated`).
+**Congestion Control Real World Tests** (`congestion-control-real-world`) is the
+next planned module and is displayed as **Coming soon**.
 
-- `public.emulated_runs`
-- `public.emulated_per_second_stats`
+Define module names, availability, home routes, and tool ownership in
+`lib/test-modules.ts`. Existing emulated tool URLs remain valid. New modules need
+their own tools and data integration before becoming available; module selection
+is navigation, not an authentication or authorization boundary.
 
 ## Stack
 
@@ -72,10 +77,14 @@ behind CloudFront, Next.js can see the internal origin as `localhost:3000`. Pref
 ## Key files
 
 - `app/page.tsx`
-  - Server component.
-  - Fetches `emulated_runs` and `emulated_per_second_stats` from Supabase.
-  - Normalizes numeric-like values to `number | null`.
-  - Renders dashboard component with fetched data.
+  - Authenticated server component rendering the module chooser.
+  - Retains a safe requested tool URL until its module is selected.
+- `app/modules/[moduleId]/page.tsx`
+  - Authenticated module home; unavailable and unknown modules return 404.
+- `app/components/site-header.tsx`
+  - Shows the current module's navigation and an All modules link.
+- `lib/auth-redirect.ts`
+  - Keeps post-login navigation at the chooser and preserves safe deep links.
 - `app/components/emulated-runs-dashboard.tsx`
   - Client component.
   - Run selector + metadata cards.

@@ -27,6 +27,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </h1>
         </CardHeader>
         <CardContent className="p-0">
+          <p className="mb-6 text-sm leading-6 text-muted-foreground">
+            Choose a test module after signing in to JumpServe.
+          </p>
           <AuthButton placement="inline" />
 
           {errorMessage ? (

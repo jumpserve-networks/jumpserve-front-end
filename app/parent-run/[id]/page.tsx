@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { EMULATED_TESTS_MODULE } from "@/lib/test-modules";
 import { Suspense } from "react";
 import { MessageCircle } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -136,8 +137,8 @@ export default async function ParentRunPage({
                 Back
               </Link>
               <Link
-                href="/"
-                aria-label="Go to home"
+                href={EMULATED_TESTS_MODULE.href}
+                aria-label="Go to emulated tests module"
                 className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-300/80 bg-[#fff5fb] text-slate-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-50 dark:border-slate-500 dark:bg-slate-800/85 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700/90"
               >
                 <svg

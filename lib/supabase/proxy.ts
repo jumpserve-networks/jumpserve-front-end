@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { getSafeNextPath } from "@/lib/auth-redirect";
+import { getPostLoginPath } from "@/lib/auth-redirect";
 import { isGoogleAuthenticatedUser } from "@/lib/auth-provider";
 
 const PUBLIC_PATHS = new Set(["/login", "/auth/callback"]);
@@ -92,11 +92,9 @@ export async function updateSession(request: NextRequest) {
 
   if (isAuthenticated && pathname === "/login") {
     const destination = request.nextUrl.clone();
-    const nextPath = getSafeNextPath(request.nextUrl.searchParams.get("next"));
-    const [nextPathname, nextSearch = ""] = nextPath.split("?", 2);
-
-    destination.pathname = nextPathname;
-    destination.search = nextSearch ? `?${nextSearch}` : "";
+    const nextUrl = new URL(getPostLoginPath(request.nextUrl.searchParams.get("next")), destination.origin);
+    destination.pathname = nextUrl.pathname;
+    destination.search = nextUrl.search;
 
     return copyCookies(response, NextResponse.redirect(destination));
   }

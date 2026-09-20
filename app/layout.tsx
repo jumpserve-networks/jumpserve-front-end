@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     default: "Jumpserve",
     template: "%s | Jumpserve",
   },
-  description: "Explore Jumpserve emulation runs, inspect individual traces, and compare aggregate graph patterns.",
+  description: "Choose a JumpServe test module to run networking experiments, explore results, and compare measurements.",
 };
 
 const themeInitScript = `
