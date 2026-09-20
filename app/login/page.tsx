@@ -27,9 +27,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </h1>
         </CardHeader>
         <CardContent className="p-0">
-          <p className="mb-6 text-sm leading-6 text-muted-foreground">
-            Sign in to access networking experiments and analysis tools.
-          </p>
           <AuthButton placement="inline" />
 
           {errorMessage ? (
