@@ -164,3 +164,18 @@ before sending a request and reports non-JSON API responses clearly.
 
 Run the API regression tests with `npm test` (Node.js 22.18+ or 24+).
 These tests mock API requests and do not launch EC2 instances or invoke AI models.
+
+## Real-world research reports
+
+Choose the Congestion Control Real World Tests module, then **Research Reports**.
+The workspace at `/real-world-reports` shares saved EC2 measurements among all
+signed-in researchers, with individual throughput/RTT/queue reports, configuration
+matching, independent replication counts, exploratory confidence intervals,
+bookmarkable selections, CSV/JSON exports, and print-to-PDF. Test management
+remains owner-scoped. It uses the existing `NEXT_PUBLIC_BENCHMARK_API_URL`.
+
+See [reporting methods and limitations](docs/real-world-reports.md) for units,
+eligibility, matching, bootstrap assumptions, provenance, and access semantics.
+Deploy the reporting API and DynamoDB catalog index from `jumpserve-infra` before
+deploying this frontend. `npm test` covers comparisons, exports, and navigation;
+backend tests cover normalization, artifact quality, and authentication boundaries.

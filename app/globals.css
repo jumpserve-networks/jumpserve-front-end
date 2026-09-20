@@ -3,6 +3,30 @@
 @plugin "@tailwindcss/typography";
 @custom-variant dark (&:where(.dark, .dark *));
 
+@media print {
+  body:has(.research-report-page) {
+    --background: #fff;
+    --foreground: #202b38;
+    --card: #fff;
+    --card-foreground: #202b38;
+    --muted-foreground: #4b5563;
+    --border: #cbd5e1;
+    --primary: #294d72;
+    --chart-1: #0f766e;
+    --chart-2: #0369a1;
+    --chart-3: #7c3aed;
+    --chart-4: #b45309;
+    --chart-5: #be123c;
+    background: white;
+    color: var(--foreground);
+  }
+  body:has(.research-report-page) [data-slot="site-header"] { display: none; }
+  .research-report-page { max-width: none; padding: 0; }
+  .research-report-page [data-slot="table-container"] { overflow: visible; }
+  .research-report-page table { width: 100%; table-layout: fixed; font-size: 8pt; }
+  .research-report-page th, .research-report-page td { white-space: normal; overflow-wrap: anywhere; }
+}
+
 :root {
   /* Keep viewport-sized pages below the responsive shared header. */
   --site-header-height: 4.5rem;

@@ -58,7 +58,10 @@ export const TEST_MODULES: readonly TestModule[] = [
       "Measure congestion control across AWS network paths using a server, a shared bottleneck, and independently placed receivers.",
     status: "available",
     href: "/modules/congestion-control-real-world",
-    sections: [{ href: "/real-world", label: "Real World Tests", description: "Launch EC2 tests, choose machine locations, and inspect results.", paths: ["/real-world"] }],
+    sections: [
+      { href: "/real-world", label: "Real World Tests", description: "Launch EC2 tests, choose machine locations, and inspect results.", paths: ["/real-world"] },
+      { href: "/real-world-reports", label: "Research Reports", description: "Explore shared measurements and compare matched configurations with replication counts and confidence intervals.", paths: ["/real-world-reports"] },
+    ],
   },
 ];
 

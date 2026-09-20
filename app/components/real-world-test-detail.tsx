@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
@@ -65,7 +66,7 @@ export function RealWorldTestDetail({ jobId }: { jobId: string }) {
           {job.results.map((result) => <TableRow key={result.receiver}><TableCell>{result.receiver}</TableCell><TableCell>{result.received_mbit_per_second.toFixed(3)}</TableCell><TableCell>{(result.received_bytes / 1_000_000).toFixed(3)}</TableCell><TableCell>{result.seconds.toFixed(3)}</TableCell></TableRow>)}
         </TableBody></Table> : <p className="text-sm text-muted-foreground">This test did not produce a complete set of measurements.</p>}
         <p className="text-xs text-muted-foreground">Results reflect the observed AWS paths, instance capacity, and tunnel overhead. A single test is one replication; it does not establish a difference between algorithms. Raw reports include kernel and iperf versions, route checks, TCP samples, and queue counters.</p>
-        <Button variant="outline" size="sm" disabled={busy} onClick={() => void download()}>Get raw report links</Button>
+        <div className="flex flex-wrap gap-3"><Button size="sm" nativeButton={false} render={<Link href={`/real-world-reports/${jobId}`} />}>Open research report</Button><Button variant="outline" size="sm" disabled={busy} onClick={() => void download()}>Get raw report links</Button></div>
         {artifacts.length > 0 && <div className="flex flex-wrap gap-4">{artifacts.map((artifact) => <a key={artifact.name} href={artifact.url} target="_blank" rel="noreferrer" className="text-sm text-primary underline underline-offset-4">{artifact.name}</a>)}</div>}
         <p className="text-xs text-muted-foreground">Download links expire after five minutes. Runtime revision: <span className="break-all font-mono">{job.runtime_revision}</span></p>
       </CardContent></Card>}

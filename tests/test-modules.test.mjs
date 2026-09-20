@@ -61,12 +61,14 @@ test("real-world tools and results belong to their own available module", () => 
   const testModule = getTestModule("congestion-control-real-world");
   assert.equal(testModule.name, "Congestion Control Real World Tests");
   assert.equal(testModule.status, "available");
-  for (const path of [testModule.href, "/real-world", "/real-world/job-123"]) {
+  for (const path of [testModule.href, "/real-world", "/real-world/job-123", "/real-world-reports", "/real-world-reports/job-123?selected=abc"]) {
     assert.equal(getTestModuleForPath(path), testModule);
     assert.notEqual(getPostLoginPath(path), "/");
   }
   assert.equal(getTestModuleForPath("/real-world-other"), undefined);
   assert.equal(getTestModule("unknown"), undefined);
+  assert.equal(isModuleSectionActive(testModule.sections[0], "/real-world-reports/job-123"), false);
+  assert.equal(isModuleSectionActive(testModule.sections[1], "/real-world-reports/job-123"), true);
 });
 
 test("navigation highlights the parent tool for detail pages with path boundaries", () => {
