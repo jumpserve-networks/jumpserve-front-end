@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getPostLoginPath } from "@/lib/auth-redirect";
 import { isGoogleAuthenticatedUser } from "@/lib/auth-provider";
 
-const PUBLIC_PATHS = new Set(["/login", "/auth/callback"]);
+const PUBLIC_PATHS = new Set(["/", "/login", "/auth/callback"]);
 const AUTH_ERROR_PARAMS = ["error", "error_code", "error_description"];
 
 function getSupabaseConfig() {

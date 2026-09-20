@@ -33,6 +33,11 @@ Open `http://localhost:3000`.
 
 ## Test modules
 
+When logged out, `/` is a public landing page explaining JumpServe, the experiment
+workflow, and available and planned test environments. Sign-in controls open
+`/login`, where Google authentication begins. Signing out returns to the public
+landing page. Experiment pages and API routes remain protected.
+
 After Google sign-in, `/` presents the module chooser. The current module is
 **Congestion Control Emulated Tests** (`congestion-control-emulated`), with a home
 at `/modules/congestion-control-emulated`. Its tools retain their existing URLs:

@@ -111,10 +111,16 @@ export function AuthButton({ placement = "floating" }: AuthButtonProps) {
     }
 
     const currentUrl = new URL(window.location.href);
+    if (currentUrl.pathname !== "/login") {
+      const nextPath = `${currentUrl.pathname}${currentUrl.search}`;
+      window.location.assign(nextPath === "/"
+        ? "/login"
+        : `/login?${new URLSearchParams({ next: nextPath })}`);
+      return;
+    }
+
     const nextPath =
-      currentUrl.pathname === "/login"
-        ? getSafeNextPath(currentUrl.searchParams.get("next"))
-        : `${currentUrl.pathname}${currentUrl.search}`;
+      getSafeNextPath(currentUrl.searchParams.get("next"));
     const callbackOrigin = getConfiguredSiteUrl() ?? currentUrl.origin;
     const callbackUrl = new URL("/auth/callback", callbackOrigin);
     callbackUrl.searchParams.set("next", nextPath);
@@ -144,7 +150,7 @@ export function AuthButton({ placement = "floating" }: AuthButtonProps) {
       return;
     }
 
-    window.location.assign("/login");
+    window.location.assign("/");
   }
 
   const userLabel =
@@ -192,13 +198,13 @@ export function AuthButton({ placement = "floating" }: AuthButtonProps) {
           disabled={status === "loading" || isSubmitting}
           className={cn("disabled:cursor-wait", placement === "inline" && "w-full", placement === "header" && "h-8 px-3 text-xs sm:text-sm")}
         >
-          <GoogleIcon />
+          {placement === "inline" ? <GoogleIcon /> : null}
           <span>
             {status === "loading"
               ? "Checking login..."
               : isSubmitting
-                ? "Opening Google..."
-                : "Login with Google"}
+                ? placement === "inline" ? "Opening Google..." : "Opening sign-in..."
+                : placement === "inline" ? "Login with Google" : "Sign in"}
           </span>
         </Button>
       )}

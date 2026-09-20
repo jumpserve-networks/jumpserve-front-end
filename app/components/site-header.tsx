@@ -19,7 +19,7 @@ export function SiteHeader() {
         <div className="flex min-h-10 items-center justify-between gap-3">
           <Link
             href="/"
-            aria-label="JumpServe modules"
+            aria-label="JumpServe home"
             className="shrink-0 rounded-md text-lg font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
           >
             JumpServe

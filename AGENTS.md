@@ -4,7 +4,8 @@ Last updated: 2026-09-20
 
 ## Project purpose
 
-`jumpserve-front-end` is a Next.js app for networking test modules. After sign-in,
+`jumpserve-front-end` is a Next.js app for networking test modules. Logged-out
+visitors see a public overview at `/` and sign in at `/login`. After sign-in,
 users choose a module at `/`. All current application tools belong to
 **Congestion Control Emulated Tests** (`congestion-control-emulated`).
 **Congestion Control Real World Tests** (`congestion-control-real-world`) is the
@@ -77,7 +78,8 @@ behind CloudFront, Next.js can see the internal origin as `localhost:3000`. Pref
 ## Key files
 
 - `app/page.tsx`
-  - Authenticated server component rendering the module chooser.
+  - Server component rendering the public overview when logged out and the module
+    chooser for authenticated Google users.
   - Retains a safe requested tool URL until its module is selected.
 - `app/modules/[moduleId]/page.tsx`
   - Authenticated module home; unavailable and unknown modules return 404.
