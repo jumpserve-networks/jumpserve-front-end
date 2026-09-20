@@ -43,7 +43,6 @@ export function PublicLandingPage({ nextPath }: { nextPath?: string }) {
             <Button nativeButton={false} render={<Link href={loginHref} />}>
               Sign in to JumpServe<ArrowRight aria-hidden="true" />
             </Button>
-            <p className="text-sm text-muted-foreground">Choose a test module after signing in.</p>
           </div>
         </section>
 
