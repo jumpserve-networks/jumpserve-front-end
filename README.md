@@ -79,6 +79,14 @@ not individual data centers. Live catalog availability remains authoritative;
 Regions without map coordinates remain selectable in the dropdown. See
 [map data and provenance](lib/maps/README.md).
 
+Each test also shows a progress timeline with completed, current, and upcoming
+stages. Supabase records stage transitions atomically with controller checkpoints;
+the detail API returns the current state and history in one database snapshot.
+Completed stages show a date/time with time zone and elapsed duration when both
+timestamps exist. Failures and cancellation distinguish interrupted work from
+successful cleanup and stages that did not run. Older tests show missing history
+and times explicitly; browser polling does not create completion timestamps.
+
 Each test detail page includes an interactive traffic topology map: server →
 bottleneck → receivers, with machine inspection, zoom, pan, and fit controls.
 Machines in one Region share a marker and their local links appear as loops.

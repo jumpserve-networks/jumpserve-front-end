@@ -12,8 +12,13 @@ export type RealWorldJob = {
   job_id: string; status: string; created_at: number; updated_at: number; deadline: number;
   config: RealWorldConfig; can_manage?: boolean; cancel_requested?: boolean; error?: string; cleanup_error?: string;
   runtime_revision: string; outcome?: string; start_epoch?: number;
+  status_history?: RealWorldStatusEntry[];
   nodes: (Placement & { name: string; role: string; instance_id?: string; image_id?: string; state?: string })[];
   results?: { receiver: string; received_mbit_per_second: number; received_bytes: number; seconds: number; start_epoch: number }[];
+};
+export type RealWorldStatusEntry = {
+  id: number; status: string; started_at: string | null; completed_at: string | null;
+  outcome: "completed" | "failed" | "cancelled" | null;
 };
 export const emptyPlacement = (): Placement => ({ region: "", zone_id: "", instance_type: REAL_WORLD_DEFAULT_INSTANCE_TYPE });
 export function isRealWorldInstanceType(instanceType: string): boolean {

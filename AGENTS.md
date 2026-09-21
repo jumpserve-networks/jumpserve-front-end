@@ -34,6 +34,10 @@ Keep each map synchronized with its placement dropdown. Availability Zone
 dropdowns must show only available zones that offer the selected instance type.
 Both placement and traffic maps must pan continuously on both axes by repeating
 the world, markers, and paths. Keep zoom bounded and render only visible copies.
+The real-world status timeline uses Supabase `real_world_status_history` records
+returned by the detail API. Show completed, current, pending, and interrupted
+steps with recorded completion times. Never derive historical times from browser
+polls or invent timestamps for tests that predate status tracking.
 Do not mix its duration-based
 throughput results with emulated file completion times.
 

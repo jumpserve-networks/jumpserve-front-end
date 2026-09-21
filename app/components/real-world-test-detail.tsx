@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { isRealWorldTerminal, REAL_WORLD_STAGES, type RealWorldJob } from "@/lib/real-world";
 import { realWorldRequest } from "@/lib/real-world-api";
 import { RealWorldTrafficMap } from "@/app/components/real-world-traffic-map";
+import { RealWorldStatusTimeline } from "@/app/components/real-world-status-timeline";
 
 export function RealWorldTestDetail({ jobId }: { jobId: string }) {
   const [job, setJob] = useState<RealWorldJob | null>(null);
@@ -54,6 +55,7 @@ export function RealWorldTestDetail({ jobId }: { jobId: string }) {
         {job.cancel_requested && !isRealWorldTerminal(job.status) && <p className="text-sm">Cancellation requested. Waiting for resource cleanup.</p>}
         {job.error && <p role="alert" className="whitespace-pre-wrap break-words text-sm text-destructive">{job.error}</p>}
         {job.cleanup_error && <p role="alert" className="text-sm text-destructive">Cleanup is retrying: {job.cleanup_error}</p>}
+        <RealWorldStatusTimeline job={job} />
         {job.can_manage && !isRealWorldTerminal(job.status) && <Button variant="outline" disabled={busy || job.cancel_requested || job.status === "cleaning"} onClick={() => void cancel()}>Cancel test and terminate instances</Button>}
       </CardContent></Card>
       <RealWorldTrafficMap job={job} receivedAt={receivedAt} interrupted={Boolean(error) || busy} />
