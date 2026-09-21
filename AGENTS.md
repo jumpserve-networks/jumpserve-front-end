@@ -128,7 +128,10 @@ behind CloudFront, Next.js can see the internal origin as `localhost:3000`. Pref
 - `app/components/site-header.tsx`
   - Shared identity, theme, authentication, and mobile module-menu trigger.
 - `app/components/app-shell.tsx` and `app/components/module-navigation.tsx`
-  - Persistent desktop sidebar and Base UI Sheet navigation on smaller screens.
+  - Viewport-fixed desktop sidebar below the sticky header, with independent
+    overflow scrolling, and Base UI Sheet navigation on smaller screens.
+  - Reserve sidebar width in desktop content; remove the offset when printing.
+    Keep body horizontal overflow clipped so it does not trap header stickiness.
   - Derive sections and detail-page highlights from `lib/test-modules.ts`.
 - `lib/auth-redirect.ts`
   - Resumes safe action/result deep links directly after login, preserving queries.

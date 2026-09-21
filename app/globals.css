@@ -211,7 +211,7 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
   min-height: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
   overflow-y: visible;
   overscroll-behavior-y: auto;
   -webkit-overflow-scrolling: touch;
