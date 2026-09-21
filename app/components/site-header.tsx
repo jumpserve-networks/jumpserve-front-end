@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import type { ReactNode } from "react";
 import { GlobalAuthButton } from "@/app/components/auth-button";
 import { ThemeToggle } from "@/app/components/theme-toggle";
@@ -14,8 +15,9 @@ export function SiteHeader({ navigation }: { navigation?: ReactNode }) {
           <Link
             href="/"
             aria-label="JumpServe home"
-            className="shrink-0 rounded-md text-lg font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+            className="inline-flex shrink-0 items-center gap-2 rounded-md text-lg font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
           >
+            <Image src="/icon.png" alt="" width={32} height={32} unoptimized loading="eager" className="size-8 shrink-0 rounded-md" />
             JumpServe
           </Link>
         </div>
