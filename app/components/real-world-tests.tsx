@@ -66,11 +66,11 @@ export function RealWorldTests() {
           <p className="text-xs text-muted-foreground">One TCP stream per receiver, starting together. Buffer sizes use decimal kB (1,000 bytes). BBR uses the stock Linux implementation recorded with the results.</p>
           <p className="text-xs text-muted-foreground">Choose t3.small, t3.medium, or t3.large for each machine. T3 CPU and network bandwidth are burstable; instance limits can affect measurements at high rates.</p>
           <RealWorldPlacement label="Server" value={config.server} regions={regions} onChange={(server) => update({ server })}
-            showRegionMap disabled={submitting || loading} />
+            disabled={submitting || loading} />
           <Button type="button" variant="outline" size="sm" className="h-auto max-w-full whitespace-normal py-2 text-left" disabled={!config.server.region || !config.server.zone_id} onClick={() => update({ bottleneck: { ...config.server }, receivers: config.receivers.map(() => ({ ...config.server })) })}>Use server placement and instance type for all machines</Button>
-          <RealWorldPlacement label="Bottleneck" value={config.bottleneck} regions={regions} onChange={(bottleneck) => update({ bottleneck })} />
+          <RealWorldPlacement label="Bottleneck" value={config.bottleneck} regions={regions} onChange={(bottleneck) => update({ bottleneck })} disabled={submitting || loading} />
           {config.receivers.map((receiver, index) => <RealWorldPlacement key={index} label={`Receiver ${index + 1}`} value={receiver} regions={regions}
-            onChange={(placement) => update({ receivers: config.receivers.map((item, i) => i === index ? placement : item) })} />)}
+            onChange={(placement) => update({ receivers: config.receivers.map((item, i) => i === index ? placement : item) })} disabled={submitting || loading} />)}
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" size="sm" disabled={config.receivers.length >= 16} onClick={() => update({ receivers: [...config.receivers, emptyPlacement()] })}>Add receiver</Button>
             <Button type="button" variant="outline" size="sm" disabled={config.receivers.length <= 1} onClick={() => update({ receivers: config.receivers.slice(0, -1) })}>Remove last receiver</Button>

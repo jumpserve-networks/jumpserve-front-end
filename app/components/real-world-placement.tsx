@@ -23,9 +23,9 @@ export function Choice({ label, value, items, onChange, disabled = false }: {
   </div>;
 }
 
-export function RealWorldPlacement({ label, value, regions, onChange, showRegionMap = false, disabled = false }: {
+export function RealWorldPlacement({ label, value, regions, onChange, disabled = false }: {
   label: string; value: Placement; regions: AwsRegion[]; onChange: (value: Placement) => void;
-  showRegionMap?: boolean; disabled?: boolean;
+  disabled?: boolean;
 }) {
   const [catalog, setCatalog] = useState<{ region: string; zones: AwsZone[]; error?: string } | null>(null);
   const [retry, setRetry] = useState(0);
@@ -63,7 +63,7 @@ export function RealWorldPlacement({ label, value, regions, onChange, showRegion
           label: `${type} · 2 vCPUs · ${{ "t3.small": 2, "t3.medium": 4, "t3.large": 8 }[type]} GiB RAM` }))}
         onChange={(instanceType) => onChange(placementWithInstanceType(value, instanceType, current?.zones ?? []))} />
     </div>
-    {showRegionMap && <AwsRegionMap regions={regions} value={value.region} onChange={selectRegion} disabled={disabled} />}
+    <AwsRegionMap label={`${label} Region map`} regions={regions} value={value.region} onChange={selectRegion} disabled={disabled} />
     {value.region && !current && <p className="text-xs text-muted-foreground" role="status">Loading AWS zones…</p>}
     {current?.error && <div role="alert" className="text-sm text-destructive">{current.error} <Button type="button" variant="outline" size="sm" onClick={() => setRetry((n) => n + 1)}>Retry locations</Button></div>}
     {current && !current.error && !zones.some((z) => z.available) && <p className="text-sm text-muted-foreground">No zones offering {value.instance_type} are currently available in this Region.</p>}

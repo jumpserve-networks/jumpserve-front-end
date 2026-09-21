@@ -13,8 +13,8 @@ const land = <g className="fill-muted-foreground/15 stroke-muted-foreground/30" 
   {landPaths.map((path, index) => <path key={index} d={path} fillRule="evenodd" vectorEffect="non-scaling-stroke" />)}
 </g>;
 
-export function AwsRegionMap({ regions, value, onChange, disabled = false }: {
-  regions: AwsRegion[]; value: string; onChange: (region: string) => void; disabled?: boolean;
+export function AwsRegionMap({ label, regions, value, onChange, disabled = false }: {
+  label: string; regions: AwsRegion[]; value: string; onChange: (region: string) => void; disabled?: boolean;
 }) {
   const instructionsId = useId();
   const canvas = useRef<HTMLDivElement>(null);
@@ -53,10 +53,10 @@ export function AwsRegionMap({ regions, value, onChange, disabled = false }: {
     move({ x: viewport.x, y: viewport.y, zoom: viewport.zoom * factor });
   }
 
-  return <section aria-label="Server Region map" className="overflow-hidden rounded-md border">
+  return <section aria-label={label} className="overflow-hidden rounded-md border">
     <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2">
-      <p className="text-sm font-medium">Server Region map</p>
-      <div className="flex items-center gap-1" role="group" aria-label="Map controls">
+      <p className="text-sm font-medium">{label}</p>
+      <div className="flex items-center gap-1" role="group" aria-label={`${label} controls`}>
         <Button type="button" variant="outline" size="icon-sm" aria-label="Zoom in" title="Zoom in"
           disabled={disabled || viewport.zoom >= MAX_MAP_ZOOM} onClick={() => zoom(2)}><Plus /></Button>
         <Button type="button" variant="outline" size="icon-sm" aria-label="Zoom out" title="Zoom out"
@@ -69,7 +69,7 @@ export function AwsRegionMap({ regions, value, onChange, disabled = false }: {
         </Button>
       </div>
     </div>
-    <div ref={canvas} role="group" aria-label="Interactive world map" aria-describedby={instructionsId}
+    <div ref={canvas} role="group" aria-label={`Interactive ${label}`} aria-describedby={instructionsId}
       aria-disabled={disabled || undefined} tabIndex={disabled ? -1 : 0}
       className={cn("relative h-72 overflow-hidden bg-background outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:h-96",
         !disabled && "touch-none cursor-grab active:cursor-grabbing")}

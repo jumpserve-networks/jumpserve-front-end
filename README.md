@@ -66,8 +66,9 @@ live catalog. Each machine can use **t3.small**, **t3.medium**, or **t3.large**,
 with t3.medium as the default. The zone selector checks availability for that
 machine’s selected type. The API, provisioner, and EC2 launch permissions enforce
 the same three-type allowlist. Disabled choices explain opt-in or compatibility restrictions.
-The server Region can also be selected on an interactive world map. Its selection
-stays synchronized with the dropdown; changing Regions clears the previous zone
+The server, bottleneck, and every receiver each have an interactive world map for
+selecting their Region. Each map stays synchronized with its own dropdown;
+changing Regions clears that machine's previous zone
 and retains the selected instance type. Changing type clears a selected zone
 unless the catalog confirms the new type is offered there. Nearby markers expand with zoom, and the map supports mouse,
 touch, and keyboard navigation. Map coordinates are approximate Region locations,
