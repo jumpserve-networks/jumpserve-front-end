@@ -4,6 +4,16 @@ Last updated: 2026-09-20
 
 ## Project purpose
 
+JumpServe's central purpose is to collect networking test measurements and store
+them in a relational database: **Supabase Postgres**. Measurements belong with
+their test configurations and run metadata so researchers can query the data,
+compare experiments, and reuse results for further analysis. Test execution,
+visualizations, reports, and AI tools all support this measurement repository.
+
+This purpose applies to Congestion Control Emulated Tests, Congestion Control
+Real World Tests, and future test modules. Treat persistence in Supabase as a
+core requirement when adding or changing tests and measurements.
+
 `jumpserve-front-end` is a Next.js app for networking test modules. Logged-out
 visitors see a public overview and module links at `/`. Results and comparisons
 are public; only test execution, cancellation, and AI chat require Google sign-in
