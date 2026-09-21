@@ -32,6 +32,10 @@ selected type when changing Regions. Show an independently controlled Region map
 for the server, bottleneck, and every receiver, including newly added receivers.
 Keep each map synchronized with its placement dropdown. Availability Zone
 dropdowns must show only available zones that offer the selected instance type.
+After a Region is chosen through either control, randomly select an available
+zone that offers that machine's instance type. Preserve valid manual or copied
+zone selections, and use functional updates so concurrent receiver lookups cannot
+overwrite one another or apply a stale Region's zones.
 Both placement and traffic maps must pan continuously on both axes by repeating
 the world, markers, and paths. Keep zoom bounded and render only visible copies.
 The real-world status timeline uses Supabase `real_world_status_history` records

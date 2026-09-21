@@ -6,8 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/app/components/ui/button";
 import { AwsRegionMap } from "@/app/components/aws-region-map";
 import { realWorldRequest } from "@/lib/real-world-api";
-import type { AwsRegion, AwsZone, Placement } from "@/lib/real-world";
-import { isRealWorldZoneAvailable, placementInRegion, placementWithInstanceType, REAL_WORLD_INSTANCE_TYPES } from "@/lib/real-world";
+import type { AwsRegion, AwsZone, Placement, PlacementUpdate } from "@/lib/real-world";
+import { isRealWorldZoneAvailable, placementInRegion, placementWithAvailableZone, placementWithInstanceType, REAL_WORLD_INSTANCE_TYPES } from "@/lib/real-world";
 
 export function Choice({ label, value, items, onChange, disabled = false }: {
   label: string; value: string; items: { value: string; label: string; disabled?: boolean }[];
@@ -24,7 +24,7 @@ export function Choice({ label, value, items, onChange, disabled = false }: {
 }
 
 export function RealWorldPlacement({ label, value, regions, onChange, disabled = false }: {
-  label: string; value: Placement; regions: AwsRegion[]; onChange: (value: Placement) => void;
+  label: string; value: Placement; regions: AwsRegion[]; onChange: (update: PlacementUpdate) => void;
   disabled?: boolean;
 }) {
   const [catalog, setCatalog] = useState<{ region: string; zones: AwsZone[]; error?: string } | null>(null);
@@ -37,12 +37,19 @@ export function RealWorldPlacement({ label, value, regions, onChange, disabled =
       .catch((error: Error) => { if (!controller.signal.aborted) setCatalog({ region: value.region, zones: [], error: error.message }); });
     return () => controller.abort();
   }, [value.region, retry]);
+  useEffect(() => {
+    if (disabled || !catalog || catalog.error || catalog.region !== value.region) return;
+    if (catalog.zones.some((zone) => zone.zone_id === value.zone_id && isRealWorldZoneAvailable(zone, value.instance_type))) return;
+    // Sample outside the updater: React may replay it, and another machine may
+    // finish its zone lookup before this update is applied.
+    const sample = Math.random();
+    onChange((latest) => placementWithAvailableZone(latest, catalog.region, catalog.zones, sample));
+  }, [catalog, disabled, onChange, value]);
   const current = catalog?.region === value.region ? catalog : null;
   const zones = (current?.zones ?? []).filter((zone) => isRealWorldZoneAvailable(zone, value.instance_type));
   function selectRegion(region: string) {
     if (disabled) return;
-    const next = placementInRegion(value, region, regions);
-    if (next !== value) onChange(next);
+    onChange((latest) => placementInRegion(latest, region, regions));
   }
   return <fieldset disabled={disabled} className="min-w-0 space-y-3 rounded-md border p-4">
     <legend className="px-1 text-sm font-semibold">{label}</legend>
@@ -53,14 +60,15 @@ export function RealWorldPlacement({ label, value, regions, onChange, disabled =
       <Choice label={`${label} Availability Zone`} value={value.zone_id} disabled={disabled || !zones.length}
         items={zones.map((z) => ({ value: z.zone_id, label: `${z.name} (${z.zone_id})` }))}
         onChange={(zone_id) => {
-          if (zones.some((zone) => zone.zone_id === zone_id)) {
-            onChange({ ...value, zone_id });
-          }
+          onChange((latest) => current?.region === latest.region &&
+            current.zones.some((zone) => zone.zone_id === zone_id && isRealWorldZoneAvailable(zone, latest.instance_type))
+            ? { ...latest, zone_id } : latest);
         }} />
       <Choice label={`${label} instance type`} value={value.instance_type} disabled={disabled}
         items={REAL_WORLD_INSTANCE_TYPES.map((type) => ({ value: type,
           label: `${type} · 2 vCPUs · ${{ "t3.small": 2, "t3.medium": 4, "t3.large": 8 }[type]} GiB RAM` }))}
-        onChange={(instanceType) => onChange(placementWithInstanceType(value, instanceType, current?.zones ?? []))} />
+        onChange={(instanceType) => onChange((latest) => placementWithInstanceType(latest, instanceType,
+          current?.region === latest.region ? current.zones : []))} />
     </div>
     <AwsRegionMap label={`${label} Region map`} regions={regions} value={value.region} onChange={selectRegion} disabled={disabled} />
     {value.region && !current && <p className="text-xs text-muted-foreground" role="status">Loading AWS zones…</p>}

@@ -10,7 +10,7 @@ import { Label } from "@/app/components/ui/label";
 import { Textarea } from "@/app/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/components/ui/table";
 import { Choice, RealWorldPlacement } from "@/app/components/real-world-placement";
-import { defaultRealWorldConfig, emptyPlacement, REAL_WORLD_CCAS, REAL_WORLD_STAGES, validateRealWorldConfig,
+import { defaultRealWorldConfig, emptyPlacement, REAL_WORLD_CCAS, REAL_WORLD_STAGES, updateRealWorldPlacement, validateRealWorldConfig,
   type AwsRegion, type RealWorldConfig, type RealWorldJob } from "@/lib/real-world";
 import { realWorldRequest } from "@/lib/real-world-api";
 
@@ -65,17 +65,17 @@ export function RealWorldTests() {
           </div>
           <p className="text-xs text-muted-foreground">One TCP stream per receiver, starting together. Buffer sizes use decimal kB (1,000 bytes). BBR uses the stock Linux implementation recorded with the results.</p>
           <p className="text-xs text-muted-foreground">Choose t3.small, t3.medium, or t3.large for each machine. T3 CPU and network bandwidth are burstable; instance limits can affect measurements at high rates.</p>
-          <RealWorldPlacement label="Server" value={config.server} regions={regions} onChange={(server) => update({ server })}
+          <RealWorldPlacement label="Server" value={config.server} regions={regions} onChange={(change) => setConfig((old) => updateRealWorldPlacement(old, "server", change))}
             disabled={submitting || loading} />
-          <Button type="button" variant="outline" size="sm" className="h-auto max-w-full whitespace-normal py-2 text-left" disabled={!config.server.region || !config.server.zone_id} onClick={() => update({ bottleneck: { ...config.server }, receivers: config.receivers.map(() => ({ ...config.server })) })}>Use server placement and instance type for all machines</Button>
-          <RealWorldPlacement label="Bottleneck" value={config.bottleneck} regions={regions} onChange={(bottleneck) => update({ bottleneck })} disabled={submitting || loading} />
+          <Button type="button" variant="outline" size="sm" className="h-auto max-w-full whitespace-normal py-2 text-left" disabled={!config.server.region || !config.server.zone_id} onClick={() => setConfig((old) => ({ ...old, bottleneck: { ...old.server }, receivers: old.receivers.map(() => ({ ...old.server })) }))}>Use server placement and instance type for all machines</Button>
+          <RealWorldPlacement label="Bottleneck" value={config.bottleneck} regions={regions} onChange={(change) => setConfig((old) => updateRealWorldPlacement(old, "bottleneck", change))} disabled={submitting || loading} />
           {config.receivers.map((receiver, index) => <RealWorldPlacement key={index} label={`Receiver ${index + 1}`} value={receiver} regions={regions}
-            onChange={(placement) => update({ receivers: config.receivers.map((item, i) => i === index ? placement : item) })} disabled={submitting || loading} />)}
+            onChange={(change) => setConfig((old) => updateRealWorldPlacement(old, index, change))} disabled={submitting || loading} />)}
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" disabled={config.receivers.length >= 16} onClick={() => update({ receivers: [...config.receivers, emptyPlacement()] })}>Add receiver</Button>
-            <Button type="button" variant="outline" size="sm" disabled={config.receivers.length <= 1} onClick={() => update({ receivers: config.receivers.slice(0, -1) })}>Remove last receiver</Button>
+            <Button type="button" variant="outline" size="sm" disabled={config.receivers.length >= 16} onClick={() => setConfig((old) => ({ ...old, receivers: [...old.receivers, emptyPlacement()] }))}>Add receiver</Button>
+            <Button type="button" variant="outline" size="sm" disabled={config.receivers.length <= 1} onClick={() => setConfig((old) => ({ ...old, receivers: old.receivers.slice(0, -1) }))}>Remove last receiver</Button>
           </div>
-          <p className="text-xs text-muted-foreground">AWS publishes Regions and Availability Zones rather than individual data centers. Locations are fetched from AWS for this account. Only available zones that support the selected instance type are shown.</p>
+          <p className="text-xs text-muted-foreground">AWS publishes Regions and Availability Zones rather than individual data centers. Locations are fetched from AWS for this account. An available zone that supports the instance type is selected at random for each machine. You can change it using the zone dropdown.</p>
           <div className="space-y-2"><Label htmlFor="real-world-notes">Hypothesis / notes</Label><Textarea id="real-world-notes" maxLength={4000} value={config.notes} onChange={(e) => update({ notes: e.target.value })} /></div>
         </fieldset>
         {loading && <p role="status" className="text-sm text-muted-foreground">Loading AWS locations and test history…</p>}

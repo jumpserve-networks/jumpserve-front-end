@@ -2,6 +2,7 @@ export const REAL_WORLD_CCAS = ["cubic", "bbr", "reno"] as const;
 export const REAL_WORLD_INSTANCE_TYPES = ["t3.small", "t3.medium", "t3.large"] as const;
 export const REAL_WORLD_DEFAULT_INSTANCE_TYPE = "t3.medium";
 export type Placement = { region: string; zone_id: string; instance_type: string };
+export type PlacementUpdate = Placement | ((current: Placement) => Placement);
 export type AwsRegion = { region: string; enabled: boolean; opt_in_status: string };
 export type AwsZone = { zone_id: string; name: string; type: string; available: boolean; reason: string | null; instance_types: string[] };
 export type RealWorldConfig = {
@@ -36,6 +37,22 @@ export function placementInRegion(value: Placement, region: string, regions: Aws
   if (region === value.region || !regions.some((item) => item.region === region && item.enabled)) return value;
   return { ...value, region, zone_id: "" };
 }
+export function placementWithAvailableZone(value: Placement, region: string, zones: AwsZone[], sample: number): Placement {
+  if (!region || value.region !== region) return value;
+  const available = zones.filter((zone) => isRealWorldZoneAvailable(zone, value.instance_type));
+  if (available.some((zone) => zone.zone_id === value.zone_id)) return value;
+  const zone_id = available[Math.floor(sample * available.length)]?.zone_id ?? "";
+  return zone_id === value.zone_id ? value : { ...value, zone_id };
+}
+export function updateRealWorldPlacement(config: RealWorldConfig, machine: "server" | "bottleneck" | number, update: PlacementUpdate): RealWorldConfig {
+  const current = typeof machine === "number" ? config.receivers[machine] : config[machine];
+  if (!current) return config;
+  const next = typeof update === "function" ? update(current) : update;
+  if (next === current) return config;
+  return typeof machine === "number"
+    ? { ...config, receivers: config.receivers.map((receiver, index) => index === machine ? next : receiver) }
+    : { ...config, [machine]: next };
+}
 export function defaultRealWorldConfig(): RealWorldConfig {
   return { server: emptyPlacement(), bottleneck: emptyPlacement(), receivers: [emptyPlacement(), emptyPlacement()],
     cca: "cubic", duration_seconds: 60, rate_mbit: 100, buffer_kbytes: 125, notes: "" };
@@ -64,7 +81,7 @@ export function validateRealWorldConfig(config: RealWorldConfig): string | null 
   if (config.receivers.length < 1 || config.receivers.length > 16) return "Choose between 1 and 16 receivers.";
   const machines = [config.server, config.bottleneck, ...config.receivers];
   if (machines.some((node) => !node.region || !node.zone_id)) {
-    return "Choose a Region and Availability Zone for every machine.";
+    return "Choose a Region for every machine and wait for an available zone to be selected.";
   }
   if (machines.some((node) => !isRealWorldInstanceType(node.instance_type))) return "Every machine must use t3.small, t3.medium, or t3.large.";
   for (const [name, value, min, max] of [
