@@ -1,5 +1,7 @@
 "use client";
 
+import { EMULATED_MODULE_PATH, EMULATED_TESTS_MODULE } from "@/lib/test-modules";
+
 import { Label } from "@/app/components/ui/label";
 import { Input } from "@/app/components/ui/input";
 import { Checkbox } from "@/app/components/ui/checkbox";
@@ -9,7 +11,6 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { FilterDropdown } from "@/app/components/ui/filter-dropdown";
 
 import Link from "next/link";
-import { EMULATED_TESTS_MODULE } from "@/lib/test-modules";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
@@ -350,7 +351,7 @@ export function ParentRunIndex({
   const totalPages = pageData.totalPages;
   const totalCount = pageData.totalCount;
   const getParentRunHref = (parentRunId: number) =>
-    `/parent-run/${parentRunId}?page=${currentPage}`;
+    `${EMULATED_MODULE_PATH}/parent-run/${parentRunId}?page=${currentPage}`;
   const normalizedRunSearchQuery = runSearchQuery.trim().toLowerCase();
   const isFilterOptionSectionExpanded = (sectionId: string) =>
     expandedFilterOptionSections.includes(sectionId);
@@ -572,7 +573,7 @@ export function ParentRunIndex({
         clampedPageNumber,
         baseFilterState,
       );
-      const response = await fetch(`/api/parent-runs?${searchParams.toString()}`, {
+      const response = await fetch(`${EMULATED_MODULE_PATH}/api/parent-runs?${searchParams.toString()}`, {
         cache: "no-store",
       });
 
@@ -605,7 +606,7 @@ export function ParentRunIndex({
 
       try {
         const response = await fetch(
-          `/api/parent-runs?${searchParams.toString()}`,
+          `${EMULATED_MODULE_PATH}/api/parent-runs?${searchParams.toString()}`,
           {
             cache: "no-store",
           },

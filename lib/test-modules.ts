@@ -1,3 +1,18 @@
+export const EMULATED_MODULE_PATH = "/module/congestion-control-emulated";
+export const REAL_WORLD_MODULE_PATH = "/module/congestion-control-real-world";
+
+// Keep saved links and old bookmarks usable after moving module pages.
+export const LEGACY_MODULE_ROUTES = [
+  ...["test-lookup", "parent-run", "aggregate-graphs", "benchmarks", "chat", "api/parent-runs"].map((path) => ({
+    source: `/${path}`, destination: `${EMULATED_MODULE_PATH}/${path}`,
+  })),
+  ...["real-world", "real-world-reports"].map((path) => ({
+    source: `/${path}`, destination: `${REAL_WORLD_MODULE_PATH}/${path}`,
+  })),
+  { source: "/modules/congestion-control-emulated", destination: EMULATED_MODULE_PATH },
+  { source: "/modules/congestion-control-real-world", destination: REAL_WORLD_MODULE_PATH },
+];
+
 export type TestModuleSection = {
   href: string;
   label: string;
@@ -20,31 +35,31 @@ export const EMULATED_TESTS_MODULE = {
   description:
     "Run controlled network experiments and compare congestion control algorithms, throughput, latency, and fairness.",
   status: "available",
-  href: "/modules/congestion-control-emulated",
+  href: EMULATED_MODULE_PATH,
   sections: [
     {
-      href: "/test-lookup",
+      href: `${EMULATED_MODULE_PATH}/test-lookup`,
       label: "Test Lookup",
       description: "Search individual tests and inspect their run details.",
-      paths: ["/test-lookup", "/parent-run"],
+      paths: [`${EMULATED_MODULE_PATH}/test-lookup`, `${EMULATED_MODULE_PATH}/parent-run`],
     },
     {
-      href: "/aggregate-graphs",
+      href: `${EMULATED_MODULE_PATH}/aggregate-graphs`,
       label: "Aggregate Graphs",
       description: "Compare emulation metrics across groups of runs.",
-      paths: ["/aggregate-graphs"],
+      paths: [`${EMULATED_MODULE_PATH}/aggregate-graphs`],
     },
     {
-      href: "/benchmarks",
+      href: `${EMULATED_MODULE_PATH}/benchmarks`,
       label: "Run Benchmark",
       description: "Configure workloads, network conditions, and congestion control algorithms.",
-      paths: ["/benchmarks"],
+      paths: [`${EMULATED_MODULE_PATH}/benchmarks`],
     },
     {
-      href: "/chat",
+      href: `${EMULATED_MODULE_PATH}/chat`,
       label: "Chat with AI",
       description: "Query experiment results and discuss congestion control behavior.",
-      paths: ["/chat"],
+      paths: [`${EMULATED_MODULE_PATH}/chat`],
     },
   ],
 } as const satisfies TestModule;
@@ -57,10 +72,10 @@ export const TEST_MODULES: readonly TestModule[] = [
     description:
       "Measure congestion control across AWS network paths using a server, a shared bottleneck, and independently placed receivers.",
     status: "available",
-    href: "/modules/congestion-control-real-world",
+    href: REAL_WORLD_MODULE_PATH,
     sections: [
-      { href: "/real-world", label: "Run a Test", description: "Launch EC2 tests, choose machine locations, and inspect results.", paths: ["/real-world"] },
-      { href: "/real-world-reports", label: "Test Results", description: "Explore shared measurements and compare matched configurations with replication counts and confidence intervals.", paths: ["/real-world-reports"] },
+      { href: `${REAL_WORLD_MODULE_PATH}/real-world`, label: "Run a Test", description: "Launch EC2 tests, choose machine locations, and inspect results.", paths: [`${REAL_WORLD_MODULE_PATH}/real-world`] },
+      { href: `${REAL_WORLD_MODULE_PATH}/real-world-reports`, label: "Test Results", description: "Explore shared measurements and compare matched configurations with replication counts and confidence intervals.", paths: [`${REAL_WORLD_MODULE_PATH}/real-world-reports`] },
     ],
   },
 ];
@@ -73,11 +88,12 @@ export function isModuleSectionActive(section: TestModuleSection, pathname: stri
   return section.paths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
-// Existing tool URLs belong to the emulated module. Keep bookmarks and saved
-// links working while new modules get their own routes and data sources.
+// Resolve legacy next destinations as well as canonical module routes.
 export function getTestModuleForPath(path: string) {
   if (!path.startsWith("/") || path.startsWith("//") || /[\\\s]/.test(path)) return undefined;
-  const pathname = path.split(/[?#]/, 1)[0];
+  let pathname = path.split(/[?#]/, 1)[0];
+  const legacy = LEGACY_MODULE_ROUTES.find(({ source }) => pathname === source || pathname.startsWith(`${source}/`));
+  if (legacy) pathname = legacy.destination + pathname.slice(legacy.source.length);
   return TEST_MODULES.find(
     (module) => module.status === "available" && (
       pathname === module.href ||

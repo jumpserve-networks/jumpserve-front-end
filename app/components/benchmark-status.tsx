@@ -1,5 +1,7 @@
 "use client";
 
+import { EMULATED_MODULE_PATH } from "@/lib/test-modules";
+
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/app/components/ui/alert-dialog";
 import { Button } from "@/app/components/ui/button";
 
@@ -370,7 +372,7 @@ export function BenchmarkStatus({ canManage = false }: { canManage?: boolean }) 
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
                 <Link
-                  href={`/benchmarks/${encodeURIComponent(job.id)}`}
+                  href={`${EMULATED_MODULE_PATH}/benchmarks/${encodeURIComponent(job.id)}`}
                   className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted dark:hover:bg-accent"
                 >
                   View progress
@@ -380,7 +382,7 @@ export function BenchmarkStatus({ canManage = false }: { canManage?: boolean }) 
                 )}
                 {job.status === "completed" && job.parent_run_id && (
                   <Link
-                    href={`/parent-run/${job.parent_run_id}`}
+                    href={`${EMULATED_MODULE_PATH}/parent-run/${job.parent_run_id}`}
                     className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:bg-primary/90"
                   >
                     View Results

@@ -1,3 +1,4 @@
+import { EMULATED_MODULE_PATH } from "@/lib/test-modules";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -22,7 +23,7 @@ export default async function BenchmarkRunPage({ params }: { params: Promise<{ j
   return (
     <main className="min-h-[var(--page-height)] bg-muted text-foreground dark:bg-background">
       <div className="mx-auto max-w-3xl space-y-6 px-4 py-12">
-        <Link href="/benchmarks" className="inline-flex text-sm text-muted-foreground hover:text-foreground">&larr; Benchmarks</Link>
+        <Link href={`${EMULATED_MODULE_PATH}/benchmarks`} className="inline-flex text-sm text-muted-foreground hover:text-foreground">&larr; Benchmarks</Link>
         <div><h1 className="text-2xl font-bold">Benchmark progress</h1><p className="mt-1 text-sm text-muted-foreground">Follow this run from launch to results.</p></div>
         <BenchmarkRunStatus key={jobId} initialJob={data as BenchmarkJob} canManage={Boolean(user)} />
       </div>

@@ -2,8 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getPostLoginPath } from "@/lib/auth-redirect";
 import { isGoogleAuthenticatedUser } from "@/lib/auth-provider";
+import { EMULATED_MODULE_PATH } from "@/lib/test-modules";
 
-const AUTHENTICATED_PATHS = new Set(["/chat"]);
+const AUTHENTICATED_PATHS = new Set([`${EMULATED_MODULE_PATH}/chat`]);
 const AUTH_ERROR_PARAMS = ["error", "error_code", "error_description"];
 
 function getSupabaseConfig() {

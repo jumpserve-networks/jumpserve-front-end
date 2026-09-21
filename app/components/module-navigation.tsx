@@ -1,20 +1,21 @@
 "use client";
 
+import { EMULATED_MODULE_PATH, REAL_WORLD_MODULE_PATH, isModuleSectionActive, type TestModule } from "@/lib/test-modules";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChartNoAxesCombined, FileChartColumn, FlaskConical, Globe2, LayoutDashboard, LayoutGrid, Menu, MessageSquare, Search, type LucideIcon } from "lucide-react";
 import { Button, buttonVariants } from "@/app/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/app/components/ui/sheet";
-import { isModuleSectionActive, type TestModule } from "@/lib/test-modules";
 import { cn } from "@/lib/utils";
 
 const sectionIcons: Record<string, LucideIcon> = {
-  "/test-lookup": Search,
-  "/aggregate-graphs": ChartNoAxesCombined,
-  "/benchmarks": FlaskConical,
-  "/chat": MessageSquare,
-  "/real-world": Globe2,
-  "/real-world-reports": FileChartColumn,
+  [`${EMULATED_MODULE_PATH}/test-lookup`]: Search,
+  [`${EMULATED_MODULE_PATH}/aggregate-graphs`]: ChartNoAxesCombined,
+  [`${EMULATED_MODULE_PATH}/benchmarks`]: FlaskConical,
+  [`${EMULATED_MODULE_PATH}/chat`]: MessageSquare,
+  [`${REAL_WORLD_MODULE_PATH}/real-world`]: Globe2,
+  [`${REAL_WORLD_MODULE_PATH}/real-world-reports`]: FileChartColumn,
 };
 
 type NavigationProps = { testModule: TestModule; pathname: string; onNavigate?: () => void };

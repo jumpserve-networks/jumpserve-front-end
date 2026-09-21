@@ -1,8 +1,8 @@
+import { EMULATED_MODULE_PATH, EMULATED_TESTS_MODULE } from "@/lib/test-modules";
 import type { Metadata } from "next";
 import { ChatPanel } from "@/app/components/chat-panel";
 import { requireGoogleUser } from "@/lib/auth";
 import Link from "next/link";
-import { EMULATED_TESTS_MODULE } from "@/lib/test-modules";
 
 export const dynamic = "force-dynamic";
 
@@ -21,12 +21,12 @@ export default async function ChatPage({
     typeof value === "string" && /^[1-9]\d*$/.test(value) && Number.isSafeInteger(Number(value))
       ? Number(value)
       : null;
-  const nextPath = parentRunId ? `/chat?parentRunId=${parentRunId}` : "/chat";
+  const nextPath = parentRunId ? `${EMULATED_MODULE_PATH}/chat?parentRunId=${parentRunId}` : `${EMULATED_MODULE_PATH}/chat`;
   const user = await requireGoogleUser(nextPath);
   // A new page render is a new visit, including navigation to this same URL.
   const visitKey = crypto.randomUUID();
   const initialMessage = parentRunId
-    ? `Help me understand parent test run #${parentRunId} (/parent-run/${parentRunId}). Please look up its configuration and results, summarize throughput, round-trip time, and queueing delay, and highlight any notable behavior.`
+    ? `Help me understand parent test run #${parentRunId} (${EMULATED_MODULE_PATH}/parent-run/${parentRunId}). Please look up its configuration and results, summarize throughput, round-trip time, and queueing delay, and highlight any notable behavior.`
     : "";
 
   return (
@@ -34,7 +34,7 @@ export default async function ChatPage({
       <div className="mx-auto max-w-5xl px-4 py-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <Link
-            href={parentRunId ? `/parent-run/${parentRunId}` : EMULATED_TESTS_MODULE.href}
+            href={parentRunId ? `${EMULATED_MODULE_PATH}/parent-run/${parentRunId}` : EMULATED_TESTS_MODULE.href}
             className="inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
           >
             &larr; {parentRunId ? `Test run #${parentRunId}` : "Emulated tests"}

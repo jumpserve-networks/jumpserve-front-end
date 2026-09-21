@@ -1,5 +1,7 @@
 "use client";
 
+import { REAL_WORLD_MODULE_PATH } from "@/lib/test-modules";
+
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -39,7 +41,7 @@ export function RealWorldReports() {
   function query(patch: Record<string, string>) {
     const next = new URLSearchParams(params.toString());
     for (const [key, value] of Object.entries(patch)) { if (value) next.set(key, value); else next.delete(key); }
-    window.history.replaceState(null, "", `/real-world-reports${next.size ? `?${next}` : ""}`);
+    window.history.replaceState(null, "", `${REAL_WORLD_MODULE_PATH}/real-world-reports${next.size ? `?${next}` : ""}`);
   }
   const load = useCallback(async (pageCursor?: string, signal?: AbortSignal) => {
     setLoading(true); setError("");
@@ -110,7 +112,7 @@ export function RealWorldReports() {
         <TableCell>{dateUtc(job.created_at).replace(" UTC", "")}<br /><span className="font-mono text-xs text-muted-foreground">{job.job_id.slice(0, 8)}</span>{job.config.notes && <p className="mt-1 max-w-xs truncate text-xs text-muted-foreground" title={job.config.notes}>{job.config.notes}</p>}</TableCell>
         <TableCell>{job.config.cca.toUpperCase()}</TableCell><TableCell className="text-xs">{job.config.server.region} → {job.config.bottleneck.region}<br />→ {[...new Set(job.config.receivers.map(r => r.region))].join(", ")}</TableCell>
         <TableCell className="text-xs">{job.config.receivers.length} receivers · {job.config.duration_seconds} s<br />{job.config.rate_mbit} Mbit/s · {job.config.buffer_kbytes} kB</TableCell>
-        <TableCell><Badge variant="secondary">{job.status}</Badge></TableCell><TableCell><Link href={`/real-world-reports/${job.job_id}`} className="text-primary underline underline-offset-4">View results</Link></TableCell>
+        <TableCell><Badge variant="secondary">{job.status}</Badge></TableCell><TableCell><Link href={`${REAL_WORLD_MODULE_PATH}/real-world-reports/${job.job_id}`} className="text-primary underline underline-offset-4">View results</Link></TableCell>
       </TableRow>)}</TableBody></Table> : null}
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" disabled={!visible.length || building} onClick={() => query({ selected: [...new Set([...selected, ...visible.map(job => job.job_id)])].slice(0, MAX_REPORT_SELECTION).join(",") })}>Select filtered tests</Button>

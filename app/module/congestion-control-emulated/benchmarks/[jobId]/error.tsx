@@ -1,5 +1,7 @@
 "use client";
 
+import { EMULATED_MODULE_PATH } from "@/lib/test-modules";
+
 import Link from "next/link";
 import { Button } from "@/app/components/ui/button";
 
@@ -10,7 +12,7 @@ export default function BenchmarkError({ reset }: { reset: () => void }) {
       <p role="alert" className="text-muted-foreground">The status service could not be reached. Try again to check this run.</p>
       <div className="flex gap-3">
         <Button onClick={reset}>Try again</Button>
-        <Button variant="outline" nativeButton={false} render={<Link href="/benchmarks" />}>Back to benchmarks</Button>
+        <Button variant="outline" nativeButton={false} render={<Link href={`${EMULATED_MODULE_PATH}/benchmarks`} />}>Back to benchmarks</Button>
       </div>
     </main>
   );

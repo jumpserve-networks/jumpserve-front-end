@@ -1,5 +1,7 @@
 "use client";
 
+import { EMULATED_MODULE_PATH } from "@/lib/test-modules";
+
 import { SignInToRun } from "./sign-in-to-run";
 import { BenchmarkForm } from "./benchmark-form";
 import { BenchmarkStatus } from "./benchmark-status";
@@ -15,7 +17,7 @@ export function BenchmarkTabs({ userEmail }: { userEmail?: string }) {
       </TabsList>
       <TabsContent value="configure">
         <Card>
-          <CardContent>{userEmail ? <BenchmarkForm /> : <SignInToRun nextPath="/benchmarks" />}</CardContent>
+          <CardContent>{userEmail ? <BenchmarkForm /> : <SignInToRun nextPath={`${EMULATED_MODULE_PATH}/benchmarks`} />}</CardContent>
         </Card>
       </TabsContent>
       <TabsContent value="history"><BenchmarkStatus canManage={Boolean(userEmail)} /></TabsContent>

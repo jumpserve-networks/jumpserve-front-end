@@ -1,5 +1,7 @@
 "use client";
 
+import { EMULATED_MODULE_PATH } from "@/lib/test-modules";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Check, CircleAlert, LoaderCircle } from "lucide-react";
@@ -180,8 +182,8 @@ export function BenchmarkRunStatus({ initialJob, canManage = false }: { initialJ
           </p>
 
           <div className="flex flex-wrap items-center gap-3">
-            {successful && job.parent_run_id != null && <Button nativeButton={false} render={<Link href={`/parent-run/${job.parent_run_id}`} />}>View results</Button>}
-            {terminal && <Button variant="outline" nativeButton={false} render={<Link href="/benchmarks" />}>Configure another benchmark</Button>}
+            {successful && job.parent_run_id != null && <Button nativeButton={false} render={<Link href={`${EMULATED_MODULE_PATH}/parent-run/${job.parent_run_id}`} />}>View results</Button>}
+            {terminal && <Button variant="outline" nativeButton={false} render={<Link href={`${EMULATED_MODULE_PATH}/benchmarks`} />}>Configure another benchmark</Button>}
             {canManage && !terminal && !confirmCancel && <Button variant="outline" onClick={() => setConfirmCancel(true)}>Cancel benchmark</Button>}
             {!terminal && <span className="text-xs text-muted-foreground">Updates every 5 seconds. You can leave and return to this URL.</span>}
           </div>

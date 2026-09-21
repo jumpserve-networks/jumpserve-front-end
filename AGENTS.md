@@ -20,8 +20,9 @@ are public; only test execution, cancellation, and AI chat require Google sign-i
 at `/login`. Sign-in resumes the requested action. Emulated tools belong to
 **Congestion Control Emulated Tests** (`congestion-control-emulated`).
 **Congestion Control Real World Tests** (`congestion-control-real-world`) provides
-the separate EC2 launcher/history at `/real-world` and results at
-`/real-world/[jobId]`. Its `/real-world/*` API shares the benchmark
+the separate EC2 launcher/history at
+`/module/congestion-control-real-world/real-world` and status at
+`/module/congestion-control-real-world/real-world/[jobId]`. Its `/real-world/*` API shares the benchmark
 API origin, with records and normalized reports in Supabase Postgres and raw
 measurements in private Supabase Storage. `real_world_runs` and
 `real_world_reports` are public read-only; `real_world_jobs` and
@@ -46,7 +47,12 @@ Do not mix its duration-based
 throughput results with emulated file completion times.
 
 Define module names, availability, home routes, and tool ownership in
-`lib/test-modules.ts`. Existing emulated tool URLs remain valid. New modules need
+`lib/test-modules.ts`. All module pages and module-owned Next.js API routes belong
+under `/module/{moduleId}`. Use the exported module path constants for links,
+launch redirects, query updates, and sign-in return paths. Legacy root tool URLs
+and `/modules/{moduleId}` redirect permanently, preserving path suffixes and
+query parameters, through `next.config.ts`. AWS API endpoint paths stay unchanged.
+New modules need
 their own tools and data integration before becoming available; module selection
 is navigation, not an authentication or authorization boundary.
 
@@ -123,8 +129,10 @@ behind CloudFront, Next.js can see the internal origin as `localhost:3000`. Pref
   - Server component rendering the public overview when logged out and the module
     chooser for authenticated Google users.
   - Retains a safe requested tool URL until its module is selected.
-- `app/modules/[moduleId]/page.tsx`
+- `app/module/[moduleId]/page.tsx`
   - Public module home; unavailable and unknown modules return 404.
+- `app/module/congestion-control-emulated` and `app/module/congestion-control-real-world`
+  - Module pages, detail routes, and the emulated parent-run query endpoint.
 - `app/components/site-header.tsx`
   - Shared identity, theme, authentication, and mobile module-menu trigger.
 - `app/components/app-shell.tsx` and `app/components/module-navigation.tsx`

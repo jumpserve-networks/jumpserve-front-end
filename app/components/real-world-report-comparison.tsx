@@ -1,5 +1,7 @@
 "use client";
 
+import { REAL_WORLD_MODULE_PATH } from "@/lib/test-modules";
+
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Button } from "@/app/components/ui/button";
@@ -69,9 +71,9 @@ export function RealWorldReportComparison({ reports, baseline, comparison, metri
       {block.baseline.count !== block.comparison.count && <p className="text-sm text-muted-foreground">Replication counts are unbalanced. All observed tests are retained; the chart does not correct the collection imbalance.</p>}
       <dl className="grid gap-3 text-sm sm:grid-cols-2">{[block.example.job.config.server, block.example.job.config.bottleneck, ...block.example.job.config.receivers].map((p, i) => <div key={i}><dt className="text-muted-foreground">{i === 0 ? "Server" : i === 1 ? "Bottleneck" : `Receiver ${i - 1}`}</dt><dd>{p.region} · {p.zone_id} · {p.instance_type}</dd></div>)}</dl>
       <p className="text-xs text-muted-foreground">{block.example.job.config.duration_seconds} s · {block.example.job.config.rate_mbit} Mbit/s · {block.example.job.config.buffer_kbytes} kB. Full matching configuration and source provenance are included in the JSON export.</p>
-      <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">{[...block.baseline.ids, ...block.comparison.ids].map(id => <Link key={id} href={`/real-world-reports/${id}`} className="font-mono text-primary underline underline-offset-4">{id.slice(0, 8)}</Link>)}</div>
+      <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">{[...block.baseline.ids, ...block.comparison.ids].map(id => <Link key={id} href={`${REAL_WORLD_MODULE_PATH}/real-world-reports/${id}`} className="font-mono text-primary underline underline-offset-4">{id.slice(0, 8)}</Link>)}</div>
     </CardContent></Card>}
-    {result.excluded.length > 0 && <Card><CardHeader><CardTitle>Excluded tests</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Test</TableHead><TableHead>Reason</TableHead></TableRow></TableHeader><TableBody>{result.excluded.map((e, i) => <TableRow key={`${e.jobId}-${i}`}><TableCell><Link href={`/real-world-reports/${e.jobId}`} className="font-mono text-xs text-primary underline">{e.jobId.slice(0, 8)}</Link></TableCell><TableCell className="whitespace-normal">{e.reason}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>}
+    {result.excluded.length > 0 && <Card><CardHeader><CardTitle>Excluded tests</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Test</TableHead><TableHead>Reason</TableHead></TableRow></TableHeader><TableBody>{result.excluded.map((e, i) => <TableRow key={`${e.jobId}-${i}`}><TableCell><Link href={`${REAL_WORLD_MODULE_PATH}/real-world-reports/${e.jobId}`} className="font-mono text-xs text-primary underline">{e.jobId.slice(0, 8)}</Link></TableCell><TableCell className="whitespace-normal">{e.reason}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>}
     <Card><CardHeader><CardTitle>Interpretation and method</CardTitle></CardHeader><CardContent className="space-y-2 text-sm text-muted-foreground">
       <p>Each algorithm’s estimate is the median of whole-test outcomes within one recorded configuration. Intervals use {REPORT_BOOTSTRAP_SAMPLES.toLocaleString()} deterministic percentile bootstrap resamples, independently within each algorithm. At least {REPORT_MIN_REPEATS} tests per algorithm are required for a difference interval; fewer tests retain descriptive estimates.</p>
       <p>Intervals are exploratory, pointwise, and assume independent tests. Sparse or constant samples may give unreliable intervals. Failed and incomplete tests are excluded, so estimates describe completed transfers. No randomized assignment or paired-trial identifier is recorded; no pairs or causal effects are inferred.</p>

@@ -1,10 +1,10 @@
+import { EMULATED_MODULE_PATH, EMULATED_TESTS_MODULE } from "@/lib/test-modules";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { EMULATED_TESTS_MODULE } from "@/lib/test-modules";
 import { Suspense } from "react";
 import { MessageCircle } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import { ParentRunCharts } from "@/app/parent-run/[id]/parent-run-charts";
+import { ParentRunCharts } from "./parent-run-charts";
 import { fetchParentRunSummary } from "@/lib/emulated-runs-data";
 import { notFound } from "next/navigation";
 
@@ -112,7 +112,7 @@ export default async function ParentRunPage({
             </p>
             <div className="mb-5 flex items-center justify-between gap-3">
               <Link
-                href={`/test-lookup?page=${returnPage}`}
+                href={`${EMULATED_MODULE_PATH}/test-lookup?page=${returnPage}`}
                 aria-label={`Return to test lookup page ${returnPage}`}
                 className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground transition hover:border-primary/40 hover:bg-accent dark:hover:border-border"
               >
@@ -158,7 +158,7 @@ export default async function ParentRunPage({
               <Button
                 nativeButton={false}
                 className="self-start sm:self-auto"
-                render={<Link href={`/chat?parentRunId=${parentRun.id}`} />}
+                render={<Link href={`${EMULATED_MODULE_PATH}/chat?parentRunId=${parentRun.id}`} />}
               >
                 <MessageCircle aria-hidden="true" />
                 Chat with AI

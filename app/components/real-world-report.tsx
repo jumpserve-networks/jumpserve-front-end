@@ -1,5 +1,7 @@
 "use client";
 
+import { REAL_WORLD_MODULE_PATH } from "@/lib/test-modules";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/app/components/ui/button";
@@ -96,7 +98,7 @@ export function RealWorldReport({ jobId }: { jobId: string }) {
       <p className="break-all">Measurement runtime: <span className="font-mono text-xs">{job.runtime_revision}</span></p>
       <p className="text-muted-foreground">CSV exports preserve units and clock definitions. Report JSON includes configurations, eligibility checks, sample counts, and source checksums. Legacy version IDs are retained for imported measurements. Raw links expire after five minutes; anyone holding a link can use it until expiry.</p>
       <Table><TableHeader><TableRow><TableHead>Source</TableHead><TableHead>SHA-256</TableHead><TableHead>Legacy version</TableHead></TableRow></TableHeader><TableBody>{report.sources.map(source => <TableRow key={source.name}><TableCell>{source.name}</TableCell><TableCell className="max-w-xs break-all whitespace-normal font-mono text-xs">{source.sha256}</TableCell><TableCell className="max-w-xs break-all whitespace-normal font-mono text-xs">{source.version_id ?? "—"}</TableCell></TableRow>)}</TableBody></Table>
-      <div className="flex flex-wrap gap-3 print:hidden"><Button variant="outline" size="sm" disabled={downloading} onClick={() => void rawReports()}>Get raw report links</Button>{report.can_manage && <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/real-world/${jobId}`} />}>Manage test</Button>}<Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/real-world-reports?selected=${jobId}`} />}>Add to comparison</Button></div>
+      <div className="flex flex-wrap gap-3 print:hidden"><Button variant="outline" size="sm" disabled={downloading} onClick={() => void rawReports()}>Get raw report links</Button>{report.can_manage && <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`${REAL_WORLD_MODULE_PATH}/real-world/${jobId}`} />}>Manage test</Button>}<Button variant="outline" size="sm" nativeButton={false} render={<Link href={`${REAL_WORLD_MODULE_PATH}/real-world-reports?selected=${jobId}`} />}>Add to comparison</Button></div>
       {artifacts.map(artifact => <a key={artifact.name} href={artifact.url} target="_blank" rel="noreferrer" className="mr-4 inline-block text-primary underline underline-offset-4 print:hidden">{artifact.name}</a>)}
     </CardContent></Card>
   </article>;

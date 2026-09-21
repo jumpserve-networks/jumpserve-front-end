@@ -1,5 +1,7 @@
 "use client";
 
+import { EMULATED_MODULE_PATH } from "@/lib/test-modules";
+
 import { Label } from "@/app/components/ui/label";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -224,7 +226,7 @@ export function BenchmarkForm() {
     setIsLaunching(true);
     try {
       const result = await launchBenchmark(finalConfig, await requireAccessToken());
-      router.push(`/benchmarks/${encodeURIComponent(result.jobId)}`);
+      router.push(`${EMULATED_MODULE_PATH}/benchmarks/${encodeURIComponent(result.jobId)}`);
     } catch (err: unknown) {
       setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to launch benchmark. Please try again." });
       launchPending.current = false;

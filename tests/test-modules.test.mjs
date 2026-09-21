@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { getPostLoginPath, getSafeNextPath } from "../lib/auth-redirect.ts";
-import { EMULATED_TESTS_MODULE, getTestModule, getTestModuleForPath, isModuleSectionActive } from "../lib/test-modules.ts";
+import { EMULATED_TESTS_MODULE, TEST_MODULES, getTestModule, getTestModuleForPath, isModuleSectionActive } from "../lib/test-modules.ts";
 
 test("sign-in without a destination returns home", () => {
   for (const next of [null, "", "/", "/login", "/auth/callback?code=expired"]) {
@@ -51,7 +51,7 @@ test("all existing tools and result URLs belong to the emulated module", () => {
 });
 
 test("global, unavailable, external and similarly prefixed routes do not inherit emulated tools", () => {
-  for (const path of ["/", "/login", "/api/parent-runs", "/benchmarks-other", "/chatty", "/modules/congestion-control-emulated-other", "/modules/cdn", "//example.com/chat", "/chat\\evil", "/chat\nevil"]) {
+  for (const path of ["/", "/login", "/api/unrelated", "/benchmarks-other", "/chatty", "/modules/congestion-control-emulated-other", "/modules/cdn", "/module/cdn", "/module/congestion-control-emulated-other", "//example.com/chat", "/chat\\evil", "/chat\nevil"]) {
     assert.equal(getTestModuleForPath(path), undefined, path);
   }
   assert.equal(getTestModuleForPath(getSafeNextPath("/benchmarks/../login")), undefined);
@@ -67,13 +67,45 @@ test("real-world tools and results belong to their own available module", () => 
   }
   assert.equal(getTestModuleForPath("/real-world-other"), undefined);
   assert.equal(getTestModule("unknown"), undefined);
-  assert.equal(isModuleSectionActive(testModule.sections[0], "/real-world-reports/job-123"), false);
-  assert.equal(isModuleSectionActive(testModule.sections[1], "/real-world-reports/job-123"), true);
+  assert.equal(isModuleSectionActive(testModule.sections[0], `${testModule.href}/real-world-reports/job-123`), false);
+  assert.equal(isModuleSectionActive(testModule.sections[1], `${testModule.href}/real-world-reports/job-123`), true);
 });
 
 test("navigation highlights the parent tool for detail pages with path boundaries", () => {
   const lookup = EMULATED_TESTS_MODULE.sections[0];
-  assert.equal(isModuleSectionActive(lookup, "/parent-run/2352"), true);
-  assert.equal(isModuleSectionActive(lookup, "/parent-runs"), false);
-  assert.equal(isModuleSectionActive(lookup, "/chat"), false);
+  assert.equal(isModuleSectionActive(lookup, `${EMULATED_TESTS_MODULE.href}/parent-run/2352`), true);
+  assert.equal(isModuleSectionActive(lookup, `${EMULATED_TESTS_MODULE.href}/parent-runs`), false);
+  assert.equal(isModuleSectionActive(lookup, `${EMULATED_TESTS_MODULE.href}/chat`), false);
+});
+
+test("module overviews and every navigation section use the singular module namespace", () => {
+  for (const testModule of TEST_MODULES) {
+    assert.equal(testModule.href, `/module/${testModule.id}`);
+    for (const section of testModule.sections) {
+      assert.ok(section.href.startsWith(`${testModule.href}/`));
+      assert.equal(getTestModuleForPath(section.href), testModule);
+      for (const path of section.paths) assert.ok(path.startsWith(`${testModule.href}/`));
+    }
+  }
+});
+
+test("canonical result, launch and chat URLs preserve their module and login destination", () => {
+  for (const [path, id] of [
+    ["/module/congestion-control-emulated/parent-run/2352?page=3", "congestion-control-emulated"],
+    ["/module/congestion-control-emulated/chat?parentRunId=2352", "congestion-control-emulated"],
+    ["/module/congestion-control-emulated/test-lookup?page=2&search=cubic%20vs%20bbr&tag=a%26b%3Fc", "congestion-control-emulated"],
+    ["/module/congestion-control-emulated/benchmarks/job-123", "congestion-control-emulated"],
+    ["/module/congestion-control-real-world/real-world/job-123", "congestion-control-real-world"],
+    ["/module/congestion-control-real-world/real-world-reports?selected=a%2Cb", "congestion-control-real-world"],
+  ]) {
+    assert.equal(getTestModuleForPath(path)?.id, id);
+    assert.equal(getPostLoginPath(path), path);
+    assert.equal(getPostLoginPath(`/?${new URLSearchParams({ next: path })}`), path);
+  }
+});
+
+test("legacy overview URLs still identify the intended module", () => {
+  for (const testModule of TEST_MODULES) {
+    assert.equal(getTestModuleForPath(`/modules/${testModule.id}`), testModule);
+  }
 });

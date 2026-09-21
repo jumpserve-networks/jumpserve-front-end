@@ -42,8 +42,11 @@ tests and to chat with the AI; APIs verify the session independently.
 
 After Google sign-in, `/` presents the module chooser. The current module is
 **Congestion Control Emulated Tests** (`congestion-control-emulated`), with a home
-at `/modules/congestion-control-emulated`. Its tools retain their existing URLs:
+at `/module/congestion-control-emulated`. All its tools share that prefix:
 `/test-lookup`, `/parent-run/[id]`, `/aggregate-graphs`, `/benchmarks`, and `/chat`.
+The parent-run query endpoint is `/module/congestion-control-emulated/api/parent-runs`.
+Legacy root tool URLs and `/modules/{moduleId}` permanently redirect to the new
+module routes, preserving path suffixes and query parameters.
 A persistent left sidebar shows the current module, its overview and sections,
 and an **All modules** link. On smaller screens, the header menu button opens the
 same navigation in an accessible drawer. Detail pages highlight their parent
@@ -51,8 +54,9 @@ section. The sidebar appears for module tools even when signed out, and is omitt
 from the landing page, module chooser, and print. Module selection is navigation.
 
 **Congestion Control Real World Tests** (`congestion-control-real-world`) opens
-`/real-world` for EC2 placement, server CCA, shared bottleneck settings, test
-launching, and history. `/real-world/[jobId]` shows lifecycle, cancellation,
+`/module/congestion-control-real-world/real-world` for EC2 placement, server CCA,
+shared bottleneck settings, test launching, and history. The status page at
+`/module/congestion-control-real-world/real-world/[jobId]` shows lifecycle, cancellation,
 machine placement, receiver throughput, and signed raw-report downloads.
 It uses `/real-world/*` endpoints on `NEXT_PUBLIC_BENCHMARK_API_URL`. Result reads
 are public; launching requires a verified Google session, and cancellation also
@@ -116,7 +120,7 @@ OAuth completion and the authenticated `/login` redirect resume the safe `next`
 path directly, including query parameters. Without a destination, sign-in opens
 `/`. Logged-out visitors can open either module from the landing page. The launch
 pages show a sign-in prompt while signed out; emulated run history stays readable.
-`/chat` redirects to login. Launch/cancel/chat clients attach Supabase bearer tokens;
+`/module/congestion-control-emulated/chat` redirects to login. Launch/cancel/chat clients attach Supabase bearer tokens;
 requester identity is verified by the API rather than accepted from the body.
 
 Supabase RLS remains enabled. Infrastructure migration
@@ -222,7 +226,7 @@ These tests mock API requests and do not launch EC2 instances or invoke AI model
 ## Real-world test results
 
 Choose the Congestion Control Real World Tests module, then **Test Results**.
-The workspace at `/real-world-reports` shares saved EC2 measurements among all
+The workspace at `/module/congestion-control-real-world/real-world-reports` shares saved EC2 measurements among all
 visitors, with individual throughput/RTT/queue reports, configuration
 matching, independent replication counts, exploratory confidence intervals,
 bookmarkable selections, CSV/JSON exports, and print-to-PDF. Test management
