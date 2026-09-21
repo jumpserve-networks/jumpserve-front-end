@@ -56,7 +56,8 @@ launching, and history. `/real-world/[jobId]` shows lifecycle, cancellation,
 machine placement, receiver throughput, and signed raw-report downloads.
 It uses `/real-world/*` endpoints on `NEXT_PUBLIC_BENCHMARK_API_URL`. Result reads
 are public; launching requires a verified Google session, and cancellation also
-checks ownership. S3 stays private, with temporary links to measurement files.
+checks ownership. Raw files stay in private Supabase Storage, with temporary
+links to measurement files.
 Deploy the matching infrastructure/runtime before publishing this UI.
 
 Each run creates one server, one bottleneck, and 1–16 receivers. AWS Regions,
@@ -86,7 +87,9 @@ receiver throughput is shown in the inspector once measurements are available.
 The workload is simultaneous TCP bulk transfer for a selected duration; CCAs are
 CUBIC, stock Linux BBR, and Reno. Per-machine results remain separate from the
 emulated comparison tools. EC2/network resources are removed after each run;
-raw evidence and metadata are retained in private S3 and DynamoDB respectively.
+both modules store their data in Supabase. Real-world configuration, lifecycle,
+normalized reports, and measurement traces live in Postgres; original per-machine
+JSON lives in the private `real-world-results` Storage bucket.
 
 `lib/test-modules.ts` is the module catalog: stable IDs, names, availability,
 home routes, and tool navigation. A new module needs its own pages, data queries,
@@ -105,6 +108,10 @@ Supabase RLS remains enabled. Infrastructure migration
 `202609200003_public_test_results.sql` grants anonymous measurement reads and a
 limited benchmark-job column projection (excluding requester emails). Saved
 configurations, chat records, AI context, and anonymous writes remain private.
+Migration `202609200004_real_world_supabase.sql` adds public read-only
+`real_world_runs` and `real_world_reports`, private `real_world_jobs` and
+`real_world_artifacts`, and a private measurement bucket. Only backend Lambdas
+can write these records or sign uploads; EC2 machines receive object-scoped URLs.
 
 `npm test` covers redirect safety, deep-link continuity, module availability, and
 route ownership alongside the existing API tests.
@@ -201,13 +208,14 @@ These tests mock API requests and do not launch EC2 instances or invoke AI model
 
 Choose the Congestion Control Real World Tests module, then **Test Results**.
 The workspace at `/real-world-reports` shares saved EC2 measurements among all
-all visitors, with individual throughput/RTT/queue reports, configuration
+visitors, with individual throughput/RTT/queue reports, configuration
 matching, independent replication counts, exploratory confidence intervals,
 bookmarkable selections, CSV/JSON exports, and print-to-PDF. Test management
 remains owner-scoped. It uses the existing `NEXT_PUBLIC_BENCHMARK_API_URL`.
 
 See [reporting methods and limitations](docs/real-world-reports.md) for units,
 eligibility, matching, bootstrap assumptions, provenance, and access semantics.
-Deploy the reporting API and DynamoDB catalog index from `jumpserve-infra` before
+Apply `202609200004_real_world_supabase.sql` and deploy the reporting API from
+`jumpserve-infra` before
 deploying this frontend. `npm test` covers comparisons, exports, and navigation;
 backend tests cover normalization, artifact quality, and authentication boundaries.

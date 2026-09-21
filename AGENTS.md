@@ -12,7 +12,10 @@ at `/login`. Sign-in resumes the requested action. Emulated tools belong to
 **Congestion Control Real World Tests** (`congestion-control-real-world`) provides
 the separate EC2 launcher/history at `/real-world` and results at
 `/real-world/[jobId]`. Its `/real-world/*` API shares the benchmark
-API origin, with separate DynamoDB metadata and private S3 reports. Each test
+API origin, with records and normalized reports in Supabase Postgres and raw
+measurements in private Supabase Storage. `real_world_runs` and
+`real_world_reports` are public read-only; `real_world_jobs` and
+`real_world_artifacts` are backend-only. Each test
 creates a server, bottleneck, and 1–16 receivers; do not mix its duration-based
 throughput results with emulated file completion times.
 

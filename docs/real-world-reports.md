@@ -15,9 +15,12 @@ snapshot or a persistent named report. JSON exports preserve the evidence used.
 
 ## Measurements and units
 
-The backend reads expected per-machine JSON objects from private,
-versioned S3. It returns a versioned normalized report with source SHA-256 digests,
-S3 version IDs, configuration, placement, AMIs, runtime revision, kernel and iperf
+Both test modules persist data in Supabase. The real-world backend reads expected
+per-machine JSON objects from private Supabase Storage. Finished evidence is
+archived by SHA-256, and normalized reports, including receiver/TCP/queue traces,
+are saved in the `real_world_reports` Postgres table. Reports retain source
+SHA-256 digests, legacy S3 version IDs where applicable, configuration, placement,
+AMIs, runtime revision, kernel and iperf
 versions, sample counts, exclusions, and warnings. Malformed or unavailable
 artifacts produce partial reports. They never become successful zero measurements.
 Interactive analysis is bounded to 32 MiB per artifact and 64 MiB in total;
@@ -46,7 +49,7 @@ oversized sources remain available through raw downloads.
 Interactive SVG figures support series toggles and keyboard time inspection.
 Exports include receiver CSV, trace CSV with explicit clock/units, full report
 JSON, comparison CSV/JSON, and browser printing to PDF. User-entered strings are
-quoted and formula-neutralized in CSV. Raw S3 URLs expire after five minutes;
+quoted and formula-neutralized in CSV. Raw download URLs expire after five minutes;
 anyone holding a URL can use it until expiry. The bucket itself remains private.
 
 ## Valid comparisons
