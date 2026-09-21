@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { fitTopology, mapViewport, realWorldTopology, trafficPath } from "../lib/aws-region-map.ts";
+import { fitTopology, mapCopies, mapViewport, realWorldTopology, trafficPath, WORLD_CAMERA } from "../lib/aws-region-map.ts";
 import { realWorldTrafficPhase } from "../lib/real-world.ts";
 
 const placement = (region) => ({ region, zone_id: `${region}-az1`, instance_type: "t3.medium" });
@@ -68,13 +68,24 @@ test("unknown Region coordinates never bypass the bottleneck or hide machines fr
 
 test("Pacific paths wrap across the dateline in both directions with correctly directed arrows", () => {
   const east = trafficPath({ x: 980, y: 250 }, { x: 170, y: 180 }, 1);
+  const viewport = mapViewport(WORLD_CAMERA, { width: 1000, height: 500 });
   assert.ok(east.path.endsWith("1170 180"));
-  assert.deepEqual(east.offsets, [-1000, 0, 1000]);
+  assert.deepEqual(mapCopies(east.bounds, viewport, 5).map(copy => copy.x), [-1000, 0]);
   assert.ok(Math.abs(east.arrow.angle) < 90, "eastbound arrow points right");
   const west = trafficPath({ x: 170, y: 180 }, { x: 980, y: 250 }, 1);
   assert.ok(west.path.endsWith("-20 250"));
   assert.ok(Math.abs(west.arrow.angle) > 90, "westbound arrow points left");
-  assert.deepEqual(trafficPath({ x: 300, y: 200 }, { x: 550, y: 160 }, 1).offsets, [0]);
+  assert.deepEqual(mapCopies(west.bounds, viewport, 5).map(copy => copy.x), [0, 1000]);
+  assert.deepEqual(mapCopies(trafficPath({ x: 300, y: 200 }, { x: 550, y: 160 }, 1).bounds, viewport, 5).map(copy => copy.x), [0]);
+});
+
+test("traffic paths repeat vertically and keep local loops visible across an edge", () => {
+  const loop = trafficPath({ x: 500, y: 20 }, { x: 500, y: 20 }, 1);
+  const viewport = mapViewport(WORLD_CAMERA, { width: 1000, height: 500 });
+  assert.deepEqual(mapCopies(loop.bounds, viewport, 5).map(copy => copy.y), [0, 500]);
+  const tallViewport = mapViewport(WORLD_CAMERA, { width: 210, height: 320 });
+  const ordinary = trafficPath({ x: 300, y: 200 }, { x: 550, y: 160 }, tallViewport.scale);
+  assert.ok(new Set(mapCopies(ordinary.bounds, tallViewport, 5).map(copy => copy.y)).size >= 3);
 });
 
 test("fit topology keeps every location visible on desktop and mobile, including single-Region tests", () => {

@@ -3,15 +3,12 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { LocateFixed, Minus, Plus, RotateCcw } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import { clusterRegions, mapViewport, MAX_MAP_ZOOM, regionMarkers, WORLD_CAMERA } from "@/lib/aws-region-map";
+import { clusterRegions, mapPointCopies, mapViewport, MAX_MAP_ZOOM, regionMarkers, WORLD_CAMERA } from "@/lib/aws-region-map";
 import type { MapCamera } from "@/lib/aws-region-map";
 import type { AwsRegion } from "@/lib/real-world";
-import landPaths from "@/lib/maps/world-land.json";
+import { WorldMapTiles } from "@/app/components/world-map-tiles";
+import { useMapWheelPan } from "@/app/components/use-map-wheel-pan";
 import { cn } from "@/lib/utils";
-
-const land = <g className="fill-muted-foreground/15 stroke-muted-foreground/30" strokeWidth="0.6">
-  {landPaths.map((path, index) => <path key={index} d={path} fillRule="evenodd" vectorEffect="non-scaling-stroke" />)}
-</g>;
 
 export function AwsRegionMap({ label, regions, value, onChange, disabled = false }: {
   label: string; regions: AwsRegion[]; value: string; onChange: (region: string) => void; disabled?: boolean;
@@ -45,9 +42,11 @@ export function AwsRegionMap({ label, regions, value, onChange, disabled = false
 
   function move(next: MapCamera) {
     if (disabled) return;
-    const clamped = mapViewport(next, size);
-    setView({ selection: value, camera: { x: clamped.x, y: clamped.y, zoom: clamped.zoom } });
+    const wrapped = mapViewport(next, size);
+    setView({ selection: value, camera: { x: wrapped.x, y: wrapped.y, zoom: wrapped.zoom } });
   }
+
+  useMapWheelPan(canvas, viewport, move, disabled);
 
   function zoom(factor: number) {
     move({ x: viewport.x, y: viewport.y, zoom: viewport.zoom * factor });
@@ -103,23 +102,18 @@ export function AwsRegionMap({ label, regions, value, onChange, disabled = false
       onPointerUp={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
       onLostPointerCapture={() => { drag.current = null; }}>
       <svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full" viewBox={`${viewport.left} ${viewport.top} ${viewport.width} ${viewport.height}`}>
-        <g className="stroke-border/60" strokeWidth="0.5">
-          {[0, 60, 120, 180, 240, 300, 360].map((longitude) => <path key={longitude} d={`M${longitude / 360 * 1000} 0V500`} vectorEffect="non-scaling-stroke" />)}
-          {[30, 60, 90, 120, 150].map((latitude) => <path key={latitude} d={`M0 ${latitude / 180 * 500}H1000`} vectorEffect="non-scaling-stroke" />)}
-        </g>
-        {land}
+        <WorldMapTiles viewport={viewport} />
       </svg>
-      {clusters.map((cluster) => {
-        const x = (cluster.x - viewport.left) * viewport.scale;
-        const y = (cluster.y - viewport.top) * viewport.scale;
-        if (x < 0 || x > size.width || y < 0 || y > size.height) return null;
+      {clusters.flatMap((cluster) => mapPointCopies(cluster, viewport).map((copy) => {
+        const x = (copy.x - viewport.left) * viewport.scale;
+        const y = (copy.y - viewport.top) * viewport.scale;
         const grouped = cluster.regions.length > 1;
         const region = cluster.regions[0];
         const active = cluster.regions.some((item) => item.region === value);
         const available = cluster.regions.some((item) => item.enabled);
         const description = grouped ? `Zoom to ${cluster.regions.length} Regions: ${cluster.regions.map((item) => item.name).join(", ")}`
           : `${region.name} (${region.region})${region.enabled ? "" : " · requires account opt-in"}`;
-        return <Button key={cluster.regions.map((item) => item.region).sort().join(",")} type="button" size="icon-sm"
+        return <Button key={`${cluster.regions.map((item) => item.region).sort().join(",")}:${copy.key}`} type="button" size="icon-sm"
           variant={active ? "default" : "outline"} title={description}
           aria-label={grouped ? description : `${region.enabled ? "Select " : ""}${description}`}
           aria-pressed={grouped ? undefined : active} disabled={disabled || (!grouped && !available)}
@@ -140,7 +134,7 @@ export function AwsRegionMap({ label, regions, value, onChange, disabled = false
           }}>
           {grouped ? cluster.regions.length : <span aria-hidden="true" className={cn("size-2 rounded-full bg-current", !available && "rounded-none")} />}
         </Button>;
-      })}
+      }))}
       {!markers.length && <p className="absolute inset-x-4 top-4 rounded-md border bg-card p-3 text-sm text-muted-foreground">No Region locations are available.</p>}
     </div>
     <div className="space-y-2 border-t bg-muted/20 px-3 py-3 text-xs text-muted-foreground">
@@ -150,7 +144,7 @@ export function AwsRegionMap({ label, regions, value, onChange, disabled = false
       </p>
       <p className="min-h-4">{inspection ? `${inspection.name} · ${inspection.region}${inspection.enabled ? "" : " · requires account opt-in"}`
         : "Numbered markers group nearby Regions. Dashed markers require account opt-in."}</p>
-      <p id={instructionsId}>Drag to pan; use the controls to zoom. <span className="sr-only">Focus the map and use arrow keys to pan, plus or minus to zoom, and Home to reset. Tab to markers and press Enter to select or expand them. </span>Locations are approximate, not individual data centers.
+      <p id={instructionsId}>Drag or scroll to pan in any direction; the world repeats at every edge. Use the controls to zoom. <span className="sr-only">Focus the map and use arrow keys to pan, plus or minus to zoom, and Home to reset. Tab to markers and press Enter to select or expand them. </span>Locations are approximate, not individual data centers.
         {" "}<a href="https://www.naturalearthdata.com/about/terms-of-use/" target="_blank" rel="noreferrer" className="underline underline-offset-2">Map: Natural Earth</a>
       </p>
     </div>

@@ -72,7 +72,9 @@ selecting their Region. Each map stays synchronized with its own dropdown;
 changing Regions clears that machine's previous zone
 and retains the selected instance type. Changing type clears a selected zone
 unless the catalog confirms the new type is offered there. Nearby markers expand with zoom, and the map supports mouse,
-touch, and keyboard navigation. Map coordinates are approximate Region locations,
+touch, and keyboard navigation. Drag, wheel, and trackpad panning wrap continuously
+left/right and up/down; the world and Region markers repeat at each edge.
+Map coordinates are approximate Region locations,
 not individual data centers. Live catalog availability remains authoritative;
 Regions without map coordinates remain selectable in the dropdown. See
 [map data and provenance](lib/maps/README.md).
@@ -80,6 +82,7 @@ Regions without map coordinates remain selectable in the dropdown. See
 Each test detail page includes an interactive traffic topology map: server →
 bottleneck → receivers, with machine inspection, zoom, pan, and fit controls.
 Machines in one Region share a marker and their local links appear as loops.
+The traffic map wraps on both axes with its markers, paths, and animations.
 Animations follow the controller's recorded `start_epoch` and configured duration,
 including transfers performed during the `starting` phase. They stop on cancellation,
 cleanup, completion, polling errors, or 15 seconds without a successful status update.

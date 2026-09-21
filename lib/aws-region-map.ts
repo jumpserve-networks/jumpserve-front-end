@@ -44,8 +44,14 @@ export type MapSize = { width: number; height: number };
 export type MapCamera = Point & { zoom: number };
 export type RegionMarker = AwsRegion & Point & { name: string };
 export type RegionCluster = Point & { regions: RegionMarker[] };
+export type MapBounds = { left: number; top: number; right: number; bottom: number };
+export const WORLD_WIDTH = 1000;
+export const WORLD_HEIGHT = 500;
 export const WORLD_CAMERA: MapCamera = { x: 500, y: 250, zoom: 1 };
 export const MAX_MAP_ZOOM = 64;
+
+function wrap(value: number, period: number) { return ((value % period) + period) % period; }
+function wrappedDelta(value: number, period: number) { return wrap(value + period / 2, period) - period / 2; }
 
 export function projectRegion(latitude: number, longitude: number): Point {
   return { x: (longitude + 180) / 360 * 1000, y: (90 - latitude) / 180 * 500 };
@@ -63,9 +69,35 @@ export function mapViewport(camera: MapCamera, size: MapSize) {
   const scale = Math.min(size.width / 1000, size.height / 500) * zoom;
   const width = size.width / scale;
   const height = size.height / scale;
-  const x = width >= 1000 ? 500 : Math.max(width / 2, Math.min(1000 - width / 2, camera.x));
-  const y = height >= 500 ? 250 : Math.max(height / 2, Math.min(500 - height / 2, camera.y));
+  // Normalize coordinates to avoid precision loss after repeated world crossings.
+  // The world repeats on both axes, so normalization never limits panning.
+  const x = wrap(camera.x, WORLD_WIDTH);
+  const y = wrap(camera.y, WORLD_HEIGHT);
   return { x, y, zoom, width, height, left: x - width / 2, top: y - height / 2, scale };
+}
+
+export type MapViewport = ReturnType<typeof mapViewport>;
+
+// Only render copies whose bounds intersect the viewport. Padding is in pixels
+// so markers, strokes, and arrowheads can remain visible at the canvas edges.
+export function mapCopies(bounds: MapBounds, viewport: MapViewport, padding = 0) {
+  const margin = padding / viewport.scale;
+  const firstColumn = Math.floor((viewport.left - margin - bounds.right) / WORLD_WIDTH) + 1;
+  const lastColumn = Math.ceil((viewport.left + viewport.width + margin - bounds.left) / WORLD_WIDTH) - 1;
+  const firstRow = Math.floor((viewport.top - margin - bounds.bottom) / WORLD_HEIGHT) + 1;
+  const lastRow = Math.ceil((viewport.top + viewport.height + margin - bounds.top) / WORLD_HEIGHT) - 1;
+  const copies: (Point & { key: string })[] = [];
+  for (let row = firstRow; row <= lastRow; row++) {
+    for (let column = firstColumn; column <= lastColumn; column++) {
+      copies.push({ x: column * WORLD_WIDTH, y: row * WORLD_HEIGHT, key: `${column}:${row}` });
+    }
+  }
+  return copies;
+}
+
+export function mapPointCopies(point: Point, viewport: MapViewport) {
+  return mapCopies({ left: point.x, right: point.x, top: point.y, bottom: point.y }, viewport, 20)
+    .map((copy) => ({ ...copy, x: point.x + copy.x, y: point.y + copy.y }));
 }
 
 // Connected components in screen space avoid overlapping hit targets at every
@@ -77,13 +109,16 @@ export function clusterRegions(markers: RegionMarker[], scale: number): RegionCl
     const members = [remaining.shift()!];
     for (let member = 0; member < members.length; member++) {
       for (let i = remaining.length - 1; i >= 0; i--) {
-        if (Math.hypot(members[member].x - remaining[i].x, members[member].y - remaining[i].y) * scale < 38) {
+        if (Math.hypot(wrappedDelta(members[member].x - remaining[i].x, WORLD_WIDTH),
+          wrappedDelta(members[member].y - remaining[i].y, WORLD_HEIGHT)) * scale < 38) {
           members.push(remaining.splice(i, 1)[0]);
         }
       }
     }
-    clusters.push({ regions: members, x: members.reduce((sum, r) => sum + r.x, 0) / members.length,
-      y: members.reduce((sum, r) => sum + r.y, 0) / members.length });
+    const anchor = members[0];
+    clusters.push({ regions: members,
+      x: wrap(anchor.x + members.reduce((sum, r) => sum + wrappedDelta(r.x - anchor.x, WORLD_WIDTH), 0) / members.length, WORLD_WIDTH),
+      y: wrap(anchor.y + members.reduce((sum, r) => sum + wrappedDelta(r.y - anchor.y, WORLD_HEIGHT), 0) / members.length, WORLD_HEIGHT) });
   }
   return clusters;
 }
@@ -130,7 +165,8 @@ export function trafficPath(source: Point, target: Point, scale: number) {
   if (source.x === target.x && source.y === target.y) {
     const w = 55 / scale, h = 85 / scale;
     return { path: `M${source.x} ${source.y}C${source.x - w} ${source.y - h} ${source.x + w} ${source.y - h} ${source.x} ${source.y}`,
-      arrow: { x: source.x, y: source.y - h * 0.75, angle: 0 }, offsets: [0] };
+      arrow: { x: source.x, y: source.y - h * 0.75, angle: 0 },
+      bounds: { left: source.x - w, right: source.x + w, top: source.y - h, bottom: source.y } };
   }
   // Draw the shortest longitudinal path and repeat across the world boundary.
   const delta = target.x - source.x;
@@ -144,5 +180,6 @@ export function trafficPath(source: Point, target: Point, scale: number) {
     y: u * u * source.y + 2 * u * t * control.y + t * t * end.y,
     angle: Math.atan2(u * (control.y - source.y) + t * (end.y - control.y), u * (control.x - source.x) + t * (end.x - control.x)) * 180 / Math.PI };
   return { path: `M${source.x} ${source.y}Q${control.x} ${control.y} ${end.x} ${end.y}`, arrow,
-    offsets: Math.abs(delta) > 500 ? [-1000, 0, 1000] : [0] };
+    bounds: { left: Math.min(source.x, control.x, end.x), right: Math.max(source.x, control.x, end.x),
+      top: Math.min(source.y, control.y, end.y), bottom: Math.max(source.y, control.y, end.y) } };
 }

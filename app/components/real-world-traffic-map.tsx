@@ -6,14 +6,12 @@ import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
-import { clusterRegions, fitTopology, mapViewport, MAX_MAP_ZOOM, realWorldTopology, REGION_LOCATIONS, trafficPath, WORLD_CAMERA, type MapCamera } from "@/lib/aws-region-map";
+import { clusterRegions, fitTopology, mapCopies, mapPointCopies, mapViewport, MAX_MAP_ZOOM, realWorldTopology, REGION_LOCATIONS, trafficPath, WORLD_CAMERA, type MapCamera } from "@/lib/aws-region-map";
 import { realWorldTrafficPhase, type RealWorldJob } from "@/lib/real-world";
-import landPaths from "@/lib/maps/world-land.json";
+import { WorldMapTiles } from "@/app/components/world-map-tiles";
+import { useMapWheelPan } from "@/app/components/use-map-wheel-pan";
 import { cn } from "@/lib/utils";
 
-const land = <g className="fill-muted-foreground/15 stroke-muted-foreground/30" strokeWidth="0.6">
-  {landPaths.map((path, index) => <path key={index} d={path} fillRule="evenodd" vectorEffect="non-scaling-stroke" />)}
-</g>;
 function machineLabel(name: string) { return name === "server" ? "Server" : name === "bottleneck" ? "Bottleneck" : name.replace("receiver-", "Receiver "); }
 
 export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
@@ -50,9 +48,10 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
   }, []);
 
   function move(next: MapCamera) {
-    const clamped = mapViewport(next, size);
-    setCamera({ x: clamped.x, y: clamped.y, zoom: clamped.zoom });
+    const wrapped = mapViewport(next, size);
+    setCamera({ x: wrapped.x, y: wrapped.y, zoom: wrapped.zoom });
   }
+  useMapWheelPan(canvas, viewport, move);
   function zoom(factor: number) { move({ x: viewport.x, y: viewport.y, zoom: viewport.zoom * factor }); }
   function inspect(name: string) {
     setSelected(name);
@@ -109,18 +108,13 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
           onPointerUp={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
           onLostPointerCapture={() => { drag.current = null; }}>
           <svg aria-hidden="true" className="pointer-events-none absolute inset-0 size-full" viewBox={`${viewport.left} ${viewport.top} ${viewport.width} ${viewport.height}`}>
-            <defs><clipPath id={`${id}-world`}><rect width="1000" height="500" /></clipPath></defs>
-            <g className="stroke-border/60" strokeWidth="0.5">
-              {[0, 60, 120, 180, 240, 300, 360].map((longitude) => <path key={longitude} d={`M${longitude / 360 * 1000} 0V500`} vectorEffect="non-scaling-stroke" />)}
-              {[30, 60, 90, 120, 150].map((latitude) => <path key={latitude} d={`M0 ${latitude / 180 * 500}H1000`} vectorEffect="non-scaling-stroke" />)}
-            </g>
-            {land}
-            <g clipPath={`url(#${id}-world)`} fill="none">
+            <WorldMapTiles viewport={viewport} />
+            <g fill="none">
               {topology.links.map((link) => {
                 const geometry = trafficPath(link.source, link.target, viewport.scale);
                 const highlighted = selected === "all" || selected === "server" || selected === "bottleneck" || link.flows.some((flow) => flow.to === selected || flow.from === "server");
                 return <g key={link.key} className={cn("text-primary", !highlighted && "opacity-20")} data-route={link.key}>
-                  {geometry.offsets.map((offset) => <g key={offset} transform={`translate(${offset} 0)`}>
+                  {mapCopies(geometry.bounds, viewport, 5).map((copy) => <g key={copy.key} transform={`translate(${copy.x} ${copy.y})`}>
                     <path d={geometry.path} stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.45" vectorEffect="non-scaling-stroke" />
                     <path d={geometry.path} stroke="currentColor" strokeWidth="3" strokeLinecap="round" pathLength="100" strokeDasharray="1 19"
                       vectorEffect="non-scaling-stroke" className="traffic-flow" style={{ opacity: phase.active ? 1 : 0, animationPlayState: animated ? "running" : "paused" }} />
@@ -130,16 +124,15 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
               })}
             </g>
           </svg>
-          {clusters.map((cluster) => {
-            const x = (cluster.x - viewport.left) * viewport.scale, y = (cluster.y - viewport.top) * viewport.scale;
-            if (x < 0 || x > size.width || y < 0 || y > size.height) return null;
+          {clusters.flatMap((cluster) => mapPointCopies(cluster, viewport).map((copy) => {
+            const x = (copy.x - viewport.left) * viewport.scale, y = (copy.y - viewport.top) * viewport.scale;
             const grouped = cluster.regions.length > 1;
             const members = topology.nodes.filter((node) => cluster.regions.some((region) => region.region === node.region));
             const active = members.some((node) => node.name === selected);
             const Icon = members.some((node) => node.role === "server") ? Server : members.some((node) => node.role === "bottleneck") ? Network : Download;
             const description = grouped ? `Zoom to ${cluster.regions.length} Regions: ${cluster.regions.map((region) => region.name).join(", ")}`
               : `Inspect ${cluster.regions[0].name}: ${members.map((node) => machineLabel(node.name)).join(", ")}`;
-            return <div key={cluster.regions.map((region) => region.region).join(",")} className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
+            return <div key={`${cluster.regions.map((region) => region.region).join(",")}:${copy.key}`} className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
               style={{ left: `${x / size.width * 100}%`, top: `${y / size.height * 100}%` }}>
               <Button type="button" variant={active ? "default" : "outline"} size="icon-sm" title={description} aria-label={description} aria-pressed={grouped ? undefined : active}
                 className="pointer-events-auto relative rounded-full border-primary text-primary shadow-sm aria-pressed:text-primary-foreground"
@@ -151,10 +144,10 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
               </Button>
               {!grouped && <span className="absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded bg-background/90 px-1 text-[10px] font-medium">{cluster.regions[0].name}</span>}
             </div>;
-          })}
+          }))}
         </div>
         <div className="space-y-1 border-t bg-muted/20 px-3 py-3 text-xs text-muted-foreground">
-          <p id={`${id}-instructions`}>Drag to pan; use + / − to zoom. Keyboard: arrow keys pan, + / − zoom, Home fits the topology. Select a location to inspect its machines.</p>
+          <p id={`${id}-instructions`}>Drag or scroll to pan in any direction; the world repeats at every edge. Use + / − to zoom. Keyboard: arrow keys pan, + / − zoom, Home fits the topology. Select a location to inspect its machines.</p>
           <p>Paths are schematic between approximate AWS Region locations; animation speed is illustrative. Loops represent traffic within one Region. Measured throughput appears after collection.</p>
         </div>
       </div>

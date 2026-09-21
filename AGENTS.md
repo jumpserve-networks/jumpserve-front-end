@@ -32,6 +32,8 @@ selected type when changing Regions. Show an independently controlled Region map
 for the server, bottleneck, and every receiver, including newly added receivers.
 Keep each map synchronized with its placement dropdown. Availability Zone
 dropdowns must show only available zones that offer the selected instance type.
+Both placement and traffic maps must pan continuously on both axes by repeating
+the world, markers, and paths. Keep zoom bounded and render only visible copies.
 Do not mix its duration-based
 throughput results with emulated file completion times.
 

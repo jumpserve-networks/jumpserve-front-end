@@ -11,6 +11,13 @@ https://www.naturalearthdata.com/about/terms-of-use/.
 The outline is bundled locally; no tile service, API key, or external map requests
 are needed.
 
+Both map views repeat the world horizontally and vertically for unlimited
+panning. Camera coordinates wrap within the 1000 × 500 world; only copies that
+intersect the viewport are rendered. Shared SVG definitions reuse the land
+outline across visible copies. Region clusters account for either boundary,
+and repeated markers keep their original Region identity and availability.
+Vertical repetition is a navigation behavior, not a change to the projection.
+
 Region labels in `lib/aws-region-map.ts` follow the AWS Region catalog:
 https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions.html.
 Coordinates represent approximate regional geography, not data-center addresses.
@@ -24,3 +31,5 @@ coordinates. It groups co-located machines, wraps paths across the dateline, and
 draws local hops as loops. Curves represent logical data flow through the
 bottleneck, not observed geographic routes. Unknown coordinates omit only the
 affected hops; the machine remains inspectable and no bypass path is inferred.
+Traffic paths repeat with the world using their curve bounds, including pieces
+that cross the viewport edges. Their direction and animation state are retained.
