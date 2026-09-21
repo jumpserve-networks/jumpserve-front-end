@@ -5,7 +5,6 @@ import { Suspense } from "react";
 import { MessageCircle } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { ParentRunCharts } from "@/app/parent-run/[id]/parent-run-charts";
-import { requireGoogleUser } from "@/lib/auth";
 import { fetchParentRunSummary } from "@/lib/emulated-runs-data";
 import { notFound } from "next/navigation";
 
@@ -67,11 +66,6 @@ export default async function ParentRunPage({
   const parentRunId = Number(id);
   const pageParam = (await searchParams).page;
   const pageValue = Array.isArray(pageParam) ? pageParam[0] : pageParam;
-  const nextPath = pageValue
-    ? `/parent-run/${id}?${new URLSearchParams({ page: pageValue }).toString()}`
-    : `/parent-run/${id}`;
-
-  await requireGoogleUser(nextPath);
 
   const parsedPage = Number.parseInt(
     pageValue ?? "",

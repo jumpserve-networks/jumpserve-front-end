@@ -9,7 +9,7 @@ export type RealWorldConfig = {
 };
 export type RealWorldJob = {
   job_id: string; status: string; created_at: number; updated_at: number; deadline: number;
-  config: RealWorldConfig; cancel_requested?: boolean; error?: string; cleanup_error?: string;
+  config: RealWorldConfig; can_manage?: boolean; cancel_requested?: boolean; error?: string; cleanup_error?: string;
   runtime_revision: string; outcome?: string; start_epoch?: number;
   nodes: (Placement & { name: string; role: string; instance_id?: string; image_id?: string; state?: string })[];
   results?: { receiver: string; received_mbit_per_second: number; received_bytes: number; seconds: number; start_epoch: number }[];

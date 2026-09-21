@@ -3,7 +3,7 @@ import type { User } from "@supabase/supabase-js";
 const GOOGLE_PROVIDER = "google";
 
 export function isGoogleAuthenticatedUser(user: User | null): user is User {
-  if (!user) {
+  if (!user || user.is_anonymous) {
     return false;
   }
 

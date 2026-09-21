@@ -8,7 +8,7 @@ const response = {
   tool_events: [{ name: "get_run_results", input: { parent_run_id: 42 } }],
   session_id: "session-123",
 };
-const send = () => sendMessage("Explain parent run #42", "session-123", "test@example.test");
+const send = () => sendMessage("Explain parent run #42", "session-123", "verified-session");
 
 beforeEach(() => { process.env.NEXT_PUBLIC_AGENT_URL = "https://agent.example.test/"; });
 afterEach(() => {
@@ -59,18 +59,18 @@ test("chat uses the exact configured endpoint and preserves message and session 
   const [url, options] = fetchMock.mock.calls[0].arguments;
   assert.equal(url, "https://agent.example.test/invoke/");
   assert.equal(options.method, "POST");
+  assert.equal(options.headers.Authorization, "Bearer verified-session");
   assert.equal(options.headers.Accept, "application/json");
   assert.equal(options.headers["Content-Type"], "application/json");
   assert.deepEqual(JSON.parse(options.body), {
-    message: "Explain parent run #42", session_id: "session-123", user_id: "test@example.test",
+    message: "Explain parent run #42", session_id: "session-123",
   });
 });
 
-test("chat supports replies without tool calls and the anonymous user fallback", async (t) => {
-  const reply = { ...response, tool_events: [] };
-  const fetchMock = t.mock.method(globalThis, "fetch", async () => Response.json(reply));
-  assert.deepEqual(await sendMessage("Hello", "session-123"), reply);
-  assert.equal(JSON.parse(fetchMock.mock.calls[0].arguments[1].body).user_id, "anonymous");
+test("chat requires a session and never sends anonymous requests", async (t) => {
+  const fetchMock = t.mock.method(globalThis, "fetch", async () => Response.json(response));
+  await assert.rejects(() => sendMessage("Hello", "session-123", ""), /Sign in/);
+  assert.equal(fetchMock.mock.callCount(), 0);
 });
 
 test("malformed chat responses are rejected before rendering", async (t) => {

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/app/components/ui/card";
-import { getPostLoginPath } from "@/lib/auth-redirect";
 import { TEST_MODULES } from "@/lib/test-modules";
 
 const WORKFLOW = [
@@ -20,12 +19,7 @@ const WORKFLOW = [
   },
 ];
 
-export function PublicLandingPage({ nextPath }: { nextPath?: string }) {
-  const destination = getPostLoginPath(nextPath ?? null);
-  const loginHref = destination === "/"
-    ? "/login"
-    : `/login?${new URLSearchParams({ next: destination })}`;
-
+export function PublicLandingPage() {
   return (
     <main className="min-h-[var(--page-height)] bg-background px-5 py-10 sm:px-10 sm:py-14">
       <div className="mx-auto max-w-5xl space-y-10 sm:space-y-12">
@@ -40,8 +34,8 @@ export function PublicLandingPage({ nextPath }: { nextPath?: string }) {
             bandwidth, delay, workloads, and queue sizes change.
           </p>
           <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
-            <Button nativeButton={false} render={<Link href={loginHref} />}>
-              Sign in to JumpServe<ArrowRight aria-hidden="true" />
+            <Button nativeButton={false} render={<Link href="#environments-title" />}>
+              Explore test modules<ArrowRight aria-hidden="true" />
             </Button>
           </div>
         </section>
@@ -73,9 +67,7 @@ export function PublicLandingPage({ nextPath }: { nextPath?: string }) {
                   <h3 className="text-base font-semibold text-foreground">{module.name}</h3>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{module.description}</p>
                 </div>
-                <p className="text-xs leading-6 font-medium text-muted-foreground">
-                  {module.status === "available" ? "Available" : "Coming soon"}
-                </p>
+                <Button variant="outline" nativeButton={false} render={<Link href={module.href} />}>Open module<ArrowRight aria-hidden="true" /></Button>
               </div>
             ))}
           </Card>

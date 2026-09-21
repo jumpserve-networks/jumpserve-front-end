@@ -5,6 +5,7 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Textarea } from "@/app/components/ui/textarea";
 
+import { requireAccessToken } from "@/lib/browser-auth";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -41,7 +42,7 @@ function parseNumberArray(value: string): number[] {
     .filter((n) => !isNaN(n));
 }
 
-export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
+export function BenchmarkForm() {
   const router = useRouter();
   const launchPending = useRef(false);
   const [supabase] = useState(() => createClient());
@@ -222,7 +223,7 @@ export function BenchmarkForm({ userEmail }: { userEmail?: string }) {
     launchPending.current = true;
     setIsLaunching(true);
     try {
-      const result = await launchBenchmark(finalConfig, userEmail);
+      const result = await launchBenchmark(finalConfig, await requireAccessToken());
       router.push(`/benchmarks/${encodeURIComponent(result.jobId)}`);
     } catch (err: unknown) {
       setMessage({ type: "error", text: err instanceof Error ? err.message : "Failed to launch benchmark. Please try again." });

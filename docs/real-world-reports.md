@@ -1,21 +1,21 @@
 # Real-world test results
 
-The real-world module links to `/real-world-reports`. Every Google-authenticated
-JumpServe researcher can browse reports, inspect another researcher's measurements,
-download evidence, and build comparisons. Launching and canceling tests and viewing
-their management pages remain owner-scoped. Logged-out requests cannot read reports.
+The real-world module links to `/real-world-reports`. Anyone can browse reports,
+inspect measurements, download evidence, and build comparisons without signing
+in. Launching tests requires a verified Google session; cancellation additionally
+checks ownership. Status pages are public, with management controls for owners.
 
 The library loads newest-first pages of 50 tests. Search, CCA, status, any-machine
 Region, and inclusive UTC date filters apply to **loaded history**, with an explicit
 older-history button and coverage message. Failed and incomplete tests remain
 visible. Individual reports have stable URLs. Comparison selections (up to 60
 tests), filters, contrast, and outcome are encoded in the URL; copying a link lets
-another signed-in researcher reconstruct the analysis. It does not create a frozen
+another visitor reconstruct the analysis. It does not create a frozen
 snapshot or a persistent named report. JSON exports preserve the evidence used.
 
 ## Measurements and units
 
-The authenticated backend reads expected per-machine JSON objects from private,
+The backend reads expected per-machine JSON objects from private,
 versioned S3. It returns a versioned normalized report with source SHA-256 digests,
 S3 version IDs, configuration, placement, AMIs, runtime revision, kernel and iperf
 versions, sample counts, exclusions, and warnings. Malformed or unavailable

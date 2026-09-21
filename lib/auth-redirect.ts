@@ -18,17 +18,15 @@ export function getSafeNextPath(value: string | null) {
   }
 }
 
-// Every sign-in lands at the module chooser. Preserve a requested tool page so
-// choosing its module can continue there, including its query parameters.
+// Resume the requested action immediately after sign-in, preserving its query.
 export function getPostLoginPath(value: string | null) {
-  const nextPath = getSafeNextPath(value);
-  const url = new URL(nextPath, SAFE_ORIGIN);
+  let nextPath = getSafeNextPath(value);
+  let url = new URL(nextPath, SAFE_ORIGIN);
   if (url.pathname === "/") {
-    const requestedPath = getSafeNextPath(url.searchParams.get("next"));
-    return requestedPath === "/" || new URL(requestedPath, SAFE_ORIGIN).pathname === "/"
-      ? "/"
-      : `/?${new URLSearchParams({ next: requestedPath })}`;
+    nextPath = getSafeNextPath(url.searchParams.get("next"));
+    url = new URL(nextPath, SAFE_ORIGIN);
+    if (url.pathname === "/") return "/";
   }
   if (url.pathname === "/login" || url.pathname === "/auth/callback") return "/";
-  return `/?${new URLSearchParams({ next: nextPath })}`;
+  return nextPath;
 }

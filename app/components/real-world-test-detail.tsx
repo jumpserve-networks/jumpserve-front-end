@@ -54,7 +54,7 @@ export function RealWorldTestDetail({ jobId }: { jobId: string }) {
         {job.cancel_requested && !isRealWorldTerminal(job.status) && <p className="text-sm">Cancellation requested. Waiting for resource cleanup.</p>}
         {job.error && <p role="alert" className="whitespace-pre-wrap break-words text-sm text-destructive">{job.error}</p>}
         {job.cleanup_error && <p role="alert" className="text-sm text-destructive">Cleanup is retrying: {job.cleanup_error}</p>}
-        {!isRealWorldTerminal(job.status) && <Button variant="outline" disabled={busy || job.cancel_requested || job.status === "cleaning"} onClick={() => void cancel()}>Cancel test and terminate instances</Button>}
+        {job.can_manage && !isRealWorldTerminal(job.status) && <Button variant="outline" disabled={busy || job.cancel_requested || job.status === "cleaning"} onClick={() => void cancel()}>Cancel test and terminate instances</Button>}
       </CardContent></Card>
       <RealWorldTrafficMap job={job} receivedAt={receivedAt} interrupted={Boolean(error) || busy} />
       <Card><CardHeader><CardTitle>Configuration</CardTitle></CardHeader><CardContent className="space-y-4">

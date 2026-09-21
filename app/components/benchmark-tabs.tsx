@@ -1,5 +1,6 @@
 "use client";
 
+import { SignInToRun } from "./sign-in-to-run";
 import { BenchmarkForm } from "./benchmark-form";
 import { BenchmarkStatus } from "./benchmark-status";
 import { Card, CardContent } from "@/app/components/ui/card";
@@ -14,10 +15,10 @@ export function BenchmarkTabs({ userEmail }: { userEmail?: string }) {
       </TabsList>
       <TabsContent value="configure">
         <Card>
-          <CardContent><BenchmarkForm userEmail={userEmail} /></CardContent>
+          <CardContent>{userEmail ? <BenchmarkForm /> : <SignInToRun nextPath="/benchmarks" />}</CardContent>
         </Card>
       </TabsContent>
-      <TabsContent value="history"><BenchmarkStatus /></TabsContent>
+      <TabsContent value="history"><BenchmarkStatus canManage={Boolean(userEmail)} /></TabsContent>
     </Tabs>
   );
 }

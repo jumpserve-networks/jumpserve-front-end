@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getPostLoginPath } from "@/lib/auth-redirect";
 import { isGoogleAuthenticatedUser } from "@/lib/auth-provider";
 
-const PUBLIC_PATHS = new Set(["/", "/login", "/auth/callback"]);
+const AUTHENTICATED_PATHS = new Set(["/chat"]);
 const AUTH_ERROR_PARAMS = ["error", "error_code", "error_description"];
 
 function getSupabaseConfig() {
@@ -56,7 +56,7 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
   const isAuthenticated = isGoogleAuthenticatedUser(user);
-  const isPublicPath = PUBLIC_PATHS.has(pathname);
+  const requiresAuthentication = AUTHENTICATED_PATHS.has(pathname);
 
   if (
     isAuthenticated &&
@@ -71,7 +71,7 @@ export async function updateSession(request: NextRequest) {
     return copyCookies(response, NextResponse.redirect(destination));
   }
 
-  if (!isAuthenticated && !isPublicPath) {
+  if (!isAuthenticated && requiresAuthentication) {
     if (pathname.startsWith("/api/")) {
       return copyCookies(
         response,

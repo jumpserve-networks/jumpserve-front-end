@@ -31,15 +31,15 @@ export interface AgentResponse {
 export async function sendMessage(
   message: string,
   sessionId: string,
-  userId?: string,
+  accessToken: string,
 ): Promise<AgentResponse> {
+  if (!accessToken) throw new Error("Sign in to chat with the AI.");
   const res = await fetch(getAgentUrl(), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
       message,
       session_id: sessionId,
-      user_id: userId || 'anonymous',
     }),
   });
 

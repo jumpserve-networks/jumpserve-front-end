@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { BenchmarkTabs } from "@/app/components/benchmark-tabs";
-import { requireGoogleUser } from "@/lib/auth";
+import { getGoogleUser } from "@/lib/auth";
 import Link from "next/link";
 import { EMULATED_TESTS_MODULE } from "@/lib/test-modules";
 
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function BenchmarksPage() {
-  const user = await requireGoogleUser("/benchmarks");
+  const user = await getGoogleUser();
 
   return (
     <div className="min-h-[var(--page-height)] bg-muted dark:bg-background">
@@ -32,7 +32,7 @@ export default async function BenchmarksPage() {
           instances.
         </p>
 
-        <BenchmarkTabs userEmail={user.email} />
+        <BenchmarkTabs userEmail={user?.email} />
       </div>
     </div>
   );

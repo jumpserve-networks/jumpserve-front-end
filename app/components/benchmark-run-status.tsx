@@ -6,8 +6,9 @@ import { Check, CircleAlert, LoaderCircle } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
+import { requireAccessToken } from "@/lib/browser-auth";
 import { cancelBenchmark, getBenchmarkLogs, type BenchmarkLogEntry } from "@/lib/benchmark-api";
-import { benchmarkSteps, benchmarkStatusMessage, isBenchmarkTerminal, type BenchmarkJob } from "@/lib/benchmark-progress";
+import { PUBLIC_BENCHMARK_COLUMNS, benchmarkSteps, benchmarkStatusMessage, isBenchmarkTerminal, type BenchmarkJob } from "@/lib/benchmark-progress";
 import { cn } from "@/lib/utils";
 
 function BenchmarkLogs({ jobId, terminal }: { jobId: string; terminal: boolean }) {
@@ -73,7 +74,7 @@ const STEP_LABELS = {
   failed: "Failed", unconfirmed: "Unconfirmed",
 };
 
-export function BenchmarkRunStatus({ initialJob }: { initialJob: BenchmarkJob }) {
+export function BenchmarkRunStatus({ initialJob, canManage = false }: { initialJob: BenchmarkJob; canManage?: boolean }) {
   const [supabase] = useState(() => createClient());
   const [job, setJob] = useState(initialJob);
   const [pollError, setPollError] = useState<string | null>(null);
@@ -90,7 +91,7 @@ export function BenchmarkRunStatus({ initialJob }: { initialJob: BenchmarkJob })
     async function refresh() {
       try {
         const { data, error } = await supabase.from("benchmark_jobs")
-          .select("*").eq("id", initialJob.id).abortSignal(controller.signal).maybeSingle();
+          .select(PUBLIC_BENCHMARK_COLUMNS).eq("id", initialJob.id).abortSignal(controller.signal).maybeSingle();
         if (controller.signal.aborted) return;
         if (error) throw new Error(error.message);
         if (!data) throw new Error("This benchmark is no longer available to your account.");
@@ -116,7 +117,7 @@ export function BenchmarkRunStatus({ initialJob }: { initialJob: BenchmarkJob })
     setCancelling(true);
     setCancelError(null);
     try {
-      const result = await cancelBenchmark(job.id);
+      const result = await cancelBenchmark(job.id, await requireAccessToken());
       setJob((current) => ({ ...current, status: result.status }));
       setPollError(null);
       setConfirmCancel(false);
@@ -181,10 +182,10 @@ export function BenchmarkRunStatus({ initialJob }: { initialJob: BenchmarkJob })
           <div className="flex flex-wrap items-center gap-3">
             {successful && job.parent_run_id != null && <Button nativeButton={false} render={<Link href={`/parent-run/${job.parent_run_id}`} />}>View results</Button>}
             {terminal && <Button variant="outline" nativeButton={false} render={<Link href="/benchmarks" />}>Configure another benchmark</Button>}
-            {!terminal && !confirmCancel && <Button variant="outline" onClick={() => setConfirmCancel(true)}>Cancel benchmark</Button>}
+            {canManage && !terminal && !confirmCancel && <Button variant="outline" onClick={() => setConfirmCancel(true)}>Cancel benchmark</Button>}
             {!terminal && <span className="text-xs text-muted-foreground">Updates every 5 seconds. You can leave and return to this URL.</span>}
           </div>
-          {!terminal && confirmCancel && (
+          {canManage && !terminal && confirmCancel && (
             <div className="space-y-3 rounded-lg border p-4">
               <p className="text-sm">Cancel this benchmark and terminate its EC2 instance?</p>
               <div className="flex flex-wrap gap-2">
@@ -204,7 +205,6 @@ export function BenchmarkRunStatus({ initialJob }: { initialJob: BenchmarkJob })
             {[
               ["Run ID", job.id], ["EC2 instance", job.ec2_instance_id || "Awaiting instance assignment"],
               ["Requested at", new Date(job.created_at).toUTCString()],
-              ["Requested by", job.requested_by || "Not recorded"],
               ["Clients", `${job.config.num_clients} (${job.config.client_ccas.join(", ")})`],
               ["Client delays", `${job.config.client_delays_ms.join(", ")} ms`],
               ...(job.config.script === "netem_multi_bottleneck.py"

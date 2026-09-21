@@ -7,6 +7,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { createClient } from "@/lib/supabase/client";
+import { requireAccessToken } from "@/lib/browser-auth";
 import { sendMessage, type AgentResponse } from "@/lib/agent-api";
 
 interface Message {
@@ -267,6 +268,7 @@ export function ChatPanel({
     const { data } = await supabase
       .from("agent_sessions")
       .select("id, updated_at, messages")
+      .eq("user_id", userEmail ?? "")
       .order("updated_at", { ascending: false })
       .limit(30);
     return data
@@ -276,7 +278,7 @@ export function ChatPanel({
           preview: extractPreview(s.messages),
         }))
       : null;
-  }, [supabase]);
+  }, [supabase, userEmail]);
 
   // Visits start empty. Saved messages load only when selected in the sidebar.
   useEffect(() => {
@@ -304,7 +306,7 @@ export function ChatPanel({
     setIsLoading(true);
 
     try {
-      const result: AgentResponse = await sendMessage(text, sessionId, userEmail);
+      const result: AgentResponse = await sendMessage(text, sessionId, await requireAccessToken());
       if (version !== conversationVersion.current) return;
       setMessages((prev) => [
         ...prev,
@@ -348,6 +350,7 @@ export function ChatPanel({
       const { data, error } = await supabase
         .from("agent_sessions")
         .select("messages")
+        .eq("user_id", userEmail ?? "")
         .eq("id", id)
         .single();
       if (version !== conversationVersion.current) return;

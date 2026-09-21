@@ -36,7 +36,9 @@ Open `http://localhost:3000`.
 When logged out, `/` is a public landing page explaining JumpServe, the experiment
 workflow, and available and planned test environments. Sign-in controls open
 `/login`, where Google authentication begins. Signing out returns to the public
-landing page. Experiment pages and API routes remain protected.
+landing page. Module overviews, test results, comparisons, status pages, and
+measurement downloads are public. Google sign-in is required to run or cancel
+tests and to chat with the AI; APIs verify the session independently.
 
 After Google sign-in, `/` presents the module chooser. The current module is
 **Congestion Control Emulated Tests** (`congestion-control-emulated`), with a home
@@ -45,16 +47,16 @@ at `/modules/congestion-control-emulated`. Its tools retain their existing URLs:
 A persistent left sidebar shows the current module, its overview and sections,
 and an **All modules** link. On smaller screens, the header menu button opens the
 same navigation in an accessible drawer. Detail pages highlight their parent
-section. The sidebar is omitted from public pages, the module chooser, and print.
-Module selection is navigation, not an authorization boundary; every protected
-page still requires the existing Google authentication.
+section. The sidebar appears for module tools even when signed out, and is omitted
+from the landing page, module chooser, and print. Module selection is navigation.
 
 **Congestion Control Real World Tests** (`congestion-control-real-world`) opens
 `/real-world` for EC2 placement, server CCA, shared bottleneck settings, test
 launching, and history. `/real-world/[jobId]` shows lifecycle, cancellation,
 machine placement, receiver throughput, and signed raw-report downloads.
-It uses authenticated `/real-world/*` endpoints on the existing
-`NEXT_PUBLIC_BENCHMARK_API_URL`; the backend validates the Supabase access token.
+It uses `/real-world/*` endpoints on `NEXT_PUBLIC_BENCHMARK_API_URL`. Result reads
+are public; launching requires a verified Google session, and cancellation also
+checks ownership. S3 stays private, with temporary links to measurement files.
 Deploy the matching infrastructure/runtime before publishing this UI.
 
 Each run creates one server, one bottleneck, and 1–16 receivers. AWS Regions,
@@ -92,11 +94,17 @@ and backend integration before marking it available. Unknown or unavailable
 module home routes return 404. Existing run IDs, database tables, benchmark APIs,
 and agent endpoints remain scoped to emulated congestion-control tests.
 
-OAuth completion and the authenticated `/login` redirect both open the chooser.
-A requested tool URL is carried in its `next` parameter and resumed when the user
-chooses that module. External and unrecognized destinations cannot become module
-links. Choosing a module does not persist a default that bypasses the chooser on
-the next sign-in. Theme preferences remain available through the shared toggle.
+OAuth completion and the authenticated `/login` redirect resume the safe `next`
+path directly, including query parameters. Without a destination, sign-in opens
+`/`. Logged-out visitors can open either module from the landing page. The launch
+pages show a sign-in prompt while signed out; emulated run history stays readable.
+`/chat` redirects to login. Launch/cancel/chat clients attach Supabase bearer tokens;
+requester identity is verified by the API rather than accepted from the body.
+
+Supabase RLS remains enabled. Infrastructure migration
+`202609200003_public_test_results.sql` grants anonymous measurement reads and a
+limited benchmark-job column projection (excluding requester emails). Saved
+configurations, chat records, AI context, and anonymous writes remain private.
 
 `npm test` covers redirect safety, deep-link continuity, module availability, and
 route ownership alongside the existing API tests.
@@ -193,7 +201,7 @@ These tests mock API requests and do not launch EC2 instances or invoke AI model
 
 Choose the Congestion Control Real World Tests module, then **Test Results**.
 The workspace at `/real-world-reports` shares saved EC2 measurements among all
-signed-in researchers, with individual throughput/RTT/queue reports, configuration
+all visitors, with individual throughput/RTT/queue reports, configuration
 matching, independent replication counts, exploratory confidence intervals,
 bookmarkable selections, CSV/JSON exports, and print-to-PDF. Test management
 remains owner-scoped. It uses the existing `NEXT_PUBLIC_BENCHMARK_API_URL`.

@@ -28,11 +28,12 @@ async function benchmarkRequest(
   options: RequestInit,
 ): Promise<Record<string, unknown>> {
   const res = await fetch(`${getBenchmarkApiUrl()}${path}`, {
+    ...options,
     headers: {
       Accept: 'application/json',
       ...(options.method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
+      ...options.headers,
     },
-    ...options,
   });
 
   let data: unknown;
@@ -58,8 +59,9 @@ async function benchmarkRequest(
   return data;
 }
 
-function postBenchmarkRequest(path: string, body: object) {
-  return benchmarkRequest(path, { method: 'POST', body: JSON.stringify(body) });
+function postBenchmarkRequest(path: string, body: object, accessToken: string) {
+  if (!accessToken) throw new Error("Sign in to run or manage tests.");
+  return benchmarkRequest(path, { headers: { Authorization: `Bearer ${accessToken}` }, method: 'POST', body: JSON.stringify(body) });
 }
 
 export interface BenchmarkLogEntry {
@@ -113,14 +115,13 @@ export interface LaunchResponse {
 
 export async function launchBenchmark(
   config: BenchmarkConfig,
-  requestedBy?: string,
+  accessToken: string,
 ): Promise<LaunchResponse> {
   const validationError = validateMultiBottleneckConfig(config);
   if (validationError) throw new Error(validationError);
   const data = await postBenchmarkRequest('/benchmarks', {
     config,
-    requested_by: requestedBy,
-  });
+  }, accessToken);
 
   if (
     typeof data.jobId !== 'string' || !data.jobId ||
@@ -133,8 +134,8 @@ export async function launchBenchmark(
   return { jobId: data.jobId, instanceId: data.instanceId, status: data.status };
 }
 
-export async function cancelBenchmark(jobId: string): Promise<{ jobId: string; status: string }> {
-  const data = await postBenchmarkRequest('/benchmarks/cancel', { jobId });
+export async function cancelBenchmark(jobId: string, accessToken: string): Promise<{ jobId: string; status: string }> {
+  const data = await postBenchmarkRequest('/benchmarks/cancel', { jobId }, accessToken);
 
   if (
     typeof data.jobId !== 'string' || !data.jobId ||

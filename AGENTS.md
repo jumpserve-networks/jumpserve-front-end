@@ -5,12 +5,13 @@ Last updated: 2026-09-20
 ## Project purpose
 
 `jumpserve-front-end` is a Next.js app for networking test modules. Logged-out
-visitors see a public overview at `/` and sign in at `/login`. After sign-in,
-users choose a module at `/`. All current application tools belong to
+visitors see a public overview and module links at `/`. Results and comparisons
+are public; only test execution, cancellation, and AI chat require Google sign-in
+at `/login`. Sign-in resumes the requested action. Emulated tools belong to
 **Congestion Control Emulated Tests** (`congestion-control-emulated`).
 **Congestion Control Real World Tests** (`congestion-control-real-world`) provides
 the separate EC2 launcher/history at `/real-world` and results at
-`/real-world/[jobId]`. Its authenticated `/real-world/*` API shares the benchmark
+`/real-world/[jobId]`. Its `/real-world/*` API shares the benchmark
 API origin, with separate DynamoDB metadata and private S3 reports. Each test
 creates a server, bottleneck, and 1–16 receivers; do not mix its duration-based
 throughput results with emulated file completion times.
@@ -62,6 +63,14 @@ Do not commit real keys or tokens.
 
 ## Production and authentication
 
+Keep result routes public. Verify Google sessions at APIs before launching or
+cancelling tests or invoking the AI. Use `requireAccessToken` for browser actions;
+never trust caller-supplied requester identity. Supabase RLS stays enabled, with
+anonymous SELECT grants only for experiment tables and the explicit
+`PUBLIC_BENCHMARK_COLUMNS` projection. Do not use `select("*")` on benchmark jobs
+in public pages: requester emails are not public. Saved configurations and chat
+sessions remain authenticated. Real-world cancellation is owner-only.
+
 - Canonical production URL: `https://jumpserve.quaint-lab.org`
 - Production `NEXT_PUBLIC_SITE_URL`: `https://jumpserve.quaint-lab.org`
 - Supabase Authentication Site URL: `https://jumpserve.quaint-lab.org`
@@ -86,14 +95,14 @@ behind CloudFront, Next.js can see the internal origin as `localhost:3000`. Pref
     chooser for authenticated Google users.
   - Retains a safe requested tool URL until its module is selected.
 - `app/modules/[moduleId]/page.tsx`
-  - Authenticated module home; unavailable and unknown modules return 404.
+  - Public module home; unavailable and unknown modules return 404.
 - `app/components/site-header.tsx`
   - Shared identity, theme, authentication, and mobile module-menu trigger.
 - `app/components/app-shell.tsx` and `app/components/module-navigation.tsx`
   - Persistent desktop sidebar and Base UI Sheet navigation on smaller screens.
   - Derive sections and detail-page highlights from `lib/test-modules.ts`.
 - `lib/auth-redirect.ts`
-  - Keeps post-login navigation at the chooser and preserves safe deep links.
+  - Resumes safe action/result deep links directly after login, preserving queries.
 - `app/components/emulated-runs-dashboard.tsx`
   - Client component.
   - Run selector + metadata cards.

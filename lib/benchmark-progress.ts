@@ -1,3 +1,5 @@
+export const PUBLIC_BENCHMARK_COLUMNS = "id,created_at,updated_at,status,config,ec2_instance_id,parent_run_id,error_message";
+
 export interface BenchmarkJob {
   id: string;
   created_at: string;
@@ -16,7 +18,7 @@ export interface BenchmarkJob {
   ec2_instance_id: string | null;
   parent_run_id: number | null;
   error_message: string | null;
-  requested_by: string | null;
+  requested_by?: string | null;
 }
 
 const TERMINAL_STATUSES = new Set(["completed", "failed", "cancelled", "terminated"]);

@@ -3,13 +3,13 @@ import { test } from "node:test";
 import { getPostLoginPath, getSafeNextPath } from "../lib/auth-redirect.ts";
 import { EMULATED_TESTS_MODULE, getTestModule, getTestModuleForPath, isModuleSectionActive } from "../lib/test-modules.ts";
 
-test("sign-in opens the module chooser without an implicit module selection", () => {
+test("sign-in without a destination returns home", () => {
   for (const next of [null, "", "/", "/login", "/auth/callback?code=expired"]) {
     assert.equal(getPostLoginPath(next), "/");
   }
 });
 
-test("saved test links resume only after module selection, with the complete query", () => {
+test("sign-in resumes the requested action or result, with the complete query", () => {
   for (const requested of [
     "/parent-run/2352?page=3",
     "/chat?parentRunId=2352",
@@ -18,9 +18,8 @@ test("saved test links resume only after module selection, with the complete que
     EMULATED_TESTS_MODULE.href,
   ]) {
     const chooser = new URL(getPostLoginPath(requested), "https://jumpserve.example");
-    assert.equal(chooser.pathname, "/");
-    assert.equal(chooser.searchParams.get("next"), requested);
-    assert.equal(getTestModuleForPath(chooser.searchParams.get("next")), EMULATED_TESTS_MODULE);
+    assert.equal(`${chooser.pathname}${chooser.search}`, requested);
+    assert.equal(getTestModuleForPath(requested), EMULATED_TESTS_MODULE);
   }
 });
 
@@ -28,6 +27,7 @@ test("re-authenticating from a pending module choice preserves the original dest
   const requested = "/parent-run/2352?page=4";
   const chooser = getPostLoginPath(requested);
   assert.equal(getPostLoginPath(chooser), chooser);
+  assert.equal(getPostLoginPath(`/?${new URLSearchParams({ next: requested })}`), requested);
   assert.equal(getPostLoginPath("/?next=%2F"), "/");
   assert.equal(getPostLoginPath("/?next=%2F%3Fnext%3D%252Fchat"), "/");
 });

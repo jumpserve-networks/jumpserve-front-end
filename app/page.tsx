@@ -21,5 +21,5 @@ export default async function Home({
 
   return isGoogleAuthenticatedUser(user)
     ? <ModuleChooser nextPath={nextPath} />
-    : <PublicLandingPage nextPath={nextPath} />;
+    : <PublicLandingPage />;
 }

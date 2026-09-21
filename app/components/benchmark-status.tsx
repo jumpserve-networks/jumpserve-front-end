@@ -6,6 +6,8 @@ import { Button } from "@/app/components/ui/button";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { PUBLIC_BENCHMARK_COLUMNS } from "@/lib/benchmark-progress";
+import { requireAccessToken } from "@/lib/browser-auth";
 import { cancelBenchmark } from "@/lib/benchmark-api";
 
 interface BenchmarkJob {
@@ -24,7 +26,7 @@ interface BenchmarkJob {
   ec2_instance_id: string | null;
   parent_run_id: number | null;
   error_message: string | null;
-  requested_by: string | null;
+  requested_by?: string | null;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -257,7 +259,7 @@ function CancelButton({
     setCancelling(true);
     setError(null);
     try {
-      await cancelBenchmark(jobId);
+      await cancelBenchmark(jobId, await requireAccessToken());
       setOpen(false);
       onCancelled();
     } catch (err: unknown) {
@@ -289,7 +291,7 @@ function CancelButton({
   );
 }
 
-export function BenchmarkStatus() {
+export function BenchmarkStatus({ canManage = false }: { canManage?: boolean }) {
   const [supabase] = useState(() => createClient());
   const [jobs, setJobs] = useState<BenchmarkJob[]>([]);
   const [loading, setLoading] = useState(true);
@@ -297,7 +299,7 @@ export function BenchmarkStatus() {
   const loadJobs = useCallback(async () => {
     const { data } = await supabase
       .from("benchmark_jobs")
-      .select("*")
+      .select(PUBLIC_BENCHMARK_COLUMNS)
       .order("created_at", { ascending: false })
       .limit(20);
     return data as BenchmarkJob[] | null;
@@ -373,7 +375,7 @@ export function BenchmarkStatus() {
                 >
                   View progress
                 </Link>
-                {isActive && (
+                {isActive && canManage && (
                   <CancelButton jobId={job.id} onCancelled={fetchJobs} />
                 )}
                 {job.status === "completed" && job.parent_run_id && (

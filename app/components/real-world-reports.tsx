@@ -100,7 +100,7 @@ export function RealWorldReports() {
         <div className="space-y-2"><Label htmlFor="report-from">From date (UTC)</Label><Input id="report-from" type="date" value={filters.from} onChange={event => query({ from: event.target.value })} /></div>
         <div className="space-y-2"><Label htmlFor="report-to">Through date (UTC)</Label><Input id="report-to" type="date" value={filters.to} onChange={event => query({ to: event.target.value })} /></div>
       </div>
-      <p className="text-xs text-muted-foreground">Showing {visible.length} of {jobs.length} loaded tests. {loading ? "Reading history." : error ? "History could not be refreshed." : cursor ? "Older tests are available below; filters apply to the loaded history." : "All available history has been loaded."} Results are shared among signed-in researchers.</p>
+      <p className="text-xs text-muted-foreground">Showing {visible.length} of {jobs.length} loaded tests. {loading ? "Reading history." : error ? "History could not be refreshed." : cursor ? "Older tests are available below; filters apply to the loaded history." : "All available history has been loaded."} Results are publicly accessible.</p>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {loading && <p role="status" className="text-sm text-muted-foreground">Loading test history…</p>}
       {!loading && !error && !visible.length ? <p className="py-6 text-sm text-muted-foreground">{jobs.length ? "No tests match these filters." : "No tests yet. Launch a real-world test to collect your first results."}</p> : visible.length > 0 ? <Table><TableHeader><TableRow>
