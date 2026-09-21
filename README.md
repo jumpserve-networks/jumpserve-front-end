@@ -57,6 +57,13 @@ Deploy the matching infrastructure/runtime before publishing this UI.
 Each run creates one server, one bottleneck, and 1–16 receivers. AWS Regions,
 Availability Zones, and compatible instance offerings come from the account's
 live catalog. Disabled choices explain opt-in or compatibility restrictions.
+The server Region can also be selected on an interactive world map. Its selection
+stays synchronized with the dropdown; changing Regions clears the previous zone
+and instance type. Nearby markers expand with zoom, and the map supports mouse,
+touch, and keyboard navigation. Map coordinates are approximate Region locations,
+not individual data centers. Live catalog availability remains authoritative;
+Regions without map coordinates remain selectable in the dropdown. See
+[map data and provenance](lib/maps/README.md).
 The workload is simultaneous TCP bulk transfer for a selected duration; CCAs are
 CUBIC, stock Linux BBR, and Reno. Per-machine results remain separate from the
 emulated comparison tools. EC2/network resources are removed after each run;

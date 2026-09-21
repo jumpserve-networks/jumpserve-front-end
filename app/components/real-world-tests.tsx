@@ -64,7 +64,8 @@ export function RealWorldTests() {
               <div key={key} className="space-y-2"><Label htmlFor={key}>{label}</Label><Input id={key} type="number" min={min} max={max} step={1} required value={Number.isNaN(config[key]) ? "" : config[key]} onChange={(e) => update({ [key]: e.target.valueAsNumber })} /></div>)}
           </div>
           <p className="text-xs text-muted-foreground">One TCP stream per receiver, starting together. Buffer sizes use decimal kB (1,000 bytes). BBR uses the stock Linux implementation recorded with the results.</p>
-          <RealWorldPlacement label="Server" value={config.server} regions={regions} onChange={(server) => update({ server })} />
+          <RealWorldPlacement label="Server" value={config.server} regions={regions} onChange={(server) => update({ server })}
+            showRegionMap disabled={submitting || loading} />
           <Button type="button" variant="outline" size="sm" disabled={!config.server.instance_type} onClick={() => update({ bottleneck: { ...config.server }, receivers: config.receivers.map(() => ({ ...config.server })) })}>Use server placement for all machines</Button>
           <RealWorldPlacement label="Bottleneck" value={config.bottleneck} regions={regions} onChange={(bottleneck) => update({ bottleneck })} />
           {config.receivers.map((receiver, index) => <RealWorldPlacement key={index} label={`Receiver ${index + 1}`} value={receiver} regions={regions}
