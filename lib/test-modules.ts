@@ -6,9 +6,9 @@ export const LEGACY_MODULE_ROUTES = [
   ...["test-lookup", "parent-run", "aggregate-graphs", "benchmarks", "chat", "api/parent-runs"].map((path) => ({
     source: `/${path}`, destination: `${EMULATED_MODULE_PATH}/${path}`,
   })),
-  ...["real-world", "real-world-reports"].map((path) => ({
-    source: `/${path}`, destination: `${REAL_WORLD_MODULE_PATH}/${path}`,
-  })),
+  { source: "/real-world", destination: `${REAL_WORLD_MODULE_PATH}/run-a-test` },
+  { source: `${REAL_WORLD_MODULE_PATH}/real-world`, destination: `${REAL_WORLD_MODULE_PATH}/run-a-test` },
+  { source: "/real-world-reports", destination: `${REAL_WORLD_MODULE_PATH}/real-world-reports` },
   { source: "/modules/congestion-control-emulated", destination: EMULATED_MODULE_PATH },
   { source: "/modules/congestion-control-real-world", destination: REAL_WORLD_MODULE_PATH },
 ];
@@ -74,7 +74,7 @@ export const TEST_MODULES: readonly TestModule[] = [
     status: "available",
     href: REAL_WORLD_MODULE_PATH,
     sections: [
-      { href: `${REAL_WORLD_MODULE_PATH}/real-world`, label: "Run a Test", description: "Launch EC2 tests, choose machine locations, and inspect results.", paths: [`${REAL_WORLD_MODULE_PATH}/real-world`] },
+      { href: `${REAL_WORLD_MODULE_PATH}/run-a-test`, label: "Run a Test", description: "Launch EC2 tests, choose machine locations, and inspect results.", paths: [`${REAL_WORLD_MODULE_PATH}/run-a-test`] },
       { href: `${REAL_WORLD_MODULE_PATH}/real-world-reports`, label: "Test Results", description: "Explore shared measurements and compare matched configurations with replication counts and confidence intervals.", paths: [`${REAL_WORLD_MODULE_PATH}/real-world-reports`] },
     ],
   },

@@ -14,7 +14,7 @@ const sectionIcons: Record<string, LucideIcon> = {
   [`${EMULATED_MODULE_PATH}/aggregate-graphs`]: ChartNoAxesCombined,
   [`${EMULATED_MODULE_PATH}/benchmarks`]: FlaskConical,
   [`${EMULATED_MODULE_PATH}/chat`]: MessageSquare,
-  [`${REAL_WORLD_MODULE_PATH}/real-world`]: Globe2,
+  [`${REAL_WORLD_MODULE_PATH}/run-a-test`]: Globe2,
   [`${REAL_WORLD_MODULE_PATH}/real-world-reports`]: FileChartColumn,
 };
 

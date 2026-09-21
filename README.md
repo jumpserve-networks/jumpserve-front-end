@@ -54,9 +54,9 @@ section. The sidebar appears for module tools even when signed out, and is omitt
 from the landing page, module chooser, and print. Module selection is navigation.
 
 **Congestion Control Real World Tests** (`congestion-control-real-world`) opens
-`/module/congestion-control-real-world/real-world` for EC2 placement, server CCA,
+`/module/congestion-control-real-world/run-a-test` for EC2 placement, server CCA,
 shared bottleneck settings, test launching, and history. The status page at
-`/module/congestion-control-real-world/real-world/[jobId]` shows lifecycle, cancellation,
+`/module/congestion-control-real-world/run-a-test/[jobId]` shows lifecycle, cancellation,
 machine placement, receiver throughput, and signed raw-report downloads.
 It uses `/real-world/*` endpoints on `NEXT_PUBLIC_BENCHMARK_API_URL`. Result reads
 are public; launching requires a verified Google session, and cancellation also

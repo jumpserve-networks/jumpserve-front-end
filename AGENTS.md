@@ -21,8 +21,8 @@ at `/login`. Sign-in resumes the requested action. Emulated tools belong to
 **Congestion Control Emulated Tests** (`congestion-control-emulated`).
 **Congestion Control Real World Tests** (`congestion-control-real-world`) provides
 the separate EC2 launcher/history at
-`/module/congestion-control-real-world/real-world` and status at
-`/module/congestion-control-real-world/real-world/[jobId]`. Its `/real-world/*` API shares the benchmark
+`/module/congestion-control-real-world/run-a-test` and status at
+`/module/congestion-control-real-world/run-a-test/[jobId]`. Its `/real-world/*` API shares the benchmark
 API origin, with records and normalized reports in Supabase Postgres and raw
 measurements in private Supabase Storage. `real_world_runs` and
 `real_world_reports` are public read-only; `real_world_jobs` and
