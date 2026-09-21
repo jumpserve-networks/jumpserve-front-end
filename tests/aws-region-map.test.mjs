@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { clusterRegions, mapViewport, MAX_MAP_ZOOM, placementInRegion, projectRegion, REGION_LOCATIONS, regionMarkers, WORLD_CAMERA } from "../lib/aws-region-map.ts";
+import { clusterRegions, mapViewport, MAX_MAP_ZOOM, projectRegion, REGION_LOCATIONS, regionMarkers, WORLD_CAMERA } from "../lib/aws-region-map.ts";
+import { placementInRegion } from "../lib/real-world.ts";
 
 const catalog = Object.keys(REGION_LOCATIONS).map((region) => ({ region, enabled: region !== "ap-east-1", opt_in_status: "fixture" }));
 
@@ -13,14 +14,14 @@ test("map joins display locations to the live catalog without enabling opt-in Re
   assert.deepEqual(regionMarkers([]), []);
 });
 
-test("Region changes clear stale zone/type, while reselection and unavailable Regions preserve placement", () => {
-  const existing = { region: "us-east-1", zone_id: "use1-az1", instance_type: "c6i.large" };
+test("Region changes clear the stale zone and retain t3.medium; reselection preserves placement", () => {
+  const existing = { region: "us-east-1", zone_id: "use1-az1", instance_type: "t3.medium" };
   for (const region of ["us-east-1", "ap-east-1", "not-in-catalog"]) {
     assert.equal(placementInRegion(existing, region, catalog), existing);
   }
-  assert.deepEqual(placementInRegion(existing, "eu-west-1", catalog), { region: "eu-west-1", zone_id: "", instance_type: "" });
+  assert.deepEqual(placementInRegion(existing, "eu-west-1", catalog), { region: "eu-west-1", zone_id: "", instance_type: "t3.medium" });
   const extended = [...catalog, { region: "new-region-1", enabled: true }];
-  assert.deepEqual(placementInRegion(existing, "new-region-1", extended), { region: "new-region-1", zone_id: "", instance_type: "" });
+  assert.deepEqual(placementInRegion(existing, "new-region-1", extended), { region: "new-region-1", zone_id: "", instance_type: "t3.medium" });
   assert.equal(existing.zone_id, "use1-az1");
 });
 

@@ -4,10 +4,11 @@ import { useEffect, useId, useState } from "react";
 import { Label } from "@/app/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
 import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
 import { AwsRegionMap } from "@/app/components/aws-region-map";
-import { placementInRegion } from "@/lib/aws-region-map";
 import { realWorldRequest } from "@/lib/real-world-api";
 import type { AwsRegion, AwsZone, Placement } from "@/lib/real-world";
+import { isRealWorldZoneAvailable, placementInRegion, REAL_WORLD_INSTANCE_TYPE } from "@/lib/real-world";
 
 export function Choice({ label, value, items, onChange, disabled = false }: {
   label: string; value: string; items: { value: string; label: string; disabled?: boolean }[];
@@ -27,6 +28,7 @@ export function RealWorldPlacement({ label, value, regions, onChange, showRegion
   label: string; value: Placement; regions: AwsRegion[]; onChange: (value: Placement) => void;
   showRegionMap?: boolean; disabled?: boolean;
 }) {
+  const instanceTypeId = useId();
   const [catalog, setCatalog] = useState<{ region: string; zones: AwsZone[]; error?: string } | null>(null);
   const [retry, setRetry] = useState(0);
   useEffect(() => {
@@ -38,8 +40,8 @@ export function RealWorldPlacement({ label, value, regions, onChange, showRegion
     return () => controller.abort();
   }, [value.region, retry]);
   const current = catalog?.region === value.region ? catalog : null;
-  const zones = current?.zones ?? [];
-  const zone = zones.find((item) => item.zone_id === value.zone_id);
+  const zones = (current?.zones ?? []).map((zone) => ({ ...zone, available: isRealWorldZoneAvailable(zone),
+    reason: zone.reason ?? (zone.instance_types.includes(REAL_WORLD_INSTANCE_TYPE) ? null : "t3.medium is not offered in this zone.") }));
   function selectRegion(region: string) {
     if (disabled) return;
     const next = placementInRegion(value, region, regions);
@@ -53,14 +55,19 @@ export function RealWorldPlacement({ label, value, regions, onChange, showRegion
         onChange={selectRegion} disabled={disabled} />
       <Choice label={`${label} Availability Zone`} value={value.zone_id} disabled={!zones.length}
         items={zones.map((z) => ({ value: z.zone_id, label: `${z.name} (${z.zone_id})${z.reason ? ` · ${z.reason}` : ""}`, disabled: !z.available }))}
-        onChange={(zone_id) => onChange({ ...value, zone_id, instance_type: "" })} />
-      <Choice label={`${label} instance type`} value={value.instance_type} disabled={!zone?.available}
-        items={(zone?.instance_types ?? []).map((type) => ({ value: type, label: type }))}
-        onChange={(instance_type) => onChange({ ...value, instance_type })} />
+        onChange={(zone_id) => {
+          if (zones.some((zone) => zone.zone_id === zone_id && zone.available)) {
+            onChange({ ...value, zone_id, instance_type: REAL_WORLD_INSTANCE_TYPE });
+          }
+        }} />
+      <div className="min-w-0 space-y-2">
+        <Label htmlFor={instanceTypeId}>{label} instance type</Label>
+        <Input id={instanceTypeId} value={REAL_WORLD_INSTANCE_TYPE} readOnly />
+      </div>
     </div>
     {showRegionMap && <AwsRegionMap regions={regions} value={value.region} onChange={selectRegion} disabled={disabled} />}
     {value.region && !current && <p className="text-xs text-muted-foreground" role="status">Loading AWS zones…</p>}
     {current?.error && <div role="alert" className="text-sm text-destructive">{current.error} <Button type="button" variant="outline" size="sm" onClick={() => setRetry((n) => n + 1)}>Retry locations</Button></div>}
-    {current && !current.error && !zones.some((z) => z.available) && <p className="text-sm text-muted-foreground">No compatible zones are currently available in this Region.</p>}
+    {current && !current.error && !zones.some((z) => z.available) && <p className="text-sm text-muted-foreground">No zones offering t3.medium are currently available in this Region.</p>}
   </fieldset>;
 }

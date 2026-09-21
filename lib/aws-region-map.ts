@@ -1,4 +1,4 @@
-import type { AwsRegion, Placement } from "./real-world";
+import type { AwsRegion } from "./real-world";
 
 // Representative geographic locations, not AWS facility coordinates.
 // Availability always comes from /real-world/regions, never this display metadata.
@@ -86,9 +86,4 @@ export function clusterRegions(markers: RegionMarker[], scale: number): RegionCl
       y: members.reduce((sum, r) => sum + r.y, 0) / members.length });
   }
   return clusters;
-}
-
-export function placementInRegion(value: Placement, region: string, regions: AwsRegion[]): Placement {
-  if (region === value.region || !regions.some((item) => item.region === region && item.enabled)) return value;
-  return { region, zone_id: "", instance_type: "" };
 }
