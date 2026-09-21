@@ -76,22 +76,22 @@ export function RealWorldReports() {
         try {
           const report = cache.current.get(id) ?? await realWorldRequest<RealWorldReport>(`/reports/${id}?summary=1`, { signal: request.signal });
           if (!request.signal.aborted) { cache.current.set(id, report); reports.push(report); }
-        } catch (e) { if (!request.signal.aborted) errors.push(`${id.slice(0, 8)}: ${e instanceof Error ? e.message : "Report unavailable"}`); }
+        } catch (e) { if (!request.signal.aborted) errors.push(`${id.slice(0, 8)}: ${e instanceof Error ? e.message : "Test results unavailable"}`); }
         if (!request.signal.aborted) setProgress(++finished);
       }
     }));
     if (!request.signal.aborted) { setAnalysis({ key: selectionKey, reports, errors }); setBuilding(false); }
   }
   async function copyLink() {
-    try { await navigator.clipboard.writeText(window.location.href); setCopied("Report link copied. Access requires sign-in."); }
-    catch { setCopied("Copy the address from your browser to save this report selection."); }
+    try { await navigator.clipboard.writeText(window.location.href); setCopied("Results link copied. Access requires sign-in."); }
+    catch { setCopied("Copy the address from your browser to save this test selection."); }
   }
   const active = analysis?.key === selectionKey ? analysis : null;
   return <div className="mt-6 space-y-6">
     <div className="grid gap-4 sm:grid-cols-3">
       {[["Tests loaded", jobs.length], ["Completed", jobs.filter(job => job.status === "completed").length], ["Selected for comparison", selected.length]].map(([label, value]) => <Card key={label} className="gap-2"><CardHeader><CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{value}</p></CardContent></Card>)}
     </div>
-    <Card className="print:hidden"><CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3"><CardTitle>Saved test reports</CardTitle><Button variant="outline" size="sm" disabled={loading || building} onClick={() => { setAnalysis(null); void load(); }}>Refresh</Button></CardHeader><CardContent className="space-y-4">
+    <Card className="print:hidden"><CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3"><CardTitle>Saved test results</CardTitle><Button variant="outline" size="sm" disabled={loading || building} onClick={() => { setAnalysis(null); void load(); }}>Refresh</Button></CardHeader><CardContent className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-2"><Label htmlFor="report-search">Test ID or hypothesis</Label><Input id="report-search" value={filters.search} onChange={event => query({ search: event.target.value })} placeholder="Search saved tests" /></div>
         <Choice label="Algorithm filter" value={filters.cca || "all"} onChange={value => query({ cca: value === "all" ? "" : value })} items={[{ value: "all", label: "All algorithms" }, ...REAL_WORLD_CCAS.map(value => ({ value, label: value.toUpperCase() }))]} />
@@ -100,17 +100,17 @@ export function RealWorldReports() {
         <div className="space-y-2"><Label htmlFor="report-from">From date (UTC)</Label><Input id="report-from" type="date" value={filters.from} onChange={event => query({ from: event.target.value })} /></div>
         <div className="space-y-2"><Label htmlFor="report-to">Through date (UTC)</Label><Input id="report-to" type="date" value={filters.to} onChange={event => query({ to: event.target.value })} /></div>
       </div>
-      <p className="text-xs text-muted-foreground">Showing {visible.length} of {jobs.length} loaded tests. {loading ? "Reading history." : error ? "History could not be refreshed." : cursor ? "Older tests are available below; filters apply to the loaded history." : "All available history has been loaded."} Reports are shared among signed-in researchers.</p>
+      <p className="text-xs text-muted-foreground">Showing {visible.length} of {jobs.length} loaded tests. {loading ? "Reading history." : error ? "History could not be refreshed." : cursor ? "Older tests are available below; filters apply to the loaded history." : "All available history has been loaded."} Results are shared among signed-in researchers.</p>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {loading && <p role="status" className="text-sm text-muted-foreground">Loading test history…</p>}
-      {!loading && !error && !visible.length ? <p className="py-6 text-sm text-muted-foreground">{jobs.length ? "No tests match these filters." : "No tests yet. Launch a real-world test to create your first report."}</p> : visible.length > 0 ? <Table><TableHeader><TableRow>
-        <TableHead>Select</TableHead><TableHead>Created (UTC) / test</TableHead><TableHead>CCA</TableHead><TableHead>Placement</TableHead><TableHead>Configuration</TableHead><TableHead>Status</TableHead><TableHead>Report</TableHead>
+      {!loading && !error && !visible.length ? <p className="py-6 text-sm text-muted-foreground">{jobs.length ? "No tests match these filters." : "No tests yet. Launch a real-world test to collect your first results."}</p> : visible.length > 0 ? <Table><TableHeader><TableRow>
+        <TableHead>Select</TableHead><TableHead>Created (UTC) / test</TableHead><TableHead>CCA</TableHead><TableHead>Placement</TableHead><TableHead>Configuration</TableHead><TableHead>Status</TableHead><TableHead>Results</TableHead>
       </TableRow></TableHeader><TableBody>{visible.map(job => <TableRow key={job.job_id}>
         <TableCell><Checkbox aria-label={`Select test ${job.job_id}`} checked={selected.includes(job.job_id)} disabled={building || (!selected.includes(job.job_id) && selected.length >= MAX_REPORT_SELECTION)} onCheckedChange={checked => toggle(job.job_id, checked)} /></TableCell>
         <TableCell>{dateUtc(job.created_at).replace(" UTC", "")}<br /><span className="font-mono text-xs text-muted-foreground">{job.job_id.slice(0, 8)}</span>{job.config.notes && <p className="mt-1 max-w-xs truncate text-xs text-muted-foreground" title={job.config.notes}>{job.config.notes}</p>}</TableCell>
         <TableCell>{job.config.cca.toUpperCase()}</TableCell><TableCell className="text-xs">{job.config.server.region} → {job.config.bottleneck.region}<br />→ {[...new Set(job.config.receivers.map(r => r.region))].join(", ")}</TableCell>
         <TableCell className="text-xs">{job.config.receivers.length} receivers · {job.config.duration_seconds} s<br />{job.config.rate_mbit} Mbit/s · {job.config.buffer_kbytes} kB</TableCell>
-        <TableCell><Badge variant="secondary">{job.status}</Badge></TableCell><TableCell><Link href={`/real-world-reports/${job.job_id}`} className="text-primary underline underline-offset-4">Open report</Link></TableCell>
+        <TableCell><Badge variant="secondary">{job.status}</Badge></TableCell><TableCell><Link href={`/real-world-reports/${job.job_id}`} className="text-primary underline underline-offset-4">View results</Link></TableCell>
       </TableRow>)}</TableBody></Table> : null}
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" disabled={!visible.length || building} onClick={() => query({ selected: [...new Set([...selected, ...visible.map(job => job.job_id)])].slice(0, MAX_REPORT_SELECTION).join(",") })}>Select filtered tests</Button>
@@ -127,12 +127,12 @@ export function RealWorldReports() {
         <Choice label="Whole-test outcome" value={metric} onChange={value => query({ metric: value })} items={Object.entries(REPORT_METRICS).map(([value, item]) => ({ value, label: `${item.label} (${item.unit})` }))} />
       </div>
       {baseline === comparison && <p className="text-sm text-destructive">Choose two different algorithms.</p>}
-      <div className="flex flex-wrap items-center gap-3 print:hidden"><Button disabled={selected.length < 2 || baseline === comparison || building} onClick={() => void buildComparison()}>{building ? `Reading reports · ${progress} / ${selected.length}` : `Build comparison · ${selected.length} tests`}</Button><Button variant="outline" disabled={!selected.length} onClick={() => void copyLink()}>Copy report link</Button></div>
+      <div className="flex flex-wrap items-center gap-3 print:hidden"><Button disabled={selected.length < 2 || baseline === comparison || building} onClick={() => void buildComparison()}>{building ? `Reading results · ${progress} / ${selected.length}` : `Build comparison · ${selected.length} tests`}</Button><Button variant="outline" disabled={!selected.length} onClick={() => void copyLink()}>Copy results link</Button></div>
       {copied && <p role="status" className="text-xs text-muted-foreground">{copied}</p>}
-      {building && <p role="status" className="text-sm text-muted-foreground">Checking saved measurements and provenance: {displayNumber(progress, 0)} reports read.</p>}
+      {building && <p role="status" className="text-sm text-muted-foreground">Checking saved measurements and provenance: {displayNumber(progress, 0)} tests read.</p>}
       {analysis && !active && <p className="text-sm text-muted-foreground">The selection changed. Build the comparison again to use these tests.</p>}
     </CardContent></Card>
-    {active && active.errors.length > 0 && <Card><CardHeader><CardTitle>Some selected reports could not be read</CardTitle></CardHeader><CardContent><p className="mb-3 text-sm">Retry the comparison before interpreting results; unread reports have not been silently excluded.</p><ul role="alert" className="list-disc space-y-1 pl-5 text-sm text-destructive">{active.errors.map(e => <li key={e}>{e}</li>)}</ul></CardContent></Card>}
+    {active && active.errors.length > 0 && <Card><CardHeader><CardTitle>Some selected test results could not be read</CardTitle></CardHeader><CardContent><p className="mb-3 text-sm">Retry the comparison before interpreting results; unread test results have not been silently excluded.</p><ul role="alert" className="list-disc space-y-1 pl-5 text-sm text-destructive">{active.errors.map(e => <li key={e}>{e}</li>)}</ul></CardContent></Card>}
     {active && !active.errors.length && <RealWorldReportComparison reports={active.reports} baseline={baseline} comparison={comparison} metric={metric} />}
   </div>;
 }

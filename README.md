@@ -189,9 +189,9 @@ before sending a request and reports non-JSON API responses clearly.
 Run the API regression tests with `npm test` (Node.js 22.18+ or 24+).
 These tests mock API requests and do not launch EC2 instances or invoke AI models.
 
-## Real-world research reports
+## Real-world test results
 
-Choose the Congestion Control Real World Tests module, then **Research Reports**.
+Choose the Congestion Control Real World Tests module, then **Test Results**.
 The workspace at `/real-world-reports` shares saved EC2 measurements among all
 signed-in researchers, with individual throughput/RTT/queue reports, configuration
 matching, independent replication counts, exploratory confidence intervals,

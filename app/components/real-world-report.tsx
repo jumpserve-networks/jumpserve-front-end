@@ -32,7 +32,7 @@ export function RealWorldReport({ jobId }: { jobId: string }) {
     catch (e) { setError(e instanceof Error ? e.message : "Raw reports are unavailable."); }
     finally { setDownloading(false); }
   }
-  if (!report) return <div className="mt-6">{error ? <div role="alert" className="space-y-3"><p className="text-sm text-destructive">{error}</p><Button variant="outline" onClick={() => setRevision(r => r + 1)}>Retry report</Button></div> : <p role="status" className="text-sm text-muted-foreground">Reading saved measurements and checking provenance…</p>}</div>;
+  if (!report) return <div className="mt-6">{error ? <div role="alert" className="space-y-3"><p className="text-sm text-destructive">{error}</p><Button variant="outline" onClick={() => setRevision(r => r + 1)}>Retry loading results</Button></div> : <p role="status" className="text-sm text-muted-foreground">Reading saved measurements and checking provenance…</p>}</div>;
   const { job, summary } = report;
   const issues = [...report.comparison.exclusions, ...report.warnings];
   const queueUnit = queueMetric === "queue_delay_ms" ? "ms" : queueMetric === "backlog_bytes" ? "kB" : "packets";
@@ -43,7 +43,7 @@ export function RealWorldReport({ jobId }: { jobId: string }) {
       <div className="flex flex-wrap gap-2 print:hidden">
         <Button variant="outline" size="sm" onClick={() => downloadReportFile(`${jobId}-receivers.csv`, receiversCsv(report), "text/csv;charset=utf-8")}>Receiver CSV</Button>
         <Button variant="outline" size="sm" onClick={() => downloadReportFile(`${jobId}-traces.csv`, tracesCsv(report), "text/csv;charset=utf-8")}>Trace CSV</Button>
-        <Button variant="outline" size="sm" onClick={() => downloadReportFile(`${jobId}-report.json`, JSON.stringify(report, null, 2), "application/json")}>Report JSON</Button>
+        <Button variant="outline" size="sm" onClick={() => downloadReportFile(`${jobId}-report.json`, JSON.stringify(report, null, 2), "application/json")}>Results JSON</Button>
         <Button variant="outline" size="sm" onClick={() => window.print()}>Print / PDF</Button>
       </div>
     </div>

@@ -1,4 +1,4 @@
-# Real-world research reports
+# Real-world test results
 
 The real-world module links to `/real-world-reports`. Every Google-authenticated
 JumpServe researcher can browse reports, inspect another researcher's measurements,
