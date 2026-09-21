@@ -8,11 +8,13 @@ import { Badge } from "@/app/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/components/ui/table";
 import { isRealWorldTerminal, REAL_WORLD_STAGES, type RealWorldJob } from "@/lib/real-world";
 import { realWorldRequest } from "@/lib/real-world-api";
+import { RealWorldTrafficMap } from "@/app/components/real-world-traffic-map";
 
 export function RealWorldTestDetail({ jobId }: { jobId: string }) {
   const [job, setJob] = useState<RealWorldJob | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [receivedAt, setReceivedAt] = useState(0);
   const [artifacts, setArtifacts] = useState<{ name: string; url: string }[]>([]);
   useEffect(() => {
     const controller = new AbortController();
@@ -21,7 +23,10 @@ export function RealWorldTestDetail({ jobId }: { jobId: string }) {
       let terminal = false;
       try {
         const data = await realWorldRequest<RealWorldJob>(`/tests/${jobId}`, { signal: controller.signal });
-        if (!controller.signal.aborted) { setJob(data); setError(""); terminal = isRealWorldTerminal(data.status); }
+        if (!controller.signal.aborted) {
+          setJob((current) => current?.cancel_requested ? { ...data, cancel_requested: true } : data);
+          setReceivedAt(Date.now()); setError(""); terminal = isRealWorldTerminal(data.status);
+        }
       } catch (e) { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Could not load test."); }
       if (!controller.signal.aborted && !terminal) timer = setTimeout(poll, 5000);
     };
@@ -30,7 +35,7 @@ export function RealWorldTestDetail({ jobId }: { jobId: string }) {
   }, [jobId]);
   async function cancel() {
     setBusy(true);
-    try { setJob(await realWorldRequest<RealWorldJob>(`/tests/${jobId}/cancel`, { method: "POST", body: "{}" })); }
+    try { setJob(await realWorldRequest<RealWorldJob>(`/tests/${jobId}/cancel`, { method: "POST", body: "{}" })); setReceivedAt(Date.now()); }
     catch (e) { setError(e instanceof Error ? e.message : "Could not cancel test."); }
     finally { setBusy(false); }
   }
@@ -51,6 +56,7 @@ export function RealWorldTestDetail({ jobId }: { jobId: string }) {
         {job.cleanup_error && <p role="alert" className="text-sm text-destructive">Cleanup is retrying: {job.cleanup_error}</p>}
         {!isRealWorldTerminal(job.status) && <Button variant="outline" disabled={busy || job.cancel_requested || job.status === "cleaning"} onClick={() => void cancel()}>Cancel test and terminate instances</Button>}
       </CardContent></Card>
+      <RealWorldTrafficMap job={job} receivedAt={receivedAt} interrupted={Boolean(error) || busy} />
       <Card><CardHeader><CardTitle>Configuration</CardTitle></CardHeader><CardContent className="space-y-4">
         <dl className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">{[
           ["Server CCA", job.config.cca.toUpperCase()], ["Duration", `${job.config.duration_seconds} s`],

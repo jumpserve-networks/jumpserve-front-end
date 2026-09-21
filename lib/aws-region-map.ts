@@ -1,4 +1,4 @@
-import type { AwsRegion } from "./real-world";
+import type { AwsRegion, RealWorldJob } from "./real-world";
 
 // Representative geographic locations, not AWS facility coordinates.
 // Availability always comes from /real-world/regions, never this display metadata.
@@ -86,4 +86,63 @@ export function clusterRegions(markers: RegionMarker[], scale: number): RegionCl
       y: members.reduce((sum, r) => sum + r.y, 0) / members.length });
   }
   return clusters;
+}
+
+export type TrafficLink = {
+  key: string; source: Point; target: Point;
+  flows: { from: string; to: string }[];
+};
+
+export function realWorldTopology(job: RealWorldJob) {
+  const planned = [
+    { ...job.config.server, name: "server", role: "server" },
+    { ...job.config.bottleneck, name: "bottleneck", role: "bottleneck" },
+    ...job.config.receivers.map((placement, index) => ({ ...placement, name: `receiver-${index + 1}`, role: "receiver" })),
+  ];
+  const nodes = planned.map((node) => ({ ...node, ...job.nodes.find((actual) => actual.name === node.name) }));
+  const markers = regionMarkers([...new Set(nodes.map((node) => node.region))].map((region) => ({ region, enabled: true, opt_in_status: "" })));
+  const flows = [{ from: "server", to: "bottleneck" }, ...nodes.filter((node) => node.role === "receiver").map((node) => ({ from: "bottleneck", to: node.name }))];
+  const links = new Map<string, TrafficLink>();
+  for (const flow of flows) {
+    const source = markers.find((marker) => marker.region === nodes.find((node) => node.name === flow.from)?.region);
+    const target = markers.find((marker) => marker.region === nodes.find((node) => node.name === flow.to)?.region);
+    // An unmapped hop must never turn into a direct server-to-receiver path.
+    if (!source || !target) continue;
+    const key = `${source.region}:${target.region}`;
+    const existing = links.get(key);
+    if (existing) existing.flows.push(flow);
+    else links.set(key, { key, source, target, flows: [flow] });
+  }
+  return { nodes, markers, links: [...links.values()], unmapped: nodes.filter((node) => !REGION_LOCATIONS[node.region]) };
+}
+
+export function fitTopology(points: Point[], size: MapSize): MapCamera {
+  if (!points.length) return WORLD_CAMERA;
+  const minX = Math.min(...points.map((p) => p.x)), maxX = Math.max(...points.map((p) => p.x));
+  const minY = Math.min(...points.map((p) => p.y)), maxY = Math.max(...points.map((p) => p.y));
+  const base = Math.min(size.width / 1000, size.height / 500);
+  const zoom = Math.max(1, Math.min(8, (size.width - 110) / Math.max(1, maxX - minX) / base,
+    (size.height - 160) / Math.max(1, maxY - minY) / base));
+  return { x: (minX + maxX) / 2, y: (minY + maxY) / 2, zoom };
+}
+
+export function trafficPath(source: Point, target: Point, scale: number) {
+  if (source.x === target.x && source.y === target.y) {
+    const w = 55 / scale, h = 85 / scale;
+    return { path: `M${source.x} ${source.y}C${source.x - w} ${source.y - h} ${source.x + w} ${source.y - h} ${source.x} ${source.y}`,
+      arrow: { x: source.x, y: source.y - h * 0.75, angle: 0 }, offsets: [0] };
+  }
+  // Draw the shortest longitudinal path and repeat across the world boundary.
+  const delta = target.x - source.x;
+  const end = { x: target.x + (delta > 500 ? -1000 : delta < -500 ? 1000 : 0), y: target.y };
+  const dx = end.x - source.x, dy = end.y - source.y;
+  const length = Math.hypot(dx, dy);
+  const bend = Math.min(65 / scale, length * 0.25);
+  const control = { x: (source.x + end.x) / 2 + dy / length * bend, y: (source.y + end.y) / 2 - dx / length * bend };
+  const t = 0.65, u = 1 - t;
+  const arrow = { x: u * u * source.x + 2 * u * t * control.x + t * t * end.x,
+    y: u * u * source.y + 2 * u * t * control.y + t * t * end.y,
+    angle: Math.atan2(u * (control.y - source.y) + t * (end.y - control.y), u * (control.x - source.x) + t * (end.x - control.x)) * 180 / Math.PI };
+  return { path: `M${source.x} ${source.y}Q${control.x} ${control.y} ${end.x} ${end.y}`, arrow,
+    offsets: Math.abs(delta) > 500 ? [-1000, 0, 1000] : [0] };
 }

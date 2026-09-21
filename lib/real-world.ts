@@ -10,7 +10,7 @@ export type RealWorldConfig = {
 export type RealWorldJob = {
   job_id: string; status: string; created_at: number; updated_at: number; deadline: number;
   config: RealWorldConfig; cancel_requested?: boolean; error?: string; cleanup_error?: string;
-  runtime_revision: string; outcome?: string;
+  runtime_revision: string; outcome?: string; start_epoch?: number;
   nodes: (Placement & { name: string; role: string; instance_id?: string; image_id?: string; state?: string })[];
   results?: { receiver: string; received_mbit_per_second: number; received_bytes: number; seconds: number; start_epoch: number }[];
 };
@@ -28,6 +28,22 @@ export function defaultRealWorldConfig(): RealWorldConfig {
 }
 export function isRealWorldTerminal(status: string) {
   return ["completed", "failed", "cancelled"].includes(status);
+}
+
+// The controller remains in `starting` while the scheduled transfer runs.
+// This describes scheduled activity, not measured packets or throughput.
+export function realWorldTrafficPhase(job: RealWorldJob, now: number, receivedAt: number, interrupted = false) {
+  if (isRealWorldTerminal(job.status)) return { active: false, label: REAL_WORLD_STAGES[job.status] };
+  if (job.cancel_requested) return { active: false, label: "Cancellation requested" };
+  if (job.status === "cleaning") return { active: false, label: "Removing test resources" };
+  if (interrupted || now - receivedAt >= 15_000) return { active: false, label: "Status updates unavailable" };
+  if (!["starting", "running"].includes(job.status)) return { active: false, label: REAL_WORLD_STAGES[job.status] ?? job.status };
+  if (!Number.isFinite(job.start_epoch) || !job.start_epoch) return { active: false, label: "Transfer timing unavailable" };
+  const remaining = job.start_epoch * 1000 - now;
+  if (remaining > 0) return { active: false, label: `Transfers scheduled in ${Math.ceil(remaining / 1000)} s` };
+  const end = (job.start_epoch + job.config.duration_seconds) * 1000;
+  if (now >= end) return { active: false, label: "Collecting measurements" };
+  return { active: true, label: `Scheduled transfer · ${Math.ceil((end - now) / 1000)} s remaining` };
 }
 export function validateRealWorldConfig(config: RealWorldConfig): string | null {
   if (!REAL_WORLD_CCAS.includes(config.cca)) return "Choose a supported server CCA.";
@@ -50,7 +66,7 @@ export function validateRealWorldConfig(config: RealWorldConfig): string | null 
 
 export const REAL_WORLD_STAGES: Record<string, string> = {
   provisioning: "Creating EC2 instances", bootstrapping: "Preparing machines", configuring: "Configuring the network",
-  checking: "Checking routes and connectivity", starting: "Scheduling simultaneous transfers", running: "Measuring TCP transfers",
+  checking: "Checking routes and connectivity", starting: "Scheduling and executing TCP transfers", running: "Collecting TCP measurements",
   cleaning: "Terminating instances and removing network resources", completed: "Completed · resources removed",
   failed: "Failed · resources removed", cancelled: "Cancelled · resources removed",
 };

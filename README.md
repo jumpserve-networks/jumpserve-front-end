@@ -66,6 +66,18 @@ touch, and keyboard navigation. Map coordinates are approximate Region locations
 not individual data centers. Live catalog availability remains authoritative;
 Regions without map coordinates remain selectable in the dropdown. See
 [map data and provenance](lib/maps/README.md).
+
+Each test detail page includes an interactive traffic topology map: server →
+bottleneck → receivers, with machine inspection, zoom, pan, and fit controls.
+Machines in one Region share a marker and their local links appear as loops.
+Animations follow the controller's recorded `start_epoch` and configured duration,
+including transfers performed during the `starting` phase. They stop on cancellation,
+cleanup, completion, polling errors, or 15 seconds without a successful status update.
+Jobs without recorded timing remain static. Animation can be paused and respects
+the system reduced-motion preference. Paths and animation speeds are schematic;
+they do not represent measured packet rates or physical Internet routes. Collected
+receiver throughput is shown in the inspector once measurements are available.
+
 The workload is simultaneous TCP bulk transfer for a selected duration; CCAs are
 CUBIC, stock Linux BBR, and Reno. Per-machine results remain separate from the
 emulated comparison tools. EC2/network resources are removed after each run;

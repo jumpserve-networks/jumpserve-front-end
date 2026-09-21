@@ -1,5 +1,17 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+
+@keyframes traffic-flow {
+  to { stroke-dashoffset: -20; }
+}
+
+.traffic-flow {
+  animation: traffic-flow 2s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .traffic-flow { animation: none; }
+}
 @plugin "@tailwindcss/typography";
 @custom-variant dark (&:where(.dark, .dark *));
 
