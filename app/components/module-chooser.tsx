@@ -4,6 +4,7 @@ import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
 import { getSafeNextPath } from "@/lib/auth-redirect";
 import { getTestModuleForPath, TEST_MODULES } from "@/lib/test-modules";
+import { cn } from "@/lib/utils";
 
 export function ModuleChooser({ nextPath }: { nextPath?: string }) {
   const safeNextPath = getSafeNextPath(nextPath ?? null);
@@ -12,7 +13,7 @@ export function ModuleChooser({ nextPath }: { nextPath?: string }) {
   return (
     <main className="min-h-[var(--page-height)] bg-background px-5 py-10 sm:px-10 sm:py-14">
       <div className="mx-auto max-w-5xl">
-        <p className="text-sm font-medium text-muted-foreground">Network research</p>
+        <p className="text-sm font-medium text-muted-foreground dark:text-primary">Network research</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
           Choose a test module
         </h1>
@@ -35,7 +36,8 @@ export function ModuleChooser({ nextPath }: { nextPath?: string }) {
             return (
               <section key={module.id} className="grid gap-5 p-5 sm:p-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-8">
                 <div className="flex items-start gap-4">
-                  <Icon className="mt-1 hidden size-5 shrink-0 text-muted-foreground sm:block" aria-hidden="true" />
+                  <Icon className={cn("mt-1 hidden size-5 shrink-0 text-muted-foreground sm:block",
+                    module.id === "congestion-control-real-world" ? "dark:text-highlight" : "dark:text-primary")} aria-hidden="true" />
                   <div>
                     <h2 className="text-lg leading-6 font-semibold text-foreground">{module.name}</h2>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{module.description}</p>

@@ -3,18 +3,22 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/app/components/ui/card";
 import { TEST_MODULES } from "@/lib/test-modules";
+import { cn } from "@/lib/utils";
 
 const WORKFLOW = [
   {
     title: "Configure experiments",
+    accent: "dark:border-t-info dark:[&_h3]:text-info",
     description: "Set network conditions, client workloads, and congestion control algorithms for emulated benchmarks.",
   },
   {
     title: "Inspect measurements",
+    accent: "dark:border-t-success dark:[&_h3]:text-success",
     description: "Follow throughput, round-trip time, queueing delay, and congestion windows for individual clients.",
   },
   {
     title: "Compare and interpret",
+    accent: "dark:border-t-highlight dark:[&_h3]:text-highlight",
     description: "Compare results across runs and use the AI assistant to explore questions about the recorded measurements.",
   },
 ];
@@ -24,7 +28,7 @@ export function PublicLandingPage() {
     <main className="min-h-[var(--page-height)] bg-background px-5 py-10 sm:px-10 sm:py-14">
       <div className="mx-auto max-w-5xl space-y-10 sm:space-y-12">
         <section aria-labelledby="overview-title" className="max-w-3xl">
-          <p className="text-sm font-medium text-muted-foreground">Network research</p>
+          <p className="text-sm font-medium text-muted-foreground dark:text-primary">Network research</p>
           <h1 id="overview-title" className="mt-2 text-3xl leading-tight font-semibold tracking-tight text-foreground sm:text-4xl">
             A research platform for network performance.
           </h1>
@@ -46,7 +50,7 @@ export function PublicLandingPage() {
           </h2>
           <div className="mt-4 grid gap-4 md:grid-cols-3">
             {WORKFLOW.map((step) => (
-              <Card key={step.title} className="gap-3">
+              <Card key={step.title} className={cn("gap-3", step.accent)}>
                 <CardHeader><h3 className="text-base font-semibold">{step.title}</h3></CardHeader>
                 <CardContent>
                   <p className="text-sm leading-6 text-muted-foreground">{step.description}</p>

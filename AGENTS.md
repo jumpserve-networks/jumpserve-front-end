@@ -189,9 +189,13 @@ Important columns currently used:
   when a Button renders a non-button element such as a link.
 - Use `cn` from `@/lib/utils` to merge Tailwind classes. Keep shared color tokens in
   `app/globals.css` and support the existing `.dark` theme toggle.
-- Keep the interface restrained: neutral surfaces, subtle borders, compact
-  typography, and a single blue accent for controls. Reserve other colors for
-  chart series and status. Avoid decorative gradients and page-entry animations.
+- Keep the interface restrained: neutral surfaces, subtle borders, and compact
+  typography. Dark mode takes its color cues from a neon aquarium: deep navy
+  surfaces, cyan controls, electric-blue navigation, lime completion indicators,
+  amber warnings, and selective magenta highlights. Use shared color tokens in
+  `app/globals.css`; keep chart series distinct and pair status colors with text
+  and icons. Preserve the light palette. Avoid decorative gradients and
+  page-entry animations.
 - Animations and transitions must behave consistently regardless of the browser
   or operating system motion preference. Do not add `prefers-reduced-motion`
   checks, `motion-safe:`/`motion-reduce:` variants, or preference-based animation

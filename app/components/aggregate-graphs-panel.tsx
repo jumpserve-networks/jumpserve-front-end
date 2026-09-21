@@ -35,10 +35,10 @@ const POINT_RADIUS = 4.2;
 const HOVER_RADIUS = 14;
 const TOOLTIP_WIDTH = 226;
 const TOOLTIP_OVERLAP_X_AXIS = 8;
-const SERIES_COLORS = ["#0d9488", "#dc2626", "#4f46e5", "#ca8a04"];
+const SERIES_COLORS = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)"];
 const CLIENT_POINT_COLORS: Record<number, string> = {
-  1: "#0f766e",
-  2: "#b91c1c",
+  1: "var(--client-1)",
+  2: "var(--client-2)",
 };
 
 type FlowPoint = AggregateDelayGraphPoint & {

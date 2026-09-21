@@ -66,6 +66,11 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
       <div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>Traffic topology</CardTitle>
         <Badge variant={phase.active ? "default" : "secondary"} data-testid="traffic-phase">{phase.label}</Badge></div>
       <p className="text-sm text-muted-foreground">Server → shared bottleneck → {job.config.receivers.length === 1 ? "receiver" : `${job.config.receivers.length} receivers`}. All test traffic traverses the bottleneck; acknowledgments return along the reverse path.</p>
+      <div className="hidden flex-wrap gap-x-5 gap-y-2 text-xs dark:flex" aria-label="Map legend">
+        <span className="flex items-center gap-2 text-primary"><Server aria-hidden="true" className="size-3.5" />Server</span>
+        <span className="flex items-center gap-2 text-highlight"><Network aria-hidden="true" className="size-3.5" />Bottleneck</span>
+        <span className="flex items-center gap-2 text-success"><Download aria-hidden="true" className="size-3.5" />Receiver</span>
+      </div>
     </CardHeader>
     <CardContent className="space-y-4">
       <div className="overflow-hidden rounded-md border">
@@ -113,11 +118,13 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
               {topology.links.map((link) => {
                 const geometry = trafficPath(link.source, link.target, viewport.scale);
                 const highlighted = selected === "all" || selected === "server" || selected === "bottleneck" || link.flows.some((flow) => flow.to === selected || flow.from === "server");
-                return <g key={link.key} className={cn("text-primary", !highlighted && "opacity-20")} data-route={link.key}>
+                return <g key={link.key} className={cn("text-primary",
+                  !link.flows.some((flow) => flow.from === "server") && "dark:text-success",
+                  !highlighted && "opacity-20")} data-route={link.key}>
                   {mapCopies(geometry.bounds, viewport, 5).map((copy) => <g key={copy.key} transform={`translate(${copy.x} ${copy.y})`}>
                     <path d={geometry.path} stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.45" vectorEffect="non-scaling-stroke" />
                     <path d={geometry.path} stroke="currentColor" strokeWidth="3" strokeLinecap="round" pathLength="100" strokeDasharray="1 19"
-                      vectorEffect="non-scaling-stroke" className="traffic-flow" style={{ opacity: phase.active ? 1 : 0, animationPlayState: animated ? "running" : "paused" }} />
+                      vectorEffect="non-scaling-stroke" className="traffic-flow dark:drop-shadow-[0_0_3px_currentColor]" style={{ opacity: phase.active ? 1 : 0, animationPlayState: animated ? "running" : "paused" }} />
                     <path d="M-4 -4L3 0L-4 4" stroke="currentColor" strokeWidth="1.5" transform={`translate(${geometry.arrow.x} ${geometry.arrow.y}) rotate(${geometry.arrow.angle}) scale(${1 / viewport.scale})`} />
                   </g>)}
                 </g>;
@@ -129,13 +136,16 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
             const grouped = cluster.regions.length > 1;
             const members = topology.nodes.filter((node) => cluster.regions.some((region) => region.region === node.region));
             const active = members.some((node) => node.name === selected);
-            const Icon = members.some((node) => node.role === "server") ? Server : members.some((node) => node.role === "bottleneck") ? Network : Download;
+            const role = members.some((node) => node.role === "server") ? "server" : members.some((node) => node.role === "bottleneck") ? "bottleneck" : "receiver";
+            const Icon = role === "server" ? Server : role === "bottleneck" ? Network : Download;
             const description = grouped ? `Zoom to ${cluster.regions.length} Regions: ${cluster.regions.map((region) => region.name).join(", ")}`
               : `Inspect ${cluster.regions[0].name}: ${members.map((node) => machineLabel(node.name)).join(", ")}`;
             return <div key={`${cluster.regions.map((region) => region.region).join(",")}:${copy.key}`} className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
               style={{ left: `${x / size.width * 100}%`, top: `${y / size.height * 100}%` }}>
               <Button type="button" variant={active ? "default" : "outline"} size="icon-sm" title={description} aria-label={description} aria-pressed={grouped ? undefined : active}
-                className="pointer-events-auto relative rounded-full border-primary text-primary shadow-sm aria-pressed:text-primary-foreground"
+                className={cn("pointer-events-auto relative rounded-full border-primary text-primary shadow-sm aria-pressed:text-primary-foreground",
+                  role === "bottleneck" && "dark:border-highlight dark:text-highlight dark:aria-pressed:bg-highlight dark:aria-pressed:text-primary-foreground",
+                  role === "receiver" && "dark:border-success dark:text-success dark:aria-pressed:bg-success dark:aria-pressed:text-primary-foreground")}
                 onClick={() => {
                   if (grouped) { move({ x: cluster.x, y: cluster.y, zoom: viewport.zoom * 2 }); canvas.current?.focus({ preventScroll: true }); }
                   else setSelected(members[0].name);

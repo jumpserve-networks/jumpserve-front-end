@@ -30,16 +30,21 @@ export function RealWorldStatusTimeline({ job }: { job: RealWorldJob }) {
           className="relative flex gap-3 pb-3 last:pb-0">
           {index < steps.length - 1 && <span aria-hidden="true" className="absolute bottom-0 left-3 top-7 border-l border-border" />}
           <span className={cn("relative flex size-6 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground",
-            current && "border-primary bg-primary text-primary-foreground",
-            step.state === "completed" && "border-primary/40 text-primary",
-            step.state === "failed" && "border-destructive/40 text-destructive")}>
+            current && "border-primary bg-primary text-primary-foreground dark:shadow-[0_0_12px] dark:shadow-primary/25",
+            step.state === "completed" && "border-primary/40 text-primary dark:border-success/40 dark:bg-success/10 dark:text-success",
+            step.state === "failed" && "border-destructive/40 text-destructive",
+            step.state === "cancelled" && "dark:border-warning/40 dark:bg-warning/10 dark:text-warning")}>
             <Icon aria-hidden="true" className={cn("size-3.5", current && "animate-spin")} />
           </span>
           <div className="min-w-0 flex-1 space-y-1 pt-0.5">
             <div className="flex items-start justify-between gap-3">
               <p className={cn("min-w-0 text-sm", current ? "font-semibold" : "font-medium",
                 ["upcoming", "skipped", "unknown"].includes(step.state) && "text-muted-foreground")}>{step.label}</p>
-              <Badge className="shrink-0" variant={current ? "default" : "outline"}>{step === next ? "Up next" : labels[step.state]}</Badge>
+              <Badge className={cn("shrink-0",
+                step.state === "completed" && "dark:border-success/25 dark:bg-success/10 dark:text-success",
+                step.state === "failed" && "dark:border-destructive/25 dark:bg-destructive/10 dark:text-destructive",
+                step.state === "cancelled" && "dark:border-warning/25 dark:bg-warning/10 dark:text-warning")}
+                variant={current ? "default" : "outline"}>{step === next ? "Up next" : labels[step.state]}</Badge>
             </div>
             {finished && <p className="text-xs text-muted-foreground">
               {step.completedAt ? <>{step.state === "completed" ? "Completed" : "Stopped"} <time dateTime={step.completedAt}>{date.format(new Date(step.completedAt))}</time>

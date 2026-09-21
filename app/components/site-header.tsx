@@ -15,7 +15,7 @@ export function SiteHeader({ navigation }: { navigation?: ReactNode }) {
           <Link
             href="/"
             aria-label="JumpServe home"
-            className="inline-flex shrink-0 items-center gap-2 rounded-md text-lg font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+            className="inline-flex shrink-0 items-center gap-2 rounded-md text-lg font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card dark:text-primary"
           >
             <JumpServeLogo />
             JumpServe

@@ -35,7 +35,7 @@ export function ModuleNavigation({ testModule, pathname, onNavigate }: Navigatio
         {links.map(({ href, label, active, Icon }) => <li key={href}>
           <Link href={href} onNavigate={onNavigate} aria-current={active ? "page" : undefined}
             className={cn(buttonVariants({ variant: "ghost" }), "h-auto min-h-10 w-full justify-start gap-3 whitespace-normal px-3 py-2 text-sm",
-              active ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground hover:bg-sidebar-accent" : "text-muted-foreground hover:text-sidebar-foreground")}>
+              active ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground hover:bg-sidebar-accent dark:shadow-[inset_2px_0_0_var(--info)]" : "text-muted-foreground hover:text-sidebar-foreground")}>
             <Icon aria-hidden="true" className="size-4 shrink-0" />{label}
           </Link>
         </li>)}

@@ -110,14 +110,14 @@ const METRICS: MetricSpec[] = [
 ];
 
 const SERIES_COLORS = [
-  "#0d9488",
-  "#dc2626",
-  "#4f46e5",
-  "#ca8a04",
-  "#7c3aed",
-  "#0f766e",
-  "#db2777",
-  "#0369a1",
+  "var(--series-1)",
+  "var(--series-2)",
+  "var(--series-3)",
+  "var(--series-4)",
+  "var(--series-5)",
+  "var(--series-6)",
+  "var(--series-7)",
+  "var(--series-8)",
 ];
 
 const THROUGHPUT_AXIS_LIMIT_MULTIPLIER = 2;
