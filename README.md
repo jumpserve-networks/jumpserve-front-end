@@ -226,7 +226,7 @@ These tests mock API requests and do not launch EC2 instances or invoke AI model
 ## Real-world test results
 
 Choose the Congestion Control Real World Tests module, then **Test Results**.
-The workspace at `/module/congestion-control-real-world/real-world-reports` shares saved EC2 measurements among all
+The workspace at `/module/congestion-control-real-world/test-results` shares saved EC2 measurements among all
 visitors, with individual throughput/RTT/queue reports, configuration
 matching, independent replication counts, exploratory confidence intervals,
 bookmarkable selections, CSV/JSON exports, and print-to-PDF. Test management

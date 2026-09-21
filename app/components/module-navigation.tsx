@@ -15,7 +15,7 @@ const sectionIcons: Record<string, LucideIcon> = {
   [`${EMULATED_MODULE_PATH}/benchmarks`]: FlaskConical,
   [`${EMULATED_MODULE_PATH}/chat`]: MessageSquare,
   [`${REAL_WORLD_MODULE_PATH}/run-a-test`]: Globe2,
-  [`${REAL_WORLD_MODULE_PATH}/real-world-reports`]: FileChartColumn,
+  [`${REAL_WORLD_MODULE_PATH}/test-results`]: FileChartColumn,
 };
 
 type NavigationProps = { testModule: TestModule; pathname: string; onNavigate?: () => void };

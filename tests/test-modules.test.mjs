@@ -61,7 +61,13 @@ test("real-world tools and results belong to their own available module", () => 
   const testModule = getTestModule("congestion-control-real-world");
   assert.equal(testModule.name, "Congestion Control Real World Tests");
   assert.equal(testModule.status, "available");
-  for (const path of [testModule.href, `${testModule.href}/run-a-test`, `${testModule.href}/run-a-test/job-123`, `${testModule.href}/real-world/job-123`, "/real-world", "/real-world/job-123", "/real-world-reports", "/real-world-reports/job-123?selected=abc"]) {
+  for (const path of [
+    testModule.href,
+    `${testModule.href}/run-a-test`, `${testModule.href}/run-a-test/job-123`,
+    `${testModule.href}/test-results`, `${testModule.href}/test-results/job-123`,
+    `${testModule.href}/real-world/job-123`, `${testModule.href}/real-world-reports/job-123`,
+    "/real-world", "/real-world/job-123", "/real-world-reports", "/real-world-reports/job-123?selected=abc",
+  ]) {
     assert.equal(getTestModuleForPath(path), testModule);
     assert.notEqual(getPostLoginPath(path), "/");
   }
@@ -69,8 +75,9 @@ test("real-world tools and results belong to their own available module", () => 
   assert.equal(getTestModule("unknown"), undefined);
   assert.equal(testModule.sections[0].href, `${testModule.href}/run-a-test`);
   assert.equal(isModuleSectionActive(testModule.sections[0], `${testModule.href}/run-a-test/job-123`), true);
-  assert.equal(isModuleSectionActive(testModule.sections[0], `${testModule.href}/real-world-reports/job-123`), false);
-  assert.equal(isModuleSectionActive(testModule.sections[1], `${testModule.href}/real-world-reports/job-123`), true);
+  assert.equal(isModuleSectionActive(testModule.sections[0], `${testModule.href}/test-results/job-123`), false);
+  assert.equal(testModule.sections[1].href, `${testModule.href}/test-results`);
+  assert.equal(isModuleSectionActive(testModule.sections[1], `${testModule.href}/test-results/job-123`), true);
 });
 
 test("navigation highlights the parent tool for detail pages with path boundaries", () => {
@@ -98,7 +105,8 @@ test("canonical result, launch and chat URLs preserve their module and login des
     ["/module/congestion-control-emulated/test-lookup?page=2&search=cubic%20vs%20bbr&tag=a%26b%3Fc", "congestion-control-emulated"],
     ["/module/congestion-control-emulated/benchmarks/job-123", "congestion-control-emulated"],
     ["/module/congestion-control-real-world/run-a-test/job-123", "congestion-control-real-world"],
-    ["/module/congestion-control-real-world/real-world-reports?selected=a%2Cb", "congestion-control-real-world"],
+    ["/module/congestion-control-real-world/test-results?selected=a%2Cb", "congestion-control-real-world"],
+    ["/module/congestion-control-real-world/test-results/job-123", "congestion-control-real-world"],
   ]) {
     assert.equal(getTestModuleForPath(path)?.id, id);
     assert.equal(getPostLoginPath(path), path);

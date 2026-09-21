@@ -1,6 +1,6 @@
 # Real-world test results
 
-The real-world module links to `/module/congestion-control-real-world/real-world-reports`. Anyone can browse reports,
+The real-world module links to `/module/congestion-control-real-world/test-results`. Anyone can browse reports,
 inspect measurements, download evidence, and build comparisons without signing
 in. Launching tests requires a verified Google session; cancellation additionally
 checks ownership. Status pages are public, with management controls for owners.
