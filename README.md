@@ -42,7 +42,10 @@ After Google sign-in, `/` presents the module chooser. The current module is
 **Congestion Control Emulated Tests** (`congestion-control-emulated`), with a home
 at `/modules/congestion-control-emulated`. Its tools retain their existing URLs:
 `/test-lookup`, `/parent-run/[id]`, `/aggregate-graphs`, `/benchmarks`, and `/chat`.
-The header shows the current module, its tools, and an **All modules** link.
+A persistent left sidebar shows the current module, its overview and sections,
+and an **All modules** link. On smaller screens, the header menu button opens the
+same navigation in an accessible drawer. Detail pages highlight their parent
+section. The sidebar is omitted from public pages, the module chooser, and print.
 Module selection is navigation, not an authorization boundary; every protected
 page still requires the existing Google authentication.
 

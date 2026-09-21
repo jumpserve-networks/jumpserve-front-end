@@ -40,7 +40,7 @@
 }
 
 :root {
-  /* Keep viewport-sized pages below the responsive shared header. */
+  /* Keep viewport-sized pages and module navigation below the shared header. */
   --site-header-height: 4.5rem;
   --page-height: calc(100dvh - var(--site-header-height));
   --background: #f6f7f9;
@@ -79,22 +79,6 @@
   --scrollbar-track: #f6f7f9;
   --scrollbar-thumb: #bac3cd;
   --scrollbar-thumb-hover: #8c99a8;
-}
-
-:root:has([data-slot="site-header"][data-module]) {
-  --site-header-height: 13rem;
-}
-
-@media (min-width: 640px) {
-  :root:has([data-slot="site-header"][data-module]) {
-    --site-header-height: 9rem;
-  }
-}
-
-@media (min-width: 1280px) {
-  :root:has([data-slot="site-header"][data-module]) {
-    --site-header-height: 7.5rem;
-  }
 }
 
 @theme inline {

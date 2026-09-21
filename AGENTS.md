@@ -88,7 +88,10 @@ behind CloudFront, Next.js can see the internal origin as `localhost:3000`. Pref
 - `app/modules/[moduleId]/page.tsx`
   - Authenticated module home; unavailable and unknown modules return 404.
 - `app/components/site-header.tsx`
-  - Shows the current module's navigation and an All modules link.
+  - Shared identity, theme, authentication, and mobile module-menu trigger.
+- `app/components/app-shell.tsx` and `app/components/module-navigation.tsx`
+  - Persistent desktop sidebar and Base UI Sheet navigation on smaller screens.
+  - Derive sections and detail-page highlights from `lib/test-modules.ts`.
 - `lib/auth-redirect.ts`
   - Keeps post-login navigation at the chooser and preserves safe deep links.
 - `app/components/emulated-runs-dashboard.tsx`
