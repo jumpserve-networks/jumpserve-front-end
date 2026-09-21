@@ -172,6 +172,10 @@ Important columns currently used:
 - Keep the interface restrained: neutral surfaces, subtle borders, compact
   typography, and a single blue accent for controls. Reserve other colors for
   chart series and status. Avoid decorative gradients and page-entry animations.
+- Animations and transitions must behave consistently regardless of the browser
+  or operating system motion preference. Do not add `prefers-reduced-motion`
+  checks, `motion-safe:`/`motion-reduce:` variants, or preference-based animation
+  suppression. Explicit pause controls and test lifecycle conditions still apply.
 - Preserve `role="img"` on SVG charts inside buttons so shared icon sizing does
   not shrink them. Use at most two columns for run charts on desktop.
 - Supabase `numeric` / `bigint` values can arrive as strings; convert before chart math.

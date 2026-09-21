@@ -63,7 +63,7 @@ export function MobileModuleNavigation({ testModule, pathname }: NavigationProps
     <SheetTrigger render={<Button type="button" variant="outline" size="icon-sm" className="lg:hidden" aria-label="Open module menu" />}>
       <Menu aria-hidden="true" />
     </SheetTrigger>
-    <SheetContent side="left" className="max-w-[calc(100%-3rem)] gap-0 overflow-y-auto bg-sidebar text-sidebar-foreground data-[side=left]:w-72 motion-reduce:transition-none">
+    <SheetContent side="left" className="max-w-[calc(100%-3rem)] gap-0 overflow-y-auto bg-sidebar text-sidebar-foreground data-[side=left]:w-72">
       <SheetHeader className="sr-only">
         <SheetTitle>{testModule.name}</SheetTitle>
         <SheetDescription>Navigate between this module’s sections or return to all modules.</SheetDescription>

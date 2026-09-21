@@ -157,7 +157,7 @@ export function BenchmarkRunStatus({ initialJob, canManage = false }: { initialJ
                   step.state === "failed" && "border-destructive text-destructive",
                   (step.state === "waiting" || step.state === "unconfirmed") && "text-muted-foreground") }>
                   {step.state === "complete" ? <Check className="size-4" />
-                    : step.state === "current" ? <LoaderCircle className="size-4 motion-safe:animate-spin" />
+                    : step.state === "current" ? <LoaderCircle className="size-4 animate-spin" />
                     : step.state === "failed" ? <CircleAlert className="size-4" /> : index + 1}
                 </span>
                 <div className="min-w-0 space-y-1">

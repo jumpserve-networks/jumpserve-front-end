@@ -81,8 +81,8 @@ Machines in one Region share a marker and their local links appear as loops.
 Animations follow the controller's recorded `start_epoch` and configured duration,
 including transfers performed during the `starting` phase. They stop on cancellation,
 cleanup, completion, polling errors, or 15 seconds without a successful status update.
-Jobs without recorded timing remain static. Animation can be paused and respects
-the system reduced-motion preference. Paths and animation speeds are schematic;
+Jobs without recorded timing remain static. Animation can be paused manually and
+does not change with the system motion preference. Paths and animation speeds are schematic;
 they do not represent measured packet rates or physical Internet routes. Collected
 receiver throughput is shown in the inspector once measurements are available.
 

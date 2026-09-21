@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Download, Globe2, LocateFixed, Minus, Network, Pause, Play, Plus, Server } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
@@ -14,14 +14,6 @@ import { cn } from "@/lib/utils";
 const land = <g className="fill-muted-foreground/15 stroke-muted-foreground/30" strokeWidth="0.6">
   {landPaths.map((path, index) => <path key={index} d={path} fillRule="evenodd" vectorEffect="non-scaling-stroke" />)}
 </g>;
-const motionQuery = "(prefers-reduced-motion: reduce)";
-function subscribeMotion(listener: () => void) {
-  const query = window.matchMedia(motionQuery);
-  query.addEventListener("change", listener);
-  return () => query.removeEventListener("change", listener);
-}
-function motionSnapshot() { return window.matchMedia(motionQuery).matches; }
-function serverMotionSnapshot() { return false; }
 function machineLabel(name: string) { return name === "server" ? "Server" : name === "bottleneck" ? "Bottleneck" : name.replace("receiver-", "Receiver "); }
 
 export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
@@ -35,12 +27,11 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
   const [selected, setSelected] = useState("all");
   const [paused, setPaused] = useState(false);
   const [now, setNow] = useState(receivedAt);
-  const reducedMotion = useSyncExternalStore(subscribeMotion, motionSnapshot, serverMotionSnapshot);
   const topology = useMemo(() => realWorldTopology(job), [job]);
   const viewport = mapViewport(camera ?? fitTopology(topology.markers, size), size);
   const clusters = clusterRegions(topology.markers, viewport.scale);
   const phase = realWorldTrafficPhase(job, Math.max(now, receivedAt), receivedAt, interrupted);
-  const animated = phase.active && !paused && !reducedMotion;
+  const animated = phase.active && !paused;
   const machine = topology.nodes.find((node) => node.name === selected);
   const result = job.results?.find((item) => item.receiver === selected);
   const items = [{ value: "all", label: "All machines" }, ...topology.nodes.map((node) => ({ value: node.name, label: `${machineLabel(node.name)} · ${node.region}` }))];
@@ -86,8 +77,8 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
             <Button type="button" variant="outline" size="sm" onClick={() => setCamera(null)}><LocateFixed />Fit topology</Button>
             <Button type="button" variant="outline" size="sm" onClick={() => move(WORLD_CAMERA)}><Globe2 />World</Button>
           </div>
-          <Button type="button" variant="outline" size="sm" disabled={reducedMotion} aria-pressed={paused || reducedMotion}
-            onClick={() => setPaused((value) => !value)}>{paused || reducedMotion ? <Play /> : <Pause />}{reducedMotion ? "Reduced motion" : paused ? "Resume animation" : "Pause animation"}</Button>
+          <Button type="button" variant="outline" size="sm" aria-pressed={paused}
+            onClick={() => setPaused((value) => !value)}>{paused ? <Play /> : <Pause />}{paused ? "Resume animation" : "Pause animation"}</Button>
         </div>
         <div ref={canvas} role="group" aria-label="Interactive traffic map" aria-describedby={`${id}-instructions`} tabIndex={0}
           className="relative h-80 touch-none overflow-hidden bg-background outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:h-[26rem] cursor-grab active:cursor-grabbing"

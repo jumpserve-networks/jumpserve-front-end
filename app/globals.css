@@ -9,9 +9,6 @@
   animation: traffic-flow 2s linear infinite;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .traffic-flow { animation: none; }
-}
 @plugin "@tailwindcss/typography";
 @custom-variant dark (&:where(.dark, .dark *));
 
