@@ -65,7 +65,8 @@ Availability Zones, and compatible instance offerings come from the account's
 live catalog. Each machine can use **t3.small**, **t3.medium**, or **t3.large**,
 with t3.medium as the default. The zone selector checks availability for that
 machine’s selected type. The API, provisioner, and EC2 launch permissions enforce
-the same three-type allowlist. Disabled choices explain opt-in or compatibility restrictions.
+the same three-type allowlist. Region choices explain account opt-in restrictions;
+unavailable or incompatible Availability Zones are hidden from the zone dropdown.
 The server, bottleneck, and every receiver each have an interactive world map for
 selecting their Region. Each map stays synchronized with its own dropdown;
 changing Regions clears that machine's previous zone

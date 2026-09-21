@@ -30,7 +30,9 @@ creates a server, bottleneck, and 1–16 receivers. Each machine supports t3.sma
 t3.medium (default), or t3.large, subject to live zone offerings; preserve each
 selected type when changing Regions. Show an independently controlled Region map
 for the server, bottleneck, and every receiver, including newly added receivers.
-Keep each map synchronized with its placement dropdown. Do not mix its duration-based
+Keep each map synchronized with its placement dropdown. Availability Zone
+dropdowns must show only available zones that offer the selected instance type.
+Do not mix its duration-based
 throughput results with emulated file completion times.
 
 Define module names, availability, home routes, and tool ownership in

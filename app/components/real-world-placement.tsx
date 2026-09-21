@@ -38,8 +38,7 @@ export function RealWorldPlacement({ label, value, regions, onChange, disabled =
     return () => controller.abort();
   }, [value.region, retry]);
   const current = catalog?.region === value.region ? catalog : null;
-  const zones = (current?.zones ?? []).map((zone) => ({ ...zone, available: isRealWorldZoneAvailable(zone, value.instance_type),
-    reason: zone.reason ?? (zone.instance_types.includes(value.instance_type) ? null : `${value.instance_type} is not offered in this zone.`) }));
+  const zones = (current?.zones ?? []).filter((zone) => isRealWorldZoneAvailable(zone, value.instance_type));
   function selectRegion(region: string) {
     if (disabled) return;
     const next = placementInRegion(value, region, regions);
@@ -51,10 +50,10 @@ export function RealWorldPlacement({ label, value, regions, onChange, disabled =
       <Choice label={`${label} Region`} value={value.region} items={regions.map((r) => ({ value: r.region,
         label: `${r.region}${r.enabled ? "" : " · requires account opt-in"}`, disabled: !r.enabled }))}
         onChange={selectRegion} disabled={disabled} />
-      <Choice label={`${label} Availability Zone`} value={value.zone_id} disabled={!zones.length}
-        items={zones.map((z) => ({ value: z.zone_id, label: `${z.name} (${z.zone_id})${z.reason ? ` · ${z.reason}` : ""}`, disabled: !z.available }))}
+      <Choice label={`${label} Availability Zone`} value={value.zone_id} disabled={disabled || !zones.length}
+        items={zones.map((z) => ({ value: z.zone_id, label: `${z.name} (${z.zone_id})` }))}
         onChange={(zone_id) => {
-          if (zones.some((zone) => zone.zone_id === zone_id && zone.available)) {
+          if (zones.some((zone) => zone.zone_id === zone_id)) {
             onChange({ ...value, zone_id });
           }
         }} />
@@ -66,6 +65,6 @@ export function RealWorldPlacement({ label, value, regions, onChange, disabled =
     <AwsRegionMap label={`${label} Region map`} regions={regions} value={value.region} onChange={selectRegion} disabled={disabled} />
     {value.region && !current && <p className="text-xs text-muted-foreground" role="status">Loading AWS zones…</p>}
     {current?.error && <div role="alert" className="text-sm text-destructive">{current.error} <Button type="button" variant="outline" size="sm" onClick={() => setRetry((n) => n + 1)}>Retry locations</Button></div>}
-    {current && !current.error && !zones.some((z) => z.available) && <p className="text-sm text-muted-foreground">No zones offering {value.instance_type} are currently available in this Region.</p>}
+    {current && !current.error && !zones.length && <p className="text-sm text-muted-foreground">No zones offering {value.instance_type} are currently available in this Region.</p>}
   </fieldset>;
 }

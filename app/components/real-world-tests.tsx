@@ -75,7 +75,7 @@ export function RealWorldTests() {
             <Button type="button" variant="outline" size="sm" disabled={config.receivers.length >= 16} onClick={() => update({ receivers: [...config.receivers, emptyPlacement()] })}>Add receiver</Button>
             <Button type="button" variant="outline" size="sm" disabled={config.receivers.length <= 1} onClick={() => update({ receivers: config.receivers.slice(0, -1) })}>Remove last receiver</Button>
           </div>
-          <p className="text-xs text-muted-foreground">AWS publishes Regions and Availability Zones rather than individual data centers. Locations are fetched from AWS for this account; disabled entries explain availability restrictions.</p>
+          <p className="text-xs text-muted-foreground">AWS publishes Regions and Availability Zones rather than individual data centers. Locations are fetched from AWS for this account. Only available zones that support the selected instance type are shown.</p>
           <div className="space-y-2"><Label htmlFor="real-world-notes">Hypothesis / notes</Label><Textarea id="real-world-notes" maxLength={4000} value={config.notes} onChange={(e) => update({ notes: e.target.value })} /></div>
         </fieldset>
         {loading && <p role="status" className="text-sm text-muted-foreground">Loading AWS locations and test history…</p>}
