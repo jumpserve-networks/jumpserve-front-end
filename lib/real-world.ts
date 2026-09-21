@@ -1,5 +1,6 @@
 export const REAL_WORLD_CCAS = ["cubic", "bbr", "reno"] as const;
-export const REAL_WORLD_INSTANCE_TYPE = "t3.medium";
+export const REAL_WORLD_INSTANCE_TYPES = ["t3.small", "t3.medium", "t3.large"] as const;
+export const REAL_WORLD_DEFAULT_INSTANCE_TYPE = "t3.medium";
 export type Placement = { region: string; zone_id: string; instance_type: string };
 export type AwsRegion = { region: string; enabled: boolean; opt_in_status: string };
 export type AwsZone = { zone_id: string; name: string; type: string; available: boolean; reason: string | null; instance_types: string[] };
@@ -14,13 +15,21 @@ export type RealWorldJob = {
   nodes: (Placement & { name: string; role: string; instance_id?: string; image_id?: string; state?: string })[];
   results?: { receiver: string; received_mbit_per_second: number; received_bytes: number; seconds: number; start_epoch: number }[];
 };
-export const emptyPlacement = (): Placement => ({ region: "", zone_id: "", instance_type: REAL_WORLD_INSTANCE_TYPE });
-export function isRealWorldZoneAvailable(zone: AwsZone): boolean {
-  return zone.available && zone.instance_types.includes(REAL_WORLD_INSTANCE_TYPE);
+export const emptyPlacement = (): Placement => ({ region: "", zone_id: "", instance_type: REAL_WORLD_DEFAULT_INSTANCE_TYPE });
+export function isRealWorldInstanceType(instanceType: string): boolean {
+  return REAL_WORLD_INSTANCE_TYPES.some((allowed) => allowed === instanceType);
+}
+export function isRealWorldZoneAvailable(zone: AwsZone, instanceType: string = REAL_WORLD_DEFAULT_INSTANCE_TYPE): boolean {
+  return zone.available && isRealWorldInstanceType(instanceType) && zone.instance_types.includes(instanceType);
+}
+export function placementWithInstanceType(value: Placement, instanceType: string, zones: AwsZone[]): Placement {
+  if (!isRealWorldInstanceType(instanceType) || instanceType === value.instance_type) return value;
+  const keepZone = zones.some((zone) => zone.zone_id === value.zone_id && isRealWorldZoneAvailable(zone, instanceType));
+  return { ...value, instance_type: instanceType, zone_id: keepZone ? value.zone_id : "" };
 }
 export function placementInRegion(value: Placement, region: string, regions: AwsRegion[]): Placement {
   if (region === value.region || !regions.some((item) => item.region === region && item.enabled)) return value;
-  return { region, zone_id: "", instance_type: REAL_WORLD_INSTANCE_TYPE };
+  return { ...value, region, zone_id: "" };
 }
 export function defaultRealWorldConfig(): RealWorldConfig {
   return { server: emptyPlacement(), bottleneck: emptyPlacement(), receivers: [emptyPlacement(), emptyPlacement()],
@@ -52,7 +61,7 @@ export function validateRealWorldConfig(config: RealWorldConfig): string | null 
   if (machines.some((node) => !node.region || !node.zone_id)) {
     return "Choose a Region and Availability Zone for every machine.";
   }
-  if (machines.some((node) => node.instance_type !== REAL_WORLD_INSTANCE_TYPE)) return "Every machine must use t3.medium.";
+  if (machines.some((node) => !isRealWorldInstanceType(node.instance_type))) return "Every machine must use t3.small, t3.medium, or t3.large.";
   for (const [name, value, min, max] of [
     ["Duration (seconds)", config.duration_seconds, 10, 600],
     ["Bottleneck rate (Mbit/s)", config.rate_mbit, 1, 1000],

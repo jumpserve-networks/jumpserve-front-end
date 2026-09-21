@@ -15,7 +15,9 @@ const compare = reports => compareRealWorldReports(reports, "cubic", "bbr", "com
 test("different paths, duration, rate, buffer, types, receiver counts and software never pool", () => {
   for (const config of [{ duration_seconds: 10 }, { rate_mbit: 20 }, { buffer_kbytes: 250 }, { receivers: [placement] },
     { server: { ...placement, region: "eu-west-1" } }, { bottleneck: { ...placement, zone_id: "use1-az2" } },
-    { receivers: [{ ...placement, instance_type: "c7i.large" }, placement] }]) {
+    { receivers: [{ ...placement, instance_type: "c7i.large" }, placement] },
+    { server: { ...placement, instance_type: "t3.small" } },
+    { bottleneck: { ...placement, instance_type: "t3.large" } }]) {
     const result = compare([report(1, "cubic", 8), report(2, "bbr", 9, config)]);
     assert.equal(result.blocks.length, 2);
     assert.equal(result.matchedBlocks, 0);

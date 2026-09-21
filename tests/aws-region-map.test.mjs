@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { clusterRegions, mapViewport, MAX_MAP_ZOOM, projectRegion, REGION_LOCATIONS, regionMarkers, WORLD_CAMERA } from "../lib/aws-region-map.ts";
-import { placementInRegion } from "../lib/real-world.ts";
+import { placementInRegion, REAL_WORLD_INSTANCE_TYPES } from "../lib/real-world.ts";
 
 const catalog = Object.keys(REGION_LOCATIONS).map((region) => ({ region, enabled: region !== "ap-east-1", opt_in_status: "fixture" }));
 
@@ -14,15 +14,17 @@ test("map joins display locations to the live catalog without enabling opt-in Re
   assert.deepEqual(regionMarkers([]), []);
 });
 
-test("Region changes clear the stale zone and retain t3.medium; reselection preserves placement", () => {
-  const existing = { region: "us-east-1", zone_id: "use1-az1", instance_type: "t3.medium" };
-  for (const region of ["us-east-1", "ap-east-1", "not-in-catalog"]) {
-    assert.equal(placementInRegion(existing, region, catalog), existing);
+test("Region changes clear the stale zone and preserve each selected instance size", () => {
+  for (const instance_type of REAL_WORLD_INSTANCE_TYPES) {
+    const existing = { region: "us-east-1", zone_id: "use1-az1", instance_type };
+    for (const region of ["us-east-1", "ap-east-1", "not-in-catalog"]) {
+      assert.equal(placementInRegion(existing, region, catalog), existing);
+    }
+    assert.deepEqual(placementInRegion(existing, "eu-west-1", catalog), { region: "eu-west-1", zone_id: "", instance_type });
+    const extended = [...catalog, { region: "new-region-1", enabled: true }];
+    assert.deepEqual(placementInRegion(existing, "new-region-1", extended), { region: "new-region-1", zone_id: "", instance_type });
+    assert.equal(existing.zone_id, "use1-az1");
   }
-  assert.deepEqual(placementInRegion(existing, "eu-west-1", catalog), { region: "eu-west-1", zone_id: "", instance_type: "t3.medium" });
-  const extended = [...catalog, { region: "new-region-1", enabled: true }];
-  assert.deepEqual(placementInRegion(existing, "new-region-1", extended), { region: "new-region-1", zone_id: "", instance_type: "t3.medium" });
-  assert.equal(existing.zone_id, "use1-az1");
 });
 
 test("world view includes all catalog locations on mobile and desktop without distorting geography", () => {
