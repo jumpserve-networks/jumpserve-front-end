@@ -59,7 +59,7 @@ export const TEST_MODULES: readonly TestModule[] = [
     status: "available",
     href: "/modules/congestion-control-real-world",
     sections: [
-      { href: "/real-world", label: "Real World Tests", description: "Launch EC2 tests, choose machine locations, and inspect results.", paths: ["/real-world"] },
+      { href: "/real-world", label: "Run a Test", description: "Launch EC2 tests, choose machine locations, and inspect results.", paths: ["/real-world"] },
       { href: "/real-world-reports", label: "Test Results", description: "Explore shared measurements and compare matched configurations with replication counts and confidence intervals.", paths: ["/real-world-reports"] },
     ],
   },
