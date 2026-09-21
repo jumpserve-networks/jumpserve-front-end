@@ -144,8 +144,11 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
               style={{ left: `${x / size.width * 100}%`, top: `${y / size.height * 100}%` }}>
               <Button type="button" variant={active ? "default" : "outline"} size="icon-sm" title={description} aria-label={description} aria-pressed={grouped ? undefined : active}
                 className={cn("pointer-events-auto relative rounded-full border-primary text-primary shadow-sm aria-pressed:text-primary-foreground",
-                  role === "bottleneck" && "dark:border-highlight dark:text-highlight dark:aria-pressed:bg-highlight dark:aria-pressed:text-primary-foreground",
-                  role === "receiver" && "dark:border-success dark:text-success dark:aria-pressed:bg-success dark:aria-pressed:text-primary-foreground")}
+                  active && "dark:text-primary-foreground",
+                  role === "bottleneck" && "dark:border-highlight",
+                  role === "bottleneck" && (active ? "dark:bg-highlight dark:text-primary-foreground" : "dark:text-highlight"),
+                  role === "receiver" && "dark:border-success",
+                  role === "receiver" && (active ? "dark:bg-success dark:text-primary-foreground" : "dark:text-success"))}
                 onClick={() => {
                   if (grouped) { move({ x: cluster.x, y: cluster.y, zoom: viewport.zoom * 2 }); canvas.current?.focus({ preventScroll: true }); }
                   else setSelected(members[0].name);
