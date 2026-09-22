@@ -1,6 +1,17 @@
 # AGENTS.md
 
-Last updated: 2026-09-20
+Last updated: 2026-09-21
+
+## Deployment workflow
+
+- Keep routine changes and verification local. Do not push or merge to `main`,
+  trigger Amplify builds, or deploy application or infrastructure changes unless
+  the user explicitly requests deployment of the current changes.
+- An earlier deployment request is not standing authorization to deploy on later
+  turns. Wait for a new explicit deployment instruction.
+- Do not check or poll deployment status after ordinary editing turns. Check
+  deployment status only as part of an explicitly requested deployment or when
+  the user specifically asks for a deployment status check.
 
 ## Project purpose
 
