@@ -65,7 +65,7 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
     <CardHeader className="gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3"><CardTitle>Traffic topology</CardTitle>
         <Badge variant={phase.active ? "default" : "secondary"} data-testid="traffic-phase">{phase.label}</Badge></div>
-      <p className="text-sm text-muted-foreground">Server → shared bottleneck → {job.config.receivers.length === 1 ? "receiver" : `${job.config.receivers.length} receivers`}. All test traffic traverses the bottleneck; acknowledgments return along the reverse path.</p>
+      <p className="text-sm text-muted-foreground">Server → shared bottleneck → {job.config.receivers.length === 1 ? "receiver" : `${job.config.receivers.length} receivers`}.</p>
       <div className="hidden flex-wrap gap-x-5 gap-y-2 text-xs dark:flex" aria-label="Map legend">
         <span className="flex items-center gap-2 text-primary"><Server aria-hidden="true" className="size-3.5" />Server</span>
         <span className="flex items-center gap-2 text-highlight"><Network aria-hidden="true" className="size-3.5" />Bottleneck</span>
