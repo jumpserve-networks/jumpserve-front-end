@@ -84,7 +84,7 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
           <Button type="button" variant="outline" size="sm" aria-pressed={paused}
             onClick={() => setPaused((value) => !value)}>{paused ? <Play /> : <Pause />}{paused ? "Resume animation" : "Pause animation"}</Button>
         </div>
-        <div ref={canvas} role="group" aria-label="Interactive traffic map" aria-describedby={`${id}-instructions`} tabIndex={0}
+        <div ref={canvas} role="group" aria-label="Interactive traffic map" tabIndex={0}
           className="relative h-80 touch-none overflow-hidden bg-background outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:h-[26rem] cursor-grab active:cursor-grabbing"
           onKeyDown={(event) => {
             if (event.target !== event.currentTarget) return;
@@ -158,10 +158,6 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
               {!grouped && <span className="absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded bg-background/90 px-1 text-[10px] font-medium">{cluster.regions[0].name}</span>}
             </div>;
           }))}
-        </div>
-        <div className="space-y-1 border-t bg-muted/20 px-3 py-3 text-xs text-muted-foreground">
-          <p id={`${id}-instructions`}>Drag or scroll to pan in any direction; the world repeats at every edge. Use + / − to zoom. Keyboard: arrow keys pan, + / − zoom, Home fits the topology. Select a location to inspect its machines.</p>
-          <p>Paths are schematic between approximate AWS Region locations; animation speed is illustrative. Loops represent traffic within one Region. Measured throughput appears after collection.</p>
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-[minmax(0,18rem)_1fr]">
