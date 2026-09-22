@@ -4,7 +4,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { GlobalAuthButton } from "@/app/components/auth-button";
 import { JumpServeLogo } from "@/app/components/jumpserve-logo";
-import { ThemeToggle } from "@/app/components/theme-toggle";
 
 export function SiteHeader({ navigation }: { navigation?: ReactNode }) {
   return (
@@ -22,7 +21,6 @@ export function SiteHeader({ navigation }: { navigation?: ReactNode }) {
           </Link>
         </div>
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <ThemeToggle />
           <GlobalAuthButton placement="header" />
         </div>
       </div>

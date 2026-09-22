@@ -1,15 +1,19 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { SiteHeader } from "@/app/components/site-header";
 import { MobileModuleNavigation, ModuleNavigation } from "@/app/components/module-navigation";
 import { getTestModuleForPath } from "@/lib/test-modules";
+import { subscribeToThemePreference } from "@/lib/theme-preference";
 import { cn } from "@/lib/utils";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const testModule = getTestModuleForPath(pathname);
+
+  // Keep system and cross-tab theme updates active on pages without a sidebar.
+  useEffect(() => subscribeToThemePreference(() => {}), []);
 
   return <>
     <a href="#page-content" className="sr-only z-50 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Skip to content</a>

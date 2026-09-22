@@ -134,13 +134,16 @@ behind CloudFront, Next.js can see the internal origin as `localhost:3000`. Pref
 - `app/module/congestion-control-emulated` and `app/module/congestion-control-real-world`
   - Module pages, detail routes, and the emulated parent-run query endpoint.
 - `app/components/site-header.tsx`
-  - Shared identity, theme, authentication, and mobile module-menu trigger.
+  - Shared identity, authentication, and mobile module-menu trigger.
 - `app/components/app-shell.tsx` and `app/components/module-navigation.tsx`
   - Viewport-fixed desktop sidebar below the sticky header, with independent
     overflow scrolling, and Base UI Sheet navigation on smaller screens.
   - Reserve sidebar width in desktop content; remove the offset when printing.
     Keep body horizontal overflow clipped so it does not trap header stickiness.
   - Derive sections and detail-page highlights from `lib/test-modules.ts`.
+  - Place the Dark Mode / Light Mode / System Default selector at the bottom of
+    desktop and mobile module navigation. Keep theme synchronization active on
+    global pages without a sidebar; the header logo links back to the home page.
 - `lib/auth-redirect.ts`
   - Resumes safe action/result deep links directly after login, preserving queries.
 - `app/components/emulated-runs-dashboard.tsx`

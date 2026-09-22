@@ -4,7 +4,8 @@ import { EMULATED_MODULE_PATH, REAL_WORLD_MODULE_PATH, isModuleSectionActive, ty
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChartNoAxesCombined, FileChartColumn, FlaskConical, Globe2, LayoutDashboard, LayoutGrid, Menu, MessageSquare, Search, type LucideIcon } from "lucide-react";
+import { ChartNoAxesCombined, FileChartColumn, FlaskConical, Globe2, LayoutDashboard, Menu, MessageSquare, Search, type LucideIcon } from "lucide-react";
+import { ThemeSelector } from "@/app/components/theme-selector";
 import { Button, buttonVariants } from "@/app/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/app/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -43,9 +44,7 @@ export function ModuleNavigation({ testModule, pathname, onNavigate }: Navigatio
       </ul>
     </nav>
     <div className="mt-auto border-t border-sidebar-border pt-4">
-      <Link href="/" onNavigate={onNavigate} className={cn(buttonVariants({ variant: "ghost" }), "w-full justify-start gap-3 px-3 text-sm text-muted-foreground")}>
-        <LayoutGrid aria-hidden="true" className="size-4" />All modules
-      </Link>
+      <ThemeSelector />
     </div>
   </div>;
 }
@@ -67,7 +66,7 @@ export function MobileModuleNavigation({ testModule, pathname }: NavigationProps
     <SheetContent side="left" className="max-w-[calc(100%-3rem)] gap-0 overflow-y-auto bg-sidebar text-sidebar-foreground data-[side=left]:w-72">
       <SheetHeader className="sr-only">
         <SheetTitle>{testModule.name}</SheetTitle>
-        <SheetDescription>Navigate between this module’s sections or return to all modules.</SheetDescription>
+        <SheetDescription>Navigate between this module’s sections and choose the display theme.</SheetDescription>
       </SheetHeader>
       <ModuleNavigation testModule={testModule} pathname={pathname} onNavigate={() => setOpen(false)} />
     </SheetContent>

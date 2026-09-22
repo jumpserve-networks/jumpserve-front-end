@@ -48,8 +48,8 @@ The parent-run query endpoint is `/module/congestion-control-emulated/api/parent
 Legacy root tool URLs and `/modules/{moduleId}` permanently redirect to the new
 module routes, preserving path suffixes and query parameters.
 A persistent left sidebar shows the current module, its overview and sections,
-and an **All modules** link. On smaller screens, the header menu button opens the
-same navigation in an accessible drawer. Detail pages highlight their parent
+and a **Dark Mode / Light Mode / System Default** selector. On smaller screens,
+the header menu button opens the same navigation in an accessible drawer. Detail pages highlight their parent
 section. The sidebar appears for module tools even when signed out, and is omitted
 from the landing page, module chooser, and print. Module selection is navigation.
 
@@ -176,7 +176,8 @@ tokens live in `app/globals.css` and follow the existing `.dark` theme toggle.
 Use neutral surfaces, subtle borders, compact typography, and the shared blue
 accent for application controls. Reserve additional colors for chart series and
 meaningful status indicators. Avoid decorative gradients, page-entry animations,
-and oversized shadows. The theme control lives in the shared header.
+and oversized shadows. The theme selector lives at the bottom of the module sidebar
+and mobile module menu. The JumpServe header link returns to the home page.
 
 SVG charts inside buttons must retain `role="img"`: the shared Button excludes
 these content graphics from its default icon sizing. Keep run charts in a
