@@ -176,8 +176,7 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
             {topology.nodes.filter((node) => node.region === machine.region).length > 1 && <div className="mt-3 flex flex-wrap gap-1" role="group" aria-label="Machines in this Region">
               {topology.nodes.filter((node) => node.region === machine.region).map((node) => <Button key={node.name} type="button" size="xs" variant={node.name === selected ? "secondary" : "ghost"} aria-pressed={node.name === selected} onClick={() => setSelected(node.name)}>{machineLabel(node.name)}</Button>)}
             </div>}
-          </> : <><p className="font-medium">{topology.nodes.length} machines · {new Set(topology.nodes.map((node) => node.region)).size} Regions</p>
-            <p className="mt-1 text-xs text-muted-foreground">Select a machine to highlight its data path and inspect its placement. Machines in the same Region share a marker.</p></>}
+          </> : <p className="font-medium">{topology.nodes.length} machines · {new Set(topology.nodes.map((node) => node.region)).size} Regions</p>}
         </div>
       </div>
       {topology.unmapped.length > 0 && <p className="text-xs text-muted-foreground">Map coordinates unavailable for {topology.unmapped.map((node) => `${machineLabel(node.name)} (${node.region})`).join(", ")}. These machines remain available in the inspector; their paths are omitted.</p>}
