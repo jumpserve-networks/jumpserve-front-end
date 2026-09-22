@@ -95,11 +95,12 @@ Each test detail page includes an interactive traffic topology map: server →
 bottleneck → receivers, with machine inspection, zoom, pan, and fit controls.
 Machines in one Region share a marker and their local links appear as loops.
 The traffic map wraps on both axes with its markers, paths, and animations.
-Animations follow the controller's recorded `start_epoch` and configured duration,
-including transfers performed during the `starting` phase. They stop on cancellation,
-cleanup, completion, polling errors, or 15 seconds without a successful status update.
-Jobs without recorded timing remain static. Animation can be paused manually and
-does not change with the system motion preference. Paths and animation speeds are schematic;
+Schematic paths animate in every lifecycle state, including completed tests and
+jobs without recorded timing. Only the explicit Pause/Resume control changes
+playback; the system motion preference does not suppress it. The status badge
+separately reports scheduled transfer activity using `start_epoch`, duration,
+cancellation, cleanup, completion, and the freshness of status updates.
+Paths and animation speeds are schematic;
 they do not represent measured packet rates or physical Internet routes. Collected
 receiver throughput is shown in the inspector once measurements are available.
 

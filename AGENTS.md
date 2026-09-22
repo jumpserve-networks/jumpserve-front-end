@@ -217,7 +217,9 @@ Important columns currently used:
 - Animations and transitions must behave consistently regardless of the browser
   or operating system motion preference. Do not add `prefers-reduced-motion`
   checks, `motion-safe:`/`motion-reduce:` variants, or preference-based animation
-  suppression. Explicit pause controls and test lifecycle conditions still apply.
+  suppression. Traffic topology paths animate across all test lifecycle states,
+  including completed tests; only the explicit Pause/Resume control stops or starts
+  them. Keep actual transfer activity and completion status in the status badge.
 - Preserve `role="img"` on SVG charts inside buttons so shared icon sizing does
   not shrink them. Use at most two columns for run charts on desktop.
 - Supabase `numeric` / `bigint` values can arrive as strings; convert before chart math.

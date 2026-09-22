@@ -28,8 +28,8 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
   const topology = useMemo(() => realWorldTopology(job), [job]);
   const viewport = mapViewport(camera ?? fitTopology(topology.markers, size), size);
   const clusters = clusterRegions(topology.markers, viewport.scale);
+  // Lifecycle controls the status badge; schematic path motion is controlled by Pause/Resume.
   const phase = realWorldTrafficPhase(job, Math.max(now, receivedAt), receivedAt, interrupted);
-  const animated = phase.active && !paused;
   const machine = topology.nodes.find((node) => node.name === selected);
   const result = job.results?.find((item) => item.receiver === selected);
   const items = [{ value: "all", label: "All machines" }, ...topology.nodes.map((node) => ({ value: node.name, label: `${machineLabel(node.name)} · ${node.region}` }))];
@@ -124,7 +124,7 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
                   {mapCopies(geometry.bounds, viewport, 5).map((copy) => <g key={copy.key} transform={`translate(${copy.x} ${copy.y})`}>
                     <path d={geometry.path} stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.45" vectorEffect="non-scaling-stroke" />
                     <path d={geometry.path} stroke="currentColor" strokeWidth="3" strokeLinecap="round" pathLength="100" strokeDasharray="1 19"
-                      vectorEffect="non-scaling-stroke" className="traffic-flow dark:drop-shadow-[0_0_3px_currentColor]" style={{ opacity: phase.active ? 1 : 0, animationPlayState: animated ? "running" : "paused" }} />
+                      vectorEffect="non-scaling-stroke" className="traffic-flow dark:drop-shadow-[0_0_3px_currentColor]" style={{ animationPlayState: paused ? "paused" : "running" }} />
                     <path d="M-4 -4L3 0L-4 4" stroke="currentColor" strokeWidth="1.5" transform={`translate(${geometry.arrow.x} ${geometry.arrow.y}) rotate(${geometry.arrow.angle}) scale(${1 / viewport.scale})`} />
                   </g>)}
                 </g>;

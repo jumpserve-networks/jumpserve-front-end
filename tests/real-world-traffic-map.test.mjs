@@ -9,7 +9,7 @@ const job = {
   config: { server: placement("us-east-1"), bottleneck: placement("eu-west-1"), receivers: [placement("ap-northeast-1"), placement("ap-southeast-6")], duration_seconds: 60 },
 };
 
-test("animation follows the recorded transfer window even while the controller is starting", () => {
+test("the status badge follows the recorded transfer window even while the controller is starting", () => {
   assert.deepEqual(realWorldTrafficPhase(job, 999_001, 999_000), { active: false, label: "Transfers scheduled in 1 s" });
   assert.deepEqual(realWorldTrafficPhase(job, 1_000_000, 1_000_000), { active: true, label: "Scheduled transfer · 60 s remaining" });
   assert.equal(realWorldTrafficPhase(job, 1_059_999, 1_059_000).active, true);
@@ -17,7 +17,7 @@ test("animation follows the recorded transfer window even while the controller i
   assert.equal(realWorldTrafficPhase({ ...job, status: "running" }, 1_070_000, 1_070_000).active, false);
 });
 
-test("cancellation, terminal states, errors, and stale or hung polling stop the animation", () => {
+test("cancellation, terminal states, errors, and stale polling never report active transfers", () => {
   for (const status of ["provisioning", "bootstrapping", "configuring", "checking", "cleaning", "completed", "cancelled", "failed"]) {
     assert.equal(realWorldTrafficPhase({ ...job, status }, 1_010_000, 1_010_000).active, false, status);
   }
