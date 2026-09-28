@@ -1,5 +1,6 @@
 export const EMULATED_MODULE_PATH = "/module/congestion-control-emulated";
 export const REAL_WORLD_MODULE_PATH = "/module/congestion-control-real-world";
+export const DELAY_STUDY_MODULE_PATH = "/module/propagation-delay-study";
 
 // Keep saved links and old bookmarks usable after moving module pages.
 export const LEGACY_MODULE_ROUTES = [
@@ -12,6 +13,7 @@ export const LEGACY_MODULE_ROUTES = [
   { source: `${REAL_WORLD_MODULE_PATH}/real-world-reports`, destination: `${REAL_WORLD_MODULE_PATH}/test-results` },
   { source: "/modules/congestion-control-emulated", destination: EMULATED_MODULE_PATH },
   { source: "/modules/congestion-control-real-world", destination: REAL_WORLD_MODULE_PATH },
+  { source: "/modules/propagation-delay-study", destination: DELAY_STUDY_MODULE_PATH },
 ];
 
 export type TestModuleSection = {
@@ -67,6 +69,18 @@ export const EMULATED_TESTS_MODULE = {
 
 export const TEST_MODULES: readonly TestModule[] = [
   EMULATED_TESTS_MODULE,
+  {
+    id: "propagation-delay-study",
+    name: "Propagation Delay Study",
+    description: "Assess the NINeS 2026 delay-equalization paper using balanced experiments, matched repetitions, and recorded evidence.",
+    status: "available",
+    href: DELAY_STUDY_MODULE_PATH,
+    sections: [
+      { href: `${DELAY_STUDY_MODULE_PATH}/test-results`, label: "Test Results", description: "Inspect delay sensitivity, confidence intervals, and throughput across matched configurations.", paths: [`${DELAY_STUDY_MODULE_PATH}/test-results`] },
+      { href: `${DELAY_STUDY_MODULE_PATH}/methods`, label: "Methods & Claims", description: "Read the frozen protocol and the scope of each replication claim.", paths: [`${DELAY_STUDY_MODULE_PATH}/methods`] },
+      { href: `${DELAY_STUDY_MODULE_PATH}/literature`, label: "Literature", description: "Review the paper's bibliography, source versions, and reading status.", paths: [`${DELAY_STUDY_MODULE_PATH}/literature`] },
+    ],
+  },
   {
     id: "congestion-control-real-world",
     name: "Congestion Control Real World Tests",

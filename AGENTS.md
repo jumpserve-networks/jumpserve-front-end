@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Last updated: 2026-09-21
+Last updated: 2026-09-27
 
 ## Deployment workflow
 
@@ -66,6 +66,20 @@ query parameters, through `next.config.ts`. AWS API endpoint paths stay unchange
 New modules need
 their own tools and data integration before becoming available; module selection
 is navigation, not an authentication or authorization boundary.
+
+The **Propagation Delay Study** module (`propagation-delay-study`) reads the
+`delay_study_*` Supabase relations for the NINeS 2026 reproduction campaign.
+Keep the paper's published values separate from our measurements. Delay parameters
+are round-trip increments; sensitivity is per-flow log2(max/min) across matched
+delay assignments, not a within-trial fairness ratio. Preserve whole-trial paired
+resampling, coverage counts, invalid trials, source versions, and limitations.
+Results, methods, and literature pages are public read-only. The default new-table
+security trigger creates an anonymous-read restriction; dedicated public result
+tables require the explicit policy migration used by this module, with RLS and
+browser write denial retained. Never use a service credential in client code.
+Render interpolated SVG `<title>` content as one string; multiple JSX text
+children cause server/client hydration mismatches. Check completed-study data
+in the browser as well as incomplete states.
 
 ## Stack
 
