@@ -65,6 +65,7 @@ test("real-world tools and results belong to their own available module", () => 
     testModule.href,
     `${testModule.href}/run-a-test`, `${testModule.href}/run-a-test/job-123`,
     `${testModule.href}/test-results`, `${testModule.href}/test-results/job-123`,
+    `${testModule.href}/chat?jobId=11111111-1111-4111-8111-111111111111`,
     `${testModule.href}/real-world/job-123`, `${testModule.href}/real-world-reports/job-123`,
     "/real-world", "/real-world/job-123", "/real-world-reports", "/real-world-reports/job-123?selected=abc",
   ]) {
@@ -78,6 +79,9 @@ test("real-world tools and results belong to their own available module", () => 
   assert.equal(isModuleSectionActive(testModule.sections[0], `${testModule.href}/test-results/job-123`), false);
   assert.equal(testModule.sections[1].href, `${testModule.href}/test-results`);
   assert.equal(isModuleSectionActive(testModule.sections[1], `${testModule.href}/test-results/job-123`), true);
+  assert.equal(testModule.sections[2].label, "Chat with AI");
+  assert.equal(testModule.sections[2].href, `${testModule.href}/chat`);
+  assert.equal(isModuleSectionActive(testModule.sections[2], `${testModule.href}/chat`), true);
 });
 
 test("navigation highlights the parent tool for detail pages with path boundaries", () => {

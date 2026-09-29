@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Last updated: 2026-09-27
+Last updated: 2026-09-29
 
 ## Deployment workflow
 
@@ -56,6 +56,18 @@ steps with recorded completion times. Never derive historical times from browser
 polls or invent timestamps for tests that predate status tracking.
 Do not mix its duration-based
 throughput results with emulated file completion times.
+
+Real-world **Chat with AI** lives at `/module/congestion-control-real-world/chat`.
+Result links pass `jobId` to prefill an editable question; they do not automatically
+send it. Chat requires Google authentication and preserves the test link through
+login. Reuse `ChatPanel` with the explicit `congestion-control-real-world` module
+identifier. Filter saved conversations by both user and module. The backend owns
+prompt/tool selection and rejects cross-module history; client props are not an
+authorization boundary. Real-world chat uses a separately published Supabase
+prompt and read-only real-world measurement tools, never emulated launch tools.
+Its capability check prevents older agents from silently treating EC2 questions
+as emulated benchmarks. Deploy the module-aware prompt migration and evaluated
+prompt before enabling the new backend/frontend; see the infrastructure README.
 
 Define module names, availability, home routes, and tool ownership in
 `lib/test-modules.ts`. All module pages and module-owned Next.js API routes belong

@@ -28,18 +28,35 @@ export interface AgentResponse {
   session_id: string;
 }
 
+export type ChatModule = "congestion-control-emulated" | "congestion-control-real-world";
+
 export async function sendMessage(
   message: string,
   sessionId: string,
   accessToken: string,
+  moduleId: ChatModule = "congestion-control-emulated",
 ): Promise<AgentResponse> {
   if (!accessToken) throw new Error("Sign in to chat with the AI.");
-  const res = await fetch(getAgentUrl(), {
+  const url = getAgentUrl();
+  if (moduleId === "congestion-control-real-world") {
+    // Older agents ignore module_id. Never send them a real-world question or action.
+    const capability = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ action: 'capabilities', module_id: moduleId }),
+    });
+    const data: unknown = await capability.json().catch(() => null);
+    if (!capability.ok || !isRecord(data) || !Array.isArray(data.modules) || !data.modules.includes(moduleId)) {
+      throw new Error('The AI service has not enabled real-world chat yet. Please contact the site administrator.');
+    }
+  }
+  const res = await fetch(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
       message,
       session_id: sessionId,
+      module_id: moduleId,
     }),
   });
 
@@ -66,6 +83,10 @@ export async function sendMessage(
     !data.tool_events.every((event) => isRecord(event) && typeof event.name === 'string' && event.name.trim())
   ) {
     throw new Error('The AI chat service returned an invalid response. Please try again or contact the site administrator.');
+  }
+
+  if (moduleId === "congestion-control-real-world" && data.module_id !== moduleId) {
+    throw new Error('The AI service has not enabled real-world chat yet. Please contact the site administrator.');
   }
 
   return {

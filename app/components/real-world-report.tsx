@@ -43,6 +43,7 @@ export function RealWorldReport({ jobId }: { jobId: string }) {
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-3"><Badge variant="secondary">{job.status}</Badge><span className="text-sm text-muted-foreground">{dateUtc(job.created_at)}</span></div>
       <div className="flex flex-wrap gap-2 print:hidden">
+        <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`${REAL_WORLD_MODULE_PATH}/chat?jobId=${jobId}`} />}>Chat with AI</Button>
         <Button variant="outline" size="sm" onClick={() => downloadReportFile(`${jobId}-receivers.csv`, receiversCsv(report), "text/csv;charset=utf-8")}>Receiver CSV</Button>
         <Button variant="outline" size="sm" onClick={() => downloadReportFile(`${jobId}-traces.csv`, tracesCsv(report), "text/csv;charset=utf-8")}>Trace CSV</Button>
         <Button variant="outline" size="sm" onClick={() => downloadReportFile(`${jobId}-report.json`, JSON.stringify(report, null, 2), "application/json")}>Results JSON</Button>

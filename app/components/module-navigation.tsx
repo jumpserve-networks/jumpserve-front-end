@@ -17,6 +17,7 @@ const sectionIcons: Record<string, LucideIcon> = {
   [`${EMULATED_MODULE_PATH}/chat`]: MessageSquare,
   [`${REAL_WORLD_MODULE_PATH}/run-a-test`]: Globe2,
   [`${REAL_WORLD_MODULE_PATH}/test-results`]: FileChartColumn,
+  [`${REAL_WORLD_MODULE_PATH}/chat`]: MessageSquare,
 };
 
 type NavigationProps = { testModule: TestModule; pathname: string; onNavigate?: () => void };

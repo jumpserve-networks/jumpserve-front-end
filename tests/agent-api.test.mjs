@@ -63,8 +63,27 @@ test("chat uses the exact configured endpoint and preserves message and session 
   assert.equal(options.headers.Accept, "application/json");
   assert.equal(options.headers["Content-Type"], "application/json");
   assert.deepEqual(JSON.parse(options.body), {
-    message: "Explain parent run #42", session_id: "session-123",
+    message: "Explain parent run #42", session_id: "session-123", module_id: "congestion-control-emulated",
   });
+});
+
+test("real-world chat sends its module and rejects an emulated or legacy service response", async (t) => {
+  let body = response;
+  let supported = false;
+  const fetchMock = t.mock.method(globalThis, "fetch", async (_url, options) => {
+    if (JSON.parse(options.body).action === "capabilities" && supported) return Response.json({ modules: ["congestion-control-real-world"] });
+    return Response.json(body);
+  });
+  const sendRealWorld = () => sendMessage("Explain this EC2 test", "session-123", "verified-session", "congestion-control-real-world");
+  await assert.rejects(sendRealWorld, /has not enabled real-world chat/);
+  assert.equal(fetchMock.mock.callCount(), 1, "An old agent never receives the question");
+  assert.equal(JSON.parse(fetchMock.mock.calls[0].arguments[1].body).message, undefined);
+  supported = true;
+  body = { ...response, module_id: "congestion-control-emulated" };
+  await assert.rejects(sendRealWorld, /has not enabled real-world chat/);
+  body = { ...response, module_id: "congestion-control-real-world" };
+  assert.deepEqual(await sendRealWorld(), response);
+  assert.equal(JSON.parse(fetchMock.mock.calls.at(-1).arguments[1].body).module_id, "congestion-control-real-world");
 });
 
 test("chat requires a session and never sends anonymous requests", async (t) => {

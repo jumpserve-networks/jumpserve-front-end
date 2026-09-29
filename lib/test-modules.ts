@@ -91,6 +91,7 @@ export const TEST_MODULES: readonly TestModule[] = [
     sections: [
       { href: `${REAL_WORLD_MODULE_PATH}/run-a-test`, label: "Run a Test", description: "Launch EC2 tests, choose machine locations, and inspect results.", paths: [`${REAL_WORLD_MODULE_PATH}/run-a-test`] },
       { href: `${REAL_WORLD_MODULE_PATH}/test-results`, label: "Test Results", description: "Explore shared measurements and compare matched configurations with replication counts and confidence intervals.", paths: [`${REAL_WORLD_MODULE_PATH}/test-results`] },
+      { href: `${REAL_WORLD_MODULE_PATH}/chat`, label: "Chat with AI", description: "Ask about recorded EC2 test results, measurement quality, and matched comparisons.", paths: [`${REAL_WORLD_MODULE_PATH}/chat`] },
     ],
   },
 ];

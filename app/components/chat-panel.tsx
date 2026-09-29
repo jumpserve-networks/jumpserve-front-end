@@ -8,7 +8,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { createClient } from "@/lib/supabase/client";
 import { requireAccessToken } from "@/lib/browser-auth";
-import { sendMessage, type AgentResponse } from "@/lib/agent-api";
+import { sendMessage, type AgentResponse, type ChatModule } from "@/lib/agent-api";
 
 interface Message {
   role: "user" | "assistant";
@@ -36,6 +36,10 @@ function ToolEventBadge({ name }: { name: string }) {
     delete_config: "Deleted config",
     run_saved_config: "Loaded config",
     get_benchmark_logs: "Fetched logs",
+    search_real_world_tests: "Searched real-world tests",
+    get_real_world_results: "Read real-world results",
+    get_real_world_trace: "Read measurement trace",
+    compare_real_world_tests: "Checked matched comparisons",
   };
 
   return (
@@ -249,28 +253,34 @@ function SessionSidebar({
 export function ChatPanel({
   userEmail,
   initialMessage = "",
+  moduleId = "congestion-control-emulated",
 }: {
   userEmail?: string;
   initialMessage?: string;
+  moduleId?: ChatModule;
 }) {
+  const realWorld = moduleId === "congestion-control-real-world";
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState(initialMessage);
   const [isLoading, setIsLoading] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(!initialMessage);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [historyError, setHistoryError] = useState("");
   const [supabase] = useState(() => createClient());
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const conversationVersion = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const loadSessions = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("agent_sessions")
       .select("id, updated_at, messages")
       .eq("user_id", userEmail ?? "")
+      .eq("module_id", moduleId)
       .order("updated_at", { ascending: false })
       .limit(30);
+    setHistoryError(error ? "Chat history is unavailable. Please try again later." : "");
     return data
       ? data.map((s: { id: string; updated_at: string; messages: unknown[] }) => ({
           id: s.id,
@@ -278,7 +288,7 @@ export function ChatPanel({
           preview: extractPreview(s.messages),
         }))
       : null;
-  }, [supabase, userEmail]);
+  }, [supabase, userEmail, moduleId]);
 
   // Visits start empty. Saved messages load only when selected in the sidebar.
   useEffect(() => {
@@ -306,7 +316,7 @@ export function ChatPanel({
     setIsLoading(true);
 
     try {
-      const result: AgentResponse = await sendMessage(text, sessionId, await requireAccessToken());
+      const result: AgentResponse = await sendMessage(text, sessionId, await requireAccessToken(), moduleId);
       if (version !== conversationVersion.current) return;
       setMessages((prev) => [
         ...prev,
@@ -351,6 +361,7 @@ export function ChatPanel({
         .from("agent_sessions")
         .select("messages")
         .eq("user_id", userEmail ?? "")
+        .eq("module_id", moduleId)
         .eq("id", id)
         .single();
       if (version !== conversationVersion.current) return;
@@ -365,7 +376,8 @@ export function ChatPanel({
 
   async function deleteSession(id: string) {
     const version = conversationVersion.current;
-    await supabase.from("agent_sessions").delete().eq("id", id);
+    const { error } = await supabase.from("agent_sessions").delete().eq("id", id).eq("user_id", userEmail ?? "").eq("module_id", moduleId);
+    if (error) { setHistoryError("Unable to delete this conversation. Please try again."); return; }
     setSessions((prev) => prev.filter((s) => s.id !== id));
     if (id === sessionId && version === conversationVersion.current) {
       handleNewSession();
@@ -392,6 +404,7 @@ export function ChatPanel({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Messages */}
         <div className="flex-1 overflow-y-auto space-y-4 p-4">
+          {historyError && <p role="alert" className="text-sm text-destructive">{historyError}</p>}
           {!sidebarOpen && (
             <Button
               variant="ghost"
@@ -410,14 +423,18 @@ export function ChatPanel({
             <div className="flex h-full items-center justify-center">
               <div className="text-center">
                 <p className="text-lg font-medium text-muted-foreground">
-                  Ask me anything about your benchmarks
+                  {realWorld ? "Ask about real-world test results" : "Ask me anything about your benchmarks"}
                 </p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  {[
+                  {(realWorld ? [
+                    "Show recent real-world test results",
+                    "How are throughput, RTT, and queue drain time measured?",
+                    "What makes a valid comparison between two real-world tests?",
+                  ] : [
                     "Run a cubic vs bbr test at 100 Mbit",
                     "Show my recent jobs",
                     "What CCAs are available?",
-                  ].map((suggestion) => (
+                  ]).map((suggestion) => (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -495,7 +512,7 @@ export function ChatPanel({
                   handleSend();
                 }
               }}
-              placeholder="Ask about benchmarks, results, or congestion control..."
+              placeholder={realWorld ? "Ask about EC2 test results, or paste a test ID..." : "Ask about benchmarks, results, or congestion control..."}
               disabled={isLoading}
               className="min-w-0 flex-1 resize-y rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground transition focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-60"
             />

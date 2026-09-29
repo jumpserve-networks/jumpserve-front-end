@@ -5,6 +5,26 @@ inspect measurements, download evidence, and build comparisons without signing
 in. Launching tests requires a verified Google session; cancellation additionally
 checks ownership. Status pages are public, with management controls for owners.
 
+## Chat with AI
+
+The module menu and individual results link to
+`/module/congestion-control-real-world/chat`. A `jobId` query parameter prefills
+an editable request to analyze that test. Login is required to enter chat and
+send a question; result viewing remains public. Real-world conversations are
+stored separately from emulated conversations in `agent_sessions.module_id`.
+
+The agent loads the module's published system prompt and research context from
+Supabase on each request. It reads saved real-world measurements, identifies stale
+or absent reports, retrieves bounded trace pages with their clocks, and computes
+whole-test comparisons within matched configuration blocks. Each answer retains
+its exact prompt version, model, and analysis version. Hypothesis notes remain
+untrusted data. The real-world agent has no test-launch or cancellation tools.
+
+The database migration, draft seed, evaluation cases, and release procedure live
+in `jumpserve-infra`. Applying the migration and evaluating/publishing the prompt
+are deployment steps; frontend code alone cannot activate the feature. An older
+agent fails the authenticated capability check before receiving the question.
+
 The library loads newest-first pages of 50 tests. Search, CCA, status, any-machine
 Region, and inclusive UTC date filters apply to **loaded history**, with an explicit
 older-history button and coverage message. Failed and incomplete tests remain
