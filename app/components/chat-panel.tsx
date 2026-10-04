@@ -14,6 +14,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   toolEvents?: Array<{ name: string; input: unknown }>;
+  provenance?: AgentResponse["provenance"];
 }
 
 interface SessionSummary {
@@ -43,6 +44,9 @@ function ToolEventBadge({ name }: { name: string }) {
     get_leo_study_results: "Read LEO study results",
     get_leo_scenarios: "Read capacity scenarios",
     get_leo_literature: "Read source coverage",
+    get_http2_study_results: "Read HTTP/2 evidence",
+    get_http2_configuration: "Read case measurements",
+    get_http2_literature: "Read HTTP/2 source coverage",
   };
 
   return (
@@ -264,6 +268,7 @@ export function ChatPanel({
 }) {
   const realWorld = moduleId === "congestion-control-real-world";
   const leoStudy = moduleId === "leo-emergency-failover";
+  const http2Study = moduleId === "http2-compliance-study";
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState(initialMessage);
   const [isLoading, setIsLoading] = useState(false);
@@ -324,7 +329,7 @@ export function ChatPanel({
       if (version !== conversationVersion.current) return;
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: result.response, toolEvents: result.tool_events },
+        { role: "assistant", content: result.response, toolEvents: result.tool_events, provenance: result.provenance },
       ]);
     } catch (err: unknown) {
       if (version !== conversationVersion.current) return;
@@ -370,7 +375,20 @@ export function ChatPanel({
         .single();
       if (version !== conversationVersion.current) return;
       if (error) throw new Error(error.message);
-      setMessages(Array.isArray(data?.messages) ? parseSavedMessages(data.messages) : []);
+      const parsed = Array.isArray(data?.messages) ? parseSavedMessages(data.messages) : [];
+      const audit = await supabase.rpc("get_agent_answer_provenance", { p_session_id: id, p_module_id: moduleId });
+      if (version !== conversationVersion.current) return;
+      if (!audit.error && Array.isArray(audit.data)) {
+        let next = 0;
+        for (const message of parsed) {
+          if (message.role !== "assistant") continue;
+          const index = audit.data.findIndex((row, i) => i >= next && row.response === message.content);
+          if (index < 0) continue;
+          const row = audit.data[index]; next = index + 1;
+          message.provenance = { prompt_version: row.prompt_version, prompt_version_id: row.prompt_version_id, prompt_content_sha256: row.prompt_content_sha256, analysis_version: row.analysis_version };
+        }
+      }
+      setMessages(parsed);
       setHistoryLoaded(true);
     } catch {
       if (version !== conversationVersion.current) return;
@@ -427,10 +445,14 @@ export function ChatPanel({
             <div className="flex h-full items-center justify-center">
               <div className="text-center">
                 <p className="text-lg font-medium text-muted-foreground">
-                  {leoStudy ? "Ask about the LEO failover study" : realWorld ? "Ask about real-world test results" : "Ask me anything about your benchmarks"}
+                  {http2Study ? "Ask about HTTP/2 evidence" : leoStudy ? "Ask about the LEO failover study" : realWorld ? "Ask about real-world test results" : "Ask me anything about your benchmarks"}
                 </p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  {(leoStudy ? [
+                  {(http2Study ? [
+                    "Which published counts reproduce, and which disagree?",
+                    "Does rejecting a message prove RFC compliance?",
+                    "Which sources and physical measurements remain unreviewed or untested?",
+                  ] : leoStudy ? [
                     "How closely do the six-country results match the paper?",
                     "How does terminal placement affect Haiti's capacity?",
                     "Which assumptions limit emergency failover conclusions?",
@@ -487,6 +509,7 @@ export function ChatPanel({
                     </ReactMarkdown>
                   </div>
                 )}
+                {msg.provenance && <details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer">Answer provenance · {msg.provenance.prompt_version}</summary><p className="mt-1 break-all">Analysis {msg.provenance.analysis_version}<br />Prompt {msg.provenance.prompt_version_id}<br />SHA-256 {msg.provenance.prompt_content_sha256}</p></details>}
               </div>
             </div>
           ))}
@@ -520,7 +543,7 @@ export function ChatPanel({
                   handleSend();
                 }
               }}
-              placeholder={leoStudy ? "Ask about satellite capacity, placement, or source evidence..." : realWorld ? "Ask about EC2 test results, or paste a test ID..." : "Ask about benchmarks, results, or congestion control..."}
+              placeholder={http2Study ? "Ask about HTTP/2 cases, discrepancies, or sources..." : leoStudy ? "Ask about satellite capacity, placement, or source evidence..." : realWorld ? "Ask about EC2 test results, or paste a test ID..." : "Ask about benchmarks, results, or congestion control..."}
               disabled={isLoading}
               className="min-w-0 flex-1 resize-y rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground transition focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-60"
             />

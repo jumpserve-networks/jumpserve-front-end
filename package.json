@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --test tests/*.test.mjs",
+    "verify:http2": "node scripts/verify-http2-study.mjs",
     "ui:add": "shadcn add"
   },
   "dependencies": {

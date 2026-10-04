@@ -2,6 +2,7 @@ export const EMULATED_MODULE_PATH = "/module/congestion-control-emulated";
 export const REAL_WORLD_MODULE_PATH = "/module/congestion-control-real-world";
 export const DELAY_STUDY_MODULE_PATH = "/module/propagation-delay-study";
 export const LEO_STUDY_MODULE_PATH = "/module/leo-emergency-failover";
+export const HTTP2_STUDY_MODULE_PATH = "/module/http2-compliance-study";
 
 // Keep saved links and old bookmarks usable after moving module pages.
 export const LEGACY_MODULE_ROUTES = [
@@ -16,6 +17,7 @@ export const LEGACY_MODULE_ROUTES = [
   { source: "/modules/congestion-control-real-world", destination: REAL_WORLD_MODULE_PATH },
   { source: "/modules/propagation-delay-study", destination: DELAY_STUDY_MODULE_PATH },
   { source: "/modules/leo-emergency-failover", destination: LEO_STUDY_MODULE_PATH },
+  { source: "/modules/http2-compliance-study", destination: HTTP2_STUDY_MODULE_PATH },
 ];
 
 export type TestModuleSection = {
@@ -71,6 +73,19 @@ export const EMULATED_TESTS_MODULE = {
 
 export const TEST_MODULES: readonly TestModule[] = [
   EMULATED_TESTS_MODULE,
+  {
+    id: "http2-compliance-study",
+    name: "HTTP/2 Compliance Study",
+    description: "Assess archived protocol measurements, reproduce published counts, and inspect discrepancies, source coverage and independent framing controls.",
+    status: "available",
+    href: HTTP2_STUDY_MODULE_PATH,
+    sections: [
+      { href: `${HTTP2_STUDY_MODULE_PATH}/test-results`, label: "Test Results", description: "Compare published results, original classification and evidence-preserving sensitivity.", paths: [`${HTTP2_STUDY_MODULE_PATH}/test-results`] },
+      { href: `${HTTP2_STUDY_MODULE_PATH}/methods`, label: "Methods & Claims", description: "Read frozen protocols, validation and claim coverage.", paths: [`${HTTP2_STUDY_MODULE_PATH}/methods`] },
+      { href: `${HTTP2_STUDY_MODULE_PATH}/literature`, label: "Literature", description: "Inspect direct references, retrieved versions, hashes and review gaps.", paths: [`${HTTP2_STUDY_MODULE_PATH}/literature`] },
+      { href: `${HTTP2_STUDY_MODULE_PATH}/chat`, label: "Chat with AI", description: "Discuss saved HTTP/2 evidence with source and analysis provenance.", paths: [`${HTTP2_STUDY_MODULE_PATH}/chat`] },
+    ],
+  },
   {
     id: "leo-emergency-failover",
     name: "LEO Emergency Failover Study",

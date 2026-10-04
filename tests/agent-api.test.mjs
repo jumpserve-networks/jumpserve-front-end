@@ -118,6 +118,19 @@ test("malformed chat responses are rejected before rendering", async (t) => {
   }
 });
 
+test("HTTP/2 chat requires module capability and returns prompt and analysis provenance", async (t) => {
+  const provenance = { prompt_version: 'http2-evidence-v1', prompt_version_id: 'saved-prompt', prompt_content_sha256: 'hash', analysis_version: 'http2-assessment-v3' };
+  const calls = [];
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    const body = JSON.parse(options.body); calls.push(body);
+    return Response.json(body.action === 'capabilities' ? { modules: ['http2-compliance-study'] } : { ...response, ...provenance, module_id: 'http2-compliance-study' });
+  });
+  const result = await sendMessage('Explain Figure8', 'session-123', 'verified-session', 'http2-compliance-study');
+  assert.deepEqual(result.provenance, provenance);
+  assert.equal(calls[0].message, undefined);
+  assert.equal(calls[1].module_id, 'http2-compliance-study');
+});
+
 test("structured API errors remain useful and unknown failures show a status", async (t) => {
   let body;
   t.mock.method(globalThis, "fetch", async () => Response.json(body, { status: 429 }));
