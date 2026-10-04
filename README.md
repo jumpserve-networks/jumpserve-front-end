@@ -138,6 +138,19 @@ route ownership alongside the existing API tests.
 
 ## Research comparisons
 
+The **LEO Emergency Failover Study** lives at `/module/leo-emergency-failover`.
+Public results compare published capacity with the initial simulation and a
+separately identified saturation follow-up, with country controls, placement,
+orbital-state, constellation and link-rate charts, raw tables and JSON export.
+Methods and literature pages expose provenance, missing claim coverage and
+source review/access status. Chat reuses `ChatPanel` with the explicit LEO
+module, Google authentication and editable country questions. The backend
+capability check prevents older agents from using another module's tools.
+Apply the LEO migrations and publish its evaluated prompt before deploying the
+matching agent and this frontend; see `jumpserve-infra/docs/leo-study-chat.md`.
+Data and prompt publication are complete. Production releases use the existing
+infrastructure workflow for the agent and Amplify for this frontend.
+
 Compare Cohorts now requires matching complete recorded configurations and gives
 each configuration equal weight. It reports independent parent-run repetition
 counts, exclusions, and exploratory confidence intervals when replication is

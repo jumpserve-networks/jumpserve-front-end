@@ -40,6 +40,9 @@ function ToolEventBadge({ name }: { name: string }) {
     get_real_world_results: "Read real-world results",
     get_real_world_trace: "Read measurement trace",
     compare_real_world_tests: "Checked matched comparisons",
+    get_leo_study_results: "Read LEO study results",
+    get_leo_scenarios: "Read capacity scenarios",
+    get_leo_literature: "Read source coverage",
   };
 
   return (
@@ -260,6 +263,7 @@ export function ChatPanel({
   moduleId?: ChatModule;
 }) {
   const realWorld = moduleId === "congestion-control-real-world";
+  const leoStudy = moduleId === "leo-emergency-failover";
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState(initialMessage);
   const [isLoading, setIsLoading] = useState(false);
@@ -423,10 +427,14 @@ export function ChatPanel({
             <div className="flex h-full items-center justify-center">
               <div className="text-center">
                 <p className="text-lg font-medium text-muted-foreground">
-                  {realWorld ? "Ask about real-world test results" : "Ask me anything about your benchmarks"}
+                  {leoStudy ? "Ask about the LEO failover study" : realWorld ? "Ask about real-world test results" : "Ask me anything about your benchmarks"}
                 </p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  {(realWorld ? [
+                  {(leoStudy ? [
+                    "How closely do the six-country results match the paper?",
+                    "How does terminal placement affect Haiti's capacity?",
+                    "Which assumptions limit emergency failover conclusions?",
+                  ] : realWorld ? [
                     "Show recent real-world test results",
                     "How are throughput, RTT, and queue drain time measured?",
                     "What makes a valid comparison between two real-world tests?",
@@ -512,7 +520,7 @@ export function ChatPanel({
                   handleSend();
                 }
               }}
-              placeholder={realWorld ? "Ask about EC2 test results, or paste a test ID..." : "Ask about benchmarks, results, or congestion control..."}
+              placeholder={leoStudy ? "Ask about satellite capacity, placement, or source evidence..." : realWorld ? "Ask about EC2 test results, or paste a test ID..." : "Ask about benchmarks, results, or congestion control..."}
               disabled={isLoading}
               className="min-w-0 flex-1 resize-y rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground transition focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-60"
             />

@@ -93,6 +93,24 @@ Render interpolated SVG `<title>` content as one string; multiple JSX text
 children cause server/client hydration mismatches. Check completed-study data
 in the browser as well as incomplete states.
 
+The **LEO Emergency Failover Study** (`leo-emergency-failover`) reads the six
+`leo_study_*` relations. Preserve the initial campaign and exploratory saturation
+follow-up separately, along with full configurations, requested/deployed terminal
+counts, source hashes, claim coverage and bibliography access/review status.
+Capacity is idealized simulated downlink in decimal Gbps. Adjacent orbital states
+are not independent replications; min/max ranges are not confidence intervals.
+The predeclared ±5% rule measures numerical agreement, not operational accuracy.
+Keep the paper's published capacities and the Lithuania percentage inconsistency
+explicit. The 2.5-Gbps sensitivity also doubles ISL rates while leaving Ka and
+the baseline constellation unchanged; it is not full Config C. Routing,
+sovereignty, incumbent traffic and physical validation remain uncovered claims.
+Results, methods, literature and JSON exports are public read-only. Chat reuses
+`ChatPanel` with this explicit module, Google authentication, user/module-scoped
+history and a backend capability check. Country links prepare an editable question
+without sending it. Its evaluated prompt lives in the existing prompt tables;
+deploy the migrations and publish that prompt before the module-aware agent and
+frontend. See `jumpserve-infra/docs/leo-study-chat.md` for the release order.
+
 ## Stack
 
 - Next.js `16.1.6` (App Router)

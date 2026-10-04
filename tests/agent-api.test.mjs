@@ -92,6 +92,22 @@ test("chat requires a session and never sends anonymous requests", async (t) => 
   assert.equal(fetchMock.mock.callCount(), 0);
 });
 
+test("LEO chat probes capability before the question and rejects cross-module answers", async (t) => {
+  let supported=false, moduleId="congestion-control-emulated";
+  const fetchMock=t.mock.method(globalThis,"fetch",async (_url,options)=> {
+    const body=JSON.parse(options.body);
+    return Response.json(body.action==="capabilities" ? {modules:supported?["leo-emergency-failover"]:[]} : {...response,module_id:moduleId});
+  });
+  const sendLeo=()=>sendMessage("Explain Haiti","leo-session","verified-session","leo-emergency-failover");
+  await assert.rejects(sendLeo,/has not enabled LEO study chat/);
+  assert.equal(fetchMock.mock.callCount(),1);
+  assert.equal(JSON.parse(fetchMock.mock.calls[0].arguments[1].body).message,undefined);
+  supported=true;
+  await assert.rejects(sendLeo,/has not enabled LEO study chat/);
+  moduleId="leo-emergency-failover";
+  assert.deepEqual(await sendLeo(),response);
+});
+
 test("malformed chat responses are rejected before rendering", async (t) => {
   let body;
   t.mock.method(globalThis, "fetch", async () => Response.json(body));

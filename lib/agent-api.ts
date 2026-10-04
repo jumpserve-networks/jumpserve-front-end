@@ -28,7 +28,7 @@ export interface AgentResponse {
   session_id: string;
 }
 
-export type ChatModule = "congestion-control-emulated" | "congestion-control-real-world";
+export type ChatModule = "congestion-control-emulated" | "congestion-control-real-world" | "leo-emergency-failover";
 
 export async function sendMessage(
   message: string,
@@ -38,8 +38,9 @@ export async function sendMessage(
 ): Promise<AgentResponse> {
   if (!accessToken) throw new Error("Sign in to chat with the AI.");
   const url = getAgentUrl();
-  if (moduleId === "congestion-control-real-world") {
-    // Older agents ignore module_id. Never send them a real-world question or action.
+  const unavailable = `The AI service has not enabled ${moduleId === "leo-emergency-failover" ? "LEO study" : "real-world"} chat yet. Please contact the site administrator.`;
+  if (moduleId !== "congestion-control-emulated") {
+    // Older agents ignore module_id. Check capabilities before sending the question.
     const capability = await fetch(url, {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -47,7 +48,7 @@ export async function sendMessage(
     });
     const data: unknown = await capability.json().catch(() => null);
     if (!capability.ok || !isRecord(data) || !Array.isArray(data.modules) || !data.modules.includes(moduleId)) {
-      throw new Error('The AI service has not enabled real-world chat yet. Please contact the site administrator.');
+      throw new Error(unavailable);
     }
   }
   const res = await fetch(url, {
@@ -85,8 +86,8 @@ export async function sendMessage(
     throw new Error('The AI chat service returned an invalid response. Please try again or contact the site administrator.');
   }
 
-  if (moduleId === "congestion-control-real-world" && data.module_id !== moduleId) {
-    throw new Error('The AI service has not enabled real-world chat yet. Please contact the site administrator.');
+  if (moduleId !== "congestion-control-emulated" && data.module_id !== moduleId) {
+    throw new Error(unavailable);
   }
 
   return {

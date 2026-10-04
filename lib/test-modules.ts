@@ -1,6 +1,7 @@
 export const EMULATED_MODULE_PATH = "/module/congestion-control-emulated";
 export const REAL_WORLD_MODULE_PATH = "/module/congestion-control-real-world";
 export const DELAY_STUDY_MODULE_PATH = "/module/propagation-delay-study";
+export const LEO_STUDY_MODULE_PATH = "/module/leo-emergency-failover";
 
 // Keep saved links and old bookmarks usable after moving module pages.
 export const LEGACY_MODULE_ROUTES = [
@@ -14,6 +15,7 @@ export const LEGACY_MODULE_ROUTES = [
   { source: "/modules/congestion-control-emulated", destination: EMULATED_MODULE_PATH },
   { source: "/modules/congestion-control-real-world", destination: REAL_WORLD_MODULE_PATH },
   { source: "/modules/propagation-delay-study", destination: DELAY_STUDY_MODULE_PATH },
+  { source: "/modules/leo-emergency-failover", destination: LEO_STUDY_MODULE_PATH },
 ];
 
 export type TestModuleSection = {
@@ -69,6 +71,19 @@ export const EMULATED_TESTS_MODULE = {
 
 export const TEST_MODULES: readonly TestModule[] = [
   EMULATED_TESTS_MODULE,
+  {
+    id: "leo-emergency-failover",
+    name: "LEO Emergency Failover Study",
+    description: "Reproduce national satellite failover capacity estimates and inspect model discrepancies, placement policies, and source evidence.",
+    status: "available",
+    href: LEO_STUDY_MODULE_PATH,
+    sections: [
+      { href: `${LEO_STUDY_MODULE_PATH}/test-results`, label: "Test Results", description: "Compare the paper with recorded capacity simulations and sensitivity experiments.", paths: [`${LEO_STUDY_MODULE_PATH}/test-results`] },
+      { href: `${LEO_STUDY_MODULE_PATH}/methods`, label: "Methods & Claims", description: "Inspect the protocol, artifact corrections, and limits of the reproduction.", paths: [`${LEO_STUDY_MODULE_PATH}/methods`] },
+      { href: `${LEO_STUDY_MODULE_PATH}/literature`, label: "Literature", description: "Review cited sources, retrieval coverage, and reading notes.", paths: [`${LEO_STUDY_MODULE_PATH}/literature`] },
+      { href: `${LEO_STUDY_MODULE_PATH}/chat`, label: "Chat with AI", description: "Discuss saved simulation results and the evidence behind each claim.", paths: [`${LEO_STUDY_MODULE_PATH}/chat`] },
+    ],
+  },
   {
     id: "propagation-delay-study",
     name: "Propagation Delay Study",
