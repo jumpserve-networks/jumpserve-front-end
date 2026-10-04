@@ -59,6 +59,18 @@ await check('bounded measurement API', async () => {
   const valid=await fetch(origin+path+'/api/measurements?runId=archive-001');assert.equal(valid.status,200);
   return { invalid_status:bad.status, valid_status:valid.status };
 });
+await check('published prompt and evaluated answer provenance', async () => {
+  const r=await fetch(origin+path+'/chat-release.json');assert.equal(r.status,200);
+  const bytes=await r.text(),release=JSON.parse(bytes);
+  assert.equal(release.module_id,'http2-compliance-study');
+  assert.equal(release.evaluation.cases.length,8);
+  assert.ok(release.evaluation.cases.every(c=>c.passed===true));
+  assert.equal(release.evaluation.human_review.passed,true);
+  assert.equal(release.content_sha256,release.evaluation.prompt_content_sha256);
+  assert.equal(createHash('sha256').update(release.system_prompt+'\n\n'+release.research_context).digest('hex'),release.content_sha256);
+  assert.ok(release.evaluation.renderer_sha256);
+  return {sha256:createHash('sha256').update(bytes).digest('hex'),prompt:release.version,evaluated_answers:8,reviewer_type:release.evaluation.human_review.reviewer_type};
+});
 await check('Google sign-in preserves configuration deep link', async () => {
   const r=await fetch(origin+path+'/chat?configuration=Mitmproxy-11.1.0');
   const target=new URL(r.url);
