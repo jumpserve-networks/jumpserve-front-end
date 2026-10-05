@@ -26,10 +26,10 @@ export interface AgentResponse {
   response: string;
   tool_events: Array<{ name: string; input: unknown }>;
   session_id: string;
-  provenance?: { prompt_version: string; prompt_version_id: string; prompt_content_sha256: string; analysis_version: string };
+  provenance?: { prompt_version: string; prompt_version_id: string; prompt_content_sha256: string; analysis_version: string; evidence_sha256?: string; renderer_version?: string; read_events?: Array<{name:string;input:unknown}> };
 }
 
-export type ChatModule = "congestion-control-emulated" | "congestion-control-real-world" | "leo-emergency-failover" | "http2-compliance-study";
+export type ChatModule = "congestion-control-emulated" | "congestion-control-real-world" | "leo-emergency-failover" | "http2-compliance-study" | "reliable-sketch-study";
 
 export async function sendMessage(
   message: string,
@@ -39,7 +39,7 @@ export async function sendMessage(
 ): Promise<AgentResponse> {
   if (!accessToken) throw new Error("Sign in to chat with the AI.");
   const url = getAgentUrl();
-  const unavailable = `The AI service has not enabled ${moduleId === "http2-compliance-study" ? "HTTP/2 study" : moduleId === "leo-emergency-failover" ? "LEO study" : "real-world"} chat yet. Please contact the site administrator.`;
+  const unavailable = `The AI service has not enabled ${moduleId === "reliable-sketch-study" ? "ReliableSketch study" : moduleId === "http2-compliance-study" ? "HTTP/2 study" : moduleId === "leo-emergency-failover" ? "LEO study" : "real-world"} chat yet. Please contact the site administrator.`;
   if (moduleId !== "congestion-control-emulated") {
     // Older agents ignore module_id. Check capabilities before sending the question.
     const capability = await fetch(url, {
@@ -95,6 +95,6 @@ export async function sendMessage(
     response: data.response,
     session_id: data.session_id,
     tool_events: data.tool_events.map((event) => ({ name: event.name, input: event.input })),
-    ...(typeof data.prompt_version === "string" && typeof data.prompt_version_id === "string" && typeof data.prompt_content_sha256 === "string" && typeof data.analysis_version === "string" ? { provenance: { prompt_version: data.prompt_version, prompt_version_id: data.prompt_version_id, prompt_content_sha256: data.prompt_content_sha256, analysis_version: data.analysis_version } } : {}),
+    ...(typeof data.prompt_version === "string" && typeof data.prompt_version_id === "string" && typeof data.prompt_content_sha256 === "string" && typeof data.analysis_version === "string" ? { provenance: { prompt_version: data.prompt_version, prompt_version_id: data.prompt_version_id, prompt_content_sha256: data.prompt_content_sha256, analysis_version: data.analysis_version, ...(isRecord(data.answer_provenance) ? { evidence_sha256: typeof data.answer_provenance.evidence_sha256 === "string" ? data.answer_provenance.evidence_sha256 : undefined, renderer_version: typeof data.answer_provenance.renderer_version === "string" ? data.answer_provenance.renderer_version : undefined, read_events: Array.isArray(data.answer_provenance.read_events) ? data.answer_provenance.read_events.filter((r): r is {name:string;input:unknown} => isRecord(r) && typeof r.name === "string") : undefined } : {}) } } : {}),
   };
 }

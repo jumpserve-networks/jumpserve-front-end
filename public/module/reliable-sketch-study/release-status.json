@@ -1,0 +1,36 @@
+{
+  "version": "reliable-release-status-v1",
+  "at": "2026-10-05T02:15:34.453856+00:00",
+  "scientific_status": "Limited assessment; original trace/hardware/theorem/generalization coverage incomplete",
+  "software_status": "Release-blocking local checks passed; production deployment pending",
+  "checks": {
+    "scientific_runs": 1080,
+    "configurations": 108,
+    "raw_aggregate_validation": "passed",
+    "database_rls_private_storage": "passed",
+    "frontend_tests": 108,
+    "backend_tests": 76,
+    "frontend_lint_build": "passed",
+    "desktop_mobile_complete_missing_invalid": "passed",
+    "published_prompt": "reliable-evidence-v2",
+    "final_chat_cases": 12,
+    "reviewer_type": "AI",
+    "reviewer_independence": "Same assistant as implementer, not independent human review",
+    "local_exports_signin": "passed",
+    "agent_diff": "only existing Lambda code"
+  },
+  "conditional_gaps": [
+    "No legitimate Google session; actual authenticated end-to-end chat unverified",
+    "Full bibliography/source version matching and AppendixA proof audit incomplete",
+    "Original trace bytes and FPGA/Tofino equipment unavailable",
+    "Operational effectiveness/causality/generalization/rare-event estimates untested"
+  ],
+  "usage": {
+    "estimated_model_usd": 0.8985933,
+    "unrecorded_failed_grader_calls": 3,
+    "measured_billing": null,
+    "storage_charges": null,
+    "codex_orchestration_usage": null
+  },
+  "limits": "Descriptive seed ranges are not confidence intervals; code defects do not identify the published generating revision."
+}

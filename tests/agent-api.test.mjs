@@ -140,3 +140,12 @@ test("structured API errors remain useful and unknown failures show a status", a
   body = {};
   await assert.rejects(send, /AI chat request failed \(HTTP 429\)/);
 });
+
+test('ReliableSketch capability and answer evidence provenance survive the browser API adapter',async(t)=>{
+ const provenance={prompt_version:'reliable-evidence-v2',prompt_version_id:'saved-prompt',prompt_content_sha256:'prompt-hash',analysis_version:'reliable-assessment-v1'};
+ const answer_provenance={renderer_version:'reliable-renderer-v2',evidence_sha256:'evidence-hash',read_events:[{name:'get_reliable_configuration',input:{configuration_id:'main-zipf0.3-131072-RS'}}]};
+ const calls=[];
+ t.mock.method(globalThis,'fetch',async(_url,options)=>{const body=JSON.parse(options.body);calls.push(body);return Response.json(body.action==='capabilities'?{modules:['reliable-sketch-study']}:{...response,...provenance,answer_provenance,module_id:'reliable-sketch-study'});});
+ const result=await sendMessage('Explain memory','session-123','verified-session','reliable-sketch-study');
+ assert.equal(calls[0].message,undefined);assert.equal(calls[1].module_id,'reliable-sketch-study');assert.equal(result.provenance.evidence_sha256,'evidence-hash');assert.deepEqual(result.provenance.read_events,answer_provenance.read_events);
+});

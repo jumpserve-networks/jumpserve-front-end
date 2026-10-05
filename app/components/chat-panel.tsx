@@ -44,6 +44,9 @@ function ToolEventBadge({ name }: { name: string }) {
     get_leo_study_results: "Read LEO study results",
     get_leo_scenarios: "Read capacity scenarios",
     get_leo_literature: "Read source coverage",
+    get_reliable_study_results: "Read ReliableSketch evidence",
+    get_reliable_configuration: "Read matched CPU configuration",
+    get_reliable_literature: "Read ReliableSketch source coverage",
     get_http2_study_results: "Read HTTP/2 evidence",
     get_http2_configuration: "Read case measurements",
     get_http2_literature: "Read HTTP/2 source coverage",
@@ -268,6 +271,7 @@ export function ChatPanel({
 }) {
   const realWorld = moduleId === "congestion-control-real-world";
   const leoStudy = moduleId === "leo-emergency-failover";
+  const reliableStudy = moduleId === "reliable-sketch-study";
   const http2Study = moduleId === "http2-compliance-study";
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState(initialMessage);
@@ -385,7 +389,7 @@ export function ChatPanel({
           const index = audit.data.findIndex((row, i) => i >= next && row.response === message.content);
           if (index < 0) continue;
           const row = audit.data[index]; next = index + 1;
-          message.provenance = { prompt_version: row.prompt_version, prompt_version_id: row.prompt_version_id, prompt_content_sha256: row.prompt_content_sha256, analysis_version: row.analysis_version };
+          message.provenance = { prompt_version: row.prompt_version, prompt_version_id: row.prompt_version_id, prompt_content_sha256: row.prompt_content_sha256, analysis_version: row.analysis_version, evidence_sha256: row.answer_provenance?.evidence_sha256, renderer_version: row.answer_provenance?.renderer_version, read_events: row.answer_provenance?.read_events };
         }
       }
       setMessages(parsed);
@@ -445,10 +449,14 @@ export function ChatPanel({
             <div className="flex h-full items-center justify-center">
               <div className="text-center">
                 <p className="text-lg font-medium text-muted-foreground">
-                  {http2Study ? "Ask about HTTP/2 evidence" : leoStudy ? "Ask about the LEO failover study" : realWorld ? "Ask about real-world test results" : "Ask me anything about your benchmarks"}
+                  {reliableStudy ? "Ask about ReliableSketch evidence" : http2Study ? "Ask about HTTP/2 evidence" : leoStudy ? "Ask about the LEO failover study" : realWorld ? "Ask about real-world test results" : "Ask me anything about your benchmarks"}
                 </p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  {(http2Study ? [
+                  {(reliableStudy ? [
+                    "What was reproduced, and what remains untested?",
+                    "How does allocated memory differ from nominal memory?",
+                    "Do these results validate the theorem or operational claims?",
+                  ] : http2Study ? [
                     "Which published counts reproduce, and which disagree?",
                     "Does rejecting a message prove RFC compliance?",
                     "Which sources and physical measurements remain unreviewed or untested?",
@@ -509,7 +517,7 @@ export function ChatPanel({
                     </ReactMarkdown>
                   </div>
                 )}
-                {msg.provenance && <details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer">Answer provenance · {msg.provenance.prompt_version}</summary><p className="mt-1 break-all">Analysis {msg.provenance.analysis_version}<br />Prompt {msg.provenance.prompt_version_id}<br />SHA-256 {msg.provenance.prompt_content_sha256}</p></details>}
+                {msg.provenance && <details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer">Answer provenance · {msg.provenance.prompt_version}</summary><p className="mt-1 break-all">Analysis {msg.provenance.analysis_version}<br />Prompt {msg.provenance.prompt_version_id}<br />SHA-256 {msg.provenance.prompt_content_sha256}{msg.provenance.evidence_sha256 && <><br />Evidence SHA-256 {msg.provenance.evidence_sha256}</>}{msg.provenance.renderer_version && <><br />Renderer {msg.provenance.renderer_version}</>}</p>{msg.provenance.read_events && <pre className="mt-2 overflow-auto whitespace-pre-wrap break-all">{JSON.stringify(msg.provenance.read_events,null,2)}</pre>}</details>}
               </div>
             </div>
           ))}
@@ -543,7 +551,7 @@ export function ChatPanel({
                   handleSend();
                 }
               }}
-              placeholder={http2Study ? "Ask about HTTP/2 cases, discrepancies, or sources..." : leoStudy ? "Ask about satellite capacity, placement, or source evidence..." : realWorld ? "Ask about EC2 test results, or paste a test ID..." : "Ask about benchmarks, results, or congestion control..."}
+              placeholder={reliableStudy ? "Ask about sketch accuracy, memory, or source coverage..." : http2Study ? "Ask about HTTP/2 cases, discrepancies, or sources..." : leoStudy ? "Ask about satellite capacity, placement, or source evidence..." : realWorld ? "Ask about EC2 test results, or paste a test ID..." : "Ask about benchmarks, results, or congestion control..."}
               disabled={isLoading}
               className="min-w-0 flex-1 resize-y rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground transition focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-60"
             />

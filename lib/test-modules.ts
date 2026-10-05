@@ -3,6 +3,7 @@ export const REAL_WORLD_MODULE_PATH = "/module/congestion-control-real-world";
 export const DELAY_STUDY_MODULE_PATH = "/module/propagation-delay-study";
 export const LEO_STUDY_MODULE_PATH = "/module/leo-emergency-failover";
 export const HTTP2_STUDY_MODULE_PATH = "/module/http2-compliance-study";
+export const RELIABLE_STUDY_MODULE_PATH = "/module/reliable-sketch-study";
 
 // Keep saved links and old bookmarks usable after moving module pages.
 export const LEGACY_MODULE_ROUTES = [
@@ -18,6 +19,7 @@ export const LEGACY_MODULE_ROUTES = [
   { source: "/modules/propagation-delay-study", destination: DELAY_STUDY_MODULE_PATH },
   { source: "/modules/leo-emergency-failover", destination: LEO_STUDY_MODULE_PATH },
   { source: "/modules/http2-compliance-study", destination: HTTP2_STUDY_MODULE_PATH },
+  { source: "/modules/reliable-sketch-study", destination: RELIABLE_STUDY_MODULE_PATH },
 ];
 
 export type TestModuleSection = {
@@ -73,6 +75,19 @@ export const EMULATED_TESTS_MODULE = {
 
 export const TEST_MODULES: readonly TestModule[] = [
   EMULATED_TESTS_MODULE,
+  {
+    id: "reliable-sketch-study",
+    name: "ReliableSketch Study",
+    description: "Assess stream-counting bounds, released CPU behavior, memory accounting, source coverage, and limits of the IMC 2025 reproduction.",
+    status: "available",
+    href: RELIABLE_STUDY_MODULE_PATH,
+    sections: [
+      { href: `${RELIABLE_STUDY_MODULE_PATH}/test-results`, label: "Test Results", description: "Compare matched CPU configurations and separate published values from new synthetic measurements.", paths: [`${RELIABLE_STUDY_MODULE_PATH}/test-results`] },
+      { href: `${RELIABLE_STUDY_MODULE_PATH}/methods`, label: "Methods & Claims", description: "Inspect frozen protocols, correctness controls, coverage and release limitations.", paths: [`${RELIABLE_STUDY_MODULE_PATH}/methods`] },
+      { href: `${RELIABLE_STUDY_MODULE_PATH}/literature`, label: "Literature", description: "Review direct sources, hashes, access attempts and explicit reading gaps.", paths: [`${RELIABLE_STUDY_MODULE_PATH}/literature`] },
+      { href: `${RELIABLE_STUDY_MODULE_PATH}/chat`, label: "Chat with AI", description: "Discuss recorded counting evidence with module-specific read-only research tools.", paths: [`${RELIABLE_STUDY_MODULE_PATH}/chat`] },
+    ],
+  },
   {
     id: "http2-compliance-study",
     name: "HTTP/2 Compliance Study",

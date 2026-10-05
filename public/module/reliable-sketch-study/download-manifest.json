@@ -1,0 +1,10 @@
+{
+  "raw-cpu-v1.zip": {
+    "sha256": "bc220279b10b9a8642411140f43e8d8cb4db67e1a0d40d8f737cb677e840af6c",
+    "bytes": 13791149
+  },
+  "reproduction.zip": {
+    "sha256": "d3c3fa7dda7d8c57cd43aa8eac75df90cf1dbd6dcafd7aca28b6da4057fd0013",
+    "bytes": 633482
+  }
+}
