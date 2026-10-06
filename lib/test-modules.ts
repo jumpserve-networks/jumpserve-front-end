@@ -3,6 +3,7 @@ export const REAL_WORLD_MODULE_PATH = "/module/congestion-control-real-world";
 export const DELAY_STUDY_MODULE_PATH = "/module/propagation-delay-study";
 export const LEO_STUDY_MODULE_PATH = "/module/leo-emergency-failover";
 export const HTTP2_STUDY_MODULE_PATH = "/module/http2-compliance-study";
+export const IPV6_STUDY_MODULE_PATH = "/module/ipv6-dns-study";
 export const RELIABLE_STUDY_MODULE_PATH = "/module/reliable-sketch-study";
 
 // Keep saved links and old bookmarks usable after moving module pages.
@@ -19,6 +20,7 @@ export const LEGACY_MODULE_ROUTES = [
   { source: "/modules/propagation-delay-study", destination: DELAY_STUDY_MODULE_PATH },
   { source: "/modules/leo-emergency-failover", destination: LEO_STUDY_MODULE_PATH },
   { source: "/modules/http2-compliance-study", destination: HTTP2_STUDY_MODULE_PATH },
+  { source: "/modules/ipv6-dns-study", destination: IPV6_STUDY_MODULE_PATH },
   { source: "/modules/reliable-sketch-study", destination: RELIABLE_STUDY_MODULE_PATH },
 ];
 
@@ -75,6 +77,17 @@ export const EMULATED_TESTS_MODULE = {
 
 export const TEST_MODULES: readonly TestModule[] = [
   EMULATED_TESTS_MODULE,
+  {
+    id: "ipv6-dns-study", name: "IPv6 DNS Study",
+    description: "Assess historical DNS over IPv6 measurements, released-code discrepancies, standards wording and evidence limits.",
+    status: "available", href: IPV6_STUDY_MODULE_PATH,
+    sections: [
+      { href: `${IPV6_STUDY_MODULE_PATH}/test-results`, label: "Test Results", description: "Compare archived DNS configurations with published values and coverage.", paths: [`${IPV6_STUDY_MODULE_PATH}/test-results`] },
+      { href: `${IPV6_STUDY_MODULE_PATH}/methods`, label: "Methods & Claims", description: "Inspect frozen protocols, controls, discrepancies and limitations.", paths: [`${IPV6_STUDY_MODULE_PATH}/methods`] },
+      { href: `${IPV6_STUDY_MODULE_PATH}/literature`, label: "Literature", description: "Inspect direct sources, byte hashes, retrieval attempts and review gaps.", paths: [`${IPV6_STUDY_MODULE_PATH}/literature`] },
+      { href: `${IPV6_STUDY_MODULE_PATH}/chat`, label: "Chat with AI", description: "Discuss saved DNS evidence with module-specific read-only tools.", paths: [`${IPV6_STUDY_MODULE_PATH}/chat`] },
+    ],
+  },
   {
     id: "reliable-sketch-study",
     name: "ReliableSketch Study",

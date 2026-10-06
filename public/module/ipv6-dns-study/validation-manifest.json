@@ -1,0 +1,8 @@
+{
+  "validation.zip": {
+    "sha256": "b6737aaaa6c68f85141f0419fc55436d5be424ee26f377e53c3664f83eef5f70",
+    "bytes": 1330649,
+    "members": 43,
+    "scope": "Predeployment validation archive. Current deployed status is the public api/release response."
+  }
+}

@@ -271,6 +271,7 @@ export function ChatPanel({
 }) {
   const realWorld = moduleId === "congestion-control-real-world";
   const leoStudy = moduleId === "leo-emergency-failover";
+  const ipv6Study = moduleId === "ipv6-dns-study";
   const reliableStudy = moduleId === "reliable-sketch-study";
   const http2Study = moduleId === "http2-compliance-study";
   const [messages, setMessages] = useState<Message[]>([]);
@@ -449,10 +450,14 @@ export function ChatPanel({
             <div className="flex h-full items-center justify-center">
               <div className="text-center">
                 <p className="text-lg font-medium text-muted-foreground">
-                  {reliableStudy ? "Ask about ReliableSketch evidence" : http2Study ? "Ask about HTTP/2 evidence" : leoStudy ? "Ask about the LEO failover study" : realWorld ? "Ask about real-world test results" : "Ask me anything about your benchmarks"}
+                  {ipv6Study ? "Discuss archived IPv6 DNS percentages, matched configurations, source coverage and limits." : reliableStudy ? "Ask about ReliableSketch evidence" : http2Study ? "Ask about HTTP/2 evidence" : leoStudy ? "Ask about the LEO failover study" : realWorld ? "Ask about real-world test results" : "Ask me anything about your benchmarks"}
                 </p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  {(reliableStudy ? [
+                  {(ipv6Study ? [
+                    "Which published DNS cells reproduce, and what remains untested?",
+                    "Does the LGI comparison establish a causal effect?",
+                    "Which sources were completely reviewed?",
+                  ] : reliableStudy ? [
                     "What was reproduced, and what remains untested?",
                     "How does allocated memory differ from nominal memory?",
                     "Do these results validate the theorem or operational claims?",
@@ -551,7 +556,7 @@ export function ChatPanel({
                   handleSend();
                 }
               }}
-              placeholder={reliableStudy ? "Ask about sketch accuracy, memory, or source coverage..." : http2Study ? "Ask about HTTP/2 cases, discrepancies, or sources..." : leoStudy ? "Ask about satellite capacity, placement, or source evidence..." : realWorld ? "Ask about EC2 test results, or paste a test ID..." : "Ask about benchmarks, results, or congestion control..."}
+              placeholder={ipv6Study ? "Ask about DNS configurations, percentages, sources or discrepancies..." : reliableStudy ? "Ask about sketch accuracy, memory, or source coverage..." : http2Study ? "Ask about HTTP/2 cases, discrepancies, or sources..." : leoStudy ? "Ask about satellite capacity, placement, or source evidence..." : realWorld ? "Ask about EC2 test results, or paste a test ID..." : "Ask about benchmarks, results, or congestion control..."}
               disabled={isLoading}
               className="min-w-0 flex-1 resize-y rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground transition focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-60"
             />

@@ -149,3 +149,21 @@ test('ReliableSketch capability and answer evidence provenance survive the brows
  const result=await sendMessage('Explain memory','session-123','verified-session','reliable-sketch-study');
  assert.equal(calls[0].message,undefined);assert.equal(calls[1].module_id,'reliable-sketch-study');assert.equal(result.provenance.evidence_sha256,'evidence-hash');assert.deepEqual(result.provenance.read_events,answer_provenance.read_events);
 });
+
+test('IPv6 chat checks module capability and retains bounded evidence provenance', async (t) => {
+  const calls = [];
+  let supported = false;
+  const answer_provenance = { renderer_version: 'ipv6-renderer-v2', evidence_sha256: 'evidence-hash', read_events: [{ name: 'get_ipv6_configuration', input: { configuration_id: 'dnssec--mtu1500-v6-only-edns4096' } }] };
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    const body = JSON.parse(options.body); calls.push(body);
+    return Response.json(body.action === 'capabilities' ? { modules: supported ? ['ipv6-dns-study'] : [] } : { ...response, module_id: 'ipv6-dns-study', prompt_version: 'ipv6-evidence-v3', prompt_version_id: 'saved-prompt', prompt_content_sha256: 'prompt-hash', analysis_version: 'ipv6-dns-assessment-v1', answer_provenance });
+  });
+  const sendIPv6 = () => sendMessage('Compare DNS outcomes', 'ipv6-session', 'verified-session', 'ipv6-dns-study');
+  await assert.rejects(sendIPv6, /has not enabled IPv6 DNS study chat/);
+  assert.equal(calls.length, 1); assert.equal(calls[0].message, undefined);
+  supported = true;
+  const result = await sendIPv6();
+  assert.equal(calls[2].module_id, 'ipv6-dns-study');
+  assert.equal(result.provenance.renderer_version, 'ipv6-renderer-v2');
+  assert.deepEqual(result.provenance.read_events, answer_provenance.read_events);
+});

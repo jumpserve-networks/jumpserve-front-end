@@ -29,7 +29,7 @@ export interface AgentResponse {
   provenance?: { prompt_version: string; prompt_version_id: string; prompt_content_sha256: string; analysis_version: string; evidence_sha256?: string; renderer_version?: string; read_events?: Array<{name:string;input:unknown}> };
 }
 
-export type ChatModule = "congestion-control-emulated" | "congestion-control-real-world" | "leo-emergency-failover" | "http2-compliance-study" | "reliable-sketch-study";
+export type ChatModule = "congestion-control-emulated" | "congestion-control-real-world" | "leo-emergency-failover" | "http2-compliance-study" | "reliable-sketch-study" | "ipv6-dns-study";
 
 export async function sendMessage(
   message: string,
@@ -39,7 +39,7 @@ export async function sendMessage(
 ): Promise<AgentResponse> {
   if (!accessToken) throw new Error("Sign in to chat with the AI.");
   const url = getAgentUrl();
-  const unavailable = `The AI service has not enabled ${moduleId === "reliable-sketch-study" ? "ReliableSketch study" : moduleId === "http2-compliance-study" ? "HTTP/2 study" : moduleId === "leo-emergency-failover" ? "LEO study" : "real-world"} chat yet. Please contact the site administrator.`;
+  const unavailable = `The AI service has not enabled ${moduleId === "ipv6-dns-study" ? "IPv6 DNS study" : moduleId === "reliable-sketch-study" ? "ReliableSketch study" : moduleId === "http2-compliance-study" ? "HTTP/2 study" : moduleId === "leo-emergency-failover" ? "LEO study" : "real-world"} chat yet. Please contact the site administrator.`;
   if (moduleId !== "congestion-control-emulated") {
     // Older agents ignore module_id. Check capabilities before sending the question.
     const capability = await fetch(url, {
