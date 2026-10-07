@@ -1,5 +1,10 @@
 # Research Verification module
 
+The public production release check is `npm run verify:research:production`. It
+uses only the canonical JumpServe origin, never signs in or submits owner writes,
+and preserves timestamped desktop/mobile evidence. Teaching queue downloads remain
+synthetic. A successful public check does not establish Google owner execution.
+
 The owner workspace now includes a dependency-aware claim queue. Claims retain
 separate scientific assessments; campaigns execute bounded checks. Prerequisites
 require complete recorded runs or accepted claim evidence. Slots, declared shared
