@@ -20,7 +20,7 @@ try{
  async function visit(suffix){const response=await page.goto(origin+path+suffix,{waitUntil:'domcontentloaded',timeout:30000});assert.equal(response.status(),200);assert.ok(!(await page.locator('body').innerText()).includes('Application error:'));}
  async function select(label,text){await page.getByRole('combobox',{name:label,exact:true}).click();await page.getByRole('option',{name:text,exact:true}).click();}
  await check('production navigation and meaningful empty publication state',async()=>{
-  await page.goto(origin,{waitUntil:'domcontentloaded'});await page.getByRole('link',{name:'Research Verification',exact:true}).first().waitFor();
+  await page.goto(origin,{waitUntil:'domcontentloaded'});await page.locator(`a[href="${path}"]`).first().waitFor();
   await visit('');await page.getByRole('link',{name:'Assess a paper',exact:true}).first().waitFor();
   await visit('/test-results');await page.getByRole('heading',{name:'No published assessments yet',exact:true}).waitFor();assert.match(await page.locator('main').innerText(),/Private drafts and planned experiments are not completed studies/);
   await page.screenshot({path:directory+'/desktop-empty-results.png',fullPage:true});return {published_studies:0,empty_is_not_zero_claims:true};
