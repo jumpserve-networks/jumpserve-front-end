@@ -5,6 +5,7 @@ export const LEO_STUDY_MODULE_PATH = "/module/leo-emergency-failover";
 export const HTTP2_STUDY_MODULE_PATH = "/module/http2-compliance-study";
 export const IPV6_STUDY_MODULE_PATH = "/module/ipv6-dns-study";
 export const RELIABLE_STUDY_MODULE_PATH = "/module/reliable-sketch-study";
+export const RESEARCH_WORKFLOW_MODULE_PATH = "/module/research-verification";
 
 // Keep saved links and old bookmarks usable after moving module pages.
 export const LEGACY_MODULE_ROUTES = [
@@ -22,6 +23,7 @@ export const LEGACY_MODULE_ROUTES = [
   { source: "/modules/http2-compliance-study", destination: HTTP2_STUDY_MODULE_PATH },
   { source: "/modules/ipv6-dns-study", destination: IPV6_STUDY_MODULE_PATH },
   { source: "/modules/reliable-sketch-study", destination: RELIABLE_STUDY_MODULE_PATH },
+  { source: "/modules/research-verification", destination: RESEARCH_WORKFLOW_MODULE_PATH },
 ];
 
 export type TestModuleSection = {
@@ -77,6 +79,17 @@ export const EMULATED_TESTS_MODULE = {
 
 export const TEST_MODULES: readonly TestModule[] = [
   EMULATED_TESTS_MODULE,
+  {
+    id: "research-verification", name: "Research Verification",
+    description: "Assess research claims with versioned sources, frozen protocols, recorded campaigns and an actionable evidence-gap queue.",
+    status: "available", href: RESEARCH_WORKFLOW_MODULE_PATH,
+    sections: [
+      { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/test-results`, label: "Published Assessments", description: "Read published evidence, claim coverage and next experiments.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/test-results`, `${RESEARCH_WORKFLOW_MODULE_PATH}/studies`] },
+      { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/new-study`, label: "Assess a Paper", description: "Record a paper, domain and reproduction scope.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/new-study`] },
+      { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`, label: "My Studies", description: "Build source inventories, freeze protocols and preserve evidence.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`] },
+      { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/methods`, label: "Workflow & Methods", description: "Choose appropriate checks and understand publication criteria.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/methods`] },
+    ],
+  },
   {
     id: "ipv6-dns-study", name: "IPv6 DNS Study",
     description: "Assess historical DNS over IPv6 measurements, released-code discrepancies, standards wording and evidence limits.",

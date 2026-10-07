@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "node --test tests/*.test.mjs",
     "verify:http2": "node scripts/verify-http2-study.mjs",
-    "ui:add": "shadcn add"
+    "ui:add": "shadcn add",
+    "verify:research": "node scripts/verify-research-workflow.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -33,6 +34,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "playwright": "1.62.1",
     "shadcn": "^4.21.0",
     "tailwindcss": "^4",
     "typescript": "^5"

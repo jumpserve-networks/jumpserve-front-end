@@ -1,0 +1,9 @@
+import Link from "next/link";
+import { ResearchHeader } from "@/app/components/research-workflow/header";
+import { getResearchStudies } from "@/lib/research-workflow-server";
+import { RESEARCH_WORKFLOW_MODULE_PATH as PATH } from "@/lib/test-modules";
+export const dynamic = "force-dynamic";
+export default async function Results() {
+  const result = await getResearchStudies();
+  return <main className="mx-auto max-w-6xl space-y-6 px-4 py-6"><ResearchHeader title="Published research assessments" description="Review tested conditions, original sources, numerical comparisons and evidence gaps. Scientific coverage and software readiness are reported separately." />{result.status !== "available" ? <p role="status" className="rounded-lg border p-4 text-sm">{result.reason}</p> : result.data.studies.length === 0 ? <section className="space-y-2 rounded-lg border p-5"><h2 className="font-semibold">No published assessments yet</h2><p className="text-sm text-muted-foreground">Private drafts and planned experiments are not completed studies. Start a paper assessment and publish a reviewed snapshot when its declared checks pass.</p><Link className="text-sm underline" href={`${PATH}/new-study`}>Assess a paper</Link></section> : <><div className="grid gap-4 md:grid-cols-2">{result.data.studies.map(study => <article key={study.id} className="space-y-3 rounded-lg border p-5"><p className="text-xs text-muted-foreground">{study.domain}</p><h2 className="font-semibold"><Link className="underline" href={`${PATH}/studies/${study.id}`}>{study.title}</Link></h2><p className="text-sm text-muted-foreground">{study.scope}</p><Link className="text-sm underline" href={`${PATH}/studies/${study.id}?view=gaps`}>Evidence gaps and next experiments</Link></article>)}</div>{result.data.has_more ? <p className="text-sm">Showing the first 100 published studies. Additional studies exist; this list is not a census.</p> : null}</>}</main>;
+}
