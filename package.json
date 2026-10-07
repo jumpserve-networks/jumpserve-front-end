@@ -11,6 +11,7 @@
     "verify:http2": "node scripts/verify-http2-study.mjs",
     "ui:add": "shadcn add",
     "verify:research": "node scripts/verify-research-workflow.mjs",
+    "verify:research:preparation": "node scripts/verify-research-preparation.mjs",
     "verify:research:production": "node scripts/verify-research-production.mjs"
   },
   "dependencies": {

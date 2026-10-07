@@ -11,6 +11,10 @@ import { RESEARCH_WORKFLOW_MODULE_PATH as PATH } from "@/lib/test-modules";
 import { ResearchSelect } from "@/app/components/research-workflow/select";
 import { StudyPanel, type StudyView } from "@/app/components/research-workflow/study-panel";
 import { ClaimQueue } from "@/app/components/research-workflow/claim-queue";
+import { StudyPreparation } from "@/app/components/research-workflow/preparation";
+import { PaperPreparation } from "@/app/components/research-workflow/paper-preparation";
+import { Checkbox } from "@/app/components/ui/checkbox";
+import { prepareAndQueue, validatePreparation } from "@/lib/research-preparation";
 
 const REVIEWER = { identity: "Authenticated study contributor", type: "human", independence: "Study contributor; independent review not asserted" };
 const NULLABLE = new Set(["source_url", "retrieved_url", "retrieved_version", "sha256", "byte_count", "supersedes_id", "amendment_reason", "followup_of", "campaign_id", "assessment_id", "estimated_cost_usd"]);
@@ -41,6 +45,9 @@ export function PaperIntake() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [prepare, setPrepare] = useState(true);
+  const [progress, setProgress] = useState("");
+  const [savedStudy, setSavedStudy] = useState<string | null>(null);
   const request = useRef("");
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setError("");
@@ -48,11 +55,17 @@ export function PaperIntake() {
     if (!request.current) request.current = crypto.randomUUID();
     try {
       const study = await researchRequest<ResearchStudy>("/studies", { method: "POST", body: JSON.stringify({ request_id: request.current, paper: { title: data.get("title"), paper_url: data.get("paper_url"), domain: data.get("domain"), scope: data.get("scope"), origin_module: null } }) });
+      setSavedStudy(study.id);
+      if (prepare) {
+        setProgress("Checking available preparation plans…");
+        const status = validatePreparation(await researchRequest(`/studies/${study.id}/prepare`));
+        if (status.available_plan) await prepareAndQueue(study.id, request.current, setProgress, researchRequest);
+      }
       router.push(`${PATH}/workspace/${study.id}`);
     } catch (failure) { setError(errorText(failure)); }
     finally { setBusy(false); }
   }
-  return <form onSubmit={submit} className="max-w-3xl space-y-4 rounded-lg border p-5"><p className="text-sm text-muted-foreground">Record the paper and intended scope. Intake does not infer claims, download arbitrary URLs or declare validation complete.</p>{[["title", "Paper title", "text"], ["paper_url", "Paper URL or DOI URL", "url"], ["domain", "Research domain", "text"]].map(([name, text, type]) => <label key={name} className="block space-y-2 text-sm"><span className="font-medium">{text}</span><Input required type={type} name={name} maxLength={name === "title" ? 300 : 5000} /></label>)}<label className="block space-y-2 text-sm"><span className="font-medium">Reproduction scope</span><Textarea name="scope" required maxLength={5000} placeholder="Which claims, populations, inputs and conditions will the assessment cover?" /></label>{error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}<Button disabled={busy} type="submit">{busy ? "Creating study…" : "Create private study"}</Button></form>;
+  return <form onSubmit={submit} className="max-w-3xl space-y-4 rounded-lg border p-5"><p className="text-sm text-muted-foreground">Create a private study and prepare its available checks. Supported papers use a versioned source-grounded plan. Other papers need a reviewed domain plan in the workspace; missing inputs and specialist experiments remain explicit operator work.</p>{[["title", "Paper title", "text"], ["paper_url", "Paper URL or DOI URL", "url"], ["domain", "Research domain", "text"]].map(([name, text, type]) => <label key={name} className="block space-y-2 text-sm"><span className="font-medium">{text}</span><Input required type={type} name={name} maxLength={name === "title" ? 300 : 5000} disabled={busy || savedStudy !== null} /></label>)}<label className="block space-y-2 text-sm"><span className="font-medium">Reproduction scope</span><Textarea name="scope" required maxLength={5000} disabled={busy || savedStudy !== null} placeholder="Which claims, populations, inputs and conditions will the assessment cover?" /></label><label className="flex items-start gap-2 text-sm"><Checkbox checked={prepare} disabled={busy || savedStudy !== null} onCheckedChange={value => setPrepare(Boolean(value))} /><span>Prepare available checks and queue them after saving the study. Earlier evidence keeps its original scope; claim review remains separate.</span></label>{progress ? <p role="status" className="text-sm">{progress}</p> : null}{error ? <p role="alert" className="text-sm text-destructive">{error} {savedStudy ? "The study was saved; resume preparation from its workspace." : ""}</p> : null}{savedStudy ? <Link className="block text-sm underline" href={`${PATH}/workspace/${savedStudy}`}>Open saved study and resume preparation</Link> : <Button disabled={busy} type="submit">{busy ? "Saving and preparing…" : prepare ? "Create study and prepare checks" : "Create private study draft"}</Button>}</form>;
 }
 
 export function OwnerStudies() {
@@ -169,5 +182,5 @@ export function StudyWorkspace({ studyId, view }: { studyId: string; view: Study
   }
   if (error) return <p role="alert" className="rounded-lg border p-4 text-sm text-destructive">{error}</p>;
   if (!snapshot) return <p role="status">Loading the owner-scoped study…</p>;
-  return <div className="space-y-6"><h2 className="text-xl font-semibold">{snapshot.study.title}</h2><div className="flex flex-wrap gap-3"><Button size="sm" variant="outline" onClick={download}>Download draft JSON</Button><Link className="text-sm underline" href={`${PATH}/studies/${studyId}`}>View published snapshot</Link></div><StudyPanel snapshot={snapshot} view={view} basePath={`${PATH}/workspace/${studyId}`} /><ClaimQueue snapshot={snapshot} onEvidenceChanged={reload} /><section className="space-y-4 rounded-lg border p-5"><h2 className="text-lg font-semibold">Build and preserve the study</h2>{[["Add sources, claims, assessments and evidence gaps", <RecordEditor key="records" snapshot={snapshot} onSaved={reload} />], ["Freeze a protocol or amendment", <ProtocolEditor key="protocol" snapshot={snapshot} onSaved={reload} />], ["Execute a bounded numerical campaign", <CampaignRunner key="runner" snapshot={snapshot} onSaved={reload} />], ["Publish a reviewed snapshot", <Publication key="publication" snapshot={snapshot} onSaved={reload} />]].map(([title, form]) => <details key={title as string} className="rounded-lg border p-4"><summary className="cursor-pointer text-sm font-medium">{title}</summary><div className="mt-4">{form}</div></details>)}</section></div>;
+  return <div className="space-y-6"><h2 className="text-xl font-semibold">{snapshot.study.title}</h2><div className="flex flex-wrap gap-3"><Button size="sm" variant="outline" onClick={download}>Download draft JSON</Button><Link className="text-sm underline" href={`${PATH}/studies/${studyId}`}>View published snapshot</Link></div><PaperPreparation studyId={studyId} onSaved={reload} /><StudyPreparation snapshot={snapshot} /><StudyPanel snapshot={snapshot} view={view} basePath={`${PATH}/workspace/${studyId}`} /><ClaimQueue snapshot={snapshot} onEvidenceChanged={reload} /><section className="space-y-4 rounded-lg border p-5"><h2 className="text-lg font-semibold">Build and preserve the study</h2>{[["research-records", "Add sources, claims, assessments and evidence gaps", <RecordEditor key="records" snapshot={snapshot} onSaved={reload} />], ["research-protocol", "Freeze a protocol or amendment", <ProtocolEditor key="protocol" snapshot={snapshot} onSaved={reload} />], ["research-runner", "Execute a bounded numerical campaign", <CampaignRunner key="runner" snapshot={snapshot} onSaved={reload} />], ["research-publication", "Publish a reviewed snapshot", <Publication key="publication" snapshot={snapshot} onSaved={reload} />]].map(([id, title, form]) => <details id={id as string} key={id as string} className="scroll-mt-24 rounded-lg border p-4"><summary className="cursor-pointer text-sm font-medium">{title}</summary><div className="mt-4">{form}</div></details>)}</section></div>;
 }

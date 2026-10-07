@@ -6,9 +6,12 @@ import { chromium } from 'playwright';
 const origin='http://localhost:3004', path='/module/research-verification';
 const ipv6='953f20a3-3fd8-4fb4-8844-5d4d72690e01', numeric='953f20a3-3fd8-4fb4-8844-5d4d72690e10';
 const directory='.test-artifacts/research-workflow';await mkdir(directory,{recursive:true});
+const intakeOnly=process.argv.slice(2).includes('--intake');
+if(process.argv.slice(2).some(arg=>arg!=='--intake'))throw new Error('Only the fixed --intake verification subset is supported.');
 const stamp=new Date().toISOString().replaceAll(':','-');
 const report={version:1,started_at:new Date().toISOString(),origin,design:'Development checks; actual public backend and isolated Postgres anon RLS via test-only SQL transport. Synthetic numerical/review fixtures are not scientific validation.',reviewer:{identity:'Primary Codex implementer',type:'AI',independence:'Not independent'},checks:[],errors:[],browser_errors:[],conditional_gaps:['No legitimate Google session or authenticated owner/chat request','No production deployment or remote Supabase Storage verification']};
-async function check(name,action){try{report.checks.push({name,passed:true,evidence:await action()});console.log('PASS '+name);}catch(error){report.errors.push({name,reason:error.message});throw error;}}
+if(intakeOnly)report.design='Development browser checks of the actual preparation display on a labeled synthetic empty-study example and real sign-in return paths. No database fixture, owner identity, API mutation or scientific assessment is simulated.';
+async function check(name,action){if(intakeOnly&&!['unprepared study explains why no jobs start','sign-in return paths preserve owner study view'].includes(name))return;try{report.checks.push({name,passed:true,evidence:await action()});console.log('PASS '+name);}catch(error){report.errors.push({name,reason:error.message});throw error;}}
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 let browser;
 try {
@@ -20,6 +23,26 @@ try {
   page.on('console',message=>{if(message.type()==='error')report.browser_errors.push(message.text());});
   async function visit(suffix){const response=await page.goto(origin+path+suffix,{waitUntil:'domcontentloaded',timeout:30000});assert.equal(response.status(),200);assert.ok(!(await page.locator('body').innerText()).includes('Application error:'));}
   async function select(label,text){await page.getByRole('combobox',{name:label,exact:true}).click();await page.getByRole('option',{name:text,exact:true}).click();await page.waitForFunction(()=>Array.from(document.querySelectorAll('[data-slot="select-content"]')).every(element=>{const style=getComputedStyle(element);return style.display==='none'||style.visibility==='hidden'||Number(style.opacity)===0||element.getBoundingClientRect().height===0;}));}
+  await check('unprepared study explains why no jobs start',async()=>{
+    await visit('/methods');await page.getByText('Explore an illustrative claim queue',{exact:true}).click();await select('Queue example state','New study awaiting preparation');
+    const preparation=page.getByRole('region',{name:'Assessment preparation'});
+    await preparation.getByRole('heading',{name:'Assessment preparation required'}).waitFor();
+    assert.match(await preparation.innerText(),/available source-grounded plan and enqueue its campaigns/);
+    assert.match(await preparation.innerText(),/Next step: add sources/);assert.equal(await preparation.locator('ol > li').count(),6);
+    assert.equal(await page.getByTestId('claim-queue').locator('tbody tr').count(),0);assert.match(await page.getByTestId('claim-queue').innerText(),/No jobs queued/);
+    for(const width of [1365,390]){
+      await page.setViewportSize({width,height:width===390?844:900});
+      for(const theme of ['Light Mode','Dark Mode']){
+        if(width===390)await page.getByRole('button',{name:'Open module menu',exact:true}).click();await select('Theme',theme);
+        if(width===390){await page.getByRole('button',{name:'Close',exact:true}).click();await page.locator('[data-slot="sheet-content"]').waitFor({state:'hidden'});}
+        await page.waitForFunction(dark=>document.documentElement.classList.contains('dark')===dark,theme==='Dark Mode');
+        assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+        await preparation.evaluate(element => window.scrollTo(0, element.getBoundingClientRect().top + window.scrollY - 90));
+        await page.screenshot({path:`${directory}/${stamp}-preparation-${width}-${theme==='Dark Mode'?'dark':'light'}.png`,fullPage:false});
+      }
+    }
+    return {origin:'Synthetic teaching fixture with the actual preparation display; not an authenticated owner request',claims:0,jobs:0,missing_setup_steps:6,viewports:[1365,390],themes:['light','dark'],owner_preparation_not_verified_by_this_case:true};
+  });
   await check('public module navigation and study listing',async()=>{await visit('');await page.getByRole('link',{name:'Published Assessments',exact:true}).first().click();await page.waitForURL('**/test-results');await page.getByRole('link',{name:/How I learned/}).waitFor();return {studies:2};});
   await check('real IPv6 imported claim coverage and nine gaps',async()=>{await visit('/studies/'+ipv6);const text=await page.getByRole('region',{name:'Current claim coverage'}).innerText().catch(()=>page.locator('[aria-label="Current claim coverage"]').innerText());assert.match(text,/Reproduced\s+3/);assert.match(text,/Discrepant\s+3/);assert.match(text,/Inconclusive\s+5/);assert.match(text,/Untested\s+4/);await page.getByRole('link',{name:'Evidence gaps & next experiments',exact:true}).click();await page.getByRole('heading',{name:'Evidence gaps and next experiments',exact:true}).waitFor();assert.equal(await page.locator('article[id^="gap-"]').count(),9);await page.screenshot({path:`${directory}/${stamp}-desktop-ipv6-gaps.png`,fullPage:false});return {sources:74,claims:15,reproduced:3,discrepant:3,inconclusive:5,untested:4,gaps:9,scientific_labels_changed:false};});
   await check('literature versions hashes omissions and protocol limits',async()=>{await visit('/studies/'+ipv6+'?view=literature');assert.equal(await page.locator('main article').count(),74);await page.getByText('Reported original-byte SHA256:',{exact:false}).first().waitFor();await visit('/studies/'+ipv6+'?view=methods');await page.getByText('No shared-workflow protocol frozen.',{exact:false}).waitFor();return {literature_records:74,import_is_register_only:true};});

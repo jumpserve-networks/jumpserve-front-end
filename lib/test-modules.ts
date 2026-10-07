@@ -85,7 +85,7 @@ export const TEST_MODULES: readonly TestModule[] = [
     status: "available", href: RESEARCH_WORKFLOW_MODULE_PATH,
     sections: [
       { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/test-results`, label: "Published Assessments", description: "Read published evidence, claim coverage and next experiments.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/test-results`, `${RESEARCH_WORKFLOW_MODULE_PATH}/studies`] },
-      { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/new-study`, label: "Assess a Paper", description: "Record a paper, domain and reproduction scope.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/new-study`] },
+      { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/new-study`, label: "Assess a Paper", description: "Create a study, prepare available domain plans and queue their checks.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/new-study`] },
       { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`, label: "My Studies", description: "Build source inventories, freeze protocols and preserve evidence.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`] },
       { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/methods`, label: "Workflow & Methods", description: "Choose appropriate checks and understand publication criteria.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/methods`] },
     ],

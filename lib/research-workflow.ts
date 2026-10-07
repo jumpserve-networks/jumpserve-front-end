@@ -10,6 +10,19 @@ export type ResearchRecord = { id: string; study_id: string; created_at: string;
 export const RECORD_KINDS = ["sources", "claims", "protocols", "configurations", "campaigns", "claim_checks", "runs", "published_values", "measurements", "summaries", "assessments", "gaps", "reviews", "publications"] as const;
 export type RecordKind = typeof RECORD_KINDS[number];
 export type ResearchSnapshot = { study: ResearchStudy; access: "owner-draft" | "published-snapshot"; records: Record<RecordKind, ResearchRecord[]>; coverage: Record<RecordKind, number> };
+export function preparationSteps(snapshot: ResearchSnapshot) {
+  const protocols = new Set(snapshot.records.protocols.map(row => row.id));
+  const campaigns = new Set(snapshot.records.campaigns.filter(row => protocols.has(String(row.protocol_id))).map(row => row.id));
+  const linked = new Set(snapshot.records.claim_checks.filter(row => row.applicability === "applicable" && campaigns.has(String(row.campaign_id))).map(row => row.campaign_id));
+  return [
+    { id: "sources", label: "Source records", count: snapshot.records.sources.length, editor: "research-records", action: "Add sources", description: "Retrieve and review the paper, its artifacts and direct references; record versions and access limits." },
+    { id: "claims", label: "Sourced claims", count: snapshot.records.claims.length, editor: "research-records", action: "Add claims", description: "Record each claim with its source location, conditions and units." },
+    { id: "configurations", label: "Configurations", count: snapshot.records.configurations.length, editor: "research-records", action: "Add configurations", description: "Record the exact configurations and input versions for the proposed checks." },
+    { id: "protocols", label: "Frozen protocols", count: snapshot.records.protocols.length, editor: "research-protocol", action: "Freeze a protocol", description: "Declare the method, inputs, comparison rules, dependence, resource budget and stopping rule before execution." },
+    { id: "campaigns", label: "Campaigns with protocols", count: campaigns.size, editor: "research-records", action: "Add a campaign", description: "Choose an appropriate implementation and link each campaign to a frozen protocol." },
+    { id: "claim_checks", label: "Campaigns linked to applicable claims", count: linked.size, editor: "research-records", action: "Link claim checks", description: "Link the applicable claims to their campaigns, then queue a campaign with its exact inputs." },
+  ];
+}
 export function researchApiBase(value: string | undefined): string | undefined {
   if (!value?.trim()) return undefined;
   const url = new URL(value.trim());
