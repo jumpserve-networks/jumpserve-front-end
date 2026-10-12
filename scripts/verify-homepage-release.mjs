@@ -10,10 +10,12 @@ assert.ok(args.length <= 1 && (!args.length || ["--built", "--production"].inclu
 const origin = args[0] === "--production" ? "https://jumpserve.quaint-lab.org" : args[0] === "--built" ? "http://localhost:6101" : "http://localhost:6001";
 const path = "/module/research-verification";
 const protocol = await readFile(new URL("../docs/homepage-release-protocol-v1.json", import.meta.url));
+const amendment = await readFile(new URL("../docs/homepage-release-amendment-v2.json", import.meta.url));
 const directory = `.test-artifacts/homepage-release/${new Date().toISOString().replaceAll(":", "-")}`;
 await mkdir(directory, { recursive: true });
 const report = {
   origin, protocol: "homepage-release-protocol-v1", protocol_sha256: createHash("sha256").update(protocol).digest("hex"),
+  amendment: "homepage-release-amendment-v2", amendment_sha256: createHash("sha256").update(amendment).digest("hex"),
   started_at: new Date().toISOString(), checks: [], errors: [], browser_errors: [],
   reviewer: { identity: "Primary Codex AI implementer", type: "AI", independent: false },
   conditional_gaps: ["No legitimate Google session: provider round trip, authenticated homepage continuation and owner actions not exercised.", "No authenticated chat, new scientific experiments or model evaluations in this presentation release."],
@@ -27,6 +29,31 @@ let browser;
 try {
   const chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
   browser = await chromium.launch({ headless: true, executablePath: existsSync(chrome) ? chrome : undefined });
+  await check("first filter interaction with delayed original scripts", async () => {
+    const context = await browser.newContext({ viewport: { width: 1365, height: 900 } });
+    const page = await context.newPage();
+    page.setDefaultTimeout(15000);
+    page.on("pageerror", error => report.browser_errors.push(error.message));
+    page.on("console", message => { if (message.type() === "error") report.browser_errors.push(message.text()); });
+    let releaseScripts;
+    const gate = new Promise(resolve => { releaseScripts = resolve; });
+    await context.route("**/_next/static/**/*.js", async route => { await gate; await route.continue(); });
+    const navigation = page.goto(origin, { waitUntil: "domcontentloaded", timeout: 30000 });
+    navigation.catch(() => {});
+    try {
+      const input = page.getByRole("searchbox", { name: "Filter by title", exact: true });
+      await input.waitFor({ state: "visible" });
+      assert.ok(await input.isDisabled(), "Filter must not accept input before its event handlers are ready");
+      const previous = page.locator('section[aria-labelledby="previous-results-title"]');
+      assert.equal(await previous.getByRole("heading", { level: 3 }).count(), 7);
+      releaseScripts();
+      await navigation;
+      await input.fill("IPv6");
+      await previous.getByRole("status").filter({ hasText: "1 of 7 titles" }).waitFor();
+      assert.deepEqual(await previous.getByRole("heading", { level: 3 }).allTextContents(), ["IPv6 DNS Study"]);
+      return { before_scripts: "Seven titles visible; filter disabled", first_accepted_fill: "One IPv6 title", script_transport: "Original requests continued after controlled delay" };
+    } finally { releaseScripts(); await context.close(); }
+  });
   for (const width of [1365, 390]) for (const theme of ["light", "dark"]) {
     const context = await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 900 }, colorScheme: theme });
     await context.addInitScript(preference => localStorage.setItem("theme-preference", preference), theme);
@@ -72,6 +99,7 @@ try {
       await filter("   ", 7); await filter("", 7);
       await page.waitForFunction(dark => document.documentElement.classList.contains("dark") === dark, theme === "dark");
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+      await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({ path: `${directory}/homepage-${width}-${theme}.png`, fullPage: true });
       const resultLinks = await previous.locator("a").filter({ hasText: "View results" }).evaluateAll(links => links.map(link => link.getAttribute("href")));
       const methodsLinks = await previous.getByRole("link", { name: "Methods & tools", exact: true }).evaluateAll(links => links.map(link => link.getAttribute("href")));

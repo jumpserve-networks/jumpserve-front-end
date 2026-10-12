@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -9,8 +9,12 @@ import { Input } from "@/app/components/ui/input";
 import { TEST_MODULES } from "@/lib/test-modules";
 
 const RESULT_MODULES = TEST_MODULES.filter((module) => module.id !== "research-verification");
+const subscribeToHydration = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
 
 export function PreviousStudyResults() {
+  const isInteractive = useSyncExternalStore(subscribeToHydration, clientSnapshot, serverSnapshot);
   const [titleFilter, setTitleFilter] = useState("");
   const inputId = useId();
   const countId = useId();
@@ -27,6 +31,7 @@ export function PreviousStudyResults() {
             ref={inputRef}
             id={inputId}
             type="search"
+            disabled={!isInteractive}
             value={titleFilter}
             onChange={(event) => setTitleFilter(event.target.value)}
             placeholder="Search assessment or test titles…"

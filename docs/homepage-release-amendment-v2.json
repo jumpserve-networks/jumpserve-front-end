@@ -1,0 +1,17 @@
+{
+  "id": "homepage-release-amendment-v2",
+  "version": 2,
+  "parent_protocol": "homepage-release-protocol-v1",
+  "declared_on": "2026-10-12",
+  "reason": "The initial production browser campaign on ac99d2a timed out after the first filter change. A separate diagnostic recorded a filled input with seven unchanged titles and a disabled Clear button before script responses, followed by one title and an enabled Clear button after the load event and a second distinct fill.",
+  "evidence": [
+    ".test-artifacts/homepage-release/2026-10-12T18-47-09.370Z/browser-report.json",
+    ".test-artifacts/homepage-release-targets/production-filter-pilot.json"
+  ],
+  "correction": "Keep the filter disabled during server rendering and initial hydration; enable it when React switches to the client snapshot. Public titles and links remain visible while scripts load. Preserve the original implementation commit, protocol, failed reports and diagnostic.",
+  "additional_release_blocker": "With original Next.js scripts temporarily withheld, seven titles are readable and the filter is disabled. Release the same script requests; the first accepted fill must filter to one IPv6 title without another edit.",
+  "additional_control": "One fresh browser context with script-request scheduling controlled by the verifier. No synthetic script bytes, substituted data, automated retries or authenticated writes. This tests startup interaction timing, not scientific claims.",
+  "limits": {"browser_contexts": 5, "page_timeout_ms": 30000, "action_timeout_ms": 15000},
+  "unchanged_criteria": "All original homepage, catalogue, theme, navigation, target and sign-in checks still apply. Actual Google authentication remains conditional without a legitimate session.",
+  "review": "AI implementer development regression after observing a failure; not independent or held-out validation."
+}
