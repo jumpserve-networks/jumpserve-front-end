@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     default: "Jumpserve",
     template: "%s | Jumpserve",
   },
-  description: "Choose a JumpServe test module to run networking experiments, explore results, and compare measurements.",
+  description: "Assess academic research paper claims and test unpublished hypotheses with experiments, measurements and reproducible evidence.",
 };
 
 const themeInitScript = `

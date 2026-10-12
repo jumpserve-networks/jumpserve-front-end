@@ -29,7 +29,18 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:6001`. Both `npm run dev` and `npm start` default to port
+6001; an explicit `PORT` environment variable or `--port` argument overrides it.
+When using another local port, match `NEXT_PUBLIC_SITE_URL` to that origin.
+
+For local Google sign-in, include `http://localhost:6001/auth/callback*` in the
+Supabase Authentication Redirect URLs. The wildcard preserves the requested page
+through the callback's `next` query parameter.
+
+The development command allows up to 64 KiB of request headers. Browsers share
+localhost cookies across ports, and accumulated cookies can exceed Node's default
+16 KiB limit and cause HTTP 431 before Next.js handles the request. If 431 persists,
+remove the saved cookies for localhost in your browser and sign in again as needed.
 
 ## Test modules
 

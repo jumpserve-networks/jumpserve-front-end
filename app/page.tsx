@@ -5,8 +5,8 @@ import { isGoogleAuthenticatedUser } from "@/lib/auth-provider";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "Network Experimentation",
-  description: "JumpServe is a platform for networking research. Configure experiments, inspect network measurements, and compare congestion control behavior.",
+  title: "Research Verification",
+  description: "Assess claims in academic research papers and test new, unpublished claims with documented experiments, recorded measurements and clear evidence limits.",
 };
 
 export default async function Home({

@@ -165,7 +165,7 @@ sessions remain authenticated. Real-world cancellation is owner-only.
 - Production `NEXT_PUBLIC_SITE_URL`: `https://jumpserve.quaint-lab.org`
 - Supabase Authentication Site URL: `https://jumpserve.quaint-lab.org`
 - Supabase allowed OAuth redirect pattern: `https://jumpserve.quaint-lab.org/auth/callback*`
-- Local OAuth redirect pattern: `http://localhost:3000/auth/callback*`
+- Local OAuth redirect pattern: `http://localhost:6001/auth/callback*`
 
 The trailing wildcard is required because the app adds a `next` query parameter to
 the callback URL. An exact callback URL does not match the resulting query string,

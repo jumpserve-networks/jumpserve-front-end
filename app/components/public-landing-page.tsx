@@ -2,51 +2,68 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/app/components/ui/card";
-import { TEST_MODULES } from "@/lib/test-modules";
+import { PreviousStudyResults } from "@/app/components/previous-study-results";
+import { getSafeNextPath } from "@/lib/auth-redirect";
+import { getTestModuleForPath, RESEARCH_WORKFLOW_MODULE_PATH } from "@/lib/test-modules";
 import { cn } from "@/lib/utils";
 
 const WORKFLOW = [
   {
-    title: "Configure experiments",
+    title: "Define the claim",
     accent: "dark:border-t-info dark:[&_h3]:text-info",
-    description: "Set network conditions, client workloads, and congestion control algorithms for emulated benchmarks.",
+    description: "Start with a claim from an academic paper or a new, unpublished hypothesis. Specify the conditions and evidence needed to assess it.",
   },
   {
-    title: "Inspect measurements",
+    title: "Plan and run checks",
     accent: "dark:border-t-success dark:[&_h3]:text-success",
-    description: "Follow throughput, round-trip time, queueing delay, and congestion windows for individual clients.",
+    description: "Document the protocol and inputs. Reanalyze existing data, reproduce an experiment, or run a new test, keeping measurements with their configurations.",
   },
   {
-    title: "Compare and interpret",
+    title: "Report the evidence",
     accent: "dark:border-t-highlight dark:[&_h3]:text-highlight",
-    description: "Compare results across runs and use the AI assistant to explore questions about the recorded measurements.",
+    description: "Explain what the results support, where they disagree, and what remains uncertain or untested. Preserve the evidence and identify useful follow-up checks.",
   },
 ];
 
-export function PublicLandingPage() {
+export function PublicLandingPage({ nextPath }: { nextPath?: string } = {}) {
+  const safeNextPath = getSafeNextPath(nextPath ?? null);
+  const requestedModule = getTestModuleForPath(safeNextPath);
+
   return (
     <main className="min-h-[var(--page-height)] bg-background px-5 py-10 sm:px-10 sm:py-14">
       <div className="mx-auto max-w-5xl space-y-10 sm:space-y-12">
-        <section aria-labelledby="overview-title" className="max-w-3xl">
-          <p className="text-sm font-medium text-muted-foreground dark:text-primary">Network research</p>
+        <section aria-labelledby="overview-title">
+          <p className="text-sm font-medium text-muted-foreground dark:text-primary">Research claims &amp; experiments</p>
           <h1 id="overview-title" className="mt-2 text-3xl leading-tight font-semibold tracking-tight text-foreground sm:text-4xl">
-            A research platform for network performance.
+            Assess research claims. Test new ideas.
           </h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
-            JumpServe brings experiment configuration, network measurements, and analysis
-            into one workspace. Study how congestion control algorithms behave as
-            bandwidth, delay, workloads, and queue sizes change.
+          <p className="mt-4 text-base leading-7 text-muted-foreground">
+            JumpServe helps you assess claims in academic research papers and test new
+            claims that have not been published yet. Plan experiments, collect
+            measurements, and report what the evidence supports.
           </p>
           <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
-            <Button nativeButton={false} render={<Link href="#environments-title" />}>
-              Explore test modules<ArrowRight aria-hidden="true" />
+            <Button nativeButton={false} render={<Link href={RESEARCH_WORKFLOW_MODULE_PATH} />}>
+              Research Verification<ArrowRight aria-hidden="true" />
             </Button>
+            <Link href={`${RESEARCH_WORKFLOW_MODULE_PATH}/test-results`} className="text-sm font-medium underline underline-offset-4">
+              View published assessments
+            </Link>
           </div>
         </section>
 
+        {requestedModule ? (
+          <aside aria-label="Requested page" className="flex flex-col items-start gap-3 rounded-md border border-border bg-accent px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-accent-foreground">Your requested page is in {requestedModule.name}.</p>
+            <Button variant="outline" nativeButton={false} render={<Link href={safeNextPath} />}>
+              Continue to requested page<ArrowRight aria-hidden="true" />
+            </Button>
+          </aside>
+        ) : null}
+
         <section aria-labelledby="workflow-title">
           <h2 id="workflow-title" className="text-xl font-semibold tracking-tight text-foreground">
-            From experiment to analysis
+            From claim to evidence
           </h2>
           <div className="mt-4 grid gap-4 md:grid-cols-3">
             {WORKFLOW.map((step) => (
@@ -60,21 +77,15 @@ export function PublicLandingPage() {
           </div>
         </section>
 
-        <section aria-labelledby="environments-title">
-          <h2 id="environments-title" className="text-xl font-semibold tracking-tight text-foreground">
-            Test environments
+        <section aria-labelledby="previous-results-title">
+          <h2 id="previous-results-title" className="text-xl font-semibold tracking-tight text-foreground">
+            Previous assessments and test results
           </h2>
-          <Card className="mt-4 gap-0 divide-y divide-border py-0">
-            {TEST_MODULES.map((module) => (
-              <div key={module.id} className="grid gap-3 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-8 sm:p-6">
-                <div>
-                  <h3 className="text-base font-semibold text-foreground">{module.name}</h3>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{module.description}</p>
-                </div>
-                <Button variant="outline" nativeButton={false} render={<Link href={module.href} />}>Open module<ArrowRight aria-hidden="true" /></Button>
-              </div>
-            ))}
-          </Card>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Explore earlier paper assessments and recorded network experiments.
+            Reuse their methods and measurements to inform your next research question.
+          </p>
+          <PreviousStudyResults />
         </section>
       </div>
     </main>

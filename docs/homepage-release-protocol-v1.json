@@ -1,0 +1,26 @@
+{
+  "id": "homepage-release-protocol-v1",
+  "version": 1,
+  "declared_on": "2026-10-12",
+  "scope": "Research-first homepage, previous-results title filter, full-width introductions and local port defaults. No new scientific findings, model evaluation, database migration or backend release.",
+  "origins": ["http://localhost:6001", "http://localhost:6101", "https://jumpserve.quaint-lab.org"],
+  "release_blocking": [
+    "Frontend lint, all existing tests, production build and git diff whitespace check pass.",
+    "AWS account is 395567831870; Amplify d24jvguj7brnkj/main targets jumpserve-networks/jumpserve-front-end; effective Supabase project is regphejnlvfpyokpniny.",
+    "Built homepage and deployed homepage pass browser checks in 1365x900 and 390x844 viewports with light and dark themes, without page or console errors or horizontal overflow.",
+    "Research Verification is the primary action; academic and unpublished claims are explained; previous results appear below the action and both introductory paragraphs occupy their section width.",
+    "Seven previous-result titles appear initially; trimmed mixed-case IPv6 query matches one; congestion matches two; claims matches no title; clearing restores seven and input focus; whitespace matches seven.",
+    "Primary and published-assessment links navigate correctly; catalogue contains the five previously imported study identities; prior result and methods links remain public and return HTTP 200.",
+    "Protected intake and workspace paths preserve their next destination through login; production callback redirects to the canonical HTTPS origin.",
+    "Main merge/push contains only reviewed release files, preserves unrelated staged PDFs and pending backend/infrastructure work, and the matching Amplify deployment succeeds."
+  ],
+  "conditional_checks": [
+    "Actual Google provider round trip, authenticated homepage requested-page continuation and owner actions require a legitimate session. No fabricated authentication, jobs or claims.",
+    "Authenticated chat and scientific campaigns are outside this presentation release; earlier coverage and limitations remain unchanged."
+  ],
+  "execution": "node scripts/verify-homepage-release.mjs [--built|--production]; default checks localhost:6001; --built checks a separately started npm start server on port 6101.",
+  "controls": "Fresh browser contexts for each viewport/theme. Real public application and persisted catalogue, no simulated study inputs or mock API transport. Fixed expected imported IDs, no result writes.",
+  "review": "Development/release regression checks evaluated by the AI implementer; not independent human review or held-out scientific validation.",
+  "limits": {"page_timeout_ms": 30000, "action_timeout_ms": 15000, "browser_contexts": 4, "retries": "No automatic retries; preserve failed reports and diagnose before any rerun."},
+  "costs": "No model calls or cloud experiment launches. Save available build duration; measured deployment, storage and verification charges unavailable are recorded as missing, not zero."
+}

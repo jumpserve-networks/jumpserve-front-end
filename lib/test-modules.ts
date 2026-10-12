@@ -81,7 +81,7 @@ export const TEST_MODULES: readonly TestModule[] = [
   EMULATED_TESTS_MODULE,
   {
     id: "research-verification", name: "Research Verification",
-    description: "Assess research claims with versioned sources, frozen protocols, recorded campaigns and an actionable evidence-gap queue.",
+    description: "Assess academic paper claims and test unpublished hypotheses with versioned sources, documented protocols, recorded measurements and clear evidence gaps.",
     status: "available", href: RESEARCH_WORKFLOW_MODULE_PATH,
     sections: [
       { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/test-results`, label: "Published Assessments", description: "Read published evidence, claim coverage and next experiments.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/test-results`, `${RESEARCH_WORKFLOW_MODULE_PATH}/studies`] },

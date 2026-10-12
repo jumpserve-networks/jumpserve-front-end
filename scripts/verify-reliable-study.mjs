@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {mkdir,writeFile} from 'node:fs/promises';
-const origin=process.argv[2]??'http://127.0.0.1:3000';
-assert.ok(['http://127.0.0.1:3000','https://jumpserve.quaint-lab.org'].includes(origin));
+const origin=process.argv[2]??'http://127.0.0.1:6001';
+assert.ok(['http://127.0.0.1:6001','http://127.0.0.1:3000','https://jumpserve.quaint-lab.org'].includes(origin));
 const path='/module/reliable-sketch-study';const report={origin,started_at:new Date().toISOString(),checks:[],errors:[]};
 async function check(name,f){try{report.checks.push({name,passed:true,evidence:await f()});}catch(e){report.errors.push({name,reason:e.message});}}
 await check('public completed pages',async()=>{for(const s of ['', '/test-results','/methods','/literature']){const r=await fetch(origin+path+s);assert.equal(r.status,200);assert.ok(!(await r.text()).includes('Application error:'));}return 'four pages';});
