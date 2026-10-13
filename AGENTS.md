@@ -113,7 +113,7 @@ frontend. See `jumpserve-infra/docs/leo-study-chat.md` for the release order.
 
 ## Stack
 
-- Next.js `16.1.6` (App Router)
+- Next.js `16.3.8` (App Router)
 - React `19.2.3`
 - TypeScript `5`
 - Tailwind CSS `4`
