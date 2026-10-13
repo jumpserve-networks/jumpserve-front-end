@@ -49,6 +49,7 @@ export function PublicLandingPage({ nextPath }: { nextPath?: string } = {}) {
             <Link href={`${RESEARCH_WORKFLOW_MODULE_PATH}/test-results`} className="text-sm font-medium underline underline-offset-4">
               View published assessments
             </Link>
+            <Link href={`${RESEARCH_WORKFLOW_MODULE_PATH}/new-idea`} className="text-sm font-medium underline underline-offset-4">Develop a research idea</Link>
           </div>
         </section>
 
