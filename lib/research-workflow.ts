@@ -5,7 +5,7 @@ export const CLAIM_LABELS = {
   untested: "No adequate check has been completed; a plan or citation is not a test.",
 } as const;
 export type ClaimLabel = keyof typeof CLAIM_LABELS;
-export type ResearchStudy = { id: string; title: string; paper_url: string; domain: string; scope: string; origin_module: string | null; created_at: string };
+export type ResearchStudy = { id: string; title: string; paper_url: string | null; study_kind?: "paper" | "idea"; domain: string; scope: string; origin_module: string | null; created_at: string };
 export type ResearchRecord = { id: string; study_id: string; created_at: string; [key: string]: unknown };
 export const RECORD_KINDS = ["sources", "claims", "protocols", "configurations", "campaigns", "claim_checks", "runs", "published_values", "measurements", "summaries", "assessments", "gaps", "reviews", "publications"] as const;
 export type RecordKind = typeof RECORD_KINDS[number];
@@ -15,7 +15,7 @@ export function preparationSteps(snapshot: ResearchSnapshot) {
   const campaigns = new Set(snapshot.records.campaigns.filter(row => protocols.has(String(row.protocol_id))).map(row => row.id));
   const linked = new Set(snapshot.records.claim_checks.filter(row => row.applicability === "applicable" && campaigns.has(String(row.campaign_id))).map(row => row.campaign_id));
   return [
-    { id: "sources", label: "Source records", count: snapshot.records.sources.length, editor: "research-records", action: "Add sources", description: "Retrieve and review the paper, its artifacts and direct references; record versions and access limits." },
+    { id: "sources", label: "Source records", count: snapshot.records.sources.length, editor: "research-records", action: "Add sources", description: snapshot.study.study_kind === "idea" ? "Preserve the original unpublished proposal and actual related work; record source versions and review limits." : "Retrieve and review the paper, its artifacts and direct references; record versions and access limits." },
     { id: "claims", label: "Sourced claims", count: snapshot.records.claims.length, editor: "research-records", action: "Add claims", description: "Record each claim with its source location, conditions and units." },
     { id: "configurations", label: "Configurations", count: snapshot.records.configurations.length, editor: "research-records", action: "Add configurations", description: "Record the exact configurations and input versions for the proposed checks." },
     { id: "protocols", label: "Frozen protocols", count: snapshot.records.protocols.length, editor: "research-protocol", action: "Freeze a protocol", description: "Declare the method, inputs, comparison rules, dependence, resource budget and stopping rule before execution." },

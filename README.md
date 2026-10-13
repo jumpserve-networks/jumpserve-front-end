@@ -264,3 +264,27 @@ Apply `202609200004_real_world_supabase.sql` and deploy the reporting API from
 `jumpserve-infra` before
 deploying this frontend. `npm test` covers comparisons, exports, and navigation;
 backend tests cover normalization, artifact quality, and authentication boundaries.
+
+## Develop an unpublished research idea
+
+Research Verification → **Develop an idea** opens
+`/module/research-verification/new-idea`. Google sign-in resumes this route.
+Start with a title, domain and question; a paper/DOI is unnecessary. The private
+workspace supports planning discussion, immutable plan revisions, fresh
+comprehension/critic reviews, explicit readiness acceptance, protocol freezing,
+and resumable domain-task queueing. Candidate protocols use structured JSON.
+Unknown information stays missing; model outputs and scientific runs are shown
+separately. Domain experiments require an applicable implementation and operator.
+
+Use the existing research API origin and `NEXT_PUBLIC_AGENT_URL`; the browser
+checks capabilities before creating an idea or requesting a model call. Deploy
+the additive idea/prompt migrations and evaluated prompt before enabling the
+module-aware APIs and this frontend. Local changes are not a production release.
+
+`npm run verify:research:ideas` checks actual components and browser API adapters
+against `jumpserve-infra/test/serve_research_ideas_fixture.py` on loopback 4103.
+That fixture uses the actual API, agent and isolated PostgreSQL, with clearly
+synthetic authentication/model responses; it cannot verify a legitimate Google
+owner or remote Supabase Storage. It also checks local Next.js navigation and
+sign-in return paths on port 6001. Reports and screenshots are retained under
+`.test-artifacts/research-ideas/browser/`, including failed checks.
