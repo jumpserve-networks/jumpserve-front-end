@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 import {existsSync} from 'node:fs';
-import {mkdir,writeFile,readFile} from 'node:fs/promises';
+import {mkdir,writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 const origin='https://jumpserve.quaint-lab.org',base='/module/research-verification';
 if(process.argv.length>2)throw new Error('Fixed production verification only.');
@@ -15,7 +15,7 @@ try{
  async function check(name,action){report.checks.push({name,passed:true,evidence:await action()});console.log('PASS '+name);}
  await check('deployed homepage links to unpublished idea intake',async()=>{const res=await page.goto(origin,{waitUntil:'domcontentloaded'});assert.equal(res.status(),200);const link=page.getByRole('link',{name:'Develop a research idea',exact:true});await link.waitFor();assert.equal(await link.getAttribute('href'),base+'/new-idea');return {href:base+'/new-idea'};});
  await check('cookie-free idea routes preserve exact sign-in return paths',async()=>{for(const path of [base+'/new-idea',base+'/ideas/953f20a3-3fd8-4fb4-8844-5d4d72690e99']){await page.goto(origin+path,{waitUntil:'domcontentloaded'});await page.waitForURL(/\/login\?/);assert.equal(new URL(page.url()).searchParams.get('next'),path);}return {paths:2,authenticated:false};});
- await check('deployed methods describe fresh reviews and scientific limits',async()=>{const res=await page.goto(origin+base+'/methods',{waitUntil:'domcontentloaded'});assert.equal(res.status(),200);await page.getByRole('heading',{name:'From an unpublished idea to a testable plan',exact:true}).waitFor();assert.match(await page.locator('main').innerText(),/without a paper or DOI/);assert.match(await page.locator('main').innerText(),/not scientific validation/);assert.match(await page.locator('main').innerText(),/operator/);return {scientific_validation:'Separate from planning readiness',domain_execution:'Operator required'};});
+ await check('deployed methods describe fresh reviews and scientific limits',async()=>{const res=await page.goto(origin+base+'/methods',{waitUntil:'domcontentloaded'});assert.equal(res.status(),200);await page.getByRole('heading',{name:'From an unpublished idea to a testable plan',exact:true}).waitFor();assert.match(await page.locator('main').innerText(),/without a paper or DOI/);assert.match(await page.locator('main').innerText(),/not scientific validation/);assert.match(await page.locator('main').innerText(),/Registered emulated and real-world runners/);return {scientific_validation:'Separate from planning readiness',networking_execution:'Registered runners or versioned packages; other domains require an applicable implementation'};});
  await check('desktop/mobile navigation and themes expose the idea entry point',async()=>{
   for(const width of [1365,390]){await page.setViewportSize({width,height:width===390?844:900});await page.goto(origin+base+'/methods',{waitUntil:'domcontentloaded'});
    for(const choice of ['Dark Mode','Light Mode']){
