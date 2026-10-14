@@ -13,6 +13,9 @@ import { emptyIdea, IDEA_FIELDS, IDEA_VERSION, ideaReview, validateIdeaState, ty
 import { ideaModelRequest } from "@/lib/research-idea-api";
 import { validateSnapshot, type ResearchSnapshot, type ResearchStudy } from "@/lib/research-workflow";
 import { RESEARCH_WORKFLOW_MODULE_PATH as PATH } from "@/lib/test-modules";
+import { NetworkProtocolEditor } from "./network-protocol-editor";
+import { preparedQueueRequests, type NetworkingCapabilities } from "@/lib/network-execution";
+import { IdeaGuide } from "./idea-guide";
 
 const LABELS: Record<typeof IDEA_FIELDS[number], string> = {
   problem: "Problem and motivation", question: "Research question", hypothesis: "Proposed hypothesis", conditions: "Conditions and population",
@@ -70,7 +73,7 @@ function ModelAttempt({ run }: { run: IdeaRun }) {
   </article>;
 }
 
-function PacketEditor({ packet, studyId, onSaved, onDirty }: { packet: IdeaPacket | null; studyId: string; onSaved: () => Promise<void>; onDirty: () => void }) {
+function PacketEditor({ packet, studyId, onSaved, onDirty }: { packet: IdeaPacket | null; studyId: string; onSaved: (expectedPacketId?: string) => Promise<void>; onDirty: () => void }) {
   const [document, setDocument] = useState<IdeaDocument>(packet?.document ?? emptyIdea());
   const [protocol, setProtocol] = useState(JSON.stringify(packet?.document.protocol ?? null, null, 2));
   const [reason, setReason] = useState(""); const [busy, setBusy] = useState(false); const [message, setMessage] = useState("");
@@ -81,7 +84,7 @@ function PacketEditor({ packet, studyId, onSaved, onDirty }: { packet: IdeaPacke
       const value = { ...document, protocol: JSON.parse(protocol) };
       const result = await researchRequest<IdeaPacket>(`/studies/${studyId}/idea`, { method: "POST", body: JSON.stringify({ action: "save", request_id: request.current, supersedes_id: packet?.id ?? null, document: value, reason }) });
       if (result.id !== request.current || result.supersedes_id !== (packet?.id ?? null)) throw new Error("New packet version was not confirmed saved.");
-      await onSaved();
+      await onSaved(result.id);
     } catch (failure) { setMessage(errorText(failure)); }
     finally { setBusy(false); }
   }
@@ -92,6 +95,7 @@ function PacketEditor({ packet, studyId, onSaved, onDirty }: { packet: IdeaPacke
       <p className="mt-3 text-sm text-muted-foreground">Use the existing protocol fields: questions, hypotheses, metrics and units, configurations, exact input versions and hashes, dates, algorithms, seed applicability, controls, sensitivity, replication, planned_units, sample-size rationale, exclusions, missingness, statistics and dependence, resource limits, stopping rule, prior exposure and coverage limits. Drafts may use null until this is specified. Review readiness requires a complete candidate.</p>
       <label className="mt-3 block space-y-1 text-sm"><span>Candidate protocol JSON</span><Textarea aria-label="Candidate protocol JSON" className="min-h-64 font-mono text-xs text-foreground" disabled={busy} value={protocol} onChange={event => { setProtocol(event.target.value); request.current = ""; onDirty(); }} /></label>
     </details>
+    <NetworkProtocolEditor studyId={studyId} document={document} protocol={protocol} onChange={value => { setProtocol(value); request.current = ""; onDirty(); }} />
     <label className="block space-y-1 text-sm"><span className="font-medium">Why this version changed</span><Input required maxLength={2000} disabled={busy} value={reason} onChange={event => { setReason(event.target.value); request.current = ""; }} /></label>
     {message ? <p role="alert" className="text-sm text-destructive">{message}</p> : null}
     <Button type="submit" disabled={busy}>{busy ? "Preserving new version…" : "Save a new plan version"}</Button>
@@ -149,54 +153,77 @@ function IdeaActions({ state, studyId, reload, dirty }: { state: IdeaState; stud
   </section>;
 }
 
-function IdeaCampaign({ state, studyId, reload, dirty }: { state: IdeaState; studyId: string; reload: () => Promise<void>; dirty: boolean }) {
+function IdeaCampaign({ state, studyId, reload, dirty, onEditing }: { state: IdeaState; studyId: string; reload: () => Promise<void>; dirty: boolean; onEditing?: (editing: boolean) => void }) {
   const [title, setTitle] = useState(""); const [stage, setStage] = useState("pilot"); const [claimType, setClaimType] = useState("association");
   const [experimentType, setExperimentType] = useState("new-measurement"); const [units, setUnits] = useState(Number(state.packets.find(row => row.id === state.current_packet_id)?.document.protocol?.planned_units ?? 1));
   const [busy, setBusy] = useState(false); const [message, setMessage] = useState(""); const request = useRef("");
-  const [queue, setQueue] = useState<Record<string, unknown> | null>(null);
-  function changed() { request.current = ""; setQueue(null); }
+  const [queue, setQueue] = useState<Record<string, unknown>[] | null>(null);
+  const [executionStatus, setExecutionStatus] = useState<{ networking?: NetworkingCapabilities; queue?: { workers_enabled?: boolean } } | null>(null);
+  const [executionError, setExecutionError] = useState("");
+  const [availabilityRevision, setAvailabilityRevision] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    researchRequest<{ networking?: NetworkingCapabilities; queue?: { workers_enabled?: boolean } }>("/capabilities", { signal: controller.signal }).then(status => {
+      if (!controller.signal.aborted) { setExecutionStatus(status); setExecutionError(""); }
+    }).catch(error => { if (!controller.signal.aborted) setExecutionError(errorText(error)); });
+    return () => controller.abort();
+  }, [availabilityRevision]);
+  let runner: string | undefined;
+  try { runner = typeof queue?.[0]?.raw_input === "string" ? JSON.parse(queue[0].raw_input).runner : undefined; } catch { /* An unreadable saved specification cannot authorize execution. */ }
+  const automatic = queue?.every(request => request.execution_mode === "automatic");
+  const executionBlocked = automatic && (executionStatus?.networking?.runners.find(item => item.id === runner)?.enabled !== true || executionStatus?.queue?.workers_enabled !== true);
+  function changed() { request.current = ""; setQueue(null); onEditing?.(true); }
   async function prepare(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setMessage(""); request.current ||= crypto.randomUUID();
     try {
-      const result = await researchRequest<{ link: { id: string; study_id: string }; queue_request: Record<string, unknown> }>(`/studies/${studyId}/idea`, { method: "POST", body: JSON.stringify({ action: "prepare-campaign", request_id: request.current, packet_id: state.current_packet_id, title, stage, claim_type: claimType, experiment_type: experimentType, planned_units: units }) });
+      const result = await researchRequest<{ link: { id: string; study_id: string }; queue_request: Record<string, unknown>; queue_requests?: Record<string, unknown>[] }>(`/studies/${studyId}/idea`, { method: "POST", body: JSON.stringify({ action: "prepare-campaign", request_id: request.current, packet_id: state.current_packet_id, title, stage, claim_type: claimType, experiment_type: experimentType, planned_units: units }) });
       if (result.link.id !== request.current || result.link.study_id !== studyId) throw new Error("Campaign identity was not confirmed saved.");
-      setQueue(result.queue_request); await reload(); setMessage("Hypothesis, original proposal, configurations and frozen protocol preserved. Queue the domain experiment task when ready.");
+      setQueue(preparedQueueRequests(result)); await reload(); onEditing?.(false); setMessage("Hypothesis, original proposal, configurations and frozen protocol preserved. Queue the prepared experiment jobs when ready.");
     } catch (failure) { setMessage(errorText(failure)); }
     finally { setBusy(false); }
   }
   async function enqueue() {
-    if (!queue) return; setBusy(true); setMessage("");
+    if (!queue || executionBlocked) return; setBusy(true); setMessage("");
     try {
-      const result = await researchRequest<{ job: { id: string; campaign_id: string; study_id: string } }>(`/studies/${studyId}/queue`, { method: "POST", body: JSON.stringify(queue) });
-      if (result.job.id !== queue.request_id || result.job.campaign_id !== queue.campaign_id || result.job.study_id !== studyId) throw new Error("Queue persistence was not confirmed; inspect retained status before resuming.");
-      await reload(); setMessage("Domain task queued. An operator must execute the experiment and preserve its measurements; this action collected no data.");
+      for (const request of queue) {
+        const result = await researchRequest<{ job: { id: string; campaign_id: string; study_id: string } }>(`/studies/${studyId}/queue`, { method: "POST", body: JSON.stringify(request) });
+        if (result.job.id !== request.request_id || result.job.campaign_id !== request.campaign_id || result.job.study_id !== studyId) throw new Error("Queue persistence was not confirmed; inspect retained status before resuming.");
+      }
+      await reload(); setMessage(queue.every(request => request.execution_mode === "automatic") ? `${queue.length} automatic networking jobs queued. Enabled workers execute the frozen specifications and preserve measurements; scientific review remains separate.` : "Domain task queued. Supply an applicable implementation and recorded measurements for this manual task.");
     } catch (failure) { setMessage(errorText(failure)); }
     finally { setBusy(false); }
   }
   async function resume(preparedId: string) {
     setBusy(true); setMessage("");
     try {
-      const result = await researchRequest<{ queue_request: Record<string, unknown> }>(`/studies/${studyId}/idea`, { method: "POST", body: JSON.stringify({ action: "resume-campaign", prepared_id: preparedId }) });
-      setQueue(result.queue_request); setMessage("Saved campaign reloaded. Queueing reuses its original job identity and never restarts a terminal run.");
+      const result = await researchRequest<{ queue_request: Record<string, unknown>; queue_requests?: Record<string, unknown>[] }>(`/studies/${studyId}/idea`, { method: "POST", body: JSON.stringify({ action: "resume-campaign", prepared_id: preparedId }) });
+      setQueue(preparedQueueRequests(result)); setMessage("Saved campaign reloaded. Queueing reuses original job identities and never restarts terminal runs.");
     } catch (failure) { setMessage(errorText(failure)); }
     finally { setBusy(false); }
   }
   return <section className="space-y-4 rounded-lg border p-5" aria-labelledby="idea-campaign-title"><h2 id="idea-campaign-title" className="text-lg font-semibold">Preregister an experimental campaign</h2>
-    <p className="text-sm text-muted-foreground">The accepted candidate protocol is frozen exactly as reviewed. Preparation preserves the proposal as an unpublished source and the hypothesis as untested. Domain experiments need an applicable implementation and operator; no arbitrary code or cloud instances are launched.</p>
+    <p className="text-sm text-muted-foreground">The accepted candidate protocol is frozen exactly as reviewed. An executable networking specification creates automatic jobs for its configurations and repetitions. Registered runners launch the actual tests and preserve measurements. Other domain work remains manual until it has an applicable implementation.</p>
     <form onSubmit={prepare} className="space-y-4">
       <label className="block space-y-1 text-sm"><span className="font-medium">Campaign title</span><Input required disabled={busy || !state.ready} value={title} onChange={event => { setTitle(event.target.value); changed(); }} /></label>
       <div className="grid gap-4 sm:grid-cols-2"><ResearchSelect label="Campaign stage" value={stage} onChange={value => { setStage(value); changed(); }} options={[{ value: "pilot", label: "Exploratory pilot" }, { value: "main", label: "Main campaign" }]} /><ResearchSelect label="Hypothesis type" value={claimType} onChange={value => { setClaimType(value); changed(); }} options={["numerical", "algorithm", "association", "causal", "generalization", "operational", "theory"].map(value => ({ value, label: value }))} /><ResearchSelect label="Experiment method" value={experimentType} onChange={value => { setExperimentType(value); changed(); }} options={["new-measurement", "independent-check", "broader-validation"].map(value => ({ value, label: value }))} /><label className="block space-y-1 text-sm"><span className="font-medium">Planned experimental units</span><Input required type="number" min={1} max={10000} value={units} disabled={busy || !state.ready} onChange={event => { setUnits(Number(event.target.value)); changed(); }} /></label></div>
       <Button type="submit" disabled={busy || dirty || !state.ready}>{busy ? "Preserving campaign…" : "Freeze reviewed protocol and prepare campaign"}</Button>
     </form>
-    {queue ? <Button type="button" variant="outline" disabled={busy || dirty} onClick={() => void enqueue()}>Queue domain experiment task</Button> : null}
+    {queue ? <Button type="button" variant="outline" disabled={busy || dirty || !!executionBlocked} onClick={() => void enqueue()}>{queue.every(request => request.execution_mode === "automatic") ? `Queue ${queue.length} networking experiment jobs` : "Queue domain experiment task"}</Button> : null}
+    {executionBlocked ? <div role="status" className="space-y-2 rounded-md border p-3 text-sm"><p>{executionError || (!executionStatus ? "Checking whether this environment can execute the saved experiment…" : executionStatus.queue?.workers_enabled !== true ? "Experiment workers are not enabled in this environment. Your plan and prepared campaign are saved; execution is blocked until workers are enabled." : "This experiment runner is not enabled in the connected environment. Your plan and campaign are saved; execution is blocked until the runner is available.")}</p><Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => setAvailabilityRevision(value => value + 1)}>Check execution availability again</Button></div> : null}
     {state.campaigns.length ? <div className="space-y-2 text-sm"><p className="font-medium">Preserved campaign preparations</p>{state.campaigns.map(link => <div key={link.id} className="flex flex-wrap items-center gap-3"><span className="break-all text-xs">Campaign {link.campaign_id}</span><Button type="button" size="sm" variant="outline" disabled={busy || dirty} onClick={() => void resume(link.id)}>Resume queueing this campaign</Button></div>)}</div> : null}
     {message ? <p role="status" className="rounded-md border p-3 text-sm">{message}</p> : null}
+    <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => { setTitle(""); setStage("pilot"); setClaimType("association"); setExperimentType("new-measurement"); setUnits(Number(state.packets.find(row => row.id === state.current_packet_id)?.document.protocol?.planned_units ?? 1)); request.current = ""; setQueue(null); onEditing?.(false); setMessage("Unsaved campaign details discarded. Preserved campaigns remain available to resume."); }}>Discard unsaved campaign details</Button>
   </section>;
 }
 
 export function IdeaWorkspace({ studyId }: { studyId: string }) {
   const [state, setState] = useState<IdeaState | null>(null); const [snapshot, setSnapshot] = useState<ResearchSnapshot | null>(null); const [error, setError] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [mode, setMode] = useState<"guided" | "advanced">("guided");
+  const [draftSource, setDraftSource] = useState<"guided" | "advanced" | null>(null);
+  const [campaignEditing, setCampaignEditing] = useState(false);
+  const [versionConflict, setVersionConflict] = useState(false);
+  const [guideRevision, setGuideRevision] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     Promise.all([researchRequest(`/studies/${studyId}/idea`, { signal: controller.signal }), researchRequest(`/studies/${studyId}`, { signal: controller.signal })]).then(([idea, study]) => {
@@ -204,11 +231,15 @@ export function IdeaWorkspace({ studyId }: { studyId: string }) {
     }).catch(failure => { if (!controller.signal.aborted) setError(errorText(failure)); });
     return () => controller.abort();
   }, [studyId]);
-  async function reload() {
+  async function reload(expectedPacketId?: string, discardDraft = false) {
     const [idea, study] = await Promise.all([researchRequest(`/studies/${studyId}/idea`), researchRequest(`/studies/${studyId}`)]);
     const next = validateIdeaState(idea, studyId);
-    if (next.current_packet_id !== state?.current_packet_id) setDirty(false);
-    setState(next); setSnapshot(validateSnapshot(study)); setError("");
+    if (!discardDraft && dirty && next.current_packet_id !== state?.current_packet_id && next.current_packet_id !== expectedPacketId) {
+      setVersionConflict(true); setError("A newer plan version was saved elsewhere. Your open answer is preserved; save attempts against this older version will be rejected."); return;
+    }
+    if (next.current_packet_id !== state?.current_packet_id) { setDirty(false); setDraftSource(null); setCampaignEditing(false); }
+    if (discardDraft) { setDirty(false); setDraftSource(null); setGuideRevision(value => value + 1); }
+    setState(next); setSnapshot(validateSnapshot(study)); setError(""); setVersionConflict(false);
   }
   async function download() {
     if (!state) return;
@@ -221,17 +252,18 @@ export function IdeaWorkspace({ studyId }: { studyId: string }) {
       const anchor = document.createElement("a"); anchor.href = url; anchor.download = `research-idea-${studyId}.json`; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (failure) { setError(errorText(failure)); }
   }
-  if (error) return <section className="space-y-3 rounded-md border p-4"><p role="alert" className="text-sm text-destructive">{error}</p><Button type="button" variant="outline" onClick={() => void reload().catch(failure => setError(errorText(failure)))}>Retry loading retained idea</Button></section>;
+  if (error && (!state || !snapshot)) return <section className="space-y-3 rounded-md border p-4"><p role="alert" className="text-sm text-destructive">{error}</p><Button type="button" variant="outline" onClick={() => void reload().catch(failure => setError(errorText(failure)))}>Retry loading retained idea</Button></section>;
   if (!state || !snapshot) return <p role="status">Loading your private research idea…</p>;
   const packet = state.packets.find(row => row.id === state.current_packet_id);
-  if (!packet) return <section className="space-y-4 rounded-lg border p-5"><h2 className="text-lg font-semibold">{snapshot.study.title}</h2><p role="status" className="text-sm">The study draft is preserved, but its first plan packet was not saved. Continue here without creating another study.</p><PacketEditor packet={null} studyId={studyId} onSaved={reload} onDirty={() => setDirty(true)} /></section>;
   return <div className="space-y-6"><section className="space-y-3 rounded-lg border p-5"><h2 className="text-xl font-semibold">{snapshot.study.title}</h2>
-    <p className="text-sm">Unpublished research idea · packet version {packet.version} · {state.ready ? "Plan readiness accepted" : "Draft / review pending"}</p>
-    <p className="text-sm text-muted-foreground">{snapshot.records.runs.length} scientific runs recorded. Planning and AI reviews are model outputs, not empirical measurements.</p>
-    <ol className="grid gap-2 text-sm sm:grid-cols-3" aria-label="Idea workflow steps"><li>1. Develop and save the plan</li><li>2. Fresh comprehension and critic reviews</li><li>3. Preregister and record experiments</li></ol>
-    <div className="flex flex-wrap gap-3"><Button type="button" variant="outline" size="sm" onClick={() => void download()}>Download planning history</Button><Button type="button" variant="outline" size="sm" onClick={() => void reload().catch(failure => setError(errorText(failure)))}>Refresh retained status</Button><Link className="text-sm underline" href={`${PATH}/workspace/${studyId}`}>Scientific evidence workspace</Link></div>
-    <details><summary className="cursor-pointer text-xs">Retained packet versions</summary><ul className="mt-2 space-y-1 text-xs">{state.packets.map(row => <li key={row.id} className="break-all">Version {row.version} · {row.reason} · SHA256 {row.sha256}</li>)}</ul></details>
-  </section><section className="space-y-4 rounded-lg border p-5"><h2 className="text-lg font-semibold">Self-contained research plan</h2><PacketEditor key={packet.id} packet={packet} studyId={studyId} onSaved={reload} onDirty={() => setDirty(true)} /></section>
-    <IdeaActions key={packet.id} state={state} studyId={studyId} reload={reload} dirty={dirty} /><IdeaCampaign key={`campaign-${packet.id}`} state={state} studyId={studyId} reload={reload} dirty={dirty} /><ClaimQueue snapshot={snapshot} onEvidenceChanged={reload} />
+    {error ? <p role="alert" className="text-sm text-destructive">{error} Previously retrieved status is shown; your open answer is preserved. Refresh before relying on current readiness.</p> : null}
+    {versionConflict ? <Button type="button" variant="outline" size="sm" onClick={() => void reload(undefined, true).catch(failure => setError(errorText(failure)))}>Discard this draft and load the newer plan</Button> : null}
+    <p className="text-sm">Unpublished research idea · {packet ? `packet version ${packet.version}` : "first plan not yet saved"} · {state.ready ? "Plan readiness accepted" : "Draft / review pending"}</p>
+    {!packet ? <p role="status" className="text-sm">Your study draft is preserved. Start answering below to save its first plan without creating another study.</p> : null}
+    <div className="flex flex-wrap gap-2" aria-label="Planning interface"><Button type="button" size="sm" variant={mode === "guided" ? "default" : "outline"} aria-pressed={mode === "guided"} disabled={(dirty || campaignEditing) && mode !== "guided"} onClick={() => setMode("guided")}>Guided conversation</Button><Button type="button" size="sm" variant={mode === "advanced" ? "default" : "outline"} aria-pressed={mode === "advanced"} disabled={(dirty || campaignEditing) && mode !== "advanced"} onClick={() => setMode("advanced")}>Detailed editor and history</Button></div>
+    <details open={mode === "advanced" || undefined} className="text-sm"><summary className="cursor-pointer"><span>History and results</span><span className="text-muted-foreground"> · {snapshot.records.runs.length} recorded runs</span></summary><div className="mt-3 space-y-3"><p className="text-muted-foreground">{snapshot.records.runs.length} scientific runs recorded. Saved plans are proposals. AI coaching and reviews are model outputs; measurements are recorded separately.</p><div className="flex flex-wrap gap-3"><Button type="button" variant="outline" size="sm" onClick={() => void download()}>Download planning history</Button><Button type="button" variant="outline" size="sm" onClick={() => void reload().catch(failure => setError(errorText(failure)))}>Refresh retained status</Button><Link className="text-sm underline" href={`${PATH}/workspace/${studyId}`}>Scientific evidence workspace</Link></div><details><summary className="cursor-pointer text-xs">Retained packet versions</summary><ul className="mt-2 space-y-1 text-xs">{state.packets.map(row => <li key={row.id} className="break-all">Version {row.version} · {row.reason} · SHA256 {row.sha256}</li>)}</ul></details></div></details>
+  </section><div hidden={mode !== "guided"}><IdeaGuide key={guideRevision} state={state} studyId={studyId} dirty={dirty} advancedDirty={draftSource === "advanced" && dirty} active={mode === "guided"} campaignEditing={campaignEditing} onDirty={() => { setDirty(true); setDraftSource("guided"); }} onDiscard={() => { setDirty(false); setDraftSource(null); }} reload={reload}><IdeaCampaign key={`guided-campaign-${packet?.id}`} state={state} studyId={studyId} reload={reload} dirty={dirty} onEditing={setCampaignEditing} /></IdeaGuide></div>
+    {mode === "advanced" ? <div className="space-y-6"><section className="space-y-4 rounded-lg border p-5"><h2 className="text-lg font-semibold">Self-contained research plan</h2><PacketEditor key={packet?.id ?? "initial"} packet={packet ?? null} studyId={studyId} onSaved={reload} onDirty={() => { setDirty(true); setDraftSource("advanced"); }} /></section><IdeaActions key={packet?.id ?? "initial"} state={state} studyId={studyId} reload={reload} dirty={dirty} /><IdeaCampaign key={`campaign-${packet?.id}`} state={state} studyId={studyId} reload={reload} dirty={dirty} onEditing={setCampaignEditing} /></div> : null}
+    {state.campaigns.length || snapshot.records.runs.length ? <ClaimQueue snapshot={snapshot} onEvidenceChanged={reload} /> : null}
   </div>;
 }
