@@ -13,6 +13,8 @@ import { emptyIdea, IDEA_FIELDS, IDEA_VERSION, ideaReview, validateIdeaState, ty
 import { ideaModelRequest } from "@/lib/research-idea-api";
 import { validateSnapshot, type ResearchSnapshot, type ResearchStudy } from "@/lib/research-workflow";
 import { RESEARCH_WORKFLOW_MODULE_PATH as PATH } from "@/lib/test-modules";
+import { NetworkProtocolEditor } from "./network-protocol-editor";
+import { preparedQueueRequests } from "@/lib/network-execution";
 
 const LABELS: Record<typeof IDEA_FIELDS[number], string> = {
   problem: "Problem and motivation", question: "Research question", hypothesis: "Proposed hypothesis", conditions: "Conditions and population",
@@ -92,6 +94,7 @@ function PacketEditor({ packet, studyId, onSaved, onDirty }: { packet: IdeaPacke
       <p className="mt-3 text-sm text-muted-foreground">Use the existing protocol fields: questions, hypotheses, metrics and units, configurations, exact input versions and hashes, dates, algorithms, seed applicability, controls, sensitivity, replication, planned_units, sample-size rationale, exclusions, missingness, statistics and dependence, resource limits, stopping rule, prior exposure and coverage limits. Drafts may use null until this is specified. Review readiness requires a complete candidate.</p>
       <label className="mt-3 block space-y-1 text-sm"><span>Candidate protocol JSON</span><Textarea aria-label="Candidate protocol JSON" className="min-h-64 font-mono text-xs text-foreground" disabled={busy} value={protocol} onChange={event => { setProtocol(event.target.value); request.current = ""; onDirty(); }} /></label>
     </details>
+    <NetworkProtocolEditor studyId={studyId} document={document} protocol={protocol} onChange={value => { setProtocol(value); request.current = ""; onDirty(); }} />
     <label className="block space-y-1 text-sm"><span className="font-medium">Why this version changed</span><Input required maxLength={2000} disabled={busy} value={reason} onChange={event => { setReason(event.target.value); request.current = ""; }} /></label>
     {message ? <p role="alert" className="text-sm text-destructive">{message}</p> : null}
     <Button type="submit" disabled={busy}>{busy ? "Preserving new version…" : "Save a new plan version"}</Button>
@@ -153,42 +156,44 @@ function IdeaCampaign({ state, studyId, reload, dirty }: { state: IdeaState; stu
   const [title, setTitle] = useState(""); const [stage, setStage] = useState("pilot"); const [claimType, setClaimType] = useState("association");
   const [experimentType, setExperimentType] = useState("new-measurement"); const [units, setUnits] = useState(Number(state.packets.find(row => row.id === state.current_packet_id)?.document.protocol?.planned_units ?? 1));
   const [busy, setBusy] = useState(false); const [message, setMessage] = useState(""); const request = useRef("");
-  const [queue, setQueue] = useState<Record<string, unknown> | null>(null);
+  const [queue, setQueue] = useState<Record<string, unknown>[] | null>(null);
   function changed() { request.current = ""; setQueue(null); }
   async function prepare(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setMessage(""); request.current ||= crypto.randomUUID();
     try {
-      const result = await researchRequest<{ link: { id: string; study_id: string }; queue_request: Record<string, unknown> }>(`/studies/${studyId}/idea`, { method: "POST", body: JSON.stringify({ action: "prepare-campaign", request_id: request.current, packet_id: state.current_packet_id, title, stage, claim_type: claimType, experiment_type: experimentType, planned_units: units }) });
+      const result = await researchRequest<{ link: { id: string; study_id: string }; queue_request: Record<string, unknown>; queue_requests?: Record<string, unknown>[] }>(`/studies/${studyId}/idea`, { method: "POST", body: JSON.stringify({ action: "prepare-campaign", request_id: request.current, packet_id: state.current_packet_id, title, stage, claim_type: claimType, experiment_type: experimentType, planned_units: units }) });
       if (result.link.id !== request.current || result.link.study_id !== studyId) throw new Error("Campaign identity was not confirmed saved.");
-      setQueue(result.queue_request); await reload(); setMessage("Hypothesis, original proposal, configurations and frozen protocol preserved. Queue the domain experiment task when ready.");
+      setQueue(preparedQueueRequests(result)); await reload(); setMessage("Hypothesis, original proposal, configurations and frozen protocol preserved. Queue the prepared experiment jobs when ready.");
     } catch (failure) { setMessage(errorText(failure)); }
     finally { setBusy(false); }
   }
   async function enqueue() {
     if (!queue) return; setBusy(true); setMessage("");
     try {
-      const result = await researchRequest<{ job: { id: string; campaign_id: string; study_id: string } }>(`/studies/${studyId}/queue`, { method: "POST", body: JSON.stringify(queue) });
-      if (result.job.id !== queue.request_id || result.job.campaign_id !== queue.campaign_id || result.job.study_id !== studyId) throw new Error("Queue persistence was not confirmed; inspect retained status before resuming.");
-      await reload(); setMessage("Domain task queued. An operator must execute the experiment and preserve its measurements; this action collected no data.");
+      for (const request of queue) {
+        const result = await researchRequest<{ job: { id: string; campaign_id: string; study_id: string } }>(`/studies/${studyId}/queue`, { method: "POST", body: JSON.stringify(request) });
+        if (result.job.id !== request.request_id || result.job.campaign_id !== request.campaign_id || result.job.study_id !== studyId) throw new Error("Queue persistence was not confirmed; inspect retained status before resuming.");
+      }
+      await reload(); setMessage(queue.every(request => request.execution_mode === "automatic") ? `${queue.length} automatic networking jobs queued. Enabled workers execute the frozen specifications and preserve measurements; scientific review remains separate.` : "Domain task queued. Supply an applicable implementation and recorded measurements for this manual task.");
     } catch (failure) { setMessage(errorText(failure)); }
     finally { setBusy(false); }
   }
   async function resume(preparedId: string) {
     setBusy(true); setMessage("");
     try {
-      const result = await researchRequest<{ queue_request: Record<string, unknown> }>(`/studies/${studyId}/idea`, { method: "POST", body: JSON.stringify({ action: "resume-campaign", prepared_id: preparedId }) });
-      setQueue(result.queue_request); setMessage("Saved campaign reloaded. Queueing reuses its original job identity and never restarts a terminal run.");
+      const result = await researchRequest<{ queue_request: Record<string, unknown>; queue_requests?: Record<string, unknown>[] }>(`/studies/${studyId}/idea`, { method: "POST", body: JSON.stringify({ action: "resume-campaign", prepared_id: preparedId }) });
+      setQueue(preparedQueueRequests(result)); setMessage("Saved campaign reloaded. Queueing reuses original job identities and never restarts terminal runs.");
     } catch (failure) { setMessage(errorText(failure)); }
     finally { setBusy(false); }
   }
   return <section className="space-y-4 rounded-lg border p-5" aria-labelledby="idea-campaign-title"><h2 id="idea-campaign-title" className="text-lg font-semibold">Preregister an experimental campaign</h2>
-    <p className="text-sm text-muted-foreground">The accepted candidate protocol is frozen exactly as reviewed. Preparation preserves the proposal as an unpublished source and the hypothesis as untested. Domain experiments need an applicable implementation and operator; no arbitrary code or cloud instances are launched.</p>
+    <p className="text-sm text-muted-foreground">The accepted candidate protocol is frozen exactly as reviewed. An executable networking specification creates automatic jobs for its configurations and repetitions. Registered runners launch the actual tests and preserve measurements. Other domain work remains manual until it has an applicable implementation.</p>
     <form onSubmit={prepare} className="space-y-4">
       <label className="block space-y-1 text-sm"><span className="font-medium">Campaign title</span><Input required disabled={busy || !state.ready} value={title} onChange={event => { setTitle(event.target.value); changed(); }} /></label>
       <div className="grid gap-4 sm:grid-cols-2"><ResearchSelect label="Campaign stage" value={stage} onChange={value => { setStage(value); changed(); }} options={[{ value: "pilot", label: "Exploratory pilot" }, { value: "main", label: "Main campaign" }]} /><ResearchSelect label="Hypothesis type" value={claimType} onChange={value => { setClaimType(value); changed(); }} options={["numerical", "algorithm", "association", "causal", "generalization", "operational", "theory"].map(value => ({ value, label: value }))} /><ResearchSelect label="Experiment method" value={experimentType} onChange={value => { setExperimentType(value); changed(); }} options={["new-measurement", "independent-check", "broader-validation"].map(value => ({ value, label: value }))} /><label className="block space-y-1 text-sm"><span className="font-medium">Planned experimental units</span><Input required type="number" min={1} max={10000} value={units} disabled={busy || !state.ready} onChange={event => { setUnits(Number(event.target.value)); changed(); }} /></label></div>
       <Button type="submit" disabled={busy || dirty || !state.ready}>{busy ? "Preserving campaign…" : "Freeze reviewed protocol and prepare campaign"}</Button>
     </form>
-    {queue ? <Button type="button" variant="outline" disabled={busy || dirty} onClick={() => void enqueue()}>Queue domain experiment task</Button> : null}
+    {queue ? <Button type="button" variant="outline" disabled={busy || dirty} onClick={() => void enqueue()}>{queue.every(request => request.execution_mode === "automatic") ? `Queue ${queue.length} networking experiment jobs` : "Queue domain experiment task"}</Button> : null}
     {state.campaigns.length ? <div className="space-y-2 text-sm"><p className="font-medium">Preserved campaign preparations</p>{state.campaigns.map(link => <div key={link.id} className="flex flex-wrap items-center gap-3"><span className="break-all text-xs">Campaign {link.campaign_id}</span><Button type="button" size="sm" variant="outline" disabled={busy || dirty} onClick={() => void resume(link.id)}>Resume queueing this campaign</Button></div>)}</div> : null}
     {message ? <p role="status" className="rounded-md border p-3 text-sm">{message}</p> : null}
   </section>;
