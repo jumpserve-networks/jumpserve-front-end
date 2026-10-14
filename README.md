@@ -2,7 +2,7 @@
 
 Starter app using:
 
-- Next.js `16.1.6`
+- Next.js `16.3.8`
 - TailwindCSS `4`
 - shadcn/ui (Base UI components styled with Tailwind)
 - Supabase client libraries (`@supabase/supabase-js` + `@supabase/ssr`)
@@ -270,11 +270,28 @@ backend tests cover normalization, artifact quality, and authentication boundari
 Research Verification → **Develop an idea** opens
 `/module/research-verification/new-idea`. Google sign-in resumes this route.
 Start with a title, domain and question; a paper/DOI is unnecessary. The private
-workspace supports planning discussion, immutable plan revisions, fresh
-comprehension/critic reviews, explicit readiness acceptance, protocol freezing,
-and resumable domain-task queueing. Candidate protocols use structured JSON.
-Unknown information stays missing; model outputs and scientific runs are shown
-separately. Domain experiments require an applicable implementation and operator.
+workspace starts with a **Guided conversation**: it reuses existing answers, asks
+one missing question at a time, and saves each answer as an immutable plan version.
+Methods questions build the protocol without requiring JSON. **Help me answer**
+uses the existing authenticated AI discussion; suggestions never silently edit the
+plan. The checklist questions are deterministic UI guidance, not model answers.
+
+After the methods are recorded, select an executable runner and specify its actual
+configuration, metrics, repetitions and limits. Built-in emulated settings use
+normal controls, and EC2 placement reuses the existing availability maps. Custom
+packages need a versioned implementation and inputs. Invalid parameters block
+compilation, and changed settings must be compiled and saved before review.
+Fresh comprehension and critic reviews check the exact saved plan. Failed reviews
+and unresolved questions block approval; substantive corrections create new versions.
+Owner approval precedes freezing and explicit queueing. Disabled runners or workers
+block automatic queueing with an explanation. Execution success is not validation
+of the hypothesis; empirical measurements and claim assessments remain separate.
+
+**Detailed editor and history** retains the original bulk fields, protocol JSON,
+review history and manual domain workflow. Unsaved answers or campaign details
+block interface switches until saved or explicitly discarded. Unknown information
+stays missing. Model prompts, authentication, user/module/study-scoped persistence
+and server readiness gates are reused, with no new prompt publication or migration.
 
 Use the existing research API origin and `NEXT_PUBLIC_AGENT_URL`; the browser
 checks capabilities before creating an idea or requesting a model call. Deploy
@@ -288,3 +305,15 @@ synthetic authentication/model responses; it cannot verify a legitimate Google
 owner or remote Supabase Storage. It also checks local Next.js navigation and
 sign-in return paths on port 6001. Reports and screenshots are retained under
 `.test-artifacts/research-ideas/browser/`, including failed checks.
+
+`npm run verify:research:ideas -- --guided` adds the guided question/answer campaign,
+uncertain-save/model replay, a declared critical-review correction, explicit owner
+approval and two actual local package invocations. Its synthetic provider responses
+are software fixtures, not evaluation of actual model answers or scientific evidence.
+The fixed fixture executes only its known loopback HTTP program. Reports include
+initial/completed desktop/mobile light/dark views and saved original plan hashes,
+under `.test-artifacts/idea-guide/browser/`. To verify current Tailwind layouts,
+build the app first, or set `JUMPSERVE_BROWSER_CSS_PATH` to the compiled
+`.next/static/chunks` directory of an isolated matching build checkout. The verifier
+preserves the actual CSS used with its report. See the frozen
+`docs/idea-guided-interface-protocol-v1.json` for pass criteria and conditional gaps.

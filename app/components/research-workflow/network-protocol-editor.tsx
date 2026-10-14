@@ -8,6 +8,7 @@ import { ResearchSelect } from "./select";
 import { researchRequest } from "@/lib/research-workflow-api";
 import { executableCandidate, NETWORK_RUNNERS, type NetworkingCapabilities } from "@/lib/network-execution";
 import type { IdeaDocument } from "@/lib/research-ideas";
+import { NetworkingFields, NetworkingMetricFields } from "./networking-fields";
 
 const EMULATED = { num_clients: 1, client_delays_ms: [10], client_ccas: ["cubic"], client_file_sizes_mbytes: [1], bottleneck_all_client_rate_mbit: 100, bottleneck_buffer_kbytes: 125, script: "netem_cubic_benchmark_nines.py" };
 function savedExecution(text: string) {
@@ -21,7 +22,7 @@ function savedExecution(text: string) {
   } catch { return null; }
 }
 
-export function NetworkProtocolEditor({ studyId, document, protocol, onChange }: { studyId: string; document: IdeaDocument; protocol: string; onChange: (text: string) => void }) {
+export function NetworkProtocolEditor({ studyId, document, protocol, onChange, guided = false, onEditing }: { studyId: string; document: IdeaDocument; protocol: string; onChange: (text: string) => void; guided?: boolean; onEditing?: () => void }) {
   const [initial] = useState(() => savedExecution(protocol));
   const [runner, setRunner] = useState<string>(initial?.runner ?? NETWORK_RUNNERS[0].id);
   const [identity, setIdentity] = useState(initial?.identity ?? "configuration-1");
@@ -34,6 +35,14 @@ export function NetworkProtocolEditor({ studyId, document, protocol, onChange }:
   const [privateName, setPrivateName] = useState("provider-config.json"); const [privateContent, setPrivateContent] = useState(""); const [privateVersion, setPrivateVersion] = useState("v1");
   const [capabilities, setCapabilities] = useState<NetworkingCapabilities | null>(null);
   const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false);
+  const [fieldsValid, setFieldsValid] = useState(true);
+  function edit() { onEditing?.(); }
+  function updateConfig(update: (previous: Record<string, unknown>) => Record<string, unknown>) {
+    try {
+      if (JSON.stringify(update(JSON.parse(config))) === JSON.stringify(JSON.parse(config))) return;
+      edit(); setConfig(previous => JSON.stringify(update(JSON.parse(previous)), null, 2));
+    } catch { setMessage("Correct the full configuration JSON before using these controls."); }
+  }
   useEffect(() => {
     const controller = new AbortController();
     researchRequest<{ networking?: NetworkingCapabilities }>("/capabilities", { signal: controller.signal }).then(value => {
@@ -43,7 +52,8 @@ export function NetworkProtocolEditor({ studyId, document, protocol, onChange }:
   }, []);
   function choose(value: string) {
     if (busy) return;
-    setRunner(value); setMessage("");
+    edit();
+    setRunner(value); setMessage(""); setFieldsValid(true);
     setMetrics(JSON.stringify(NETWORK_RUNNERS.find(item => item.id === value)?.units, null, 2));
     setInstances(value === "real-world-iperf-v1" ? 3 : 1);
     setConfig(JSON.stringify(value === "emulated-netem-v1" ? EMULATED : value === "custom-package-v1" ? { mode: "real-world", package: {}, arguments: [], parameters: {} } : {
@@ -85,13 +95,14 @@ export function NetworkProtocolEditor({ studyId, document, protocol, onChange }:
     } catch (error) { setMessage(error instanceof Error ? error.message : "Private input persistence was not confirmed."); }
     finally { setBusy(false); }
   }
-  return <details className="rounded-md border p-4"><summary className="cursor-pointer text-sm font-medium">Automatic networking execution</summary>
+  return <details open={guided || undefined} className="rounded-md border p-4"><summary className="cursor-pointer text-sm font-medium">Automatic networking execution</summary>
     <div className="mt-4 space-y-4 text-sm">
       <p>Choose a built-in networking test or a versioned custom package. The reviewed protocol freezes its configuration, repetitions and resource limits. Each invocation becomes a separate automatic queue job; completion preserves measurements and leaves scientific review pending.</p>
       {!capabilities ? <p role="status">The connected backend has not confirmed networking execution support.</p> : !capabilities.runners.find(item => item.id === runner)?.enabled ? <p role="status">This runner is registered but cloud execution is not enabled in the connected environment.</p> : null}
       <ResearchSelect label="Networking executor" value={runner} onChange={choose} options={NETWORK_RUNNERS.map(item => ({ value: item.id, label: item.name }))} />
-      <label className="block space-y-1"><span>Configuration identity</span><Input disabled={busy} value={identity} onChange={e => setIdentity(e.target.value)} /></label>
-      <label className="block space-y-1"><span>Networking test configuration JSON</span><Textarea aria-label="Networking test configuration JSON" disabled={busy} className="min-h-48 font-mono text-xs" value={config} onChange={e => setConfig(e.target.value)} /></label>
+      <label className="block space-y-1"><span>Configuration identity</span><Input disabled={busy} value={identity} onChange={e => { edit(); setIdentity(e.target.value); }} /></label>
+      {guided ? <NetworkingFields key={runner} runner={runner} text={config} disabled={busy} onChange={updateConfig} onValidityChange={valid => { setFieldsValid(valid); if (!valid) edit(); }} /> : null}
+      <details open={!guided || undefined}><summary className="cursor-pointer font-medium">Full test configuration</summary><label className="mt-3 block space-y-1"><span>Networking test configuration JSON</span><Textarea aria-label="Networking test configuration JSON" disabled={busy} className="min-h-48 font-mono text-xs" value={config} onChange={e => { edit(); setConfig(e.target.value); }} /></label></details>
       {runner === "custom-package-v1" ? <div className="space-y-3 rounded-md border p-3">
         <p>Python scripts receive JUMPSERVE_SPEC and write JUMPSERVE_OUTPUT using the network-observations-v1 contract. Upload original source privately, or enter a public container image pinned by sha256 digest in the configuration. Custom packages run on one isolated EC2 host; external endpoints and required equipment must be specified. Credentials belong in private inputs.</p>
         <label className="block space-y-1"><span>Package version</span><Input disabled={busy} value={packageVersion} onChange={e => setPackageVersion(e.target.value)} /></label>
@@ -105,14 +116,15 @@ export function NetworkProtocolEditor({ studyId, document, protocol, onChange }:
           <Button type="button" variant="outline" disabled={busy || !privateContent || !privateName || !privateVersion} onClick={() => void uploadPrivateInput()}>Preserve private experiment input</Button>
         </div></details>
       </div> : null}
-      <label className="block space-y-1"><span>Recorded metrics and units JSON</span><Textarea aria-label="Recorded metrics and units JSON" disabled={busy} className="font-mono text-xs" value={metrics} onChange={e => setMetrics(e.target.value)} /></label>
+      {guided ? <NetworkingMetricFields text={metrics} disabled={busy} onChange={value => { edit(); setMetrics(value); }} /> : null}
+      <details open={!guided || undefined}><summary className="cursor-pointer font-medium">Full metric declarations</summary><label className="mt-3 block space-y-1"><span>Recorded metrics and units JSON</span><Textarea aria-label="Recorded metrics and units JSON" disabled={busy} className="font-mono text-xs" value={metrics} onChange={e => { edit(); setMetrics(e.target.value); }} /></label></details>
       <div className="grid gap-3 sm:grid-cols-2">{[
         ["Replications per configuration", replications, setReplications, 1, 32], ["Execution wall limit (seconds)", wall, setWall, 60, 3600],
         ["Maximum instances per invocation", instances, setInstances, 1, 18], ["Maximum output bytes", outputBytes, setOutputBytes, 1024, 3000000],
         ["Network byte threshold (custom host sampling)", networkBytes, setNetworkBytes, 1024, 10000000000],
-      ].map(([label, value, setter, min, max]) => <label key={String(label)} className="block space-y-1"><span>{String(label)}</span><Input disabled={busy} type="number" min={Number(min)} max={Number(max)} value={Number(value)} onChange={event => (setter as (value: number) => void)(Number(event.target.value))} /></label>)}</div>
+      ].map(([label, value, setter, min, max]) => <label key={String(label)} className="block space-y-1"><span>{String(label)}</span><Input disabled={busy} type="number" min={Number(min)} max={Number(max)} value={Number(value)} onChange={event => { edit(); (setter as (value: number) => void)(Number(event.target.value)); }} /></label>)}</div>
       <p className="text-xs text-muted-foreground">Defaults are editable execution settings. Dates, sampling rationale, exclusions, dependence and other scientific choices remain unknown until you specify them. Add shared exclusive resource identities in execution.exclusive_resources where trials could interfere. Custom hosts sample network and output counters; thresholds can overshoot between checks. Built-in runners retain their existing traffic controls and do not enforce this network byte threshold. Configured limits are not measured charges.</p>
-      <Button type="button" disabled={busy || !capabilities} onClick={() => void compile()}>{busy ? "Preserving configuration…" : "Apply executable configuration to candidate"}</Button>
+      <Button type="button" disabled={busy || !capabilities || !fieldsValid} onClick={() => void compile()}>{busy ? "Preserving configuration…" : "Apply executable configuration to candidate"}</Button>
       {message ? <p role="status">{message}</p> : null}
     </div>
   </details>;

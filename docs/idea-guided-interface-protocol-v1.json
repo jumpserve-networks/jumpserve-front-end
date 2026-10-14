@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "declared_on": "2026-10-14",
+  "question": "Can an owner develop and run a reviewed experiment through a guided question-and-answer interface without bypassing existing scientific or execution gates?",
+  "design": "Local software development regressions. Actual components, API and isolated Postgres; synthetic Google identity, model responses and cloud dispatch. No scientific finding or held-out model evaluation.",
+  "pass_criteria": [
+    "Existing answers are reused and the first unresolved question is shown; unknowns stay empty",
+    "Direct user answers map to explicit plan or protocol fields and save immutable versions; no model output is silently applied",
+    "Methods can be specified without hand-writing protocol JSON; original advanced editing remains available",
+    "Missing, unsaved or invalid inputs and failed or critical reviews block progression to execution",
+    "Readiness requires latest fresh comprehension and critic reviews of the exact current packet plus owner acceptance",
+    "Configuration freezes before queueing; there is no automatic launch from chat or a planning recommendation",
+    "Save and model failures preserve drafts and invocation identities; no automatic model retries",
+    "Unavailable runners and workers are explicit; previous campaigns and evidence remain accessible",
+    "Mobile and desktop, light and dark, downloads, navigation and meaningful missing states remain usable"
+  ],
+  "resource_limits": {"new_live_model_calls": 0, "new_cloud_experiments": 0, "local_browser_campaign_seconds": 180, "automatic_model_retries": 0},
+  "reviewer": {"identity": "Primary Codex AI implementer", "type": "AI", "independent": false},
+  "conditional_checks": ["Actual published model answers to guided coaching requests", "Legitimate Google-authenticated owner request", "Remote Supabase Storage", "Production rollout"],
+  "release": "Local implementation only. Existing backend prompts, persistence and readiness architecture are reused. A new explicit deployment request is required."
+}
