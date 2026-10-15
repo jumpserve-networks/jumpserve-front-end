@@ -28,6 +28,7 @@ export async function ideaModelRequest(body: Record<string, unknown>, signal?: A
   try {
     const capabilities = await request({ action: "capabilities" });
     if (capabilities.research_ideas?.version !== IDEA_VERSION) throw new IdeaRequestError("This AI service does not yet support the idea flow. No model call was requested.", false);
+    if (body.interview_version && capabilities.research_ideas?.interview_version !== body.interview_version) throw new IdeaRequestError("The conversational guide is not available on this AI service yet. Use the checklist meanwhile. No model call was requested.", false);
     invocationStarted = true;
     const result = await request({ ...body, action: "idea" });
     if (!result.run || result.run.id !== body.request_id || result.run.study_id !== body.study_id || result.run.packet_id !== body.packet_id || result.run.task !== body.task) throw new Error("AI attempt identity was not confirmed. Refresh retained history before continuing.");

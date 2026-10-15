@@ -15,6 +15,7 @@ import { validateSnapshot, type ResearchSnapshot, type ResearchStudy } from "@/l
 import { RESEARCH_WORKFLOW_MODULE_PATH as PATH } from "@/lib/test-modules";
 import { NetworkProtocolEditor } from "./network-protocol-editor";
 import { preparedQueueRequests, type NetworkingCapabilities } from "@/lib/network-execution";
+import { IdeaReviewSources } from "./idea-review-sources";
 import { IdeaGuide } from "./idea-guide";
 
 const LABELS: Record<typeof IDEA_FIELDS[number], string> = {
@@ -61,13 +62,14 @@ export function IdeaIntake() {
   </form>;
 }
 
-function ModelAttempt({ run }: { run: IdeaRun }) {
+function ModelAttempt({ run, packet }: { run: IdeaRun; packet?: IdeaPacket }) {
   return <article className="space-y-3 rounded-md border p-4 text-sm">
     <p className="font-medium capitalize">{run.task} · {run.status}{run.output ? ` · ${run.output.verdict === "ready" ? "Plan recommendation: ready" : "Clarification needed"}` : ""}</p>
     {run.reason ? <p className="text-destructive">{run.reason}</p> : null}
     {run.output ? <><p className="whitespace-pre-wrap">{run.output.summary}</p>
       {run.output.questions.length ? <ul className="list-disc space-y-1 pl-5">{run.output.questions.map((question, index) => <li key={index}>{question}</li>)}</ul> : null}
       {run.output.findings.map((finding, index) => <p key={index}><strong>{finding.severity} · {finding.field}:</strong> {finding.message}</p>)}</> : null}
+    <IdeaReviewSources run={run} packet={packet} />
     <p className="text-xs text-muted-foreground">AI · {run.model_id}. {run.task === "planning" ? "Bounded planning conversation." : "Fresh packet-only context; shared model and sources, independent scientific review not asserted."}</p>
     <details><summary className="cursor-pointer text-xs">Prompt, context and usage provenance</summary><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md bg-muted p-3 text-xs">{JSON.stringify({ prompt_version_id: run.prompt_version_id, packet_id: run.packet_id, provenance: run.provenance, usage: run.usage }, null, 2)}</pre></details>
   </article>;
@@ -149,7 +151,7 @@ function IdeaActions({ state, studyId, reload, dirty }: { state: IdeaState; stud
       {state.missing.length ? <p className="text-xs text-muted-foreground">Still required: {state.missing.join("; ")}</p> : null}
     </form>}
     {message ? <p role="status" className="rounded-md border p-3 text-sm">{message}</p> : null}
-    <div className="space-y-3">{state.runs.length ? [...state.runs].reverse().map(run => <ModelAttempt key={run.id} run={run} />) : <p className="text-sm text-muted-foreground">No AI attempts recorded. Drafting a plan is not a review or an experiment.</p>}</div>
+    <div className="space-y-3">{state.runs.length ? [...state.runs].reverse().map(run => <ModelAttempt key={run.id} run={run} packet={state.packets.find(row => row.id === run.packet_id)} />) : <p className="text-sm text-muted-foreground">No AI attempts recorded. Drafting a plan is not a review or an experiment.</p>}</div>
   </section>;
 }
 

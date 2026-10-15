@@ -7,12 +7,14 @@ import {readFile,readdir,mkdir,writeFile} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
 import {chromium} from 'playwright';
 const require=createRequire(import.meta.url),{build}=require('../../jumpserve-infra/node_modules/esbuild');
+const sources=process.argv.length===3&&process.argv[2]==='--review-sources';
 const guided=process.argv.length===3&&process.argv[2]==='--guided';
-if(process.argv.length>2&&!guided)throw new Error('Only the fixed local --guided campaign is supported; no production mode.');
+const interview=process.argv.length===3&&process.argv[2]==='--interview';
+if(process.argv.length>2&&!guided&&!interview&&!sources)throw new Error('Only the fixed local --guided, --interview or --review-sources campaign is supported; no production mode.');
 const api='http://127.0.0.1:4103',headers={Authorization:'Bearer explicit-software-fixture','Content-Type':'application/json'};
 const metadata=await (await fetch(api+'/fixture-metadata')).json();assert.match(metadata.database,/^jumpserve_research_ideas_test_/);
-const directory=(guided?'.test-artifacts/idea-guide/browser/':'.test-artifacts/research-ideas/browser/')+new Date().toISOString().replaceAll(':','-');await mkdir(directory,{recursive:true});
-const report={protocol:guided?'idea-guided-interface-protocol-v1':'research-ideas-protocol-v1',amendment:guided?null:'research-ideas-amendment-v2',started_at:new Date().toISOString(),database:metadata.database,design:metadata.design,reviewer:{identity:'Primary Codex AI implementer',type:'AI',independent:false},checks:[],browser_errors:[],conditional_gaps:['Legitimate Google-authenticated request','Remote Supabase Storage','Production deployment','Independent or held-out scientific review'],measured_charges_usd:null};
+const directory=(sources?'.test-artifacts/idea-review-sources/browser/':interview?'.test-artifacts/idea-interview/browser/':guided?'.test-artifacts/idea-guide/browser/':'.test-artifacts/research-ideas/browser/')+new Date().toISOString().replaceAll(':','-');await mkdir(directory,{recursive:true});
+const report={protocol:sources?'idea-review-source-fidelity-protocol-v1':interview?'idea-interview-protocol-v1':guided?'idea-guided-interface-protocol-v1':'research-ideas-protocol-v1',amendment:sources?'idea-review-source-fidelity-amendment-v3':guided?null:'research-ideas-amendment-v2',started_at:new Date().toISOString(),database:metadata.database,design:metadata.design,reviewer:{identity:'Primary Codex AI implementer',type:'AI',independent:false},checks:[],browser_errors:[],conditional_gaps:['Legitimate Google-authenticated request','Remote Supabase Storage','Production deployment','Independent or held-out scientific review'],measured_charges_usd:null};
 let browser,server;
 async function check(name,run){const evidence=await run();report.checks.push({name,passed:true,evidence});console.log('PASS '+name);}
 try{
@@ -28,7 +30,9 @@ try{
  const page=await context.newPage();page.setDefaultTimeout(12000);page.on('pageerror',e=>report.browser_errors.push(e.message));
  await page.goto(origin+'/module/research-verification/new-idea');
  let studyId;
- if(guided){const {guidedCases}=await import('./research-ideas-guided-cases.mjs');studyId=await guidedCases({page,metadata,api,headers,origin,directory,check});}
+ if(sources){const {sourceCases}=await import('./research-ideas-source-cases.mjs');studyId=await sourceCases({page,metadata,api,headers,origin,directory,check});}
+ else if(interview){const {interviewCases}=await import('./research-ideas-interview-cases.mjs');studyId=await interviewCases({page,metadata,api,headers,origin,directory,check});}
+ else if(guided){const {guidedCases}=await import('./research-ideas-guided-cases.mjs');studyId=await guidedCases({page,metadata,api,headers,origin,directory,check});}
  else{
  await check('idea intake needs no paper and preserves genuinely unknown fields',async()=>{
   await page.getByLabel('Idea title',{exact:true}).fill('Browser software idea fixture');await page.getByLabel('Research domain',{exact:true}).fill('Software verification');await page.getByLabel('Research question',{exact:true}).fill('Could compression help?');await page.getByRole('button',{name:'Create private idea workspace',exact:true}).click();

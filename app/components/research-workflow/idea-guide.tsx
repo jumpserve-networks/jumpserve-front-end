@@ -10,6 +10,9 @@ import { researchRequest, ResearchRequestError } from "@/lib/research-workflow-a
 import { ideaModelRequest, IdeaRequestError } from "@/lib/research-idea-api";
 import { emptyIdea, ideaReview, type IdeaDocument, type IdeaPacket, type IdeaState } from "@/lib/research-ideas";
 import { answerQuestion, answered, GUIDE_QUESTIONS, guideAnswer, guideProgress, protocolDraft, type GuideQuestion } from "@/lib/idea-guide";
+import { INTERVIEW_VERSION, interviewDetails, interviewQuestion, interviewTurns } from "@/lib/idea-interview";
+import { IdeaReviewSources } from "./idea-review-sources";
+import { IdeaConversation } from "./idea-conversation";
 import { NetworkProtocolEditor } from "./network-protocol-editor";
 import { ResearchSelect } from "./select";
 
@@ -17,8 +20,8 @@ const errorText = (error: unknown) => error instanceof Error ? error.message : "
 const PHASES = ["Describe the idea", "Design the test", "Set up execution", "Check the plan", "Run the experiment"];
 type SaveRequest = { action: string; request_id: string; supersedes_id: string | null; document: IdeaDocument; reason: string };
 
-function AnswerComposer({ plan, question, disabled, helpDisabled, onSave, onHelp, onDirty, onDiscard }: {
-  plan: IdeaDocument; question: GuideQuestion; disabled: boolean; helpDisabled: boolean;
+function AnswerComposer({ plan, question, disabled, helpDisabled, onSave, onHelp, onDirty, onDiscard, conversational }: {
+  plan: IdeaDocument; question: GuideQuestion; disabled: boolean; helpDisabled: boolean; conversational: boolean;
   onSave: (document: IdeaDocument, reason: string) => Promise<void>; onHelp: (question: GuideQuestion, draft: string) => Promise<void>;
   onDirty: () => void; onDiscard: () => void;
 }) {
@@ -38,9 +41,9 @@ function AnswerComposer({ plan, question, disabled, helpDisabled, onSave, onHelp
       { value: "", label: "Choose the observation origin" }, { value: "new-empirical", label: "New measurements of an actual or emulated system" },
       { value: "simulation", label: "Simulated system outputs" }, { value: "archived-data", label: "Previously recorded data" },
       { value: "model-output", label: "Model outputs" }, { value: "software-fixture", label: "Software verification fixtures" }, { value: "mixed", label: "Mixed origins — explain their separation in the methods" },
-    ]} /> : question.format === "integer" ? <label className="block space-y-2 text-sm"><span className="font-medium">Your answer</span><Input aria-label="Your answer" type="number" min={1} max={10000} required disabled={disabled} value={answer} onChange={event => changed(event.target.value)} /></label> : <label className="block space-y-2 text-sm"><span className="font-medium">Your answer</span><Textarea aria-label="Your answer" aria-describedby="current-guide-question current-guide-help" className="min-h-28 text-foreground" required maxLength={5000} disabled={disabled} value={answer} onChange={event => changed(event.target.value)} placeholder={question.example ?? "Write what you know. Ask for help if you are unsure."} /></label>}
+    ]} /> : question.format === "integer" ? <label className="block space-y-2 text-sm"><span className="font-medium">Your answer</span><Input aria-label="Your answer" type="number" min={1} max={10000} required disabled={disabled} value={answer} onChange={event => changed(event.target.value)} /></label> : <label className="block space-y-2 text-sm"><span className="font-medium">Your answer</span><Textarea aria-label="Your answer" aria-describedby="current-guide-question current-guide-help" className="min-h-28 text-foreground" required maxLength={5000} disabled={disabled} value={answer} onChange={event => changed(event.target.value)} placeholder={conversational ? "Tell me what you know, or ask the guide below if you are unsure." : question.example ?? "Write what you know. Ask for help if you are unsure."} /></label>}
     {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-    <div className="flex flex-wrap gap-2"><Button type="submit" disabled={disabled || !answer.trim() || (question.format === "applicability" && !applicable)}>Save answer and continue</Button><Button type="button" variant="outline" disabled={disabled || helpDisabled} onClick={() => void onHelp(question, answer)}><CircleHelp /> Help me answer</Button><Button type="button" variant="ghost" disabled={disabled} onClick={() => { setAnswer(guideAnswer(plan, question)); setApplicable(existing?.applicable === true ? "yes" : existing?.applicable === false ? "no" : ""); setError(""); onDiscard(); }}>Discard unsaved answer</Button></div>
+    <div className="flex flex-wrap gap-2"><Button type="submit" disabled={disabled || !answer.trim() || (question.format === "applicability" && !applicable)}>{conversational ? "Send answer" : "Save answer and continue"}</Button><Button type="button" variant="outline" disabled={disabled || helpDisabled} onClick={() => void onHelp(question, answer)}><CircleHelp /> Help me answer</Button><Button type="button" variant="ghost" disabled={disabled} onClick={() => { setAnswer(guideAnswer(plan, question)); setApplicable(existing?.applicable === true ? "yes" : existing?.applicable === false ? "no" : ""); setError(""); onDiscard(); }}>Discard unsaved answer</Button></div>
     <p className="text-xs text-muted-foreground">Your answer is saved as you wrote it. AI suggestions stay separate until you choose what to record. You can return to earlier answers.</p>
   </form>;
 }
@@ -53,6 +56,8 @@ export function IdeaGuide({ state, studyId, dirty, advancedDirty, active, campai
   const packet = state.packets.find(row => row.id === state.current_packet_id);
   const plan = packet?.document ?? emptyIdea();
   const [selected, setSelected] = useState<{ id: string; packetId: string | null } | null>(null);
+  const [conversation, setConversation] = useState(true);
+  const [followUp, setFollowUp] = useState("");
   const [busy, setBusy] = useState(false); const [message, setMessage] = useState("");
   const [saveRequest, setSaveRequest] = useState<SaveRequest | null>(null);
   const [compiled, setCompiled] = useState<Record<string, unknown> | null>(null);
@@ -70,15 +75,15 @@ export function IdeaGuide({ state, studyId, dirty, advancedDirty, active, campai
   const [retryModel, setRetryModel] = useState<"planning" | "comprehension" | "critic" | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
   const chosenQuestion = selected && selected.packetId === state.current_packet_id ? GUIDE_QUESTIONS.find(q => q.id === selected.id) : undefined;
-  const activeQuestion = chosenQuestion ?? progress.unanswered[0];
+  const tailored = interviewQuestion(state, chosenQuestion);
+  const activeQuestion = conversation ? tailored?.field : chosenQuestion ?? progress.unanswered[0];
+  const needsQuestion = progress.unanswered.length > 0 || !!chosenQuestion;
   const phase = progress.stage === "idea" ? 0 : progress.stage === "methods" ? 1 : progress.stage === "configuration" ? 2 : progress.stage === "run" ? 4 : 3;
   const unconfirmedSave = saveRequest && !state.packets.some(p => p.id === saveRequest.request_id);
   const unconfirmedModel = retryModel && !state.runs.some(run => run.id === modelRequests.current[retryModel]?.request_id && run.status !== "running");
-  const disabled = busy || advancedDirty || campaignEditing || !!unconfirmedSave;
+  const disabled = busy || advancedDirty || campaignEditing || !!unconfirmedSave || !!unconfirmedModel;
   const currentReviews = state.runs.filter(run => run.packet_id === state.current_packet_id && run.task !== "planning");
-  const currentPlanning = state.runs.filter(run => run.task === "planning").slice(-3);
-  const lastAnswerPacket = [...state.packets].reverse().find(p => p.reason.startsWith("Guided answer: "));
-  const lastQuestion = GUIDE_QUESTIONS.find(q => lastAnswerPacket?.reason === `Guided answer: ${q.label}`);
+  const turns = interviewTurns(state);
   const budgetReached = (["comprehension", "critic"] as const).some(task => !ideaReview(state, task) && currentReviews.filter(run => run.task === task).length >= 3);
   const runningReview = (["comprehension", "critic"] as const).some(task => currentReviews.filter(run => run.task === task).at(-1)?.status === "running");
 
@@ -89,14 +94,19 @@ export function IdeaGuide({ state, studyId, dirty, advancedDirty, active, campai
       if (saved.id !== request.request_id || saved.study_id !== studyId || saved.supersedes_id !== request.supersedes_id) throw new Error("Saved answer identity was not confirmed. Refresh retained status before continuing.");
       await reload(saved.id); setSaveRequest(null); setSelected(null); setCompiled(null); setConfigure(false); setApproved(false); setRationale(""); onDiscard();
       setMessage(`Answer saved in plan version ${saved.version}. Earlier answers and reviews are preserved.`);
-    } catch (failure) { if (failure instanceof ResearchRequestError && failure.status >= 400 && failure.status < 500) setSaveRequest(null); setMessage(errorText(failure)); }
+      return saved;
+    } catch (failure) { if (failure instanceof ResearchRequestError && failure.status >= 400 && failure.status < 500) setSaveRequest(null); setMessage(errorText(failure)); return null; }
     finally { setBusy(false); }
   }
   async function save(document: IdeaDocument, reason: string) {
     if (busy || advancedDirty) return;
-    if (JSON.stringify(document) === JSON.stringify(plan)) { setSelected(null); onDiscard(); setMessage("This answer is already saved. Continue with the next unresolved question."); return; }
+    if (JSON.stringify(document) === JSON.stringify(plan)) { setSelected(null); onDiscard(); if (conversation) await converse("This answer is unchanged. Ask the next useful question, clarifying it if needed."); else setMessage("This answer is already saved. Continue with the next unresolved question."); return; }
     if (new TextEncoder().encode(JSON.stringify(document)).length > 24000) { setMessage("This answer would exceed the plan's 24 KB storage limit. Shorten the plan or use private experiment inputs for large files."); return; }
-    await persist({ action: "save", request_id: crypto.randomUUID(), supersedes_id: state.current_packet_id, document, reason });
+    const saved = await persist({ action: "save", request_id: crypto.randomUUID(), supersedes_id: state.current_packet_id, document, reason });
+    if (saved && conversation && reason.startsWith("Guided answer: ") && GUIDE_QUESTIONS.some(question => !answered(document, question))) {
+      await converse(`I saved my answer about ${activeQuestion?.label ?? "the plan"}: ${activeQuestion ? guideAnswer(document, activeQuestion).slice(0, 2400) : "See the current packet."}
+Acknowledge it and ask the most useful next question, or clarify this answer if it is ambiguous.`, saved.id);
+    }
   }
   async function model(task: "planning" | "comprehension" | "critic", extra: Record<string, unknown> = {}) {
     const retained = modelRequests.current[task];
@@ -111,8 +121,24 @@ export function IdeaGuide({ state, studyId, dirty, advancedDirty, active, campai
     delete modelRequests.current[task]; setRetryModel(null);
     return result.run;
   }
+  async function converse(message = "Use my saved idea to ask the most useful next planning question.", packetId = state.current_packet_id, preferredField?: string) {
+    if (!packetId || unconfirmedModel) return;
+    setBusy(true); setMessage("");
+    // Full saved plan accompanies every turn. Rotate before bounded history fills;
+    // earlier turns remain in research_idea_runs and the visible transcript.
+    const historyRuns = state.runs.filter(run => run.session_id === session.current);
+    const historyBytes = new TextEncoder().encode(JSON.stringify(historyRuns.map(run => ({ output: run.output, interview: interviewDetails(run) })))).length;
+    if (!session.current || historyRuns.length >= 4 || historyBytes > 5000) session.current = crypto.randomUUID();
+    try {
+      const run = await model("planning", { packet_id: packetId, session_id: session.current, message, interview_version: INTERVIEW_VERSION, ...(preferredField ? { preferred_field: preferredField } : {}) });
+      if (run.status !== "complete") setMessage(`AI turn retained: ${run.status}. ${run.reason ?? "Inspect the saved attempt before continuing."}`);
+      else setFollowUp("");
+    } catch (failure) { if (!(failure instanceof IdeaRequestError) || failure.uncertain) setRetryModel("planning"); setMessage(errorText(failure)); }
+    finally { setBusy(false); }
+  }
   async function help(question: GuideQuestion, draft: string) {
     if (!packet || unconfirmedModel) return;
+    if (conversation) { await converse(`Help me think through ${question.label}. My unsaved draft (not a recorded fact): ${draft.slice(0, 2400)}`, packet.id, question.id); return; }
     setBusy(true); setMessage("");
     session.current ||= crypto.randomUUID();
     const guidance = `Help me answer this planning question: ${question.question}\nTopic: ${question.label}. ${question.help}\nMy unsaved draft (not an established fact): ${draft.slice(0, 2500)}\nAsk a focused clarification and explain any options. Do not invent missing answers or imply the experiment has run.`;
@@ -152,14 +178,17 @@ export function IdeaGuide({ state, studyId, dirty, advancedDirty, active, campai
     <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
       <div className="min-w-0 space-y-4 rounded-lg border bg-card p-5">
         <div className="flex items-center gap-2"><MessageCircle className="size-5 text-primary" /><h2 className="text-lg font-semibold">Let’s build your experiment</h2></div>
-        <p className="text-sm text-muted-foreground">Answer one question at a time. I’ll reuse what you’ve already saved and show what still needs attention. Ask the AI for help when you are unsure.</p>
-        {lastAnswerPacket && lastQuestion ? <article aria-label="Latest saved answer" className="ml-6 space-y-1 rounded-lg border bg-primary/5 p-3"><p className="text-xs font-medium text-muted-foreground">You · {lastQuestion.label} · saved in version {lastAnswerPacket.version}</p><p className="max-h-28 overflow-auto whitespace-pre-wrap break-words text-sm">{guideAnswer(lastAnswerPacket.document, lastQuestion)}</p></article> : null}
+        <p className="text-sm text-muted-foreground">We’ll turn your idea into an experiment through a conversation. The AI uses your saved plan and latest answer to ask a focused question. You choose what to record; every change keeps its history.</p>
+        {plan.question ? <p className="rounded-md border p-3 text-sm"><span className="font-medium">Your research question: </span>{plan.question}</p> : null}
+        <Button type="button" variant="outline" size="sm" disabled={disabled || dirty} onClick={() => { setConversation(value => !value); setSelected(null); }}>{conversation ? "Use checklist instead" : "Return to conversation"}</Button>
+        <IdeaConversation state={state} active={active} />
         {advancedDirty ? <p role="status" className="rounded-md border p-3 text-sm">You have unsaved changes in the detailed editor. Save or discard them there before continuing the guide.</p> : null}
+        {conversation && needsQuestion && !activeQuestion ? <div className="space-y-3 rounded-lg bg-muted p-4" aria-label="Start tailored planning"><h3 className="font-semibold">{chosenQuestion ? `Let’s discuss ${chosenQuestion.label.toLowerCase()}` : "Let’s find the next useful question for your idea"}</h3><p className="text-sm">The guide will read your saved plan before asking. Each turn requests one AI response; opening this page does not call the model.</p><Button disabled={disabled || dirty || !packet} onClick={() => void converse(undefined, state.current_packet_id, chosenQuestion?.id)}>{turns.length ? "Continue conversation" : "Start conversation"}</Button>{chosenQuestion ? <Button variant="ghost" disabled={disabled || dirty} onClick={() => setSelected(null)}>Return to the next step</Button> : null}</div> : null}
         {plan && activeQuestion ? <>
-          <article className="space-y-2 rounded-lg bg-muted p-4" aria-label="Current guide question"><p className="text-xs font-medium text-muted-foreground">Research guide · {activeQuestion.section === "idea" ? "Describe the idea" : "Design the test"}</p><h3 id="current-guide-question" className="text-base font-semibold">{activeQuestion.question}</h3><p id="current-guide-help" className="text-sm">{activeQuestion.help}</p></article>
-          <AnswerComposer key={`${packet?.id}:${activeQuestion.id}`} plan={plan} question={activeQuestion} disabled={disabled} helpDisabled={!packet || !!unconfirmedModel} onSave={save} onHelp={help} onDirty={onDirty} onDiscard={onDiscard} />
+          <article className="space-y-2 rounded-lg bg-muted p-4" aria-label="Current guide question"><p className="text-xs font-medium text-muted-foreground">Research guide · {activeQuestion.section === "idea" ? "Describe the idea" : "Design the test"}</p><h3 id="current-guide-question" className="text-base font-semibold">{conversation ? tailored?.text : activeQuestion.question}</h3><p id="current-guide-help" className="text-sm">{conversation ? `Your answer will be recorded under “${activeQuestion.label}”. You can ask for advice below before answering.` : activeQuestion.help}</p></article>
+          <AnswerComposer key={`${packet?.id}:${activeQuestion.id}`} plan={plan} question={activeQuestion} disabled={disabled} helpDisabled={!packet || !!unconfirmedModel} onSave={save} onHelp={help} onDirty={onDirty} onDiscard={onDiscard} conversational={conversation} />
           {chosenQuestion ? <Button type="button" variant="outline" size="sm" disabled={disabled || dirty} onClick={() => setSelected(null)}>Return to the next step</Button> : null}
-        </> : <>
+        </> : !needsQuestion ? <>
           <article className="space-y-2 rounded-lg bg-muted p-4" aria-label="Current guide question"><p className="text-xs font-medium text-muted-foreground">Research guide · {PHASES[phase]}</p><h3 className="text-base font-semibold">{phase === 2 ? "How should JumpServe execute this experiment?" : phase === 4 ? "Your reviewed plan is ready to prepare an experiment." : "Let’s check for gaps before running anything."}</h3><p className="text-sm">{phase === 2 ? "Choose the runner that matches your methods, specify the actual configuration, and confirm the repetitions and resource limits." : phase === 4 ? "Preparation freezes the reviewed plan. Queueing is the separate action that requests execution; monitor retained jobs and measurements below." : "Required answers are recorded. Fresh comprehension and critic reviews must agree that the current plan has no unresolved questions or blocking findings."}</p></article>
           {(phase === 2 || configure) && plan ? <div className="space-y-3"><NetworkProtocolEditor key={`${packet?.id}:${configurationRevision}`} studyId={studyId} document={plan} protocol={JSON.stringify(compiled ?? protocolDraft(plan))} guided onEditing={() => { setCompiled(null); onDirty(); }} onChange={value => { setCompiled(JSON.parse(value)); onDirty(); }} />{compiled ? <Button type="button" disabled={disabled} onClick={() => void save({ ...plan, protocol: compiled }, "Guided setup: executable configuration, measurements and resource limits")}>Save experiment configuration</Button> : null}<Button type="button" variant="ghost" disabled={disabled} onClick={() => { setCompiled(null); setConfigurationRevision(value => value + 1); onDiscard(); setMessage("Unsaved setup changes discarded. The saved plan is unchanged."); }}>Discard setup changes</Button></div> : null}
           {phase === 3 ? <div className="space-y-4">
@@ -171,9 +200,10 @@ export function IdeaGuide({ state, studyId, dirty, advancedDirty, active, campai
           </div> : null}
           {phase === 4 && active ? children : null}
           {phase !== 2 && plan ? <Button variant="outline" size="sm" disabled={disabled || dirty} onClick={() => setConfigure(value => !value)}>{configure ? "Close execution settings" : "Review execution settings"}</Button> : null}
-        </>}
-        {currentPlanning.map(run => <article key={run.id} className="space-y-2 rounded-md border p-4 text-sm"><p className="text-xs font-medium">AI coach · plan version {state.packets.find(p => p.id === run.packet_id)?.version ?? "unavailable"} · {run.status}{run.packet_id !== packet?.id ? " · earlier version" : ""}</p>{run.output ? <><p className="whitespace-pre-wrap">{run.output.summary}</p>{run.output.questions.map(q => <p key={q} className="font-medium">{q}</p>)}{run.output.findings.map((f, index) => <p key={index}>{f.severity}: {f.message}</p>)}</> : <p>{run.reason ?? "The answer is not available yet."}</p>}<p className="text-xs text-muted-foreground">{run.model_id}. Guidance is separate from your saved answers and final readiness checks.</p></article>)}
-        {currentReviews.length ? <div className="space-y-3"><h3 className="font-medium">What the fresh reviews found</h3>{(["comprehension", "critic"] as const).map(task => { const run = currentReviews.filter(r => r.task === task).at(-1); return run ? <article key={run.id} className="space-y-2 rounded-md border p-3 text-sm"><p className="font-medium">{task === "comprehension" ? "Does the plan stand on its own?" : "Does the design withstand criticism?"} · {run.status} · {ideaReview(state, task) ? "Passed" : "Needs attention"}</p><p className="whitespace-pre-wrap">{run.output?.summary ?? run.reason ?? "Waiting for a recorded answer."}</p>{run.output?.questions.map(q => <p key={q}>{q}</p>)}{run.output?.findings.map((f, index) => { const question = GUIDE_QUESTIONS.find(q => q.id === f.field || q.label.toLowerCase() === f.field.toLowerCase()); return <div key={index}><p>{f.severity}: {f.message}</p>{question ? <Button variant="outline" size="sm" disabled={disabled || dirty} onClick={() => setSelected({ id: question.id, packetId: state.current_packet_id })}>Revise {question.label.toLowerCase()}</Button> : null}</div>; })}<p className="text-xs text-muted-foreground">AI review · {run.model_id} · saved plan version {packet?.version}. Fresh context; independent scientific review is not asserted.</p></article> : null; })}</div> : null}
+        </> : null}
+        {conversation && packet && needsQuestion ? <form className="space-y-2 rounded-md border p-3" aria-label="Ask the research guide" onSubmit={event => { event.preventDefault(); if (followUp.trim() && !disabled) void converse(`Question for the guide: ${followUp.trim()}`, state.current_packet_id, activeQuestion?.id ?? chosenQuestion?.id); }}><label className="block space-y-2 text-sm"><span className="font-medium">Ask the guide</span><Textarea aria-label="Ask the guide" maxLength={2500} disabled={disabled} value={followUp} onChange={event => setFollowUp(event.target.value)} placeholder="Ask about this question, compare options, or say what is unclear." /></label><Button type="submit" variant="outline" disabled={disabled || !followUp.trim()}>Send question</Button><p className="text-xs text-muted-foreground">This stays in the discussion. It does not change your saved plan.</p></form> : null}
+        {currentReviews.length ? <div className="space-y-3"><h3 className="font-medium">What the fresh reviews found</h3>{(["comprehension", "critic"] as const).map(task => { const run = currentReviews.filter(r => r.task === task).at(-1); return run ? <article key={run.id} className="space-y-2 rounded-md border p-3 text-sm"><p className="font-medium">{task === "comprehension" ? "Does the plan stand on its own?" : "Does the design withstand criticism?"} · {run.status} · {ideaReview(state, task) ? "Passed" : "Needs attention"}</p><p className="whitespace-pre-wrap">{run.output?.summary ?? run.reason ?? "Waiting for a recorded answer."}</p>{run.output?.questions.map(q => <p key={q}>{q}</p>)}{run.output?.findings.map((f, index) => { const question = GUIDE_QUESTIONS.find(q => q.id === f.field || q.label.toLowerCase() === f.field.toLowerCase()); return <div key={index}><p>{f.severity}: {f.message}</p>{question ? <Button variant="outline" size="sm" disabled={disabled || dirty} onClick={() => setSelected({ id: question.id, packetId: state.current_packet_id })}>Revise {question.label.toLowerCase()}</Button> : null}</div>; })}<IdeaReviewSources run={run} packet={state.packets.find(value => value.id === run.packet_id)} /><p className="text-xs text-muted-foreground">AI review · {run.model_id} · saved plan version {packet?.version}. Fresh context; independent scientific review is not asserted.</p></article> : null; })}</div> : null}
+        {busy ? <p role="status" className="text-sm text-muted-foreground">Working on your request… Your saved plan and earlier turns remain available.</p> : null}
         {message ? <p role="status" className="rounded-md border p-3 text-sm">{message}</p> : null}
         {unconfirmedSave ? <Button variant="outline" disabled={busy} onClick={() => void persist(saveRequest!)}>Retry saving the same answer</Button> : null}
         {unconfirmedModel && !runningReview ? <Button variant="outline" disabled={busy} onClick={() => { setBusy(true); void model(retryModel!).catch(error => setMessage(errorText(error))).finally(() => setBusy(false)); }}>Retry the same AI request</Button> : null}
@@ -182,7 +212,7 @@ export function IdeaGuide({ state, studyId, dirty, advancedDirty, active, campai
       <aside className="space-y-4 rounded-lg border p-4 text-sm" aria-label="Experiment readiness checklist"><div className="flex items-center gap-2"><ShieldCheck className="size-4 text-primary" /><h2 className="font-semibold">Before we can run</h2></div><p>{progress.answeredCount} of {GUIDE_QUESTIONS.length} planning questions answered. This is a completeness count, not a confidence score.</p><progress className="h-2 w-full accent-primary" aria-label="Answered planning questions" value={progress.answeredCount} max={GUIDE_QUESTIONS.length} /><ul className="space-y-2">{[
         ["Research idea described", !progress.unanswered.some(q => q.section === "idea")], ["Methods and decision rules recorded", !progress.unanswered.some(q => q.section === "methods")],
         ["Executable setup saved", progress.configured], ["Comprehension review passed", !!ideaReview(state, "comprehension")], ["Critic review passed", !!ideaReview(state, "critic")], ["Your approval recorded", state.ready],
-      ].map(([label, done]) => <li key={String(label)} className="flex gap-2"><span className={done ? "text-primary" : "text-muted-foreground"}>{done ? "✓" : "○"}</span>{String(label)}<span className="sr-only">{done ? ": complete" : ": incomplete"}</span></li>)}</ul>{dirty ? <p role="status" className="text-xs">Unsaved changes block reviews and launch. Save or discard the current answer first.</p> : null}<details><summary className="cursor-pointer font-medium">Review saved answers</summary><div className="mt-3 space-y-3">{GUIDE_QUESTIONS.map(q => <div key={q.id} className="space-y-1"><Button className="h-auto justify-start whitespace-normal px-0 text-left" variant="link" size="sm" disabled={disabled || dirty} onClick={() => setSelected({ id: q.id, packetId: state.current_packet_id })}>{q.label} · {plan && answered(plan, q) ? "answered" : "still needed"}</Button>{plan && guideAnswer(plan, q) ? <p className="whitespace-pre-wrap break-words text-xs text-muted-foreground">{guideAnswer(plan, q)}</p> : null}</div>)}</div></details><p className="text-xs text-muted-foreground">The guide’s questions come from the required checklist. “AI coach” answers use the existing authenticated, saved discussion. A planning recommendation cannot launch an experiment.</p></aside>
+      ].map(([label, done]) => <li key={String(label)} className="flex gap-2"><span className={done ? "text-primary" : "text-muted-foreground"}>{done ? "✓" : "○"}</span>{String(label)}<span className="sr-only">{done ? ": complete" : ": incomplete"}</span></li>)}</ul>{dirty ? <p role="status" className="text-xs">Unsaved changes block reviews and launch. Save or discard the current answer first.</p> : null}<details><summary className="cursor-pointer font-medium">Review saved answers</summary><div className="mt-3 space-y-3">{GUIDE_QUESTIONS.map(q => <div key={q.id} className="space-y-1"><Button className="h-auto justify-start whitespace-normal px-0 text-left" variant="link" size="sm" disabled={disabled || dirty} onClick={() => setSelected({ id: q.id, packetId: state.current_packet_id })}>{q.label} · {plan && answered(plan, q) ? "answered" : "still needed"}</Button>{plan && guideAnswer(plan, q) ? <p className="whitespace-pre-wrap break-words text-xs text-muted-foreground">{guideAnswer(plan, q)}</p> : null}</div>)}</div></details><p className="text-xs text-muted-foreground">Conversation questions are generated from your saved idea and answers. The checklist tracks coverage; it does not judge answer quality. Fresh reviews and your approval still gate execution.</p></aside>
     </div>
   </section>;
 }
