@@ -1,0 +1,12 @@
+{
+  "version": "research-pathways-production-release-v2",
+  "amends": "research-pathways-production-release-protocol-v1.json",
+  "finding": "Amplify job 112 deployed successfully, but the first full production pathway verification timed out opening the mobile navigation. Four desktop pathway groups and all thirteen homepage groups passed; that partial report remains preserved.",
+  "controlled_diagnosis": "A fresh mobile browser accepted a menu click while the server-rendered button had no React props/listeners attached. Its aria-expanded stayed false and no dialog appeared after the client attached. Diagnostic React DOM properties are an implementation-specific observation, not a proposed product readiness API. The first diagnostic used an inaccessible role locator after opening a modal and timed out; the second preserves before/after DOM snapshots using an ordinary element selector.",
+  "correction": "Keep the mobile Sheet trigger disabled in server output and initial hydration. React useSyncExternalStore exposes true only on the client; enabling the control then preserves its existing controlled open state and event handlers. This changes no experiment, measurement, source, prompt or database record.",
+  "added_release_blocker": "Hold back the actual Next.js client script requests in a fresh 390-pixel browser. Require the visible server-rendered menu trigger to be disabled. Release the script gate, click once through normal Playwright enabled/actionability waiting, and require the correct module navigation to appear without retries or arbitrary sleeps. The gate must have withheld at least one script.",
+  "verification": "Run the added controlled check and existing pathway checks against the built local server and the final production release. Repeat frontend tests, lint and build; reuse unchanged backend/database evidence. Retain job 112 and its original partial verification rather than rewriting it as a passing release.",
+  "reviewer": {"identity": "Primary Codex implementer", "type": "AI", "independent": false},
+  "independence": "Development regression created after observing the failure; not held-out validation.",
+  "conditional_gaps": "Real Google owner/cross-owner and authenticated chat requests still require a legitimate available session."
+}

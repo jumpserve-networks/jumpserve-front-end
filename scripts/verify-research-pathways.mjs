@@ -67,6 +67,39 @@ let browser, paperStudyId;
 try {
   const chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
   browser = await chromium.launch({ headless: true, executablePath: existsSync(chrome) ? chrome : undefined });
+  await check("mobile menu accepts its first click only after client scripts are ready", async () => {
+    const context = await browser.newContext({ viewport: { width: 390, height: 900 } });
+    const page = await context.newPage();
+    page.setDefaultTimeout(15000);
+    page.on("pageerror", error => report.browser_errors.push(error.message));
+    let releaseScripts;
+    let blockedScripts = 0;
+    const scripts = new Promise(resolve => { releaseScripts = resolve; });
+    await page.route("**/*", async route => {
+      const url = new URL(route.request().url());
+      if (url.origin === origin && url.pathname.startsWith("/_next/static/") && route.request().resourceType() === "script") {
+        blockedScripts++;
+        await scripts;
+      }
+      await route.continue();
+    });
+    try {
+      assert.equal((await page.goto(origin + paper, { waitUntil: "commit", timeout: 30000 })).status(), 200);
+      const trigger = page.getByRole("button", { name: "Open module menu", exact: true });
+      await trigger.waitFor();
+      assert.equal(await trigger.isDisabled(), true, "The server-rendered menu must not accept a click before its event handlers exist");
+      releaseScripts();
+      await trigger.click();
+      const menu = page.getByRole("dialog").getByRole("navigation", { name: "Verify Existing Claims navigation", exact: true });
+      await menu.waitFor();
+      assert.ok(blockedScripts > 0, "The check must actually hold back client scripts");
+      await page.screenshot({ path: directory + "/mobile-menu-after-first-click.png" });
+      return { client_scripts_withheld: blockedScripts, disabled_before_hydration: true, successful_clicks: 1, navigation_visible: true };
+    } finally {
+      releaseScripts();
+      await context.close();
+    }
+  });
   for (const width of [1365, 390]) for (const theme of ["light", "dark"]) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: theme });
     await context.addInitScript(value => localStorage.setItem("theme-preference", value), theme);

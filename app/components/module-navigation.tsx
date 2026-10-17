@@ -2,7 +2,7 @@
 
 import { EMULATED_MODULE_PATH, REAL_WORLD_MODULE_PATH, isModuleSectionActive, type TestModule } from "@/lib/test-modules";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ChartNoAxesCombined, FileChartColumn, FlaskConical, Globe2, LayoutDashboard, Menu, MessageSquare, Search, type LucideIcon } from "lucide-react";
 import { Button, buttonVariants } from "@/app/components/ui/button";
@@ -20,6 +20,9 @@ const sectionIcons: Record<string, LucideIcon> = {
 };
 
 type NavigationProps = { testModule: TestModule; pathname: string; onNavigate?: () => void };
+const subscribeToHydration = () => () => {};
+const getHydratedSnapshot = () => true;
+const getServerHydratedSnapshot = () => false;
 
 export function ModuleNavigation({ testModule, pathname, onNavigate }: NavigationProps) {
   const links = [
@@ -48,6 +51,7 @@ export function ModuleNavigation({ testModule, pathname, onNavigate }: Navigatio
 
 export function MobileModuleNavigation({ testModule, pathname }: NavigationProps) {
   const [open, setOpen] = useState(false);
+  const hydrated = useSyncExternalStore(subscribeToHydration, getHydratedSnapshot, getServerHydratedSnapshot);
 
   useEffect(() => {
     const desktop = window.matchMedia("(min-width: 1024px)");
@@ -57,7 +61,7 @@ export function MobileModuleNavigation({ testModule, pathname }: NavigationProps
   }, []);
 
   return <Sheet open={open} onOpenChange={setOpen}>
-    <SheetTrigger render={<Button type="button" variant="outline" size="icon-sm" className="lg:hidden" aria-label="Open module menu" />}>
+    <SheetTrigger disabled={!hydrated} render={<Button type="button" variant="outline" size="icon-sm" className="lg:hidden" aria-label="Open module menu" />}>
       <Menu aria-hidden="true" />
     </SheetTrigger>
     <SheetContent side="left" className="max-w-[calc(100%-3rem)] gap-0 overflow-y-auto bg-sidebar text-sidebar-foreground data-[side=left]:w-72">

@@ -1,0 +1,23 @@
+{
+  "origin": "https://jumpserve.quaint-lab.org",
+  "started_at": "2026-10-17T21:46:53.348Z",
+  "checks": [],
+  "errors": [
+    {
+      "name": "mobile menu accepts its first click only after client scripts are ready",
+      "reason": "The server-rendered menu must not accept a click before its event handlers exist\n\nfalse !== true\n"
+    }
+  ],
+  "browser_errors": [],
+  "conditional_gaps": [
+    "No legitimate Google session: authenticated saved-idea continuation and experiment execution were not exercised.",
+    "No database migrations, new scientific campaigns, or model evaluations are part of this module split."
+  ],
+  "reviewer": {
+    "identity": "Primary Codex AI implementer",
+    "type": "AI",
+    "independent": false
+  },
+  "ended_at": "2026-10-17T21:46:54.908Z",
+  "passed": false
+}

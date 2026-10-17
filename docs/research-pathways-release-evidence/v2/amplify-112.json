@@ -1,0 +1,32 @@
+{
+    "summary": {
+        "jobArn": "arn:aws:amplify:us-east-1:395567831870:apps/d24jvguj7brnkj/branches/main/jobs/0000000112",
+        "jobId": "112",
+        "commitId": "9d38933a4962a0228fd987ef3014cd89bbd7fe2f",
+        "commitMessage": "User-authorized research pathways and queue release; matching backend deployed and verified",
+        "commitTime": "2026-10-17T16:40:26.158000-05:00",
+        "startTime": "2026-10-17T16:40:26.439000-05:00",
+        "status": "SUCCEED",
+        "endTime": "2026-10-17T16:42:58.520000-05:00"
+    },
+    "steps": [
+        {
+            "stepName": "BUILD",
+            "status": "SUCCEED",
+            "startTime": "2026-10-17T16:40:26.457000-05:00",
+            "endTime": "2026-10-17T16:42:33.520000-05:00"
+        },
+        {
+            "stepName": "DEPLOY",
+            "status": "SUCCEED",
+            "startTime": "2026-10-17T16:42:33.684000-05:00",
+            "endTime": "2026-10-17T16:42:58.087000-05:00"
+        },
+        {
+            "stepName": "VERIFY",
+            "status": "SUCCEED",
+            "startTime": "2026-10-17T16:42:58.354000-05:00",
+            "endTime": "2026-10-17T16:42:58.376000-05:00"
+        }
+    ]
+}

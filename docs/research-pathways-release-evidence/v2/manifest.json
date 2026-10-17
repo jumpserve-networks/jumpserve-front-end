@@ -1,0 +1,44 @@
+[
+  {
+    "path": "pathways-production-initial-failed.json",
+    "sha256": "ee1076df37bb36058e56ec2449f4059b96b2d0f0202b0c1cba7d4765ba1db35c",
+    "byte_count": 18126,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/2026-10-17T21-43-35.252Z/report.json"
+  },
+  {
+    "path": "mobile-menu-diagnostic.json",
+    "sha256": "2d7bc3422772f0993a0862799f4a27f2c7f9a08b445cd05c7ec398240d8ed6ef",
+    "byte_count": 4176,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/mobile-menu-diagnostic-v2/report.json"
+  },
+  {
+    "path": "script-gated-old-release-failed.json",
+    "sha256": "6e357980352ebc7b26ff6c589d2d1102877a8a288317d21690a0c5aee597c631",
+    "byte_count": 804,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/2026-10-17T21-46-53.348Z/report.json"
+  },
+  {
+    "path": "pathways-development-corrected.json",
+    "sha256": "39b84336a04f421daef055a217363cb3771fe5102b57ab049d2dfecc2baf2303",
+    "byte_count": 44108,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/2026-10-17T21-46-37.250Z/report.json"
+  },
+  {
+    "path": "amplify-112.json",
+    "sha256": "db0b9f5d56f98950f53310255b54c23324f5fc5bab103e941b8bbc8e9bd036d8",
+    "byte_count": 1184,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/amplify-112.json"
+  },
+  {
+    "path": "pathways-built-corrected.json",
+    "sha256": "267cce567aa197d1b086dc9b6a8f3d72c969777ec1a1b839da948fe91e6800e4",
+    "byte_count": 44108,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/2026-10-17T21-47-03.417Z/report.json"
+  },
+  {
+    "path": "queue-corrected.json",
+    "sha256": "0d49a144dce8a27192f4168af35c2a6c6301d1508f2074516a5efa0b45c77289",
+    "byte_count": 3135,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/experiment-queue/2026-10-17T21-47-20.485Z/report.json"
+  }
+]
