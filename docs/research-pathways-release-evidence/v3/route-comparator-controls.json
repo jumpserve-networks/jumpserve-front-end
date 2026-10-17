@@ -1,0 +1,6 @@
+{
+  "passed": true,
+  "accepted_controls": 1,
+  "rejected_controls": 4,
+  "rule": "Full route and query multimap identity; retain repeated-value order"
+}

@@ -1,0 +1,10 @@
+{
+  "version": "research-pathways-production-release-v3",
+  "amends": "research-pathways-production-release-amendment-v2.json",
+  "observation": "The corrected release passed the script-gated first-click check and all eight desktop/mobile pathway-theme groups. Its legacy redirect check then compared a complete URL string: production returned ?tag=a%26b&tag=c&view=results while the request expected ?view=results&tag=a%26b&tag=c. The sample retained all decoded values and repeated tag order. The hosting/framework component responsible for reordering was not isolated.",
+  "correction_scope": "Verification only. No frontend application, backend, database, prompt or production configuration changes.",
+  "comparison_rule": "Compare origin, user information, pathname, fragment and the complete mapping from each query key to its ordered list of decoded values. Distinct query key order is not part of route identity. Missing, added or changed parameters, reordered repeated values, wrong hosts/paths and altered nested sign-in destinations still fail.",
+  "controls": "Before repeating production checks, verify the comparator accepts distinct-key reordering and rejects changed/missing values, reversed repeated values and a different destination origin. The prior strict-string failure report is preserved.",
+  "evaluation_scope": "Development regression corrected after observed production feedback; not held-out or independent validation. Preserve the original failure and its exact source revision.",
+  "reviewer": {"identity": "Primary Codex implementer", "type": "AI", "independent": false}
+}

@@ -1,0 +1,305 @@
+{
+  "version": "research-pathways-production-release-v2",
+  "recorded_at": "2026-10-17T21:54:44.984154+00:00",
+  "software_release_status": "Deployed successfully; declared blockers passed. Authenticated conditional gaps remain explicit.",
+  "scientific_status": "No new scientific campaign, claim assessment, model evaluation or prompt publication submitted by this software release. Existing paper findings, unresolved claims and original sources retain their recorded conditions and limitations.",
+  "authorization": "User requested all outstanding changes committed to main, pushed and deployed to production on 2026-10-17.",
+  "protocols": [
+    "research-pathways-production-release-protocol-v1.json",
+    "research-pathways-production-release-amendment-v2.json",
+    "research-pathways-production-release-amendment-v3.json"
+  ],
+  "targets": {
+    "aws_account": "395567831870",
+    "supabase_project": "regphejnlvfpyokpniny",
+    "database": "postgres",
+    "supabase_project_identity_verified": true
+  },
+  "production_origin": "https://jumpserve.quaint-lab.org",
+  "source_revisions": {
+    "frontend_runtime": "38c149b0d1e92e7efebd4044a699902b042069ac",
+    "frontend_initial_runtime": "9d38933a4962a0228fd987ef3014cd89bbd7fe2f",
+    "backend": "62f58791028a236e38b77beb2f8f8610123db270",
+    "infrastructure": "2172ab4cdc899e2ab0bd66b2484b34f1bc8ae185",
+    "runtime_manifest_version": 11
+  },
+  "commit_policy": "All application and operator-tool changes committed/pushed to main in the three repositories. CI/CD skip markers permitted the recorded scoped checks and backend-first release. A later evidence/comparator-only commit preserves these receipts; it changes no deployed application bytes.",
+  "deployment": {
+    "backend_stack": "JumpServeBenchmarkStack",
+    "backend_status": "UPDATE_COMPLETE",
+    "benchmark_ami_preserved": "ami-0808d1157e26c65cb",
+    "stack_parameter_values_preserved": true,
+    "frontend": {
+      "jobArn": "arn:aws:amplify:us-east-1:395567831870:apps/d24jvguj7brnkj/branches/main/jobs/0000000113",
+      "jobId": "113",
+      "commitId": "38c149b0d1e92e7efebd4044a699902b042069ac",
+      "commitMessage": "User-authorized release follow-up: prevent lost mobile menu clicks during hydration; controlled checks passed",
+      "commitTime": "2026-10-17T16:47:55.709000-05:00",
+      "startTime": "2026-10-17T16:47:55.995000-05:00",
+      "status": "SUCCEED",
+      "endTime": "2026-10-17T16:50:32.297000-05:00"
+    },
+    "earlier_job": "112 succeeded; initial mobile validation failed and was corrected in job 113.",
+    "database_migrations": 0,
+    "prompt_publications": 0
+  },
+  "validation": {
+    "frontend_tests": 175,
+    "backend_tests": 111,
+    "infrastructure_tests": 89,
+    "agent_regressions": 101,
+    "isolated_postgres_queue_groups": 14,
+    "corrected_built_pathway_groups": 13,
+    "queue_browser_groups": 8,
+    "production_homepage_groups": 13,
+    "production_pathway_groups": 13,
+    "production_browser_errors": [],
+    "frontend_build": "Next.js 16.3.8 passed",
+    "infrastructure_build": "passed",
+    "lint": {
+      "errors": 0,
+      "existing_warnings": 1
+    },
+    "raw_downloads": {
+      "original_files_preserved": 11,
+      "production_ipv6_archive_sha256": "7c4db9d04a289d958d04ee5458ec5e3cf056a20e400d93e6d993a6be3d3a9b18"
+    }
+  },
+  "backend_verification": {
+    "functions": [
+      {
+        "name": "JumpServeBenchmarkStack-ResearchWorkflowApiE04EBDA-mGlPl5tGRx2X",
+        "handler": "api.handler",
+        "arn": "arn:aws:lambda:us-east-1:395567831870:function:JumpServeBenchmarkStack-ResearchWorkflowApiE04EBDA-mGlPl5tGRx2X",
+        "sha256": "34da1f95fa72cbf266bad70b2c893dfa45f962f2de129d4857449f33fd23016d",
+        "source_files": 14,
+        "memory_mb": 512,
+        "timeout_seconds": 29,
+        "last_modified": "2026-10-17T21:39:08.000+0000"
+      },
+      {
+        "name": "JumpServeBenchmarkStack-ResearchWorkflowPackageExe-0QWe4I5CRgSt",
+        "handler": "network_package.handler",
+        "arn": "arn:aws:lambda:us-east-1:395567831870:function:JumpServeBenchmarkStack-ResearchWorkflowPackageExe-0QWe4I5CRgSt",
+        "sha256": "34da1f95fa72cbf266bad70b2c893dfa45f962f2de129d4857449f33fd23016d",
+        "source_files": 14,
+        "memory_mb": 512,
+        "timeout_seconds": 60,
+        "last_modified": "2026-10-17T21:38:27.000+0000"
+      },
+      {
+        "name": "JumpServeBenchmarkStack-ResearchWorkflowPackageIng-kAAtKeB693oF",
+        "handler": "network_package.ingest",
+        "arn": "arn:aws:lambda:us-east-1:395567831870:function:JumpServeBenchmarkStack-ResearchWorkflowPackageIng-kAAtKeB693oF",
+        "sha256": "34da1f95fa72cbf266bad70b2c893dfa45f962f2de129d4857449f33fd23016d",
+        "source_files": 14,
+        "memory_mb": 512,
+        "timeout_seconds": 29,
+        "last_modified": "2026-10-17T21:38:20.000+0000"
+      },
+      {
+        "name": "JumpServeBenchmarkStack-ResearchWorkflowPackageRea-Vy8KadbHwEL9",
+        "handler": "network_package.reap",
+        "arn": "arn:aws:lambda:us-east-1:395567831870:function:JumpServeBenchmarkStack-ResearchWorkflowPackageRea-Vy8KadbHwEL9",
+        "sha256": "34da1f95fa72cbf266bad70b2c893dfa45f962f2de129d4857449f33fd23016d",
+        "source_files": 14,
+        "memory_mb": 256,
+        "timeout_seconds": 120,
+        "last_modified": "2026-10-17T21:38:26.000+0000"
+      },
+      {
+        "name": "JumpServeBenchmarkStack-ResearchWorkflowQueueWorke-82Gxm08dQQsP",
+        "handler": "worker.handler",
+        "arn": "arn:aws:lambda:us-east-1:395567831870:function:JumpServeBenchmarkStack-ResearchWorkflowQueueWorke-82Gxm08dQQsP",
+        "sha256": "34da1f95fa72cbf266bad70b2c893dfa45f962f2de129d4857449f33fd23016d",
+        "source_files": 14,
+        "memory_mb": 512,
+        "timeout_seconds": 180,
+        "last_modified": "2026-10-17T21:38:36.000+0000"
+      }
+    ],
+    "declared_original_sources_per_archive": 14,
+    "anonymous_and_forged_denials": [
+      {
+        "path": "/queue",
+        "method": "GET",
+        "forged_bearer": false,
+        "status": 401,
+        "cors": "*"
+      },
+      {
+        "path": "/queue",
+        "method": "GET",
+        "forged_bearer": true,
+        "status": 401,
+        "cors": "*"
+      },
+      {
+        "path": "/studies/00000000-0000-4000-8000-000000000001/gap-experiments",
+        "method": "GET",
+        "forged_bearer": false,
+        "status": 401,
+        "cors": "*"
+      },
+      {
+        "path": "/studies/00000000-0000-4000-8000-000000000001/gap-experiments",
+        "method": "POST",
+        "forged_bearer": false,
+        "status": 401,
+        "cors": "*"
+      }
+    ],
+    "rls_and_grants_relations": 27,
+    "private_artifact_bucket": true,
+    "server_only_queue_preparation_functions": 6,
+    "worker_notification_target_verified": true,
+    "automatic_experiment_retries": 0,
+    "limitation": "Live notification configuration and existing SQL/worker fixtures verified; no new authenticated enqueue or scientific job was submitted."
+  },
+  "corrections": [
+    {
+      "issue": "Lost early mobile click before handlers attached",
+      "evidence": "research-pathways-release-evidence/v2/mobile-menu-diagnostic.json",
+      "fix": "Server/hydration-disabled trigger; controlled held-back scripts and single first click pass against corrected production.",
+      "independent": false
+    },
+    {
+      "issue": "Verification incorrectly required identical distinct query-key order",
+      "evidence": "research-pathways-release-evidence/v3/pathways-query-order-failed.json",
+      "fix": "Compare exact route and decoded query multimap with repeated-value order retained; one positive and four negative controls pass.",
+      "application_change": false
+    }
+  ],
+  "review": {
+    "identity": "Primary Codex implementer",
+    "type": "AI",
+    "independent": false,
+    "scope": "Implementation review, actual browser assertions and desktop/mobile screenshot inspection. Reused development regressions, not human or held-out review."
+  },
+  "conditional_verification_gaps": [
+    "No legitimate Google browser session: positive owner queue/enqueue/cross-owner checks, provider round trip and authenticated AI chat were not exercised.",
+    "Production immediate dispatch execution and a new gap-selection raw Storage round trip remain unexercised; isolated actual SQL/worker checks use synthetic authentication and Storage transports.",
+    "Current retained gap plans are source/claim-matched IPv6 plans. Some checks are manual/operator tasks; queueing does not resolve scientific evidence gaps or establish universal paper-domain support.",
+    "No independent human or held-out scientific validation is asserted."
+  ],
+  "dependency_security": {
+    "production": {
+      "info": 0,
+      "low": 0,
+      "moderate": 2,
+      "high": 0,
+      "critical": 0,
+      "total": 2
+    },
+    "full_development_inclusive": {
+      "info": 0,
+      "low": 1,
+      "moderate": 5,
+      "high": 15,
+      "critical": 1,
+      "total": 22
+    },
+    "limitation": "Existing production-tagged moderate typography/selector-parser advisories remain. Development includes high/critical advisories; the critical proxy-addr chain is shadcn -> MCP SDK -> Express -> proxy-addr (dev only). No request-time use was introduced. This release is not a claim of a clean full dependency audit."
+  },
+  "usage": {
+    "new_application_model_calls_requested": 0,
+    "new_experiment_instances_requested": 0,
+    "new_scientific_mutations_requested": 0,
+    "backend_release_wall_seconds": 112.527919,
+    "amplify_builds": [
+      112,
+      113
+    ],
+    "final_amplify_total_wall_seconds": 156.302,
+    "lambda_configurations": [
+      {
+        "name": "JumpServeBenchmarkStack-ResearchWorkflowApiE04EBDA-mGlPl5tGRx2X",
+        "handler": "api.handler",
+        "arn": "arn:aws:lambda:us-east-1:395567831870:function:JumpServeBenchmarkStack-ResearchWorkflowApiE04EBDA-mGlPl5tGRx2X",
+        "sha256": "34da1f95fa72cbf266bad70b2c893dfa45f962f2de129d4857449f33fd23016d",
+        "source_files": 14,
+        "memory_mb": 512,
+        "timeout_seconds": 29,
+        "last_modified": "2026-10-17T21:39:08.000+0000"
+      },
+      {
+        "name": "JumpServeBenchmarkStack-ResearchWorkflowPackageExe-0QWe4I5CRgSt",
+        "handler": "network_package.handler",
+        "arn": "arn:aws:lambda:us-east-1:395567831870:function:JumpServeBenchmarkStack-ResearchWorkflowPackageExe-0QWe4I5CRgSt",
+        "sha256": "34da1f95fa72cbf266bad70b2c893dfa45f962f2de129d4857449f33fd23016d",
+        "source_files": 14,
+        "memory_mb": 512,
+        "timeout_seconds": 60,
+        "last_modified": "2026-10-17T21:38:27.000+0000"
+      },
+      {
+        "name": "JumpServeBenchmarkStack-ResearchWorkflowPackageIng-kAAtKeB693oF",
+        "handler": "network_package.ingest",
+        "arn": "arn:aws:lambda:us-east-1:395567831870:function:JumpServeBenchmarkStack-ResearchWorkflowPackageIng-kAAtKeB693oF",
+        "sha256": "34da1f95fa72cbf266bad70b2c893dfa45f962f2de129d4857449f33fd23016d",
+        "source_files": 14,
+        "memory_mb": 512,
+        "timeout_seconds": 29,
+        "last_modified": "2026-10-17T21:38:20.000+0000"
+      },
+      {
+        "name": "JumpServeBenchmarkStack-ResearchWorkflowPackageRea-Vy8KadbHwEL9",
+        "handler": "network_package.reap",
+        "arn": "arn:aws:lambda:us-east-1:395567831870:function:JumpServeBenchmarkStack-ResearchWorkflowPackageRea-Vy8KadbHwEL9",
+        "sha256": "34da1f95fa72cbf266bad70b2c893dfa45f962f2de129d4857449f33fd23016d",
+        "source_files": 14,
+        "memory_mb": 256,
+        "timeout_seconds": 120,
+        "last_modified": "2026-10-17T21:38:26.000+0000"
+      },
+      {
+        "name": "JumpServeBenchmarkStack-ResearchWorkflowQueueWorke-82Gxm08dQQsP",
+        "handler": "worker.handler",
+        "arn": "arn:aws:lambda:us-east-1:395567831870:function:JumpServeBenchmarkStack-ResearchWorkflowQueueWorke-82Gxm08dQQsP",
+        "sha256": "34da1f95fa72cbf266bad70b2c893dfa45f962f2de129d4857449f33fd23016d",
+        "source_files": 14,
+        "memory_mb": 512,
+        "timeout_seconds": 180,
+        "last_modified": "2026-10-17T21:38:36.000+0000"
+      }
+    ],
+    "measured_charges_usd": null,
+    "estimated_charges_usd": null,
+    "assistant_model_usage": null,
+    "limitation": "Reported wall time, configured memory/timeouts and artifact bytes are not billing measurements; AWS, Supabase, hosting, local compute/storage and assistant charges remain unallocated or unavailable, not zero."
+  },
+  "evidence_manifests": [
+    "research-pathways-release-evidence/v1/manifest.json",
+    "research-pathways-release-evidence/v2/manifest.json",
+    "research-pathways-release-evidence/v3/manifest.json"
+  ],
+  "rollback_originals": {
+    "local_directory": "/Users/Shared/allstar/jumpserve-infra/.test-artifacts/research-queue-release/20261017T213540986263Z",
+    "retrieved_archive_hashes_verified": true,
+    "privacy": "Original Lambda ZIPs retained locally in ignored private evidence directories; hashes/configurations are in v1/targets-before.json. They are not public download assets."
+  },
+  "reproduction_commands": {
+    "frontend": [
+      "npm ci",
+      "npm test",
+      "npm run lint",
+      "npm run build",
+      "npm run verify:research:queue",
+      "node scripts/verify-homepage-release.mjs --production",
+      "node scripts/verify-research-pathways.mjs --production"
+    ],
+    "backend": [
+      "python3 -B -m unittest discover -s research_workflow/tests -v"
+    ],
+    "infra": [
+      "python3 -B bin/prepare-research-runtime.py",
+      "JUMPSERVE_BACKEND_CHECKOUT=../jumpserve-back-end npm test -- --runInBand",
+      "npm run build",
+      "npm run test:agent",
+      "npm run test:research:queue",
+      "python3 -B bin/research-queue-release.py verify"
+    ]
+  },
+  "verification_source_sha256": "c864fcc19f402ac377879fa932d797340ce0715f62f510d69f54a450b2f32716",
+  "cleanup": "Task-owned PostgreSQL cluster and built test server on 6101 stopped after verification; their data/reports retained. Development server remains on 6001."
+}

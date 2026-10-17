@@ -1,0 +1,16 @@
+proxy-addr@2.0.7 dev
+node_modules/proxy-addr
+  proxy-addr@"^2.0.7" from express@5.2.1
+  node_modules/express
+    express@"^5.2.1" from @modelcontextprotocol/sdk@1.30.0
+    node_modules/@modelcontextprotocol/sdk
+      @modelcontextprotocol/sdk@"^1.26.0" from shadcn@4.21.0
+      node_modules/shadcn
+        dev shadcn@"^4.21.0" from the root project
+    peer express@">= 4.11" from express-rate-limit@8.7.0
+    node_modules/express-rate-limit
+      express-rate-limit@"^8.2.1" from @modelcontextprotocol/sdk@1.30.0
+      node_modules/@modelcontextprotocol/sdk
+        @modelcontextprotocol/sdk@"^1.26.0" from shadcn@4.21.0
+        node_modules/shadcn
+          dev shadcn@"^4.21.0" from the root project

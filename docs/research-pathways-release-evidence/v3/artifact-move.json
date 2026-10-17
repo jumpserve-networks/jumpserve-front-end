@@ -1,0 +1,60 @@
+{
+  "original_bytes_preserved": true,
+  "files": [
+    {
+      "path": "public/http2-compliance-study/chat-release.json",
+      "sha256": "ad537fbd3fd3703a6c193ddae53753fd15e2b2bde37e4fab0a993e7badf5f93a",
+      "byte_count": 39489
+    },
+    {
+      "path": "public/ipv6-dns-study/data.zip",
+      "sha256": "7c4db9d04a289d958d04ee5458ec5e3cf056a20e400d93e6d993a6be3d3a9b18",
+      "byte_count": 2381581
+    },
+    {
+      "path": "public/ipv6-dns-study/download-manifest.json",
+      "sha256": "37bcbbbb60e335717689414f362d141d01898e3904fb8b01f10ceb15ffbe85ff",
+      "byte_count": 127
+    },
+    {
+      "path": "public/ipv6-dns-study/paper-context.json",
+      "sha256": "0f9085e4f52de261346883b5f3843a107d929dd83a7de9d2ecedb0d926b5ed19",
+      "byte_count": 20968
+    },
+    {
+      "path": "public/ipv6-dns-study/validation-manifest.json",
+      "sha256": "7d5d1099052712a42183875d20cfa8abf59bbe7d9f329e4e32d4d73cc50a0ed8",
+      "byte_count": 262
+    },
+    {
+      "path": "public/ipv6-dns-study/validation.zip",
+      "sha256": "b6737aaaa6c68f85141f0419fc55436d5be424ee26f377e53c3664f83eef5f70",
+      "byte_count": 1330649
+    },
+    {
+      "path": "public/reliable-sketch-study/chat-release.json",
+      "sha256": "f045853f2daebe0b46510c9f6a108e9010bc88dc521853b05fd8eafab1039bd2",
+      "byte_count": 54049
+    },
+    {
+      "path": "public/reliable-sketch-study/download-manifest.json",
+      "sha256": "d56e11a3c5af6b8984e69729fbde864fcb675a9b8e17cf15df7c29ea41b7125a",
+      "byte_count": 265
+    },
+    {
+      "path": "public/reliable-sketch-study/raw-cpu-v1.zip",
+      "sha256": "bc220279b10b9a8642411140f43e8d8cb4db67e1a0d40d8f737cb677e840af6c",
+      "byte_count": 13791149
+    },
+    {
+      "path": "public/reliable-sketch-study/release-status.json",
+      "sha256": "eda3a06ad73312d420ae6aa295a038ae0881c0fa73e540f17b741273349b7fb1",
+      "byte_count": 1563
+    },
+    {
+      "path": "public/reliable-sketch-study/reproduction.zip",
+      "sha256": "d3c3fa7dda7d8c57cd43aa8eac75df90cf1dbd6dcafd7aca28b6da4057fd0013",
+      "byte_count": 633482
+    }
+  ]
+}

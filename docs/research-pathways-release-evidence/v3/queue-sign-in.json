@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "status": 307,
+  "location": "/login?next=%2Fresearch-verification%2Fexperiment-queue%3Fstudy%3D76c70fd9-0217-464e-8c26-0a47832409a3%26job%3D00000000-0000-4000-8000-000000000001",
+  "retained_next": "/research-verification/experiment-queue?study=76c70fd9-0217-464e-8c26-0a47832409a3&job=00000000-0000-4000-8000-000000000001",
+  "authentication": "Anonymous redirect only; no Google provider round trip",
+  "job_mutations": 0
+}

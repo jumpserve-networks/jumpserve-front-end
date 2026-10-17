@@ -1,0 +1,98 @@
+[
+  {
+    "path": "backend-deployment.json",
+    "sha256": "ac3d673831904c8fc711db155be58a692211c64f0db428ba7f6b24ebc101340c",
+    "byte_count": 4793,
+    "original_path": "/Users/Shared/allstar/jumpserve-infra/.test-artifacts/research-queue-release/20261017T213732311144Z/receipt.json"
+  },
+  {
+    "path": "backend-deployment.log",
+    "sha256": "4eb8b0566aff9c7452424cc6175540a738d5acfc3b787b6540287d10820bda12",
+    "byte_count": 12719,
+    "original_path": "/Users/Shared/allstar/jumpserve-infra/.test-artifacts/research-queue-release/20261017T213732311144Z/cdk.log"
+  },
+  {
+    "path": "backend-production-verification.json",
+    "sha256": "93606cd59ae580599637cf7d61cddc36ba29f7b583c85cd13104ab66d4f659d5",
+    "byte_count": 16864,
+    "original_path": "/Users/Shared/allstar/jumpserve-infra/.test-artifacts/research-queue-release/20261017T213942185377Z/receipt.json"
+  },
+  {
+    "path": "amplify-113.json",
+    "sha256": "d44652aad2f2b0d0098b36fec56ee9428bba0fe4c7da9ec014750cf03d693bc5",
+    "byte_count": 1202,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/amplify-113.json"
+  },
+  {
+    "path": "homepage-production.json",
+    "sha256": "8dc52997f17e33a17dc23655e1334e2ecf08f0ab3089f3d7951f32d5bfbff039",
+    "byte_count": 16187,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/homepage-release/2026-10-17T21-51-02.162Z/browser-report.json"
+  },
+  {
+    "path": "pathways-production.json",
+    "sha256": "6740861601e53f700d24222ea54786278db9dded9ee4318b4972b20a347e1776",
+    "byte_count": 44119,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/2026-10-17T21-53-05.015Z/report.json"
+  },
+  {
+    "path": "pathways-query-order-failed.json",
+    "sha256": "fda1d279897a3825a36b7e668b88a53c1d27b1320b0a33bb7d11d76a3d1fb271",
+    "byte_count": 36076,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/2026-10-17T21-51-02.183Z/report.json"
+  },
+  {
+    "path": "route-comparator-controls.json",
+    "sha256": "9ee127a5cebc391b6f36c1e3a016abfc7ebaf4351f8a4683e0a328de84c360dc",
+    "byte_count": 154,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/route-comparator-controls.json"
+  },
+  {
+    "path": "artifact-move.json",
+    "sha256": "5665a226c49136fc94b0fce68f08f2c3a4331be04ad1c3dd8fc483cdfa252915",
+    "byte_count": 2084,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/artifact-move-release-v1.json"
+  },
+  {
+    "path": "queue-sign-in.json",
+    "sha256": "8b7fe88fc6a7f2d6015b0c984de0e666142beb4e93e73480ffca377cf29ab817",
+    "byte_count": 449,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/queue-sign-in.json"
+  },
+  {
+    "path": "settled-visuals.json",
+    "sha256": "2ab6d6a114702dc9918f1effa9a3af4cc2073a434f8a2b030926d721fc03626a",
+    "byte_count": 555,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/settled-production-20261017/report.json"
+  },
+  {
+    "path": "homepage-dark-ready.png",
+    "sha256": "e8f616007e64ca449016dfe1ae8cc190526872ff9f5963d4dfdb5cd54d09c0ce",
+    "byte_count": 53601,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/settled-production-20261017/homepage-dark-ready.png"
+  },
+  {
+    "path": "mobile-menu-ready.png",
+    "sha256": "406ac5b478b335e929b6ad1d87caf83fae1191dfbb76950e164daf4b81269e1d",
+    "byte_count": 32192,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/settled-production-20261017/mobile-menu-ready.png"
+  },
+  {
+    "path": "dependency-audit-full.json",
+    "sha256": "82f57a686fac2a1767a93ac62ec3841f7ea2fcd3ec6411b22cd74aa803108695",
+    "byte_count": 30297,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/dependency-audit-full.json"
+  },
+  {
+    "path": "dependency-audit-production.json",
+    "sha256": "8be8245d8be98b9fc479d4a3fcbcbeed4c48c97dfed843aafa8a69de5d287329",
+    "byte_count": 1881,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/dependency-audit-production.json"
+  },
+  {
+    "path": "dependency-development-chain.txt",
+    "sha256": "3b0bccc6629f6887994538688c8366d50da62496cc4700ba65d19e8862aca0a9",
+    "byte_count": 703,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/dependency-development-chain.txt"
+  }
+]

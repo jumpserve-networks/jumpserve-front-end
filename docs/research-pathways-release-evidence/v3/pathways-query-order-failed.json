@@ -1,0 +1,1098 @@
+{
+  "origin": "https://jumpserve.quaint-lab.org",
+  "started_at": "2026-10-17T21:51:02.184Z",
+  "checks": [
+    {
+      "name": "mobile menu accepts its first click only after client scripts are ready",
+      "passed": true,
+      "evidence": {
+        "client_scripts_withheld": 12,
+        "disabled_before_hydration": true,
+        "successful_clicks": 1,
+        "navigation_visible": true
+      }
+    },
+    {
+      "name": "Verify Existing Claims menu and results 1365 light",
+      "passed": true,
+      "evidence": {
+        "menu_links": [
+          "/research-verification",
+          "/research-verification/new-study",
+          "/research-verification/test-results",
+          "/research-verification/workspace",
+          "/research-verification/experiment-queue",
+          "/research-verification/methods"
+        ],
+        "page_navigation": [],
+        "published_cards": 5,
+        "colors": {
+          "overview": {
+            "marker": "research-verification",
+            "primary": "#163b67",
+            "related_tokens": [
+              "#163b67",
+              "#163b67",
+              "#163b67",
+              "#163b67"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 10.55790983157921,
+              "card_text": 11.317368639062224,
+              "primary_button": 11.317368639062224,
+              "selected_navigation": 10.157970155023355
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "menu": {
+            "marker": "research-verification",
+            "primary": "#163b67",
+            "related_tokens": [
+              "#163b67",
+              "#163b67",
+              "#163b67",
+              "#163b67"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 10.55790983157921,
+              "card_text": 11.317368639062224,
+              "primary_button": 11.317368639062224,
+              "selected_navigation": 10.157970155023355
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "methods": {
+            "marker": "research-verification",
+            "primary": "#163b67",
+            "related_tokens": [
+              "#163b67",
+              "#163b67",
+              "#163b67",
+              "#163b67"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 10.55790983157921,
+              "card_text": 11.317368639062224,
+              "primary_button": 11.317368639062224,
+              "selected_navigation": 10.157970155023355
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "select_popup": {
+            "marker": "research-verification",
+            "primary": "#163b67",
+            "related_tokens": [
+              "#163b67",
+              "#163b67",
+              "#163b67",
+              "#163b67"
+            ],
+            "heading_count": 12,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 10.55790983157921,
+              "card_text": 11.317368639062224,
+              "primary_button": 11.317368639062224,
+              "selected_navigation": 10.157970155023355
+            },
+            "portal": {
+              "primary": "#163b67",
+              "outside_route_marker": true
+            },
+            "selected_evidence_tab": null
+          },
+          "results": {
+            "marker": "research-verification",
+            "primary": "#163b67",
+            "related_tokens": [
+              "#163b67",
+              "#163b67",
+              "#163b67",
+              "#163b67"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 10.55790983157921,
+              "card_text": 11.317368639062224,
+              "primary_button": 11.317368639062224,
+              "selected_navigation": 10.157970155023355
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          }
+        },
+        "default_palette_restored_after_client_navigation": true
+      }
+    },
+    {
+      "name": "Develop a New Idea menu and results 1365 light",
+      "passed": true,
+      "evidence": {
+        "menu_links": [
+          "/research-ideas",
+          "/research-ideas/new-idea",
+          "/research-ideas/workspace",
+          "/research-ideas/test-results",
+          "/research-ideas/methods"
+        ],
+        "page_navigation": [],
+        "published_cards": 0,
+        "colors": {
+          "overview": {
+            "marker": "research-ideas",
+            "primary": "#8a2435",
+            "related_tokens": [
+              "#8a2435",
+              "#8a2435",
+              "#8a2435",
+              "#8a2435"
+            ],
+            "heading_count": 5,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.216184919031864,
+              "card_text": 8.807197164846293,
+              "primary_button": 8.807197164846293,
+              "selected_navigation": 7.920306383713444
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "menu": {
+            "marker": "research-ideas",
+            "primary": "#8a2435",
+            "related_tokens": [
+              "#8a2435",
+              "#8a2435",
+              "#8a2435",
+              "#8a2435"
+            ],
+            "heading_count": 5,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.216184919031864,
+              "card_text": 8.807197164846293,
+              "primary_button": 8.807197164846293,
+              "selected_navigation": 7.920306383713444
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "methods": {
+            "marker": "research-ideas",
+            "primary": "#8a2435",
+            "related_tokens": [
+              "#8a2435",
+              "#8a2435",
+              "#8a2435",
+              "#8a2435"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.216184919031864,
+              "card_text": 8.807197164846293,
+              "primary_button": 8.807197164846293,
+              "selected_navigation": 7.920306383713444
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "select_popup": {
+            "marker": "research-ideas",
+            "primary": "#8a2435",
+            "related_tokens": [
+              "#8a2435",
+              "#8a2435",
+              "#8a2435",
+              "#8a2435"
+            ],
+            "heading_count": 12,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.216184919031864,
+              "card_text": 8.807197164846293,
+              "primary_button": 8.807197164846293,
+              "selected_navigation": 7.920306383713444
+            },
+            "portal": {
+              "primary": "#8a2435",
+              "outside_route_marker": true
+            },
+            "selected_evidence_tab": null
+          },
+          "results": {
+            "marker": "research-ideas",
+            "primary": "#8a2435",
+            "related_tokens": [
+              "#8a2435",
+              "#8a2435",
+              "#8a2435",
+              "#8a2435"
+            ],
+            "heading_count": 2,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.216184919031864,
+              "card_text": 8.807197164846293,
+              "primary_button": 8.807197164846293,
+              "selected_navigation": 7.920306383713444
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          }
+        },
+        "default_palette_restored_after_client_navigation": true
+      }
+    },
+    {
+      "name": "Verify Existing Claims menu and results 1365 dark",
+      "passed": true,
+      "evidence": {
+        "menu_links": [
+          "/research-verification",
+          "/research-verification/new-study",
+          "/research-verification/test-results",
+          "/research-verification/workspace",
+          "/research-verification/experiment-queue",
+          "/research-verification/methods"
+        ],
+        "page_navigation": [],
+        "published_cards": 5,
+        "colors": {
+          "overview": {
+            "marker": "research-verification",
+            "primary": "#69a7ff",
+            "related_tokens": [
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 7.940989726349132,
+              "card_text": 7.2011731297783825,
+              "primary_button": 7.720629146506639,
+              "selected_navigation": 5.954528761410838
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "menu": {
+            "marker": "research-verification",
+            "primary": "#69a7ff",
+            "related_tokens": [
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 7.940989726349132,
+              "card_text": 7.2011731297783825,
+              "primary_button": 7.720629146506639,
+              "selected_navigation": 5.954528761410838
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "methods": {
+            "marker": "research-verification",
+            "primary": "#69a7ff",
+            "related_tokens": [
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 7.940989726349132,
+              "card_text": 7.2011731297783825,
+              "primary_button": 7.720629146506639,
+              "selected_navigation": 5.954528761410838
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "select_popup": {
+            "marker": "research-verification",
+            "primary": "#69a7ff",
+            "related_tokens": [
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff"
+            ],
+            "heading_count": 12,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 7.940989726349132,
+              "card_text": 7.2011731297783825,
+              "primary_button": 7.720629146506639,
+              "selected_navigation": 5.954528761410838
+            },
+            "portal": {
+              "primary": "#69a7ff",
+              "outside_route_marker": true
+            },
+            "selected_evidence_tab": null
+          },
+          "results": {
+            "marker": "research-verification",
+            "primary": "#69a7ff",
+            "related_tokens": [
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 7.940989726349132,
+              "card_text": 7.2011731297783825,
+              "primary_button": 7.720629146506639,
+              "selected_navigation": 5.954528761410838
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          }
+        },
+        "default_palette_restored_after_client_navigation": true
+      }
+    },
+    {
+      "name": "Develop a New Idea menu and results 1365 dark",
+      "passed": true,
+      "evidence": {
+        "menu_links": [
+          "/research-ideas",
+          "/research-ideas/new-idea",
+          "/research-ideas/workspace",
+          "/research-ideas/test-results",
+          "/research-ideas/methods"
+        ],
+        "page_navigation": [],
+        "published_cards": 0,
+        "colors": {
+          "overview": {
+            "marker": "research-ideas",
+            "primary": "#ed7fdb",
+            "related_tokens": [
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb"
+            ],
+            "heading_count": 5,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.021964121995405,
+              "card_text": 7.274603604092326,
+              "primary_button": 7.79935652189575,
+              "selected_navigation": 6.334408524832246
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "menu": {
+            "marker": "research-ideas",
+            "primary": "#ed7fdb",
+            "related_tokens": [
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb"
+            ],
+            "heading_count": 5,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.021964121995405,
+              "card_text": 7.274603604092326,
+              "primary_button": 7.79935652189575,
+              "selected_navigation": 6.334408524832246
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "methods": {
+            "marker": "research-ideas",
+            "primary": "#ed7fdb",
+            "related_tokens": [
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.021964121995405,
+              "card_text": 7.274603604092326,
+              "primary_button": 7.79935652189575,
+              "selected_navigation": 6.334408524832246
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "select_popup": {
+            "marker": "research-ideas",
+            "primary": "#ed7fdb",
+            "related_tokens": [
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb"
+            ],
+            "heading_count": 12,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.021964121995405,
+              "card_text": 7.274603604092326,
+              "primary_button": 7.79935652189575,
+              "selected_navigation": 6.334408524832246
+            },
+            "portal": {
+              "primary": "#ed7fdb",
+              "outside_route_marker": true
+            },
+            "selected_evidence_tab": null
+          },
+          "results": {
+            "marker": "research-ideas",
+            "primary": "#ed7fdb",
+            "related_tokens": [
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb"
+            ],
+            "heading_count": 2,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.021964121995405,
+              "card_text": 7.274603604092326,
+              "primary_button": 7.79935652189575,
+              "selected_navigation": 6.334408524832246
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          }
+        },
+        "default_palette_restored_after_client_navigation": true
+      }
+    },
+    {
+      "name": "Verify Existing Claims menu and results 390 light",
+      "passed": true,
+      "evidence": {
+        "menu_links": [
+          "/research-verification",
+          "/research-verification/new-study",
+          "/research-verification/test-results",
+          "/research-verification/workspace",
+          "/research-verification/experiment-queue",
+          "/research-verification/methods"
+        ],
+        "page_navigation": [],
+        "published_cards": 5,
+        "colors": {
+          "overview": {
+            "marker": "research-verification",
+            "primary": "#163b67",
+            "related_tokens": [
+              "#163b67",
+              "#163b67",
+              "#163b67",
+              "#163b67"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 10.55790983157921,
+              "card_text": 11.317368639062224,
+              "primary_button": 11.317368639062224,
+              "selected_navigation": 10.157970155023355
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "menu": {
+            "marker": "research-verification",
+            "primary": "#163b67",
+            "related_tokens": [
+              "#163b67",
+              "#163b67",
+              "#163b67",
+              "#163b67"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 10.55790983157921,
+              "card_text": 11.317368639062224,
+              "primary_button": 11.317368639062224,
+              "selected_navigation": 10.157970155023355
+            },
+            "portal": {
+              "primary": "#163b67",
+              "outside_route_marker": true
+            },
+            "selected_evidence_tab": null
+          },
+          "methods": {
+            "marker": "research-verification",
+            "primary": "#163b67",
+            "related_tokens": [
+              "#163b67",
+              "#163b67",
+              "#163b67",
+              "#163b67"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 10.55790983157921,
+              "card_text": 11.317368639062224,
+              "primary_button": 11.317368639062224,
+              "selected_navigation": 10.157970155023355
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "select_popup": {
+            "marker": "research-verification",
+            "primary": "#163b67",
+            "related_tokens": [
+              "#163b67",
+              "#163b67",
+              "#163b67",
+              "#163b67"
+            ],
+            "heading_count": 12,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 10.55790983157921,
+              "card_text": 11.317368639062224,
+              "primary_button": 11.317368639062224,
+              "selected_navigation": 10.157970155023355
+            },
+            "portal": {
+              "primary": "#163b67",
+              "outside_route_marker": true
+            },
+            "selected_evidence_tab": null
+          },
+          "results": {
+            "marker": "research-verification",
+            "primary": "#163b67",
+            "related_tokens": [
+              "#163b67",
+              "#163b67",
+              "#163b67",
+              "#163b67"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 10.55790983157921,
+              "card_text": 11.317368639062224,
+              "primary_button": 11.317368639062224,
+              "selected_navigation": 10.157970155023355
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          }
+        },
+        "default_palette_restored_after_client_navigation": true
+      }
+    },
+    {
+      "name": "Develop a New Idea menu and results 390 light",
+      "passed": true,
+      "evidence": {
+        "menu_links": [
+          "/research-ideas",
+          "/research-ideas/new-idea",
+          "/research-ideas/workspace",
+          "/research-ideas/test-results",
+          "/research-ideas/methods"
+        ],
+        "page_navigation": [],
+        "published_cards": 0,
+        "colors": {
+          "overview": {
+            "marker": "research-ideas",
+            "primary": "#8a2435",
+            "related_tokens": [
+              "#8a2435",
+              "#8a2435",
+              "#8a2435",
+              "#8a2435"
+            ],
+            "heading_count": 5,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.216184919031864,
+              "card_text": 8.807197164846293,
+              "primary_button": 8.807197164846293,
+              "selected_navigation": 7.920306383713444
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "menu": {
+            "marker": "research-ideas",
+            "primary": "#8a2435",
+            "related_tokens": [
+              "#8a2435",
+              "#8a2435",
+              "#8a2435",
+              "#8a2435"
+            ],
+            "heading_count": 5,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.216184919031864,
+              "card_text": 8.807197164846293,
+              "primary_button": 8.807197164846293,
+              "selected_navigation": 7.920306383713444
+            },
+            "portal": {
+              "primary": "#8a2435",
+              "outside_route_marker": true
+            },
+            "selected_evidence_tab": null
+          },
+          "methods": {
+            "marker": "research-ideas",
+            "primary": "#8a2435",
+            "related_tokens": [
+              "#8a2435",
+              "#8a2435",
+              "#8a2435",
+              "#8a2435"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.216184919031864,
+              "card_text": 8.807197164846293,
+              "primary_button": 8.807197164846293,
+              "selected_navigation": 7.920306383713444
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "select_popup": {
+            "marker": "research-ideas",
+            "primary": "#8a2435",
+            "related_tokens": [
+              "#8a2435",
+              "#8a2435",
+              "#8a2435",
+              "#8a2435"
+            ],
+            "heading_count": 12,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.216184919031864,
+              "card_text": 8.807197164846293,
+              "primary_button": 8.807197164846293,
+              "selected_navigation": 7.920306383713444
+            },
+            "portal": {
+              "primary": "#8a2435",
+              "outside_route_marker": true
+            },
+            "selected_evidence_tab": null
+          },
+          "results": {
+            "marker": "research-ideas",
+            "primary": "#8a2435",
+            "related_tokens": [
+              "#8a2435",
+              "#8a2435",
+              "#8a2435",
+              "#8a2435"
+            ],
+            "heading_count": 2,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.216184919031864,
+              "card_text": 8.807197164846293,
+              "primary_button": 8.807197164846293,
+              "selected_navigation": 7.920306383713444
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          }
+        },
+        "default_palette_restored_after_client_navigation": true
+      }
+    },
+    {
+      "name": "Verify Existing Claims menu and results 390 dark",
+      "passed": true,
+      "evidence": {
+        "menu_links": [
+          "/research-verification",
+          "/research-verification/new-study",
+          "/research-verification/test-results",
+          "/research-verification/workspace",
+          "/research-verification/experiment-queue",
+          "/research-verification/methods"
+        ],
+        "page_navigation": [],
+        "published_cards": 5,
+        "colors": {
+          "overview": {
+            "marker": "research-verification",
+            "primary": "#69a7ff",
+            "related_tokens": [
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 7.940989726349132,
+              "card_text": 7.2011731297783825,
+              "primary_button": 7.720629146506639,
+              "selected_navigation": 5.954528761410838
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "menu": {
+            "marker": "research-verification",
+            "primary": "#69a7ff",
+            "related_tokens": [
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 7.940989726349132,
+              "card_text": 7.2011731297783825,
+              "primary_button": 7.720629146506639,
+              "selected_navigation": 5.954528761410838
+            },
+            "portal": {
+              "primary": "#69a7ff",
+              "outside_route_marker": true
+            },
+            "selected_evidence_tab": null
+          },
+          "methods": {
+            "marker": "research-verification",
+            "primary": "#69a7ff",
+            "related_tokens": [
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 7.940989726349132,
+              "card_text": 7.2011731297783825,
+              "primary_button": 7.720629146506639,
+              "selected_navigation": 5.954528761410838
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "select_popup": {
+            "marker": "research-verification",
+            "primary": "#69a7ff",
+            "related_tokens": [
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff"
+            ],
+            "heading_count": 12,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 7.940989726349132,
+              "card_text": 7.2011731297783825,
+              "primary_button": 7.720629146506639,
+              "selected_navigation": 5.954528761410838
+            },
+            "portal": {
+              "primary": "#69a7ff",
+              "outside_route_marker": true
+            },
+            "selected_evidence_tab": null
+          },
+          "results": {
+            "marker": "research-verification",
+            "primary": "#69a7ff",
+            "related_tokens": [
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff",
+              "#69a7ff"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 7.940989726349132,
+              "card_text": 7.2011731297783825,
+              "primary_button": 7.720629146506639,
+              "selected_navigation": 5.954528761410838
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          }
+        },
+        "default_palette_restored_after_client_navigation": true
+      }
+    },
+    {
+      "name": "Develop a New Idea menu and results 390 dark",
+      "passed": true,
+      "evidence": {
+        "menu_links": [
+          "/research-ideas",
+          "/research-ideas/new-idea",
+          "/research-ideas/workspace",
+          "/research-ideas/test-results",
+          "/research-ideas/methods"
+        ],
+        "page_navigation": [],
+        "published_cards": 0,
+        "colors": {
+          "overview": {
+            "marker": "research-ideas",
+            "primary": "#ed7fdb",
+            "related_tokens": [
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb"
+            ],
+            "heading_count": 5,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.021964121995405,
+              "card_text": 7.274603604092326,
+              "primary_button": 7.79935652189575,
+              "selected_navigation": 6.334408524832246
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "menu": {
+            "marker": "research-ideas",
+            "primary": "#ed7fdb",
+            "related_tokens": [
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb"
+            ],
+            "heading_count": 5,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.021964121995405,
+              "card_text": 7.274603604092326,
+              "primary_button": 7.79935652189575,
+              "selected_navigation": 6.334408524832246
+            },
+            "portal": {
+              "primary": "#ed7fdb",
+              "outside_route_marker": true
+            },
+            "selected_evidence_tab": null
+          },
+          "methods": {
+            "marker": "research-ideas",
+            "primary": "#ed7fdb",
+            "related_tokens": [
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb"
+            ],
+            "heading_count": 6,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.021964121995405,
+              "card_text": 7.274603604092326,
+              "primary_button": 7.79935652189575,
+              "selected_navigation": 6.334408524832246
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          },
+          "select_popup": {
+            "marker": "research-ideas",
+            "primary": "#ed7fdb",
+            "related_tokens": [
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb"
+            ],
+            "heading_count": 12,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.021964121995405,
+              "card_text": 7.274603604092326,
+              "primary_button": 7.79935652189575,
+              "selected_navigation": 6.334408524832246
+            },
+            "portal": {
+              "primary": "#ed7fdb",
+              "outside_route_marker": true
+            },
+            "selected_evidence_tab": null
+          },
+          "results": {
+            "marker": "research-ideas",
+            "primary": "#ed7fdb",
+            "related_tokens": [
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb",
+              "#ed7fdb"
+            ],
+            "heading_count": 2,
+            "headings_use_primary": true,
+            "header_uses_primary": true,
+            "outline_buttons_use_primary": true,
+            "contrast": {
+              "page_text": 8.021964121995405,
+              "card_text": 7.274603604092326,
+              "primary_button": 7.79935652189575,
+              "selected_navigation": 6.334408524832246
+            },
+            "portal": null,
+            "selected_evidence_tab": null
+          }
+        },
+        "default_palette_restored_after_client_navigation": true
+      }
+    }
+  ],
+  "errors": [
+    {
+      "name": "all module overviews and legacy namespaces",
+      "reason": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'https://jumpserve.quaint-lab.org/congestion-control-emulated/test-lookup?tag=a%26b&tag=c&view=results'\n- 'https://jumpserve.quaint-lab.org/congestion-control-emulated/test-lookup?view=results&tag=a%26b&tag=c'\n"
+    }
+  ],
+  "browser_errors": [],
+  "conditional_gaps": [
+    "No legitimate Google session: authenticated saved-idea continuation and experiment execution were not exercised.",
+    "No database migrations, new scientific campaigns, or model evaluations are part of this module split."
+  ],
+  "reviewer": {
+    "identity": "Primary Codex AI implementer",
+    "type": "AI",
+    "independent": false
+  },
+  "ended_at": "2026-10-17T21:51:23.874Z",
+  "passed": false
+}

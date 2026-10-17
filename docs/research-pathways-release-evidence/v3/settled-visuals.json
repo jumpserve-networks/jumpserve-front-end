@@ -1,0 +1,27 @@
+{
+  "origin": "https://jumpserve.quaint-lab.org",
+  "reviewer": {
+    "identity": "Primary Codex implementer",
+    "type": "AI",
+    "independent": false
+  },
+  "authenticated": false,
+  "checks": [
+    {
+      "view": "desktop homepage",
+      "signed_out_header_ready": true
+    },
+    {
+      "view": "mobile menu",
+      "links": [
+        "Overview",
+        "Assess a Paper",
+        "Previous Assessments",
+        "My Workspace",
+        "Experiment Queue",
+        "Verification Methods"
+      ],
+      "after_enter_transition": true
+    }
+  ]
+}

@@ -1,0 +1,634 @@
+{
+  "origin": "https://jumpserve.quaint-lab.org",
+  "protocol": "homepage-release-protocol-v1",
+  "protocol_sha256": "96c04f56047f771448c42a10a6106e9b070877a116a4ddbe5db0d14211c3a371",
+  "amendment": "homepage-release-amendment-v2",
+  "amendment_sha256": "a93484911e6b7085f7850b90a73cc4c706162d3a4815b89f130c5d137983d2bf",
+  "scope": "Two-pathway homepage layout and navigation; earlier workflow, filter and previous-results checks retired. Original release protocols remain historical context.",
+  "started_at": "2026-10-17T21:51:02.163Z",
+  "checks": [
+    {
+      "name": "homepage 1365 light",
+      "passed": true,
+      "evidence": {
+        "pathways": [
+          "Verify Existing Claims",
+          "Develop a New Idea"
+        ],
+        "header_width_px": 1365,
+        "viewport_width_px": 1365,
+        "text_contrast": [
+          {
+            "text": "Choose your research path.",
+            "foreground_rgb": [
+              22,
+              59,
+              103
+            ],
+            "background_rgb": [
+              246,
+              247,
+              249
+            ],
+            "contrast_ratio": 10.55790983157921
+          },
+          {
+            "text": "Verify Existing Claims",
+            "foreground_rgb": [
+              22,
+              59,
+              103
+            ],
+            "background_rgb": [
+              238,
+              243,
+              251
+            ],
+            "contrast_ratio": 10.157970155023355
+          },
+          {
+            "text": "Start with an academic paper. Identify its claims, plan checks and compare the results with the published evidence.",
+            "foreground_rgb": [
+              92,
+              104,
+              119
+            ],
+            "background_rgb": [
+              238,
+              243,
+              251
+            ],
+            "contrast_ratio": 5.092075149324566
+          },
+          {
+            "text": "Start verification",
+            "foreground_rgb": [
+              255,
+              255,
+              255
+            ],
+            "background_rgb": [
+              22,
+              59,
+              103
+            ],
+            "contrast_ratio": 11.317368639062224
+          },
+          {
+            "text": "View previous",
+            "foreground_rgb": [
+              22,
+              59,
+              103
+            ],
+            "background_rgb": [
+              238,
+              243,
+              251
+            ],
+            "contrast_ratio": 10.157970155023355
+          },
+          {
+            "text": "Develop a New Idea",
+            "foreground_rgb": [
+              138,
+              36,
+              53
+            ],
+            "background_rgb": [
+              252,
+              240,
+              242
+            ],
+            "contrast_ratio": 7.920306383713444
+          },
+          {
+            "text": "Start with a question or unpublished hypothesis. Work with the AI guide to shape a research plan and define how to test it.",
+            "foreground_rgb": [
+              92,
+              104,
+              119
+            ],
+            "background_rgb": [
+              252,
+              240,
+              242
+            ],
+            "contrast_ratio": 5.10196643549953
+          },
+          {
+            "text": "Start developing",
+            "foreground_rgb": [
+              255,
+              255,
+              255
+            ],
+            "background_rgb": [
+              138,
+              36,
+              53
+            ],
+            "contrast_ratio": 8.807197164846293
+          }
+        ]
+      }
+    },
+    {
+      "name": "sign-in return paths 1365 light",
+      "passed": true,
+      "evidence": {
+        "paths": [
+          "/research-verification/new-study",
+          "/research-ideas/new-idea",
+          "/research-verification/workspace/76c70fd9-0217-464e-8c26-0a47832409a3?view=gaps"
+        ],
+        "actual_authentication": "Not exercised"
+      }
+    },
+    {
+      "name": "scrolling page header 1365 light",
+      "passed": true,
+      "evidence": {
+        "scroll_y": 500,
+        "header_top": 0,
+        "header_left": 0,
+        "header_right": 1365,
+        "viewport_width": 1365,
+        "horizontal_overflow": false
+      }
+    },
+    {
+      "name": "homepage 1365 dark",
+      "passed": true,
+      "evidence": {
+        "pathways": [
+          "Verify Existing Claims",
+          "Develop a New Idea"
+        ],
+        "header_width_px": 1365,
+        "viewport_width_px": 1365,
+        "text_contrast": [
+          {
+            "text": "Choose your research path.",
+            "foreground_rgb": [
+              229,
+              237,
+              247
+            ],
+            "background_rgb": [
+              8,
+              13,
+              22
+            ],
+            "contrast_ratio": 16.47863831832434
+          },
+          {
+            "text": "Verify Existing Claims",
+            "foreground_rgb": [
+              105,
+              167,
+              255
+            ],
+            "background_rgb": [
+              16,
+              25,
+              39
+            ],
+            "contrast_ratio": 7.2011731297783825
+          },
+          {
+            "text": "Start with an academic paper. Identify its claims, plan checks and compare the results with the published evidence.",
+            "foreground_rgb": [
+              156,
+              174,
+              197
+            ],
+            "background_rgb": [
+              16,
+              25,
+              39
+            ],
+            "contrast_ratio": 7.790992857826349
+          },
+          {
+            "text": "Start verification",
+            "foreground_rgb": [
+              6,
+              24,
+              32
+            ],
+            "background_rgb": [
+              69,
+              221,
+              245
+            ],
+            "contrast_ratio": 11.140040115551328
+          },
+          {
+            "text": "View previous",
+            "foreground_rgb": [
+              156,
+              174,
+              197
+            ],
+            "background_rgb": [
+              16,
+              25,
+              39
+            ],
+            "contrast_ratio": 7.790992857826349
+          },
+          {
+            "text": "Develop a New Idea",
+            "foreground_rgb": [
+              237,
+              127,
+              219
+            ],
+            "background_rgb": [
+              16,
+              25,
+              39
+            ],
+            "contrast_ratio": 7.274603604092326
+          },
+          {
+            "text": "Start with a question or unpublished hypothesis. Work with the AI guide to shape a research plan and define how to test it.",
+            "foreground_rgb": [
+              156,
+              174,
+              197
+            ],
+            "background_rgb": [
+              16,
+              25,
+              39
+            ],
+            "contrast_ratio": 7.790992857826349
+          },
+          {
+            "text": "Start developing",
+            "foreground_rgb": [
+              6,
+              24,
+              32
+            ],
+            "background_rgb": [
+              69,
+              221,
+              245
+            ],
+            "contrast_ratio": 11.140040115551328
+          }
+        ]
+      }
+    },
+    {
+      "name": "sign-in return paths 1365 dark",
+      "passed": true,
+      "evidence": {
+        "paths": [
+          "/research-verification/new-study",
+          "/research-ideas/new-idea",
+          "/research-verification/workspace/76c70fd9-0217-464e-8c26-0a47832409a3?view=gaps"
+        ],
+        "actual_authentication": "Not exercised"
+      }
+    },
+    {
+      "name": "scrolling page header 1365 dark",
+      "passed": true,
+      "evidence": {
+        "scroll_y": 500,
+        "header_top": 0,
+        "header_left": 0,
+        "header_right": 1365,
+        "viewport_width": 1365,
+        "horizontal_overflow": false
+      }
+    },
+    {
+      "name": "homepage 390 light",
+      "passed": true,
+      "evidence": {
+        "pathways": [
+          "Verify Existing Claims",
+          "Develop a New Idea"
+        ],
+        "header_width_px": 390,
+        "viewport_width_px": 390,
+        "text_contrast": [
+          {
+            "text": "Choose your research path.",
+            "foreground_rgb": [
+              22,
+              59,
+              103
+            ],
+            "background_rgb": [
+              246,
+              247,
+              249
+            ],
+            "contrast_ratio": 10.55790983157921
+          },
+          {
+            "text": "Verify Existing Claims",
+            "foreground_rgb": [
+              22,
+              59,
+              103
+            ],
+            "background_rgb": [
+              238,
+              243,
+              251
+            ],
+            "contrast_ratio": 10.157970155023355
+          },
+          {
+            "text": "Start with an academic paper. Identify its claims, plan checks and compare the results with the published evidence.",
+            "foreground_rgb": [
+              92,
+              104,
+              119
+            ],
+            "background_rgb": [
+              238,
+              243,
+              251
+            ],
+            "contrast_ratio": 5.092075149324566
+          },
+          {
+            "text": "Start verification",
+            "foreground_rgb": [
+              255,
+              255,
+              255
+            ],
+            "background_rgb": [
+              22,
+              59,
+              103
+            ],
+            "contrast_ratio": 11.317368639062224
+          },
+          {
+            "text": "View previous",
+            "foreground_rgb": [
+              22,
+              59,
+              103
+            ],
+            "background_rgb": [
+              238,
+              243,
+              251
+            ],
+            "contrast_ratio": 10.157970155023355
+          },
+          {
+            "text": "Develop a New Idea",
+            "foreground_rgb": [
+              138,
+              36,
+              53
+            ],
+            "background_rgb": [
+              252,
+              240,
+              242
+            ],
+            "contrast_ratio": 7.920306383713444
+          },
+          {
+            "text": "Start with a question or unpublished hypothesis. Work with the AI guide to shape a research plan and define how to test it.",
+            "foreground_rgb": [
+              92,
+              104,
+              119
+            ],
+            "background_rgb": [
+              252,
+              240,
+              242
+            ],
+            "contrast_ratio": 5.10196643549953
+          },
+          {
+            "text": "Start developing",
+            "foreground_rgb": [
+              255,
+              255,
+              255
+            ],
+            "background_rgb": [
+              138,
+              36,
+              53
+            ],
+            "contrast_ratio": 8.807197164846293
+          }
+        ]
+      }
+    },
+    {
+      "name": "sign-in return paths 390 light",
+      "passed": true,
+      "evidence": {
+        "paths": [
+          "/research-verification/new-study",
+          "/research-ideas/new-idea",
+          "/research-verification/workspace/76c70fd9-0217-464e-8c26-0a47832409a3?view=gaps"
+        ],
+        "actual_authentication": "Not exercised"
+      }
+    },
+    {
+      "name": "scrolling page header 390 light",
+      "passed": true,
+      "evidence": {
+        "scroll_y": 500,
+        "header_top": 0,
+        "header_left": 0,
+        "header_right": 390,
+        "viewport_width": 390,
+        "horizontal_overflow": false
+      }
+    },
+    {
+      "name": "homepage 390 dark",
+      "passed": true,
+      "evidence": {
+        "pathways": [
+          "Verify Existing Claims",
+          "Develop a New Idea"
+        ],
+        "header_width_px": 390,
+        "viewport_width_px": 390,
+        "text_contrast": [
+          {
+            "text": "Choose your research path.",
+            "foreground_rgb": [
+              229,
+              237,
+              247
+            ],
+            "background_rgb": [
+              8,
+              13,
+              22
+            ],
+            "contrast_ratio": 16.47863831832434
+          },
+          {
+            "text": "Verify Existing Claims",
+            "foreground_rgb": [
+              105,
+              167,
+              255
+            ],
+            "background_rgb": [
+              16,
+              25,
+              39
+            ],
+            "contrast_ratio": 7.2011731297783825
+          },
+          {
+            "text": "Start with an academic paper. Identify its claims, plan checks and compare the results with the published evidence.",
+            "foreground_rgb": [
+              156,
+              174,
+              197
+            ],
+            "background_rgb": [
+              16,
+              25,
+              39
+            ],
+            "contrast_ratio": 7.790992857826349
+          },
+          {
+            "text": "Start verification",
+            "foreground_rgb": [
+              6,
+              24,
+              32
+            ],
+            "background_rgb": [
+              69,
+              221,
+              245
+            ],
+            "contrast_ratio": 11.140040115551328
+          },
+          {
+            "text": "View previous",
+            "foreground_rgb": [
+              156,
+              174,
+              197
+            ],
+            "background_rgb": [
+              16,
+              25,
+              39
+            ],
+            "contrast_ratio": 7.790992857826349
+          },
+          {
+            "text": "Develop a New Idea",
+            "foreground_rgb": [
+              237,
+              127,
+              219
+            ],
+            "background_rgb": [
+              16,
+              25,
+              39
+            ],
+            "contrast_ratio": 7.274603604092326
+          },
+          {
+            "text": "Start with a question or unpublished hypothesis. Work with the AI guide to shape a research plan and define how to test it.",
+            "foreground_rgb": [
+              156,
+              174,
+              197
+            ],
+            "background_rgb": [
+              16,
+              25,
+              39
+            ],
+            "contrast_ratio": 7.790992857826349
+          },
+          {
+            "text": "Start developing",
+            "foreground_rgb": [
+              6,
+              24,
+              32
+            ],
+            "background_rgb": [
+              69,
+              221,
+              245
+            ],
+            "contrast_ratio": 11.140040115551328
+          }
+        ]
+      }
+    },
+    {
+      "name": "sign-in return paths 390 dark",
+      "passed": true,
+      "evidence": {
+        "paths": [
+          "/research-verification/new-study",
+          "/research-ideas/new-idea",
+          "/research-verification/workspace/76c70fd9-0217-464e-8c26-0a47832409a3?view=gaps"
+        ],
+        "actual_authentication": "Not exercised"
+      }
+    },
+    {
+      "name": "scrolling page header 390 dark",
+      "passed": true,
+      "evidence": {
+        "scroll_y": 500,
+        "header_top": 0,
+        "header_left": 0,
+        "header_right": 390,
+        "viewport_width": 390,
+        "horizontal_overflow": false
+      }
+    },
+    {
+      "name": "canonical production callback origin",
+      "passed": true,
+      "evidence": {
+        "redirect_origin": "https://jumpserve.quaint-lab.org",
+        "provider_round_trip": "Not exercised; callback missing-code path only"
+      }
+    }
+  ],
+  "errors": [],
+  "browser_errors": [],
+  "reviewer": {
+    "identity": "Primary Codex AI implementer",
+    "type": "AI",
+    "independent": false
+  },
+  "conditional_gaps": [
+    "No legitimate Google session: provider round trip, authenticated homepage continuation and owner actions not exercised.",
+    "No authenticated chat, new scientific experiments or model evaluations in this presentation release."
+  ],
+  "measured_charges_usd": null,
+  "model_calls": 0,
+  "ended_at": "2026-10-17T21:51:17.829Z",
+  "passed": true
+}

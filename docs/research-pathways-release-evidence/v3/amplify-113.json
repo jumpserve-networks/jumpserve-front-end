@@ -1,0 +1,32 @@
+{
+    "summary": {
+        "jobArn": "arn:aws:amplify:us-east-1:395567831870:apps/d24jvguj7brnkj/branches/main/jobs/0000000113",
+        "jobId": "113",
+        "commitId": "38c149b0d1e92e7efebd4044a699902b042069ac",
+        "commitMessage": "User-authorized release follow-up: prevent lost mobile menu clicks during hydration; controlled checks passed",
+        "commitTime": "2026-10-17T16:47:55.709000-05:00",
+        "startTime": "2026-10-17T16:47:55.995000-05:00",
+        "status": "SUCCEED",
+        "endTime": "2026-10-17T16:50:32.297000-05:00"
+    },
+    "steps": [
+        {
+            "stepName": "BUILD",
+            "status": "SUCCEED",
+            "startTime": "2026-10-17T16:47:56.012000-05:00",
+            "endTime": "2026-10-17T16:50:07.598000-05:00"
+        },
+        {
+            "stepName": "DEPLOY",
+            "status": "SUCCEED",
+            "startTime": "2026-10-17T16:50:07.859000-05:00",
+            "endTime": "2026-10-17T16:50:31.902000-05:00"
+        },
+        {
+            "stepName": "VERIFY",
+            "status": "SUCCEED",
+            "startTime": "2026-10-17T16:50:32.127000-05:00",
+            "endTime": "2026-10-17T16:50:32.154000-05:00"
+        }
+    ]
+}

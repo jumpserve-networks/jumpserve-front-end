@@ -21,6 +21,15 @@ async function check(name, action) {
   try { report.checks.push({ name, passed: true, evidence: await action() }); console.log(`PASS ${name}`); }
   catch (error) { report.errors.push({ name, reason: error.message }); throw error; }
 }
+function assertSameRoute(actual, expected) {
+  assert.equal(typeof actual, "string", "A redirect or sign-in destination must be present");
+  const identity = value => {
+    const url = new URL(value, origin);
+    const params = Object.fromEntries([...new Set(url.searchParams.keys())].sort().map(key => [key, url.searchParams.getAll(key)]));
+    return { origin: url.origin, username: url.username, password: url.password, pathname: url.pathname, hash: url.hash, params };
+  };
+  assert.deepEqual(identity(actual), identity(expected), "Route, parameter values and repeated-value order must be preserved");
+}
 async function pathwayColors(page, base, theme, expectPortal = false) {
   const expected = base === paper ? (theme === "dark" ? "#69a7ff" : "#163b67") : (theme === "dark" ? "#ed7fdb" : "#8a2435");
   const expectedRgb = `rgb(${expected.slice(1).match(/../g).map(value => parseInt(value, 16)).join(", ")})`;
@@ -176,7 +185,7 @@ try {
       for (const prefix of ["/module", "/modules"]) for (const tail of ["", suffix + "?view=results&tag=a%26b&tag=c"]) {
         const redirected = await context.request.get(origin + prefix + testModule.href + tail, { maxRedirects: 0 });
         assert.equal(redirected.status(), 308);
-        assert.equal(new URL(redirected.headers().location, origin).href, origin + testModule.href + tail);
+        assertSameRoute(redirected.headers().location, origin + testModule.href + tail);
       }
       evidence.push({ id: testModule.id, canonical_path: testModule.href, menu_links: links, legacy_redirects: 4 });
     }
@@ -212,15 +221,15 @@ try {
     for (const prefix of [paper, "/module/research-verification", "/modules/research-verification"]) for (const suffix of ["/new-idea?mode=guided", `/ideas/${id}?view=gaps&tag=a%26b&tag=c`]) {
       const response = await context.request.get(origin + prefix + suffix, { maxRedirects: 0 });
       assert.equal(response.status(), 308);
-      assert.equal(new URL(response.headers().location, origin).href, origin + ideas + suffix);
+      assertSameRoute(response.headers().location, origin + ideas + suffix);
       await page.goto(origin + prefix + suffix, { waitUntil: "domcontentloaded" });
       const url = new URL(page.url());
       assert.equal(url.pathname, "/login");
-      assert.equal(url.searchParams.get("next"), ideas + suffix);
+      assertSameRoute(url.searchParams.get("next"), ideas + suffix);
     }
     for (const route of [paper + "/new-study", ideas + "/workspace", ideas + `/workspace/${id}?view=gaps`]) {
       await page.goto(origin + route, { waitUntil: "domcontentloaded" });
-      assert.equal(new URL(page.url()).searchParams.get("next"), route);
+      assertSameRoute(new URL(page.url()).searchParams.get("next"), route);
     }
     return { legacy_status: 308, canonical_idea_module: ideas, query_and_repeated_parameters_preserved: true, actual_authentication: "Not exercised" };
   });
@@ -241,7 +250,7 @@ try {
     for (const suffix of [`/api/studies/${paperStudyId}/export?format=csv`, `/studies/${paperStudyId}?view=gaps&tag=a%26b`]) {
       const response = await context.request.get(origin + ideas + suffix, { maxRedirects: 0 });
       assert.equal(response.status(), 308);
-      assert.equal(new URL(response.headers().location, origin).href, origin + paper + suffix);
+      assertSameRoute(response.headers().location, origin + paper + suffix);
     }
     return { study_id: paperStudyId, measurements: snapshot.records.measurements.length, formats: ["json", "csv"], incorrect_namespace_status: 308, detail_colors: detailColors, unavailable_colors: unavailableColors };
   });
