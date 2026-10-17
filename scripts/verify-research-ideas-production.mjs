@@ -4,7 +4,7 @@ import {chromium} from 'playwright';
 import {existsSync} from 'node:fs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-const origin='https://jumpserve.quaint-lab.org',base='/module/research-verification';
+const origin='https://jumpserve.quaint-lab.org',base='/research-ideas';
 if(process.argv.length>2)throw new Error('Fixed production verification only.');
 const directory='.test-artifacts/research-ideas/production/'+new Date().toISOString().replaceAll(':','-');await mkdir(directory,{recursive:true});
 const report={started_at:new Date().toISOString(),origin,checks:[],browser_errors:[],reviewer:{identity:'Primary Codex AI implementer',type:'AI',independent:false},conditional_gaps:['No legitimate Google browser session: authenticated idea creation/planning/reviews and cross-owner actions unverified','No completed published idea yet; existing paper result pages provide deployed recorded-study coverage','Independent human or held-out validation'],new_model_calls:0,measured_charges_usd:null};

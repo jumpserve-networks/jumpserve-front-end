@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { GlobalAuthButton } from "@/app/components/auth-button";
 import { JumpServeLogo } from "@/app/components/jumpserve-logo";
+import { ThemeSelector } from "@/app/components/theme-selector";
 
 export function SiteHeader({ navigation }: { navigation?: ReactNode }) {
   return (
@@ -14,13 +15,14 @@ export function SiteHeader({ navigation }: { navigation?: ReactNode }) {
           <Link
             href="/"
             aria-label="JumpServe home"
-            className="inline-flex shrink-0 items-center gap-2 rounded-md text-lg font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card dark:text-primary"
+            className="inline-flex min-w-0 items-center gap-2 rounded-md text-lg font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card dark:text-primary"
           >
             <JumpServeLogo />
-            JumpServe
+            <span className="truncate">JumpServe</span>
           </Link>
         </div>
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <ThemeSelector variant="icons" />
           <GlobalAuthButton placement="header" />
         </div>
       </div>

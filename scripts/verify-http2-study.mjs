@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 
 const origin = process.argv[2] ?? 'http://localhost:6001';
 if (!['http://localhost:6001', 'http://localhost:3000', 'https://jumpserve.quaint-lab.org'].includes(origin)) throw new Error('Verification is restricted to JumpServe or its local development server');
-const path = '/module/http2-compliance-study';
+const path = '/http2-compliance-study';
 const report = { origin, started_at: new Date().toISOString(), checks: [], errors: [] };
 async function check(name, action) {
   try { const evidence = await action(); report.checks.push({ name, passed: true, evidence }); }

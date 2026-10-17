@@ -1,29 +1,35 @@
-export const EMULATED_MODULE_PATH = "/module/congestion-control-emulated";
-export const REAL_WORLD_MODULE_PATH = "/module/congestion-control-real-world";
-export const DELAY_STUDY_MODULE_PATH = "/module/propagation-delay-study";
-export const LEO_STUDY_MODULE_PATH = "/module/leo-emergency-failover";
-export const HTTP2_STUDY_MODULE_PATH = "/module/http2-compliance-study";
-export const IPV6_STUDY_MODULE_PATH = "/module/ipv6-dns-study";
-export const RELIABLE_STUDY_MODULE_PATH = "/module/reliable-sketch-study";
-export const RESEARCH_WORKFLOW_MODULE_PATH = "/module/research-verification";
+export const EMULATED_MODULE_PATH = "/congestion-control-emulated";
+export const REAL_WORLD_MODULE_PATH = "/congestion-control-real-world";
+export const DELAY_STUDY_MODULE_PATH = "/propagation-delay-study";
+export const LEO_STUDY_MODULE_PATH = "/leo-emergency-failover";
+export const HTTP2_STUDY_MODULE_PATH = "/http2-compliance-study";
+export const IPV6_STUDY_MODULE_PATH = "/ipv6-dns-study";
+export const RELIABLE_STUDY_MODULE_PATH = "/reliable-sketch-study";
+export const RESEARCH_WORKFLOW_MODULE_PATH = "/research-verification";
+export const RESEARCH_IDEAS_MODULE_PATH = "/research-ideas";
 
 // Keep saved links and old bookmarks usable after moving module pages.
+const MODULE_PATHS = [EMULATED_MODULE_PATH, REAL_WORLD_MODULE_PATH, DELAY_STUDY_MODULE_PATH,
+  LEO_STUDY_MODULE_PATH, HTTP2_STUDY_MODULE_PATH, IPV6_STUDY_MODULE_PATH,
+  RELIABLE_STUDY_MODULE_PATH, RESEARCH_WORKFLOW_MODULE_PATH, RESEARCH_IDEAS_MODULE_PATH];
+
 export const LEGACY_MODULE_ROUTES = [
+  // Specific pathway and tool aliases must precede the broad namespace redirects.
+  ...[RESEARCH_WORKFLOW_MODULE_PATH, `/module${RESEARCH_WORKFLOW_MODULE_PATH}`, `/modules${RESEARCH_WORKFLOW_MODULE_PATH}`].flatMap((prefix) => [
+    { source: `${prefix}/new-idea`, destination: `${RESEARCH_IDEAS_MODULE_PATH}/new-idea` },
+    { source: `${prefix}/ideas`, destination: `${RESEARCH_IDEAS_MODULE_PATH}/ideas` },
+  ]),
   ...["test-lookup", "parent-run", "aggregate-graphs", "benchmarks", "chat", "api/parent-runs"].map((path) => ({
     source: `/${path}`, destination: `${EMULATED_MODULE_PATH}/${path}`,
   })),
-  { source: "/real-world", destination: `${REAL_WORLD_MODULE_PATH}/run-a-test` },
-  { source: `${REAL_WORLD_MODULE_PATH}/real-world`, destination: `${REAL_WORLD_MODULE_PATH}/run-a-test` },
-  { source: "/real-world-reports", destination: `${REAL_WORLD_MODULE_PATH}/test-results` },
-  { source: `${REAL_WORLD_MODULE_PATH}/real-world-reports`, destination: `${REAL_WORLD_MODULE_PATH}/test-results` },
-  { source: "/modules/congestion-control-emulated", destination: EMULATED_MODULE_PATH },
-  { source: "/modules/congestion-control-real-world", destination: REAL_WORLD_MODULE_PATH },
-  { source: "/modules/propagation-delay-study", destination: DELAY_STUDY_MODULE_PATH },
-  { source: "/modules/leo-emergency-failover", destination: LEO_STUDY_MODULE_PATH },
-  { source: "/modules/http2-compliance-study", destination: HTTP2_STUDY_MODULE_PATH },
-  { source: "/modules/ipv6-dns-study", destination: IPV6_STUDY_MODULE_PATH },
-  { source: "/modules/reliable-sketch-study", destination: RELIABLE_STUDY_MODULE_PATH },
-  { source: "/modules/research-verification", destination: RESEARCH_WORKFLOW_MODULE_PATH },
+  ...["", REAL_WORLD_MODULE_PATH, `/module${REAL_WORLD_MODULE_PATH}`, `/modules${REAL_WORLD_MODULE_PATH}`].flatMap((prefix) => [
+    { source: `${prefix}/real-world`, destination: `${REAL_WORLD_MODULE_PATH}/run-a-test` },
+    { source: `${prefix}/real-world-reports`, destination: `${REAL_WORLD_MODULE_PATH}/test-results` },
+  ]),
+  ...MODULE_PATHS.flatMap((destination) => [
+    { source: `/module${destination}`, destination },
+    { source: `/modules${destination}`, destination },
+  ]),
 ];
 
 export type TestModuleSection = {
@@ -77,20 +83,35 @@ export const EMULATED_TESTS_MODULE = {
   ],
 } as const satisfies TestModule;
 
+export const RESEARCH_VERIFICATION_MODULE = {
+  id: "research-verification", name: "Verify Existing Claims",
+  description: "Assess claims in academic papers with versioned sources, documented protocols, recorded measurements and clear evidence gaps.",
+  status: "available", href: RESEARCH_WORKFLOW_MODULE_PATH,
+  sections: [
+    { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/new-study`, label: "Assess a Paper", description: "Create a paper study, prepare available domain plans and queue their checks.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/new-study`] },
+    { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/test-results`, label: "Previous Assessments", description: "Read published paper evidence, claim coverage and next experiments.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/test-results`, `${RESEARCH_WORKFLOW_MODULE_PATH}/studies`] },
+    { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`, label: "My Workspace", description: "Build source inventories, freeze protocols and preserve paper assessment evidence.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`] },
+    { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-queue`, label: "Experiment Queue", description: "Follow your queued experiments, recorded runs and work awaiting an operator or review.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-queue`] },
+    { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/methods`, label: "Verification Methods", description: "Choose appropriate checks and understand publication criteria.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/methods`] },
+  ],
+} as const satisfies TestModule;
+
+export const RESEARCH_IDEAS_MODULE = {
+  id: "research-ideas", name: "Develop a New Idea",
+  description: "Develop an unpublished hypothesis, refine a research plan with the AI guide, and run experiments with preserved methods and measurements.",
+  status: "available", href: RESEARCH_IDEAS_MODULE_PATH,
+  sections: [
+    { href: `${RESEARCH_IDEAS_MODULE_PATH}/new-idea`, label: "Develop an Idea", description: "Start with a question or unpublished hypothesis and plan an experiment.", paths: [`${RESEARCH_IDEAS_MODULE_PATH}/new-idea`, `${RESEARCH_IDEAS_MODULE_PATH}/ideas`] },
+    { href: `${RESEARCH_IDEAS_MODULE_PATH}/workspace`, label: "My Ideas", description: "Resume your saved plans, reviews and experiment evidence.", paths: [`${RESEARCH_IDEAS_MODULE_PATH}/workspace`] },
+    { href: `${RESEARCH_IDEAS_MODULE_PATH}/test-results`, label: "Published Experiments", description: "Read published experiments on unpublished hypotheses and their evidence limits.", paths: [`${RESEARCH_IDEAS_MODULE_PATH}/test-results`, `${RESEARCH_IDEAS_MODULE_PATH}/studies`] },
+    { href: `${RESEARCH_IDEAS_MODULE_PATH}/methods`, label: "Idea Development Methods", description: "Understand planning, fresh reviews, protocol readiness and experiment execution.", paths: [`${RESEARCH_IDEAS_MODULE_PATH}/methods`] },
+  ],
+} as const satisfies TestModule;
+
 export const TEST_MODULES: readonly TestModule[] = [
   EMULATED_TESTS_MODULE,
-  {
-    id: "research-verification", name: "Research Verification",
-    description: "Assess academic paper claims and test unpublished hypotheses with versioned sources, documented protocols, recorded measurements and clear evidence gaps.",
-    status: "available", href: RESEARCH_WORKFLOW_MODULE_PATH,
-    sections: [
-      { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/test-results`, label: "Published Assessments", description: "Read published evidence, claim coverage and next experiments.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/test-results`, `${RESEARCH_WORKFLOW_MODULE_PATH}/studies`] },
-      { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/new-study`, label: "Assess a Paper", description: "Create a study, prepare available domain plans and queue their checks.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/new-study`] },
-      { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/new-idea`, label: "Develop a Research Idea", description: "Plan and review an unpublished hypothesis before preregistering experiments.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/new-idea`, `${RESEARCH_WORKFLOW_MODULE_PATH}/ideas`] },
-      { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`, label: "My Studies", description: "Build source inventories, freeze protocols and preserve evidence.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`] },
-      { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/methods`, label: "Workflow & Methods", description: "Choose appropriate checks and understand publication criteria.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/methods`] },
-    ],
-  },
+  RESEARCH_VERIFICATION_MODULE,
+  RESEARCH_IDEAS_MODULE,
   {
     id: "ipv6-dns-study", name: "IPv6 DNS Study",
     description: "Assess historical DNS over IPv6 measurements, released-code discrepancies, standards wording and evidence limits.",

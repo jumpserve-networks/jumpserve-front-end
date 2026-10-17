@@ -1,0 +1,95 @@
+{
+  "version": "experiment-queue-local-validation-v1",
+  "recorded_at": "2026-10-17T21:11:03.758269+00:00",
+  "deployment_status": "Not deployed; no remote mutations.",
+  "reviewer": {
+    "identity": "Primary Codex implementer",
+    "type": "AI",
+    "independent": false
+  },
+  "checks": {
+    "frontend_unit_tests": {
+      "passed": 167,
+      "failed": 0
+    },
+    "backend_unit_tests": {
+      "passed": 107,
+      "failed": 0
+    },
+    "infrastructure_route_tests": {
+      "passed": 10,
+      "failed": 0
+    },
+    "local_postgres_groups": {
+      "passed": 13,
+      "failed": 0,
+      "report": "/Users/Shared/allstar/jumpserve-infra/.test-artifacts/research-queue/20261017T210519120802Z/database-report.json",
+      "sha256": "995ae8dca6046d9a689ea8658290e24d35f7ac096dd133402df3df012edb936b"
+    },
+    "browser": {
+      "passed": 6,
+      "failed": 0,
+      "report": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/experiment-queue/2026-10-17T21-09-53.998Z/report.json",
+      "sha256": "22a5bf01fbd0d980c317446ee55ca3f6d7285f1123cb44f674375cdf5d23f33d",
+      "google_authenticated": false
+    },
+    "lint": "passed",
+    "frontend_production_build": "passed with installed Next 16.1.6",
+    "infrastructure_typescript_build": "passed"
+  },
+  "coverage": {
+    "queue_monitoring": "All owned paper campaign jobs within declared 100-study/1000-job/4-MB overview bounds.",
+    "gap_handoff": "Registered IPv6 plan only; exact source hash, description and location match. Unknown plans remain unavailable.",
+    "published_ipv6_gap_compatibility": "Nine existing published gaps match retained manual operator preparation tasks. Offline preview against public export only; no authenticated enqueue was performed.",
+    "scientific_claims": "No claim reassessment or new scientific measurement is asserted. Local integration reexecutes previously exposed archived arithmetic as a software regression only.",
+    "raw_storage": "Local-byte transport and actual PostgreSQL RPCs; no remote Supabase Storage validation."
+  },
+  "conditional_gaps": [
+    "Legitimate Google-authenticated browser/API request",
+    "Remote Supabase Storage round trip",
+    "Deployment and scheduled AWS worker execution",
+    "Clean install/build of declared Next 16.3.8: installed local runtime used 16.1.6"
+  ],
+  "failure_history": {
+    "preserved_under": [
+      ".test-artifacts/experiment-queue",
+      "/Users/Shared/allstar/jumpserve-infra/.test-artifacts/research-queue"
+    ],
+    "corrected": [
+      "Browser fixture React module resolution",
+      "Sandbox loopback restriction: reran the purpose-specific browser verifier with approval",
+      "Polling clock installed before component timers",
+      "Link selector accounts for Base UI anchor role=button",
+      "Local DB initially unavailable; started an isolated cluster",
+      "New local cluster template defaulted to SQL_ASCII; fixture now explicitly creates UTF8 databases"
+    ],
+    "production_data_changes": false
+  },
+  "usage": {
+    "experiment_instances_requested": 0,
+    "application_model_calls_requested": 0,
+    "measured_charges_usd": null,
+    "assistant_model_usage": "Not available in repository checks; not treated as zero.",
+    "local_database_wall_seconds": 17.0748225429561
+  },
+  "file_sha256": {
+    "jumpserve-front-end/lib/research-experiment-queue.ts": "61d581fbc262fb3e1ce42fee4ab6c87db000906e74219848094dfdad0e3b7f74",
+    "jumpserve-front-end/app/components/research-workflow/experiment-queue.tsx": "ee4392a7aaf63e1821bf2e199079f765a58ec68c058aaa91dcf2669230e6202e",
+    "jumpserve-front-end/app/components/research-workflow/study-panel.tsx": "5a7638d4eedf6e02697b22ede9341a0d854d9fe921e898592c66064a8dba93b0",
+    "jumpserve-front-end/app/components/research-workflow/claim-queue.tsx": "0b3273efc33c5b004b3cbfafc504740d4fffa03fdf957a8f3b3e17b330181fb2",
+    "jumpserve-front-end/app/components/research-workflow/select.tsx": "f92c1bbded8ce5a0f60b29a75625c9e836c15dde9c3131ec926d27535e6563d4",
+    "jumpserve-front-end/app/(modules)/research-verification/experiment-queue/page.tsx": "78238b8a08c164038faab35f27a9872f059e880fbbb96004d5d9e37f70add559",
+    "jumpserve-front-end/lib/test-modules.ts": "f906df71ce88e0429096b8f07c71a8b7f9692473a726d6d910fc1201c9d6b28b",
+    "jumpserve-front-end/scripts/verify-experiment-queue.mjs": "8a8cee9e80579759e9b3024a957ac8eb3f64155248fcd0ff3730e3d0089be161",
+    "jumpserve-front-end/tests/research-experiment-queue.test.mjs": "5a17f67c0397f0b579675e0b47099626b0aa3b5076cbc2ca2528dc387e98ed5e",
+    "jumpserve-back-end/research_workflow/gap_queue.py": "90bd0a01a9dc9b25575d6f2ac6b478a34e940829231132585a3eb1c93c7c841a",
+    "jumpserve-back-end/research_workflow/api.py": "4c85c313138a1613dab38c8a981f30e1e6a390077665fad0bf3ec3db18656a35",
+    "jumpserve-back-end/research_workflow/scheduler.py": "bd3d87e8729d9822b4fee26b70ea6ff3f182ac31b8f65c0927779d21ea3d236c",
+    "jumpserve-back-end/research_workflow/tests/test_gap_queue.py": "3f0e44e386e37aeef40fde85a21985d3d6fdd5a01536f53c0a0512af5423ce45",
+    "jumpserve-infra/lib/research-workflow.ts": "832cb142fa71e85911243af6683daf3dee515dd97616f58d4d7eed7beff0544c",
+    "jumpserve-infra/research-workflow-runtime.json": "2fd0339d5f8fa4fdbbaf3c1ae897189ce73808763b5036f353c5d59c8cda6d15",
+    "jumpserve-infra/test/research-workflow.test.ts": "ce3bda083d5c1a5822f37fbbda6491bf8e05784a295a576b2ed224bfab369007",
+    "jumpserve-infra/test/check_research_queue_database.py": "14bca258417b9e38f0cbc1d1979ecf7b01a92b77b703d6d421a2ad2dbf215a25",
+    "jumpserve-front-end/docs/experiment-queue.md": "1316beecd031d97d9d8442cea6ef685b7b04325d535774d94dd1349f0f79cc2c"
+  }
+}

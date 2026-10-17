@@ -53,10 +53,10 @@ tests and to chat with the AI; APIs verify the session independently.
 
 After Google sign-in, `/` presents the module chooser. The current module is
 **Congestion Control Emulated Tests** (`congestion-control-emulated`), with a home
-at `/module/congestion-control-emulated`. All its tools share that prefix:
+at `/congestion-control-emulated`. All its tools share that prefix:
 `/test-lookup`, `/parent-run/[id]`, `/aggregate-graphs`, `/benchmarks`, and `/chat`.
-The parent-run query endpoint is `/module/congestion-control-emulated/api/parent-runs`.
-Legacy root tool URLs and `/modules/{moduleId}` permanently redirect to the new
+The parent-run query endpoint is `/congestion-control-emulated/api/parent-runs`.
+Legacy root tool URLs and both `/module/{moduleId}` and `/modules/{moduleId}` permanently redirect to the new
 module routes, preserving path suffixes and query parameters.
 A persistent left sidebar shows the current module, its overview and sections,
 and a **Dark Mode / Light Mode / System Default** selector. On smaller screens,
@@ -65,9 +65,9 @@ section. The sidebar appears for module tools even when signed out, and is omitt
 from the landing page, module chooser, and print. Module selection is navigation.
 
 **Congestion Control Real World Tests** (`congestion-control-real-world`) opens
-`/module/congestion-control-real-world/run-a-test` for EC2 placement, server CCA,
+`/congestion-control-real-world/run-a-test` for EC2 placement, server CCA,
 shared bottleneck settings, test launching, and history. The status page at
-`/module/congestion-control-real-world/run-a-test/[jobId]` shows lifecycle, cancellation,
+`/congestion-control-real-world/run-a-test/[jobId]` shows lifecycle, cancellation,
 machine placement, receiver throughput, and signed raw-report downloads.
 It uses `/real-world/*` endpoints on `NEXT_PUBLIC_BENCHMARK_API_URL`. Result reads
 are public; launching requires a verified Google session, and cancellation also
@@ -132,7 +132,7 @@ OAuth completion and the authenticated `/login` redirect resume the safe `next`
 path directly, including query parameters. Without a destination, sign-in opens
 `/`. Logged-out visitors can open either module from the landing page. The launch
 pages show a sign-in prompt while signed out; emulated run history stays readable.
-`/module/congestion-control-emulated/chat` redirects to login. Launch/cancel/chat clients attach Supabase bearer tokens;
+`/congestion-control-emulated/chat` redirects to login. Launch/cancel/chat clients attach Supabase bearer tokens;
 requester identity is verified by the API rather than accepted from the body.
 
 Supabase RLS remains enabled. Infrastructure migration
@@ -149,7 +149,7 @@ route ownership alongside the existing API tests.
 
 ## Research comparisons
 
-The **LEO Emergency Failover Study** lives at `/module/leo-emergency-failover`.
+The **LEO Emergency Failover Study** lives at `/leo-emergency-failover`.
 Public results compare published capacity with the initial simulation and a
 separately identified saturation follow-up, with country controls, placement,
 orbital-state, constellation and link-rate charts, raw tables and JSON export.
@@ -252,7 +252,7 @@ These tests mock API requests and do not launch EC2 instances or invoke AI model
 ## Real-world test results
 
 Choose the Congestion Control Real World Tests module, then **Test Results**.
-The workspace at `/module/congestion-control-real-world/test-results` shares saved EC2 measurements among all
+The workspace at `/congestion-control-real-world/test-results` shares saved EC2 measurements among all
 visitors, with individual throughput/RTT/queue reports, configuration
 matching, independent replication counts, exploratory confidence intervals,
 bookmarkable selections, CSV/JSON exports, and print-to-PDF. Test management
@@ -268,7 +268,7 @@ backend tests cover normalization, artifact quality, and authentication boundari
 ## Develop an unpublished research idea
 
 Research Verification → **Develop an idea** opens
-`/module/research-verification/new-idea`. Google sign-in resumes this route.
+`/research-ideas/new-idea`. Google sign-in resumes this route.
 Start with a title, domain and question; a paper/DOI is unnecessary. The private
 workspace starts with a **Guided conversation**: it reuses existing answers, asks
 one missing question at a time, and saves each answer as an immutable plan version.
@@ -290,7 +290,7 @@ of the hypothesis; empirical measurements and claim assessments remain separate.
 **Detailed editor and history** retains the original bulk fields, protocol JSON,
 review history and manual domain workflow. Unsaved answers or campaign details
 block interface switches until saved or explicitly discarded. Unknown information
-stays missing. Model prompts, authentication, user/module/study-scoped persistence
+stays missing. Model prompts, authentication, user/study-scoped persistence
 and server readiness gates are reused, with no new prompt publication or migration.
 
 Use the existing research API origin and `NEXT_PUBLIC_AGENT_URL`; the browser

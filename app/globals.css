@@ -9,6 +9,19 @@
   animation: traffic-flow 2s linear infinite;
 }
 
+@keyframes homepage-signal-flow {
+  to { stroke-dashoffset: -512; }
+}
+
+.homepage-signal-flow {
+  animation: homepage-signal-flow 14s linear infinite;
+}
+
+.homepage-signal-flow-alternate {
+  animation-duration: 18s;
+  animation-direction: reverse;
+}
+
 @plugin "@tailwindcss/typography";
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -69,6 +82,12 @@
   --warning: #92400e;
   --info: #0369a1;
   --highlight: #a21caf;
+  --home-paper: #163b67;
+  --home-paper-surface: #eef3fb;
+  --home-paper-border: #b7c9df;
+  --home-idea: #8a2435;
+  --home-idea-surface: #fcf0f2;
+  --home-idea-border: #e2bbc3;
   /* Preserve the established emulated-series colors in light mode. */
   --series-1: #0d9488;
   --series-2: #dc2626;
@@ -122,6 +141,12 @@
   --color-warning: var(--warning);
   --color-info: var(--info);
   --color-highlight: var(--highlight);
+  --color-home-paper: var(--home-paper);
+  --color-home-paper-surface: var(--home-paper-surface);
+  --color-home-paper-border: var(--home-paper-border);
+  --color-home-idea: var(--home-idea);
+  --color-home-idea-surface: var(--home-idea-surface);
+  --color-home-idea-border: var(--home-idea-border);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -163,6 +188,12 @@
   --warning: #ffcc66;
   --info: #69a7ff;
   --highlight: #ed7fdb;
+  --home-paper: #69a7ff;
+  --home-paper-surface: var(--card);
+  --home-paper-border: var(--border);
+  --home-idea: #ed7fdb;
+  --home-idea-surface: var(--card);
+  --home-idea-border: var(--border);
   --chart-1: #b0ef63;
   --chart-2: #45ddf5;
   --chart-3: #b49aff;
@@ -191,6 +222,53 @@
   --scrollbar-thumb-hover: #4d7193;
 }
 
+/* The route marker is a direct body child. Root tokens also reach portalled menus. */
+:root:has(> body > [data-module-theme]) {
+  --primary-foreground: #ffffff;
+  --accent-foreground: var(--primary);
+  --secondary: var(--accent);
+  --secondary-foreground: var(--primary);
+  --ring: var(--primary);
+  --input: color-mix(in srgb, var(--primary) 55%, var(--card));
+  --info: var(--primary);
+  --highlight: var(--primary);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--primary);
+  --sidebar-ring: var(--primary);
+}
+
+:root:has(> body > [data-module-theme="research-verification"]) {
+  --primary: var(--home-paper);
+  --accent: var(--home-paper-surface);
+}
+
+:root:has(> body > [data-module-theme="research-ideas"]) {
+  --primary: var(--home-idea);
+  --accent: var(--home-idea-surface);
+}
+
+:root.dark:has(> body > [data-module-theme]) {
+  --primary-foreground: #08111f;
+}
+
+:root.dark:has(> body > [data-module-theme="research-verification"]) {
+  --accent: #142a42;
+}
+
+:root.dark:has(> body > [data-module-theme="research-ideas"]) {
+  --accent: #351c34;
+}
+
+:root:has(> body > [data-module-theme]) :is(main h1, main h2, main h3, main h4, main h5, main h6, [data-slot="site-header"] a[aria-label="JumpServe home"]) {
+  color: var(--primary);
+}
+
+:root:has(> body > [data-module-theme]) :is(main a:not([data-slot="button"]):not([aria-current="page"]), [data-slot="button"][data-variant="outline"]) {
+  color: var(--primary);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -201,7 +279,7 @@ html {
   min-height: 100%;
   overflow-y: auto;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-  scrollbar-gutter: stable;
+  scrollbar-gutter: auto;
   scrollbar-width: thin;
 }
 

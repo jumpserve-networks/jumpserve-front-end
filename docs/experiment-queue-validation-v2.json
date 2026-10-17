@@ -1,0 +1,76 @@
+{
+  "version": "experiment-queue-local-validation-v2",
+  "amends": "experiment-queue-validation-v1.json",
+  "recorded_at": "2026-10-17T21:16:00.962954+00:00",
+  "deployment_status": "Local only; not deployed",
+  "reviewer": {
+    "identity": "Primary Codex implementer",
+    "type": "AI",
+    "independent": false
+  },
+  "checks": {
+    "frontend_unit_tests": {
+      "passed": 169,
+      "failed": 0
+    },
+    "backend_unit_tests": {
+      "passed": 110,
+      "failed": 0
+    },
+    "infrastructure_tests": {
+      "passed": 10,
+      "failed": 0
+    },
+    "browser_checks": {
+      "passed": 7,
+      "failed": 0,
+      "report": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/experiment-queue/2026-10-17T21-14-59.137Z/report.json",
+      "sha256": "21c031bf0c2ace169b08bf8e824902250712633034f33ee325e9829fc49b686a"
+    },
+    "database_groups": {
+      "passed": 14,
+      "failed": 0,
+      "report": "/Users/Shared/allstar/jumpserve-infra/.test-artifacts/research-queue/20261017T211429660335Z/database-report.json",
+      "sha256": "1f3276332e935cd183d47c2c738f4f3968847aa3c6ee7ffa79732e2778e73352"
+    },
+    "lint": "passed",
+    "frontend_build": "passed with installed Next 16.1.6",
+    "infrastructure_build": "passed"
+  },
+  "important_conditions": {
+    "direct_action": "Run experiment now performs frozen-plan preparation and enqueues all retained checks for this exact claim without a second confirmation.",
+    "immediate_dispatch": "Actual scheduler calls and DB worker execution, with synthetic AWS notification transport. No real Lambda Invoke call was made.",
+    "full_capacity": "All four global slots occupied: another notified job stayed queued.",
+    "login_resume": "Actual Next logged-out route and saved same-tab run intent verified. Component authentication transport is synthetic; real Google login remains unverified.",
+    "manual_work": "Existing nine IPv6 gaps remain operator preparation tasks; no automatic network experiment is invented.",
+    "scientific_conclusions": "Unchanged. No new empirical campaign or claim reassessment."
+  },
+  "conditional_gaps": [
+    "Legitimate Google-authenticated request",
+    "Remote Supabase Storage",
+    "Actual AWS asynchronous notification and execution after deployment",
+    "Clean build with declared Next 16.3.8; local checks used installed 16.1.6"
+  ],
+  "usage": {
+    "experiment_instances_requested": 0,
+    "application_model_calls_requested": 0,
+    "measured_charges_usd": null,
+    "assistant_model_usage": "Unavailable; not treated as zero"
+  },
+  "file_sha256": {
+    "jumpserve-front-end/app/components/research-workflow/run-gap-experiment.tsx": "89432e55f8bd042a260cea8d158ce36269d4524e497b051b1d47787268f1a7fa",
+    "jumpserve-front-end/app/components/research-workflow/study-panel.tsx": "0cb19ff56cae203cc49983e60a9c5cc240268dd8b4ae13230ebdce1a9f5f8bba",
+    "jumpserve-front-end/app/components/research-workflow/experiment-queue.tsx": "82e750a750b7a3ecc7c058c2fd200d578a741b0656896f745f9af10282768141",
+    "jumpserve-front-end/app/(modules)/research-verification/experiment-queue/page.tsx": "49d5bb4de86256f096ecb7bf8a868df6a72e16fb92a62dfce1a1607a95286fe7",
+    "jumpserve-front-end/lib/research-gap-run.ts": "ea6f20ecc4f2ca4c9431cb15bdd8dc04bedf63c3091acf4255b5ddae2ccbcd05",
+    "jumpserve-front-end/tests/research-experiment-queue.test.mjs": "571db705b89025c8ee8ad34a895e0dfe2c6a7e7fae9c851268556c6b96c001b7",
+    "jumpserve-front-end/scripts/verify-experiment-queue.mjs": "e2fcab86bd97d5d7042c40b833403f736eeb2329be6e61942844052cb2c5e316",
+    "jumpserve-front-end/docs/experiment-queue-run-now-amendment-v2.md": "b63d12b5d983ec85096489a16418c538652eef35d86ae43eddf0e5d251903bdc",
+    "jumpserve-back-end/research_workflow/scheduler.py": "0f7a253fc8bd2db7d6255efe31b7ce19dd2e2e773699f5806fd166f45fcc9714",
+    "jumpserve-back-end/research_workflow/tests/test_scheduler.py": "fa201fd6cd6e90f714d7b5f0de6294faadd62a69f9b34dd3c3631b35e903fb7d",
+    "jumpserve-infra/lib/research-workflow.ts": "6c17803fc2c9ac60e5b3fb74efff479245ff3ca8fa0242695adcc19d509f188b",
+    "jumpserve-infra/research-workflow-runtime.json": "a8a1b92db4909e65ba305d2c3d043501f59a1cf279451bd9e9bbd8db4db7c199",
+    "jumpserve-infra/test/check_research_queue_database.py": "d0f7797a6f90fa837444b7063b1a61f3aa0ebf61f91376112fcb7bf0d6b79373",
+    "jumpserve-infra/test/research-workflow.test.ts": "24bb9cf9ffbc8ec02bace1ade5131f981227922bf1155802daf04fd223aae7b2"
+  }
+}

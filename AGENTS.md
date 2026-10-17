@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Last updated: 2026-09-29
+Last updated: 2026-10-17
 
 ## Deployment workflow
 
@@ -32,8 +32,8 @@ at `/login`. Sign-in resumes the requested action. Emulated tools belong to
 **Congestion Control Emulated Tests** (`congestion-control-emulated`).
 **Congestion Control Real World Tests** (`congestion-control-real-world`) provides
 the separate EC2 launcher/history at
-`/module/congestion-control-real-world/run-a-test` and status at
-`/module/congestion-control-real-world/run-a-test/[jobId]`. Its `/real-world/*` API shares the benchmark
+`/congestion-control-real-world/run-a-test` and status at
+`/congestion-control-real-world/run-a-test/[jobId]`. Its `/real-world/*` API shares the benchmark
 API origin, with records and normalized reports in Supabase Postgres and raw
 measurements in private Supabase Storage. `real_world_runs` and
 `real_world_reports` are public read-only; `real_world_jobs` and
@@ -57,7 +57,7 @@ polls or invent timestamps for tests that predate status tracking.
 Do not mix its duration-based
 throughput results with emulated file completion times.
 
-Real-world **Chat with AI** lives at `/module/congestion-control-real-world/chat`.
+Real-world **Chat with AI** lives at `/congestion-control-real-world/chat`.
 Result links pass `jobId` to prefill an editable question; they do not automatically
 send it. Chat requires Google authentication and preserves the test link through
 login. Reuse `ChatPanel` with the explicit `congestion-control-real-world` module
@@ -71,9 +71,9 @@ prompt before enabling the new backend/frontend; see the infrastructure README.
 
 Define module names, availability, home routes, and tool ownership in
 `lib/test-modules.ts`. All module pages and module-owned Next.js API routes belong
-under `/module/{moduleId}`. Use the exported module path constants for links,
+under the URL-transparent `app/(modules)` route group at `/{moduleId}`. Use the exported module path constants for links,
 launch redirects, query updates, and sign-in return paths. Legacy root tool URLs
-and `/modules/{moduleId}` redirect permanently, preserving path suffixes and
+and both `/module/{moduleId}` and `/modules/{moduleId}` redirect permanently, preserving path suffixes and
 query parameters, through `next.config.ts`. AWS API endpoint paths stay unchanged.
 New modules need
 their own tools and data integration before becoming available; module selection
@@ -184,9 +184,9 @@ behind CloudFront, Next.js can see the internal origin as `localhost:3000`. Pref
   - Server component rendering the public overview when logged out and the module
     chooser for authenticated Google users.
   - Retains a safe requested tool URL until its module is selected.
-- `app/module/[moduleId]/page.tsx`
+- `app/(modules)/[moduleId]/page.tsx`
   - Public module home; unavailable and unknown modules return 404.
-- `app/module/congestion-control-emulated` and `app/module/congestion-control-real-world`
+- `app/(modules)/congestion-control-emulated` and `app/(modules)/congestion-control-real-world`
   - Module pages, detail routes, and the emulated parent-run query endpoint.
 - `app/components/site-header.tsx`
   - Shared identity, authentication, and mobile module-menu trigger.
@@ -196,8 +196,8 @@ behind CloudFront, Next.js can see the internal origin as `localhost:3000`. Pref
   - Reserve sidebar width in desktop content; remove the offset when printing.
     Keep body horizontal overflow clipped so it does not trap header stickiness.
   - Derive sections and detail-page highlights from `lib/test-modules.ts`.
-  - Place the Dark Mode / Light Mode / System Default selector at the bottom of
-    desktop and mobile module navigation. Keep theme synchronization active on
+  - Place the Dark Mode / Light Mode / System Default icons in the header before
+    authentication controls. Keep theme synchronization active on
     global pages without a sidebar; the header logo links back to the home page.
 - `lib/auth-redirect.ts`
   - Resumes safe action/result deep links directly after login, preserving queries.
@@ -292,3 +292,13 @@ Important columns currently used:
 - Add multi-run comparison charts.
 - Add additional metric toggles (`cwnd`, in-flight packets, backlog/rate fields).
 - Add a small table of raw points under each chart for debugging/validation.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

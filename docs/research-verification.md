@@ -1,5 +1,11 @@
 # Research Verification module
 
+The paper sidebar's **Experiment Queue** opens
+`/research-verification/experiment-queue`. Published gap cards hand off to a
+private, resumable follow-up with retained checks. See
+[the queue workflow and verification protocol](experiment-queue.md) for supported
+plans, status semantics, limits and conditional release checks.
+
 The public production release check is `npm run verify:research:production`. It
 uses only the canonical JumpServe origin, never signs in or submits owner writes,
 and preserves timestamped desktop/mobile evidence. Teaching queue downloads remain
@@ -15,8 +21,10 @@ See `jumpserve-infra/docs/research-queue.md` for exact limits, commands and rele
 order. The public methods page includes a labelled synthetic queue example; its
 display checks do not establish an authenticated owner request.
 
-Shared routes and navigation live under `/module/research-verification`, defined
-in `lib/test-modules.ts`. Public results read reviewed backend snapshots; Google
+Paper verification routes and navigation live under `/research-verification`.
+Unpublished ideas belong to the separate `/research-ideas` module. Both are
+defined in `lib/test-modules.ts`; see [Research pathways](research-pathways.md).
+Public results read reviewed backend snapshots; Google
 authentication protects intake and owner workspaces. The backend owns identity,
 authorization, freeze times/hashes, adapters and publication controls.
 

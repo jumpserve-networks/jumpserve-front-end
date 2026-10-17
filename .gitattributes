@@ -1,0 +1,2 @@
+# Release receipts retain original bytes, including tool-produced line endings.
+docs/research-pathways-release-evidence/** -text -whitespace

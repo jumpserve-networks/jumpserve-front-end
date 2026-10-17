@@ -1,0 +1,6 @@
+import { ResearchHeader } from "@/app/components/research-workflow/header";
+import { ResearchEvidenceMethods } from "@/app/components/research-workflow/evidence-methods";
+
+export default function Methods() {
+  return <main className="mx-auto max-w-5xl space-y-6 px-4 py-6"><ResearchHeader title="Verify claims in an academic paper" description="Preserve the original sources, choose checks appropriate to each claim, and report what the recorded evidence supports." /><section className="space-y-3 text-sm"><h2 className="text-lg font-semibold">From a paper to bounded findings</h2><ol className="list-decimal space-y-2 pl-5"><li>Record the exact paper and directly referenced sources, byte identities, retrieval attempts and substantive review coverage.</li><li>Extract atomic claims with their source locations, conditions, population, units and scope.</li><li>Select an appropriate check and freeze a versioned protocol before each main campaign.</li><li>Execute a registered implementation or import documented external evidence. Preserve successful, failed and excluded runs.</li><li>Review the evidence under tested conditions. Preserve original assessments when later findings change a label.</li><li>Give every unresolved claim a next check, dependency, feasibility estimate, decision rule and stopping rule.</li></ol></section><ResearchEvidenceMethods /></main>;
+}

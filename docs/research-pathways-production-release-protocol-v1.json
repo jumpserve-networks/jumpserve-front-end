@@ -1,0 +1,38 @@
+{
+  "version": "research-pathways-production-release-v1",
+  "authorization": "Current user request: commit all outstanding changes to main, push, and deploy production.",
+  "scope": "Canonical module routes, separate paper/idea modules, homepage and theme changes, simplified navigation and copy, private experiment queue, bounded gap follow-up enqueue/worker dispatch, and retained archive/follow-up operator tools.",
+  "targets": {
+    "aws_account": "395567831870",
+    "region": "us-east-1",
+    "supabase_project": "regphejnlvfpyokpniny",
+    "amplify_app": "d24jvguj7brnkj",
+    "production_origin": "https://jumpserve.quaint-lab.org",
+    "infrastructure_stack": "JumpServeBenchmarkStack"
+  },
+  "release_blockers": [
+    "Review all staged changes and confirm main has no unincorporated remote changes; exclude credentials and generated private artifacts.",
+    "Verify AWS caller account and Supabase project identity before production changes.",
+    "Clean install of locked frontend dependencies, frontend unit tests, lint and production build.",
+    "Backend research workflow tests; infrastructure build and applicable tests with the real backend checkout.",
+    "Actual isolated PostgreSQL queue tests, including owner isolation, durable enqueue, capacity, dependencies and follow-up identity.",
+    "Browser checks of homepage, pathways and queue behavior at desktop/mobile sizes in light/dark themes; canonical redirects, exports, missing/invalid/unavailable data, sign-in return paths and absence of duplicate workflow buttons.",
+    "Pin the committed backend runtime revision and verify all declared source bytes before deployment.",
+    "Inspect CDK diff and apply only intended research API/worker/routes/permission changes, retaining the existing benchmark AMI and data.",
+    "Deploy matching backend before frontend; require successful Amplify main release for the exact committed frontend revision.",
+    "Verify deployed public pages and API capabilities, anonymous private request denial, runtime archive hashes and retained database security."
+  ],
+  "conditional_checks": [
+    "Positive Google-authenticated owner queue/run action, cross-owner requests and authenticated AI chat require a legitimate available session; synthetic identity fixtures do not satisfy them.",
+    "No new scientific campaigns, CDN probes, EC2 experiments or model candidate evaluations are requested by this software release; prior scientific findings and prompt publications remain unchanged.",
+    "AWS/Supabase/Amplify billed charges may be unavailable; record available wall times, configured resources and artifact bytes, with missing costs retained as missing."
+  ],
+  "execution_limits": {
+    "deployment_scope": "Research resources within the existing benchmark stack and Amplify frontend; skip unrelated all-stack and AMI workflows after equivalent scoped checks.",
+    "new_model_evaluation_calls": 0,
+    "new_experiment_instances": 0,
+    "browser_targets": "Fixed loopback origins and canonical production origin only.",
+    "failure_policy": "Preserve failed checks and original reports; fix demonstrated release blockers and repeat affected checks. Do not weaken scientific criteria to obtain a passing software result."
+  },
+  "reviewer": {"identity": "Primary Codex implementer", "type": "AI", "independent": false}
+}

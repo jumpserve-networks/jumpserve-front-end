@@ -1,6 +1,6 @@
 # Real-world test results
 
-The real-world module links to `/module/congestion-control-real-world/test-results`. Anyone can browse reports,
+The real-world module links to `/congestion-control-real-world/test-results`. Anyone can browse reports,
 inspect measurements, download evidence, and build comparisons without signing
 in. Launching tests requires a verified Google session; cancellation additionally
 checks ownership. Status pages are public, with management controls for owners.
@@ -8,7 +8,7 @@ checks ownership. Status pages are public, with management controls for owners.
 ## Chat with AI
 
 The module menu and individual results link to
-`/module/congestion-control-real-world/chat`. A `jobId` query parameter prefills
+`/congestion-control-real-world/chat`. A `jobId` query parameter prefills
 an editable request to analyze that test. Login is required to enter chat and
 send a question; result viewing remains public. Real-world conversations are
 stored separately from emulated conversations in `agent_sessions.module_id`.

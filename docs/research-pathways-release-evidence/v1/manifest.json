@@ -1,0 +1,50 @@
+[
+  {
+    "path": "homepage-local.json",
+    "sha256": "f78029f39cf7e28f26e926e71155b8fccb8ad07064906205855f9ab321afd4f8",
+    "byte_count": 15916,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/homepage-release/2026-10-17T21-33-39.583Z/browser-report.json"
+  },
+  {
+    "path": "pathways-local.json",
+    "sha256": "c3a4442fa1ae22c5490c413eff75e1ad21d6bab54a5a995afe5684d923127e4a",
+    "byte_count": 43807,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/research-pathways/2026-10-17T21-33-39.582Z/report.json"
+  },
+  {
+    "path": "queue-local.json",
+    "sha256": "c085a28ad9e22a97c4906834dd0ce6fd8fb4d1601853be9c04b99b3f8c439e90",
+    "byte_count": 3135,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/experiment-queue/2026-10-17T21-34-38.128Z/report.json"
+  },
+  {
+    "path": "queue-local-failed.json",
+    "sha256": "9cfeb768fcbd3356f528521a3dce1850ccc3df2154b61ace547a79da03817f74",
+    "byte_count": 3217,
+    "original_path": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/experiment-queue/2026-10-17T21-33-39.573Z/report.json"
+  },
+  {
+    "path": "database-local.json",
+    "sha256": "d91760795b17726834454963fecc48e197fc37e33dea2852c5f281a2b3a340ff",
+    "byte_count": 7560,
+    "original_path": "/Users/Shared/allstar/jumpserve-infra/.test-artifacts/research-queue/20261017T213423699916Z/database-report.json"
+  },
+  {
+    "path": "targets-before.json",
+    "sha256": "408821b7f081a8bd6810a312d3a0abe44e425b7ec19d0c7f7dec416a7d02da04",
+    "byte_count": 12408,
+    "original_path": "/Users/Shared/allstar/jumpserve-infra/.test-artifacts/research-queue-release/20261017T213540986263Z/receipt.json"
+  },
+  {
+    "path": "diff-before.json",
+    "sha256": "0d0810d314e0803fc361c0601c270b1e3b1c685e580305f16e6b192ef0730283",
+    "byte_count": 3452,
+    "original_path": "/Users/Shared/allstar/jumpserve-infra/.test-artifacts/research-queue-release/20261017T213437873169Z/receipt.json"
+  },
+  {
+    "path": "diff-before.log",
+    "sha256": "55b63e3abf9ea57aec8093269832a841e04af95ee8326f29fd5a9182f04811f1",
+    "byte_count": 12927,
+    "original_path": "/Users/Shared/allstar/jumpserve-infra/.test-artifacts/research-queue-release/20261017T213437873169Z/cdk.log"
+  }
+]

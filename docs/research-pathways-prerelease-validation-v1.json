@@ -1,0 +1,58 @@
+{
+  "version": "research-pathways-prerelease-validation-v1",
+  "recorded_at": "2026-10-17T21:36:38.299629+00:00",
+  "status": "Local release blockers passed; source commits, push and production deployment pending",
+  "reviewer": {
+    "identity": "Primary Codex implementer",
+    "type": "AI",
+    "independent": false
+  },
+  "validation": {
+    "clean_npm_ci": "passed",
+    "next_version": "16.3.8",
+    "frontend_tests": 175,
+    "backend_tests": 111,
+    "infrastructure_tests": 89,
+    "agent_regressions": 101,
+    "database_groups": 14,
+    "homepage_browser_groups": 12,
+    "pathways_browser_groups": 12,
+    "queue_browser_groups": 8,
+    "frontend_build": "passed",
+    "infrastructure_build": "passed",
+    "lint": {
+      "errors": 0,
+      "warnings": 1,
+      "limitation": "Existing auth-button Next.js internal-navigation warning"
+    },
+    "production_dependency_audit": {
+      "moderate": 2,
+      "high": 0,
+      "critical": 0,
+      "limitation": "Existing build-time typography selector parser; full development dependency audit is broader"
+    }
+  },
+  "targets": {
+    "aws_account": "395567831870",
+    "supabase_project": "regphejnlvfpyokpniny",
+    "identity_verified": true
+  },
+  "conditional_gaps": [
+    "No legitimate Google session for positive owner/cross-owner queue requests, sign-in provider round trip, authenticated chat or network launch. Synthetic browser transports are development fixtures.",
+    "No new scientific experiment or model candidate evaluation performed."
+  ],
+  "preserved_failures": [
+    "Queue verifier could not reach stopped localhost:6001; seven fixture checks passed. Restarted declared local server; all eight checks passed without changing application logic.",
+    "Sandbox blocked AWS subprocess networking; repeated fixed target verifier with required elevated execution.",
+    "Task-owned PostgreSQL start initially omitted port 54477 and met existing port 5432; restarted the same test cluster with explicit isolated port.",
+    "Git initially normalized archived CSV CRLF; scoped attributes and original/index SHA256 equality preserve exact original bytes."
+  ],
+  "usage": {
+    "new_model_calls": 0,
+    "new_experiment_instances": 0,
+    "measured_charges_usd": null,
+    "assistant_model_usage": null,
+    "limitation": "Missing usage and unallocated hosting/storage charges are not zero"
+  },
+  "evidence_manifest": "research-pathways-release-evidence/v1/manifest.json"
+}

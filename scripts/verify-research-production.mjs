@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 // Purpose-specific public production verifier: no tokens, write actions or arbitrary origins.
-const origin='https://jumpserve.quaint-lab.org', path='/module/research-verification';
+const origin='https://jumpserve.quaint-lab.org', path='/research-verification';
 const stamp=new Date().toISOString().replaceAll(':','-');
 const directory='.test-artifacts/research-production/'+stamp;await mkdir(directory,{recursive:true});
 const preparationRelease=process.argv.slice(2).length===1&&process.argv[2]==='--preparation';
@@ -68,7 +68,7 @@ try{
   for(const suffix of suffixes){
    await page.goto(origin+path+suffix,{waitUntil:'domcontentloaded'});const url=new URL(page.url());assert.equal(url.pathname,'/login');assert.equal(url.searchParams.get('next'),path+suffix);
   }
-  const response=await page.goto(origin+'/module/ipv6-dns-study/test-results',{waitUntil:'domcontentloaded'});assert.equal(response.status(),200);await page.getByRole('heading',{name:'DNS over IPv6: results and evidence limits',exact:true}).waitFor();assert.ok(!(await page.locator('main').innerText()).includes('Study data is unavailable.'));await page.screenshot({path:directory+'/existing-ipv6-mobile.png',fullPage:true});
+  const response=await page.goto(origin+'/ipv6-dns-study/test-results',{waitUntil:'domcontentloaded'});assert.equal(response.status(),200);await page.getByRole('heading',{name:'DNS over IPv6: results and evidence limits',exact:true}).waitFor();assert.ok(!(await page.locator('main').innerText()).includes('Study data is unavailable.'));await page.screenshot({path:directory+'/existing-ipv6-mobile.png',fullPage:true});
   return {return_paths:suffixes.length,google_provider_and_owner_actions:'Conditional; no authenticated session',existing_ipv6_results:'Available; scientific coverage unchanged'};
  });
  assert.deepEqual(report.browser_errors,[]);

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { getPostLoginPath, getSafeNextPath } from "../lib/auth-redirect.ts";
-import { EMULATED_TESTS_MODULE, TEST_MODULES, getTestModule, getTestModuleForPath, isModuleSectionActive } from "../lib/test-modules.ts";
+import { EMULATED_TESTS_MODULE, LEGACY_MODULE_ROUTES, TEST_MODULES, getTestModule, getTestModuleForPath, isModuleSectionActive } from "../lib/test-modules.ts";
 
 test("sign-in without a destination returns home", () => {
   for (const next of [null, "", "/", "/login", "/auth/callback?code=expired"]) {
@@ -91,9 +91,9 @@ test("navigation highlights the parent tool for detail pages with path boundarie
   assert.equal(isModuleSectionActive(lookup, `${EMULATED_TESTS_MODULE.href}/chat`), false);
 });
 
-test("module overviews and every navigation section use the singular module namespace", () => {
+test("module overviews and every navigation section use their top-level namespace", () => {
   for (const testModule of TEST_MODULES) {
-    assert.equal(testModule.href, `/module/${testModule.id}`);
+    assert.equal(testModule.href, `/${testModule.id}`);
     for (const section of testModule.sections) {
       assert.ok(section.href.startsWith(`${testModule.href}/`));
       assert.equal(getTestModuleForPath(section.href), testModule);
@@ -104,13 +104,13 @@ test("module overviews and every navigation section use the singular module name
 
 test("canonical result, launch and chat URLs preserve their module and login destination", () => {
   for (const [path, id] of [
-    ["/module/congestion-control-emulated/parent-run/2352?page=3", "congestion-control-emulated"],
-    ["/module/congestion-control-emulated/chat?parentRunId=2352", "congestion-control-emulated"],
-    ["/module/congestion-control-emulated/test-lookup?page=2&search=cubic%20vs%20bbr&tag=a%26b%3Fc", "congestion-control-emulated"],
-    ["/module/congestion-control-emulated/benchmarks/job-123", "congestion-control-emulated"],
-    ["/module/congestion-control-real-world/run-a-test/job-123", "congestion-control-real-world"],
-    ["/module/congestion-control-real-world/test-results?selected=a%2Cb", "congestion-control-real-world"],
-    ["/module/congestion-control-real-world/test-results/job-123", "congestion-control-real-world"],
+    ["/congestion-control-emulated/parent-run/2352?page=3", "congestion-control-emulated"],
+    ["/congestion-control-emulated/chat?parentRunId=2352", "congestion-control-emulated"],
+    ["/congestion-control-emulated/test-lookup?page=2&search=cubic%20vs%20bbr&tag=a%26b%3Fc", "congestion-control-emulated"],
+    ["/congestion-control-emulated/benchmarks/job-123", "congestion-control-emulated"],
+    ["/congestion-control-real-world/run-a-test/job-123", "congestion-control-real-world"],
+    ["/congestion-control-real-world/test-results?selected=a%2Cb", "congestion-control-real-world"],
+    ["/congestion-control-real-world/test-results/job-123", "congestion-control-real-world"],
   ]) {
     assert.equal(getTestModuleForPath(path)?.id, id);
     assert.equal(getPostLoginPath(path), path);
@@ -120,6 +120,28 @@ test("canonical result, launch and chat URLs preserve their module and login des
 
 test("legacy overview URLs still identify the intended module", () => {
   for (const testModule of TEST_MODULES) {
-    assert.equal(getTestModuleForPath(`/modules/${testModule.id}`), testModule);
+    for (const prefix of ["module", "modules"]) {
+      assert.equal(getTestModuleForPath(`/${prefix}/${testModule.id}`), testModule);
+      assert.equal(getTestModuleForPath(`/${prefix}/${testModule.id}/methods?view=gaps`), testModule);
+    }
+  }
+});
+
+
+test("legacy redirects target canonical routes without self-redirects or chains", () => {
+  assert.equal(new Set(LEGACY_MODULE_ROUTES.map(route => route.source)).size, LEGACY_MODULE_ROUTES.length);
+  for (const { source, destination } of LEGACY_MODULE_ROUTES) {
+    assert.notEqual(source, destination);
+    assert.ok(!/^\/modules?\//.test(destination));
+    assert.ok(!LEGACY_MODULE_ROUTES.some(route => destination === route.source || destination.startsWith(route.source + "/")), destination);
+    assert.equal(getTestModuleForPath(source), getTestModuleForPath(destination));
+  }
+});
+
+test("canonical and legacy routes respect module name boundaries", () => {
+  for (const testModule of TEST_MODULES) {
+    for (const prefix of ["", "/module", "/modules"]) {
+      assert.equal(getTestModuleForPath(`${prefix}/${testModule.id}-other`), undefined);
+    }
   }
 });

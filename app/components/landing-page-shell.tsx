@@ -4,15 +4,15 @@ import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/app/components/ui/card";
 import type { TestModule } from "@/lib/test-modules";
 
-export function LandingPageShell({ module }: { module: TestModule }) {
+export function LandingPageShell({ module, showDescription = true }: { module: TestModule; showDescription?: boolean }) {
   return (
     <main className="min-h-[var(--page-height)] bg-background px-5 py-10 sm:px-10 sm:py-14">
       <div className="mx-auto max-w-5xl">
-        <p className="text-sm font-medium text-muted-foreground dark:text-primary">Test module</p>
+        {module.id !== "research-verification" ? <p className="text-sm font-medium text-muted-foreground dark:text-primary">Test module</p> : null}
         <h1 className="mt-2 max-w-3xl text-3xl font-semibold tracking-tight text-foreground">
           {module.name}
         </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">{module.description}</p>
+        {showDescription ? <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">{module.description}</p> : null}
         <nav aria-label={`${module.name} tools`} className="mt-8 grid gap-4 sm:grid-cols-2">
           {module.sections.map((section) => (
             <Card key={section.href} className="gap-3 dark:border-t-primary/60 dark:even:border-t-highlight/60">

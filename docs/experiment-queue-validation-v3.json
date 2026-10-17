@@ -1,0 +1,90 @@
+{
+  "version": "experiment-queue-local-validation-v3",
+  "amends": "experiment-queue-validation-v2.json",
+  "recorded_at": "2026-10-17T21:21:19.559986+00:00",
+  "root_cause": {
+    "frontend_origin": "http://localhost:6001",
+    "configured_backend": "https://d3o7xdethb.execute-api.us-east-1.amazonaws.com",
+    "overview_get": {
+      "status": 404,
+      "access_control_allow_origin": "absent",
+      "body": {
+        "message": "Not Found"
+      },
+      "observation_date_header": "Sat, 17 Oct 2026 21:16:48 GMT"
+    },
+    "overview_options": {
+      "status": 204,
+      "access_control_allow_origin": "*"
+    },
+    "capabilities_get": {
+      "status": 200,
+      "access_control_allow_origin": "*",
+      "overview_version": "not advertised",
+      "gap_queue_version": "not advertised"
+    },
+    "owner_studies_get_without_session": {
+      "status": 401,
+      "access_control_allow_origin": "*"
+    },
+    "interpretation": "Frontend assumed an undeployed API route. Browser CORS enforcement hid its 404 as Failed to fetch. No authenticated token used in live diagnosis."
+  },
+  "fix": "Select API by advertised capabilities. Existing owner study queue endpoints supply the legacy overview. Gate unreleased gap launch requests before missing-route fetches or writes.",
+  "checks": {
+    "frontend_unit_tests": {
+      "passed": 175,
+      "failed": 0
+    },
+    "backend_unit_tests": {
+      "passed": 111,
+      "failed": 0
+    },
+    "infrastructure_tests": {
+      "passed": 10,
+      "failed": 0
+    },
+    "browser_checks": {
+      "passed": 8,
+      "failed": 0,
+      "report": "/Users/Shared/allstar/jumpserve-front-end/.test-artifacts/experiment-queue/2026-10-17T21-19-47.080Z/report.json",
+      "sha256": "fda9a477603539a83beaffb723d7a5c71963501ab4f798888adc2d8c13506b0f"
+    },
+    "lint": "passed",
+    "frontend_build": "passed with installed Next 16.1.6"
+  },
+  "reviewer": {
+    "identity": "Primary Codex implementer",
+    "type": "AI",
+    "independent": false
+  },
+  "coverage": {
+    "legacy_browser_case": "Actual component/helper with fixed synthetic authenticated transport; overview endpoint configured to reject any call. Three jobs rendered through two existing study queues; unsupported launches made no writes.",
+    "real_google_authenticated_queue": "Not verified; no legitimate session in agent browser.",
+    "database_checks": "Prior v2 database/lease checks preserved; no database logic changed in v3."
+  },
+  "deployment_status": "Local compatibility fix only. New aggregate/gap-launch backend endpoints remain undeployed.",
+  "conditional_gaps": [
+    "Real Google-authenticated browser queue request",
+    "Deployment of new backend endpoints for evidence-gap launching",
+    "Clean build of declared Next 16.3.8; local runtime was 16.1.6"
+  ],
+  "usage": {
+    "production_writes": 0,
+    "experiment_instances_requested": 0,
+    "application_model_calls_requested": 0,
+    "measured_charges_usd": null,
+    "diagnostic_api_charges": "Unallocated; read-only HTTP probes used existing AWS API.",
+    "assistant_model_usage": "Unavailable; not treated as zero"
+  },
+  "file_sha256": {
+    "jumpserve-front-end/lib/research-queue-api.ts": "1e7c2b0a488a27aa6dc6f5d36b27b03ac86afcdbf4da13d59bfb667dc3964acd",
+    "jumpserve-front-end/app/components/research-workflow/experiment-queue.tsx": "bae8c49b014acf4758074f85084fc920ad3336b8dc415afaeae4f698075298ce",
+    "jumpserve-front-end/app/components/research-workflow/run-gap-experiment.tsx": "2ae6439f4447e8f42f7683c4ad24ce566e79a42ac179f136aed61fe8d56c3f0e",
+    "jumpserve-front-end/tests/research-queue-api.test.mjs": "de6cc7ea8049327f6b8e98a0335ffe07295b8d3406de18588c786e17cab3e719",
+    "jumpserve-front-end/scripts/verify-experiment-queue.mjs": "5e7b11f81a7d4aef49bb47d4418e1042ab1fa59799fbce91573267c43774635f",
+    "jumpserve-front-end/docs/experiment-queue-compatibility-amendment-v3.md": "ab7561a8c749eae204eeab55bffaacf6117cea03ff20cead878207c925f8323e",
+    "jumpserve-back-end/research_workflow/api.py": "aeb50bf4906a8ed4d58ec41bd7cd05d8e19c76f09db60b3dff4671c8aa82be7f",
+    "jumpserve-back-end/research_workflow/tests/test_gap_queue.py": "b4737c9580ace3b5d76992b7a95cb34292c542cd2ae32c7d67cdc919a12df941",
+    "jumpserve-infra/research-workflow-runtime.json": "5abd38161e51ecc6494b0867d755ac27295c58200da59e4b6828bada645e4ec6"
+  }
+}
