@@ -6,6 +6,12 @@ eligible for publication under the exact archived-answer replay gate. See
 validation and `docs/claim-design-release-protocol-v1.md` there for release order.
 Deployment receipts record the production state separately from local evidence.
 
+Production activation completed on 2026-10-18 UTC: Amplify main build 114 and the
+matching API, agent, migrations and reviewed v6 prompt. See
+`jumpserve-infra/docs/claim-design-production-release-v1.md` for the deployed
+identities, passing public browser checks and remaining authenticated/provider/
+network-execution verification gaps.
+
 Every recorded paper claim has a **Design an experiment for this claim** link.
 For a current gap with no retained plan, **Run experiment now** opens the same
 designer instead of ending at the unsupported-plan message. Existing retained

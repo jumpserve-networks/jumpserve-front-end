@@ -83,8 +83,12 @@ try{
     return {export_bytes:bytes.length,export_sha256:createHash('sha256').update(bytes).digest('hex'),missing_export_status:404};
   });
   await check('landing, previous assessments and methods remain navigable',async()=>{
-    await visit('/');await page.getByRole('link',{name:'Start verification',exact:true}).waitFor();
-    await page.getByRole('link',{name:'Start developing',exact:true}).waitFor();
+    await visit('/');
+    const verify=page.getByRole('button',{name:'Start verification',exact:true});
+    const develop=page.getByRole('button',{name:'Start developing',exact:true});
+    await verify.waitFor();await develop.waitFor();
+    assert.equal(await verify.getAttribute('href'),base+'/new-study');
+    assert.equal(await develop.getAttribute('href'),'/research-ideas/new-idea');
     await visit(base+'/test-results');await page.locator('a[href="'+base+'/studies/'+selected.id+'"]').first().waitFor();
     await visit(base+'/methods');
     return {paths:['/',base+'/test-results',base+'/methods']};
