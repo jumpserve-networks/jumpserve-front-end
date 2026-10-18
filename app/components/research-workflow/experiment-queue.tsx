@@ -12,6 +12,7 @@ import { loadExperimentQueue, requireGapQueueApi } from "@/lib/research-queue-ap
 import { QUEUE_STATUSES, type QueueJob } from "@/lib/research-queue";
 import { experimentQueuePath, isResearchId, QUEUE_POLL_MS, validateGapEnqueued, validateGapPreview, type ExperimentQueue, type GapPreview } from "@/lib/research-experiment-queue";
 import { RESEARCH_WORKFLOW_MODULE_PATH as PATH } from "@/lib/test-modules";
+import { AutonomousAssessments } from "./autonomous-assessments";
 
 const failureText = (error: unknown) => error instanceof Error ? error.message : "Queue status is unavailable.";
 const display = (value: string) => value.replaceAll("-", " ");
@@ -114,6 +115,7 @@ export function ExperimentQueueDashboard({ studyId, jobId, sourceStudy, gapId, l
     { label: "Failed / expired", count: jobs.filter(j => j.status === "failed" || j.status === "expired").length, icon: CircleAlert },
   ];
   return <div className="space-y-6" data-testid="experiment-queue-dashboard">
+    {data?.autonomy ? <AutonomousAssessments data={data.autonomy} studyId={study} titles={names} stale={Boolean(error)} /> : null}
     {sourceStudy && gapId ? launchId ? <section aria-label="Run requested experiment" className="space-y-3 rounded-lg border p-5"><h2 className="text-lg font-semibold">Run requested experiment</h2><RunGapExperiment studyId={sourceStudy} gapId={gapId} launchId={launchId} onQueued={queued} /></section> : <GapExperimentPlanner studyId={sourceStudy} gapId={gapId} onQueued={queued} /> : null}
     <section className="space-y-4" aria-label="Your experiment status">
       <h2 className="text-lg font-semibold">Your experiment status</h2>

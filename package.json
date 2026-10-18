@@ -14,7 +14,8 @@
     "verify:research:preparation": "node scripts/verify-research-preparation.mjs",
     "verify:research:queue": "node scripts/verify-experiment-queue.mjs",
     "verify:research:production": "node scripts/verify-research-production.mjs",
-    "verify:research:ideas": "node scripts/verify-research-ideas.mjs"
+    "verify:research:ideas": "node scripts/verify-research-ideas.mjs",
+    "verify:research:autonomy": "node scripts/verify-research-autonomy.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

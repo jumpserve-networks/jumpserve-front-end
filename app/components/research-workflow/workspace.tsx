@@ -7,15 +7,14 @@ import { Input } from "@/app/components/ui/input";
 import { Textarea } from "@/app/components/ui/textarea";
 import { researchRequest } from "@/lib/research-workflow-api";
 import { validateSnapshot, recordText, type ResearchSnapshot, type ResearchStudy } from "@/lib/research-workflow";
-import { RESEARCH_WORKFLOW_MODULE_PATH as PATH } from "@/lib/test-modules";
 import { researchModulePath, researchStudyKind, researchWorkspacePath, studiesForPathway, type ResearchStudyKind } from "@/lib/research-pathways";
 import { ResearchSelect } from "@/app/components/research-workflow/select";
 import { StudyPanel, type StudyView } from "@/app/components/research-workflow/study-panel";
 import { ClaimQueue } from "@/app/components/research-workflow/claim-queue";
 import { StudyPreparation } from "@/app/components/research-workflow/preparation";
 import { PaperPreparation } from "@/app/components/research-workflow/paper-preparation";
-import { Checkbox } from "@/app/components/ui/checkbox";
-import { prepareAndQueue, validatePreparation } from "@/lib/research-preparation";
+import { startAutonomousPaper } from "@/lib/research-autonomy";
+import { experimentQueuePath } from "@/lib/research-experiment-queue";
 
 const REVIEWER = { identity: "Authenticated study contributor", type: "human", independence: "Study contributor; independent review not asserted" };
 const NULLABLE = new Set(["source_url", "retrieved_url", "retrieved_version", "sha256", "byte_count", "supersedes_id", "amendment_reason", "followup_of", "campaign_id", "assessment_id", "estimated_cost_usd"]);
@@ -46,27 +45,30 @@ export function PaperIntake() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [prepare, setPrepare] = useState(true);
-  const [progress, setProgress] = useState("");
   const [savedStudy, setSavedStudy] = useState<string | null>(null);
   const request = useRef("");
+  const inFlight = useRef(false);
   async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setBusy(true); setError("");
+    event.preventDefault(); if (inFlight.current) return;
+    inFlight.current = true; setBusy(true); setError("");
     const data = new FormData(event.currentTarget);
-    if (!request.current) request.current = crypto.randomUUID();
+    request.current ||= crypto.randomUUID();
     try {
-      const study = await researchRequest<ResearchStudy>("/studies", { method: "POST", body: JSON.stringify({ request_id: request.current, paper: { title: data.get("title"), paper_url: data.get("paper_url"), domain: data.get("domain"), scope: data.get("scope"), origin_module: null } }) });
-      setSavedStudy(study.id);
-      if (prepare) {
-        setProgress("Checking available preparation plans…");
-        const status = validatePreparation(await researchRequest(`/studies/${study.id}/prepare`));
-        if (status.available_plan) await prepareAndQueue(study.id, request.current, setProgress, researchRequest);
-      }
-      router.push(`${PATH}/workspace/${study.id}`);
+      const result = await startAutonomousPaper(researchRequest, request.current, { title: data.get("title"), paper_url: data.get("paper_url"), domain: data.get("domain"), scope: data.get("scope"), origin_module: null, study_kind: "paper" });
+      setSavedStudy(result.id);
+      router.push(experimentQueuePath(result.id));
     } catch (failure) { setError(errorText(failure)); }
-    finally { setBusy(false); }
+    finally { inFlight.current = false; setBusy(false); }
   }
-  return <form onSubmit={submit} className="max-w-3xl space-y-4 rounded-lg border p-5">{[["title", "Paper title", "text"], ["paper_url", "Paper URL or DOI URL", "url"], ["domain", "Research domain", "text"]].map(([name, text, type]) => <label key={name} className="block space-y-2 text-sm"><span className="font-medium">{text}</span><Input required type={type} name={name} maxLength={name === "title" ? 300 : 5000} disabled={busy || savedStudy !== null} /></label>)}<label className="block space-y-2 text-sm"><span className="font-medium">Reproduction scope</span><Textarea name="scope" required maxLength={5000} disabled={busy || savedStudy !== null} placeholder="Which claims, populations, inputs and conditions will the assessment cover?" /></label><label className="flex items-start gap-2 text-sm"><Checkbox checked={prepare} disabled={busy || savedStudy !== null} onCheckedChange={value => setPrepare(Boolean(value))} /><span>Prepare available checks and queue them after saving the study. Earlier evidence keeps its original scope; claim review remains separate.</span></label>{progress ? <p role="status" className="text-sm">{progress}</p> : null}{error ? <p role="alert" className="text-sm text-destructive">{error} {savedStudy ? "The study was saved; resume preparation from its workspace." : ""}</p> : null}{savedStudy ? <Link className="block text-sm underline" href={`${PATH}/workspace/${savedStudy}`}>Open saved study and resume preparation</Link> : <Button disabled={busy} type="submit">{busy ? "Saving and preparing…" : prepare ? "Create study and prepare checks" : "Create private study draft"}</Button>}</form>;
+  return <form onSubmit={submit} aria-label="Start autonomous paper assessment" className="max-w-3xl space-y-4 rounded-lg border p-5">
+    {[["title", "Paper title", "text"], ["paper_url", "Paper URL or DOI URL", "url"], ["domain", "Research domain", "text"]].map(([name, text, type]) => <label key={name} className="block space-y-2 text-sm"><span className="font-medium">{text}</span><Input required type={type} name={name} maxLength={name === "title" ? 300 : 5000} disabled={busy || savedStudy !== null} /></label>)}
+    <label className="block space-y-2 text-sm"><span className="font-medium">Reproduction scope</span><Textarea name="scope" required maxLength={5000} disabled={busy || savedStudy !== null} placeholder="Which claims, populations, inputs and conditions should the assessment cover?" /></label>
+    <p className="text-sm">Submit once. JumpServe prepares the paper, evaluates claims in parallel and records every prompt, response and experiment in Experiment Queue.</p>
+    <p className="text-sm font-medium">Application defaults: $100 per paper · 7 days · 25 attempts per claim</p>
+    <p className="text-xs text-muted-foreground">Claims with unavailable inputs, equipment or authorization pause with an explanation while others continue. Findings can remain inconclusive or untested. Spending commitments are checked before admitting work; unknown charges remain unknown.</p>
+    {error ? <p role="alert" className="text-sm text-destructive">{error} Retrying preserves the original request ID.</p> : null}
+    {savedStudy ? <Link className="block text-sm underline" href={experimentQueuePath(savedStudy)}>View assessment progress</Link> : <Button disabled={busy} type="submit">{busy ? "Starting assessment…" : "Start autonomous assessment"}</Button>}
+  </form>;
 }
 
 export function OwnerStudies({ kind = "paper" }: { kind?: ResearchStudyKind }) {

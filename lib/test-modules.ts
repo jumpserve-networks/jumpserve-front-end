@@ -14,6 +14,7 @@ const MODULE_PATHS = [EMULATED_MODULE_PATH, REAL_WORLD_MODULE_PATH, DELAY_STUDY_
   RELIABLE_STUDY_MODULE_PATH, RESEARCH_WORKFLOW_MODULE_PATH, RESEARCH_IDEAS_MODULE_PATH];
 
 export const LEGACY_MODULE_ROUTES = [
+  { source: "/experiment-queue", destination: `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-queue` },
   // Specific pathway and tool aliases must precede the broad namespace redirects.
   ...[RESEARCH_WORKFLOW_MODULE_PATH, `/module${RESEARCH_WORKFLOW_MODULE_PATH}`, `/modules${RESEARCH_WORKFLOW_MODULE_PATH}`].flatMap((prefix) => [
     { source: `${prefix}/new-idea`, destination: `${RESEARCH_IDEAS_MODULE_PATH}/new-idea` },
