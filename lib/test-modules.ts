@@ -90,7 +90,7 @@ export const RESEARCH_VERIFICATION_MODULE = {
   sections: [
     { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/new-study`, label: "Assess a Paper", description: "Create a paper study, prepare available domain plans and queue their checks.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/new-study`] },
     { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/test-results`, label: "Previous Assessments", description: "Read published paper evidence, claim coverage and next experiments.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/test-results`, `${RESEARCH_WORKFLOW_MODULE_PATH}/studies`] },
-    { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`, label: "My Workspace", description: "Build source inventories, freeze protocols and preserve paper assessment evidence.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`] },
+    { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`, label: "My Workspace", description: "Build source inventories, freeze protocols and preserve paper assessment evidence.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`, `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-design`, `${RESEARCH_WORKFLOW_MODULE_PATH}/design-claim`] },
     { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-queue`, label: "Experiment Queue", description: "Follow your queued experiments, recorded runs and work awaiting an operator or review.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-queue`] },
     { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/methods`, label: "Verification Methods", description: "Choose appropriate checks and understand publication criteria.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/methods`] },
   ],

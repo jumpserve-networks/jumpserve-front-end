@@ -9,6 +9,8 @@ import { researchRequest, ResearchRequestError } from "@/lib/research-workflow-a
 import { requireGapQueueApi } from "@/lib/research-queue-api";
 import { experimentQueuePath, gapExperimentPath, validateGapPreview } from "@/lib/research-experiment-queue";
 import { consumeGapRunIntent, runGapExperiments, saveGapRunIntent } from "@/lib/research-gap-run";
+import { claimDesignPath, CLAIM_DESIGN_VERSION, saveClaimDesignIntent } from "@/lib/research-claim-design";
+import { isResearchId } from "@/lib/research-experiment-queue";
 
 export function RunGapExperiment({ studyId, gapId, launchId, onQueued }: { studyId: string; gapId: string; launchId?: string; onQueued?: (studyId: string, jobId: string) => void }) {
   const router = useRouter();
@@ -35,6 +37,19 @@ export function RunGapExperiment({ studyId, gapId, launchId, onQueued }: { study
       if (abort.signal.aborted) return;
       await requireGapQueueApi(researchRequest, abort.signal);
       const preview = validateGapPreview(await researchRequest(`/studies/${studyId}/gap-experiments?${new URLSearchParams({ gap_id: gapId })}`, { signal: abort.signal }), studyId, gapId);
+      if (!preview.choices.length) {
+        const capabilities = await researchRequest<{ preparation?: { claim_design_version?: string } }>("/capabilities", { signal: abort.signal });
+        if (capabilities.preparation?.claim_design_version !== CLAIM_DESIGN_VERSION) throw new Error("This service needs the experiment designer update. Your original assessment is preserved.");
+        setMessage("Creating or resuming a source-bound experiment design…");
+        const design = await researchRequest<{ version: string; study_id: string }>(`/studies/${studyId}/gap-experiments`, { method: "POST", signal: abort.signal, body: JSON.stringify({ action: "design", request_id: requestId.current, gap_id: gapId, gap_sha256: preview.gap_sha256 }) });
+        if (design.version !== CLAIM_DESIGN_VERSION || !isResearchId(design.study_id)) throw new Error("Experiment design persistence was not confirmed.");
+        if (abort.signal.aborted) return;
+        // A one-time, same-tab click intent permits the first AI proposal. A
+        // pasted or prefetched designer URL alone cannot make a model call.
+        saveClaimDesignIntent(design.study_id);
+        router.push(claimDesignPath(design.study_id));
+        return;
+      }
       const result = await runGapExperiments(preview, requestId.current, (path, options) => researchRequest(path, { ...options, signal: abort.signal }), (text, study) => { if (!abort.signal.aborted) { setMessage(text); if (study) setSavedStudy(study); } });
       if (abort.signal.aborted) return;
       if (!result.complete) { setMessage("Some preparation was saved. The experiment is not fully queued yet; click Run experiment now to resume."); return; }

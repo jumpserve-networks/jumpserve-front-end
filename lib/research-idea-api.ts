@@ -28,6 +28,7 @@ export async function ideaModelRequest(body: Record<string, unknown>, signal?: A
   try {
     const capabilities = await request({ action: "capabilities" });
     if (capabilities.research_ideas?.version !== IDEA_VERSION) throw new IdeaRequestError("This AI service does not yet support the idea flow. No model call was requested.", false);
+    if (body.design_version && capabilities.research_ideas?.claim_design_version !== body.design_version) throw new IdeaRequestError("The AI experiment designer is not available on this service yet. Your saved draft remains available. No model call was requested.", false);
     if (body.interview_version && capabilities.research_ideas?.interview_version !== body.interview_version) throw new IdeaRequestError("The conversational guide is not available on this AI service yet. Use the checklist meanwhile. No model call was requested.", false);
     invocationStarted = true;
     const result = await request({ ...body, action: "idea" });

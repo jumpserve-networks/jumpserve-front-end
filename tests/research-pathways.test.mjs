@@ -58,3 +58,8 @@ test("return paths preserve repeated query values without interpreting their con
   assert.equal(researchSearchSuffix({ view: "gaps", tag: ["a&b", "c"], unknown: undefined }), "?view=gaps&tag=a%26b&tag=c");
   assert.equal(researchSearchSuffix({}), "");
 });
+
+test("paper experiment designs resume their own workspace without relabeling them as ideas", () => {
+  assert.equal(researchWorkspacePath({ id: "paper", study_kind: "paper", claim_design: true }), "/research-verification/experiment-design/paper");
+  assert.equal(researchWorkspacePath({ id: "idea", study_kind: "idea", claim_design: true }), "/research-ideas/ideas/idea");
+});

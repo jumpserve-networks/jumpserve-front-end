@@ -3,11 +3,11 @@ export const IDEA_FIELDS = ["problem", "question", "hypothesis", "conditions", "
 export type IdeaDocument = Record<typeof IDEA_FIELDS[number], string> & { protocol: Record<string, unknown> | null };
 export type IdeaPacket = { id: string; study_id: string; version: number; supersedes_id: string | null; document: IdeaDocument; raw_document: string; sha256: string; reason: string; created_at: string };
 export type IdeaTask = "planning" | "comprehension" | "critic";
-export type IdeaOutput = { summary: string; questions: string[]; findings: { severity: "blocking" | "warning"; field: string; message: string }[]; verdict: "ready" | "needs-clarification" };
+export type IdeaOutput = { summary: string; questions: string[]; proposal?: IdeaDocument | null; response_version?: string; response_mode?: "clarify" | "propose" | "reuse"; rendering?: { summary_origin: "server-mode-status" }; guidance?: { code: string; text: string }[]; unit_conversions?: { source_value: string; source_unit: string; source_quote: string; value_ms: string }[]; converted_values_equal?: boolean | null; decision_policy?: { version: string; sha256: string; mode: string; origin: "server-policy"; model_authored: false; protocol_reused: boolean }; findings: { severity: "blocking" | "warning"; field: string; message: string }[]; verdict: "ready" | "needs-clarification" };
 export type IdeaRun = { id: string; study_id: string; packet_id: string; task: IdeaTask; session_id: string | null; status: "running" | "complete" | "failed" | "invalid-output"; reason: string | null; output: IdeaOutput | null; model_id: string; prompt_version_id: string; provenance: Record<string, unknown>; usage: Record<string, unknown> | null; created_at: string };
 export type IdeaState = { version: string; packets: IdeaPacket[]; runs: IdeaRun[]; decisions: { id: string; study_id: string; packet_id: string; comprehension_run_id: string; critic_run_id: string; decision: "ready" }[]; campaigns: { id: string; study_id: string; packet_id: string; campaign_id: string; protocol_id: string }[]; current_packet_id: string | null; ready: boolean; missing: string[]; limitations: string };
 export function emptyIdea(): IdeaDocument { return { ...Object.fromEntries(IDEA_FIELDS.map(field => [field, ""])) as Record<typeof IDEA_FIELDS[number], string>, protocol: null }; }
-function normalizedJson(value: unknown): string {
+export function normalizedJson(value: unknown): string {
   const normalize = (item: unknown): unknown => Array.isArray(item) ? item.map(normalize) : item && typeof item === "object" ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b)).map(([key, child]) => [key, normalize(child)])) : item;
   return JSON.stringify(normalize(value));
 }

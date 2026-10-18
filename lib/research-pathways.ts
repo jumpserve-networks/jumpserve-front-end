@@ -16,8 +16,9 @@ export function studiesForPathway(studies: ResearchStudy[], kind: ResearchStudyK
   return studies.filter(study => researchStudyKind(study) === kind);
 }
 
-export function researchWorkspacePath(study: Pick<ResearchStudy, "id" | "study_kind">) {
+export function researchWorkspacePath(study: Pick<ResearchStudy, "id" | "study_kind" | "claim_design">) {
   const kind = researchStudyKind(study);
+  if (kind === "paper" && study.claim_design === true) return `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-design/${study.id}`;
   return `${researchModulePath(kind)}/${kind === "idea" ? "ideas" : "workspace"}/${study.id}`;
 }
 
