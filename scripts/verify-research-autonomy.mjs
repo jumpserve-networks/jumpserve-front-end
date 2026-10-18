@@ -33,7 +33,7 @@ try{
   await page.goto('about:blank');let data;
   for(let i=0;i<90;i++){data=await state();const w=data.autonomy.workflows.find(w=>w.study_id===study);if(w.status!=='running')break;await new Promise(resolve=>setTimeout(resolve,500));}
   const tasks=data.autonomy.tasks.filter(t=>t.study_id===study);assert.equal(tasks.filter(t=>t.status==='resolved').length,2);assert.equal(tasks.filter(t=>t.status==='blocked').length,1);assert.equal(data.jobs.filter(j=>j.study_id===study).length,4);
-  await page.goto(origin+'/research-verification/experiment-queue?study='+study);await page.getByText('completed with blockers',{exact:true}).waitFor();await page.getByText('Fixture optical equipment is unavailable; other claims can continue.',{exact:true}).waitFor();
+  await page.goto(origin+'/research-verification/experiment-queue?study='+study);await page.getByText('completed with blockers',{exact:true}).waitFor();await page.getByText('Applicable authorized instrument or archived measurement data',{exact:true}).waitFor();
   return {independent_of_browser:true,claims:3,resolved:2,blocked:1,experiments:4,model_bound:tasks.every(t=>t.attempts<=25)};
  });
  await check('recorded exact prompts responses costs and tailored retry are visible per claim',async()=>{
