@@ -13,8 +13,7 @@ await mkdir(directory,{recursive:true});
 const report={protocol:'claim-design-production-release-v1',started_at:new Date().toISOString(),origin,
   checks:[],browser_errors:[],mutations:[],new_model_calls:0,new_experiments:0,
   reviewer:{identity:'Primary Codex AI implementer',type:'AI',independent:false},
-  conditional_gaps:['Legitimate Google-authenticated planning and provider/persistence round trip',
-    'Authenticated plan-artifact Storage round trip','Actual networking experiment execution'],measured_charges_usd:null};
+  coverage_limits:['This anonymous read-only check does not exercise authenticated planning, artifact writes or experiment execution; their verification status is recorded in the separate authenticated campaign.'],measured_charges_usd:null};
 let browser;
 async function check(name,run){try{report.checks.push({name,passed:true,evidence:await run()});console.log('PASS '+name);}
   catch(error){report.checks.push({name,passed:false,reason:error.message});throw error;}}

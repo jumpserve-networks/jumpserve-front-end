@@ -55,6 +55,16 @@ try{
  await check('tailored owner answer produces a complete candidate and another explicit version',async()=>{
   await page.getByLabel('Experiment planning message',{exact:true}).fill('I confirm the fixed emulated pilot configuration and all recorded software-fixture constraints.');await page.getByRole('button',{name:'Refine experiment with AI',exact:true}).click();await page.getByText('AI proposal · complete · plan version 1',{exact:true}).waitFor();await page.getByRole('button',{name:'Adopt proposal as a new draft',exact:true}).filter({visible:true}).last().click();await page.getByText(/^Saved version 2\./).waitFor();const s=await state();assert.equal(s.missing.length,0);assert.equal(s.ready,false);return {versions:2,missing:0,readiness_requires_fresh_reviews:true};
  });
+ await check('unchanged reuse records adoption without a duplicate packet or readiness',async()=>{
+  const before=await state();
+  await page.getByLabel('Experiment planning message',{exact:true}).fill('Reuse current complete pilot unchanged.');
+  await page.getByRole('button',{name:'Refine experiment with AI',exact:true}).click();
+  const reuse=page.getByRole('button',{name:'Use this saved plan',exact:true});await reuse.waitFor();await reuse.click();
+  await page.getByText('Use of the saved plan recorded. Its version and review budget are unchanged. Request fresh reviews before running.',{exact:true}).waitFor();
+  const after=await state();assert.equal(after.current_packet_id,before.current_packet_id);assert.equal(after.packets.length,before.packets.length);assert.equal(after.ready,false);
+  await reuse.click();const repeated=await state();assert.equal(repeated.packets.length,before.packets.length);
+  return {versions:after.packets.length,unchanged_packet:after.current_packet_id,ready:false,repeated_action_preserves_version:true};
+ });
  await check('failed review is retained and fresh successful reviews gate readiness',async()=>{
   await page.getByRole('button',{name:'Request fresh critic review',exact:true}).click();await page.getByText(/^critic · failed$/i).waitFor();assert.ok(await page.getByRole('button',{name:'Accept current plan readiness',exact:true}).isDisabled());await page.getByRole('button',{name:'Request fresh critic review',exact:true}).click();await page.getByText(/^critic · complete · Plan recommendation: ready$/i).waitFor();await page.getByRole('button',{name:'Request fresh comprehension review',exact:true}).click();await page.getByText(/^comprehension · complete · Plan recommendation: ready$/i).waitFor();await page.getByLabel('Readiness rationale',{exact:true}).fill('Synthetic software fixture acceptance; no scientific validation.');await page.getByRole('button',{name:'Accept current plan readiness',exact:true}).click();await page.getByText('Current packet accepted for protocol preparation. Scientific evidence is still separate.',{exact:true}).waitFor();const s=await state();assert.equal(s.ready,true);assert.equal(s.runs.filter(r=>r.status==='failed').length,1);return {failed_attempts:1,fresh_review_context:true};
  });
