@@ -5,6 +5,7 @@ export const NETWORK_RUNNERS = [
   { id: "emulated-netem-v1", name: "Emulated networking", units: [{ name: "flow_completion_time_ms", units: "ms" }] },
   { id: "real-world-iperf-v1", name: "Real-world networking", units: [{ name: "throughput_mbit_s", units: "Mbit/s" }, { name: "rtt_median_ms", units: "ms" }] },
   { id: "custom-package-v1", name: "Versioned custom experiment", units: [{ name: "ttfb_ms", units: "ms" }] },
+  { id: "bounded-tcp-v1", name: "Bounded host-local TCP (emulated)", units: [{ name: "round_trip_time_ms", units: "ms", planned_observations: 1 }, { name: "received_bytes", units: "bytes", planned_observations: 1 }] },
 ] as const;
 export type NetworkingCapabilities = { version: string; runners: { id: string; name: string; enabled: boolean }[]; max_jobs: number };
 

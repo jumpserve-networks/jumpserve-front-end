@@ -56,7 +56,8 @@ export function NetworkProtocolEditor({ studyId, document, protocol, onChange, g
     setRunner(value); setMessage(""); setFieldsValid(true);
     setMetrics(JSON.stringify(NETWORK_RUNNERS.find(item => item.id === value)?.units, null, 2));
     setInstances(value === "real-world-iperf-v1" ? 3 : 1);
-    setConfig(JSON.stringify(value === "emulated-netem-v1" ? EMULATED : value === "custom-package-v1" ? { mode: "real-world", package: {}, arguments: [], parameters: {} } : {
+    if (value === "bounded-tcp-v1") { setWall(60); setOutputBytes(32000); }
+    setConfig(JSON.stringify(value === "bounded-tcp-v1" ? { payload_bytes: 32, exchanges: 1, application_delay_ms: 0 } : value === "emulated-netem-v1" ? EMULATED : value === "custom-package-v1" ? { mode: "real-world", package: {}, arguments: [], parameters: {} } : {
       server: { region: "", zone_id: "", instance_type: "t3.medium" }, bottleneck: { region: "", zone_id: "", instance_type: "t3.medium" }, receivers: [{ region: "", zone_id: "", instance_type: "t3.medium" }],
       cca: "cubic", duration_seconds: 60, rate_mbit: 100, buffer_kbytes: 125, notes: "",
     }, null, 2));

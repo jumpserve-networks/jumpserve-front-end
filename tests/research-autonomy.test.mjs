@@ -31,3 +31,11 @@ test('prompt history is scoped to owner study and task with declared pagination'
  assert.throws(()=>validateTurnHistory(value,taskId,id),/another claim/);
  value.turns[0].status='complete';assert.throws(()=>validateTurnHistory(value,id,taskId),/Invalid retained prompt/);
 });
+test('v2 retains explicit check coverage without treating it as a scientific finding',()=>{
+ const value=fixture();value.version='research-autonomy-v2';value.tasks[0].evidence_progress={required_checks:6,completed_checks:1,scope:'Execution coverage only'};
+ assert.equal(validateAutonomy(value).tasks[0].evidence_progress.completed_checks,1);
+ assert.equal(value.tasks[0].label,null);
+ value.tasks[0].evidence_progress.completed_checks=7;assert.throws(()=>validateAutonomy(value),/check coverage/);
+ value.tasks[0].evidence_progress=null;assert.equal(validateAutonomy(value).tasks[0].evidence_progress,null);
+ value.version='research-autonomy-v99';assert.throws(()=>validateAutonomy(value),/coverage/);
+});
