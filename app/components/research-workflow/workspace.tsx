@@ -13,7 +13,8 @@ import { StudyPanel, type StudyView } from "@/app/components/research-workflow/s
 import { ClaimQueue } from "@/app/components/research-workflow/claim-queue";
 import { StudyPreparation } from "@/app/components/research-workflow/preparation";
 import { PaperPreparation } from "@/app/components/research-workflow/paper-preparation";
-import { startAutonomousPaper } from "@/lib/research-autonomy";
+import { startUploadedPaper } from "@/lib/research-paper-upload";
+import { createClient } from "@/lib/supabase/client";
 import { experimentQueuePath } from "@/lib/research-experiment-queue";
 
 const REVIEWER = { identity: "Authenticated study contributor", type: "human", independence: "Study contributor; independent review not asserted" };
@@ -46,6 +47,7 @@ export function PaperIntake() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [savedStudy, setSavedStudy] = useState<string | null>(null);
+  const [phase, setPhase] = useState("");
   const request = useRef("");
   const inFlight = useRef(false);
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -54,19 +56,23 @@ export function PaperIntake() {
     const data = new FormData(event.currentTarget);
     request.current ||= crypto.randomUUID();
     try {
-      const result = await startAutonomousPaper(researchRequest, request.current, { title: data.get("title"), paper_url: data.get("paper_url"), domain: data.get("domain"), scope: data.get("scope"), origin_module: null, study_kind: "paper" });
+      const file = data.get("paper_pdf");
+      if (!(file instanceof File)) throw new Error("Choose a PDF paper to upload.");
+      const result = await startUploadedPaper(researchRequest, request.current, file, { domain: String(data.get("domain") ?? ""), scope: String(data.get("scope") ?? "") }, async (ticket, original) => {
+        const { error } = await createClient().storage.from(ticket.bucket).uploadToSignedUrl(ticket.path, ticket.token, await original.arrayBuffer(), { contentType: "application/pdf", upsert: false });
+        if (error) throw new Error("The PDF upload response could not be confirmed.");
+      }, setPhase);
       setSavedStudy(result.id);
       router.push(experimentQueuePath(result.id));
     } catch (failure) { setError(errorText(failure)); }
     finally { inFlight.current = false; setBusy(false); }
   }
   return <form onSubmit={submit} aria-label="Start autonomous paper assessment" className="max-w-3xl space-y-4 rounded-lg border p-5">
-    {[["title", "Paper title", "text"], ["paper_url", "Paper URL or DOI URL", "url"], ["domain", "Research domain", "text"]].map(([name, text, type]) => <label key={name} className="block space-y-2 text-sm"><span className="font-medium">{text}</span><Input required type={type} name={name} maxLength={name === "title" ? 300 : 5000} disabled={busy || savedStudy !== null} /></label>)}
+    <div className="space-y-2 text-sm"><label htmlFor="paper-pdf" className="font-medium">Paper PDF</label><Input id="paper-pdf" className="text-foreground" type="file" name="paper_pdf" accept="application/pdf,.pdf" required aria-describedby="paper-pdf-help" disabled={busy || savedStudy !== null} /><p id="paper-pdf-help" className="text-xs text-muted-foreground">PDF up to 10 MB. Uploaded files stay private.</p></div>
+    <label className="block space-y-2 text-sm"><span className="font-medium">Research domain</span><Input required name="domain" maxLength={5000} disabled={busy || savedStudy !== null} /></label>
     <label className="block space-y-2 text-sm"><span className="font-medium">Reproduction scope</span><Textarea name="scope" required maxLength={5000} disabled={busy || savedStudy !== null} placeholder="Which claims, populations, inputs and conditions should the assessment cover?" /></label>
-    <p className="text-sm">Submit once. JumpServe prepares the paper, evaluates claims in parallel and records every prompt, response and experiment in Experiment Queue.</p>
-    <p className="text-sm font-medium">Application defaults: $100 per paper · 7 days · 25 attempts per claim</p>
-    <p className="text-xs text-muted-foreground">Claims with unavailable inputs, equipment or authorization pause with an explanation while others continue. Findings can remain inconclusive or untested. Spending commitments are checked before admitting work; unknown charges remain unknown.</p>
     {error ? <p role="alert" className="text-sm text-destructive">{error} Retrying preserves the original request ID.</p> : null}
+    {busy ? <p role="status" className="text-sm">{phase}</p> : null}
     {savedStudy ? <Link className="block text-sm underline" href={experimentQueuePath(savedStudy)}>View assessment progress</Link> : <Button disabled={busy} type="submit">{busy ? "Starting assessment…" : "Start autonomous assessment"}</Button>}
   </form>;
 }
