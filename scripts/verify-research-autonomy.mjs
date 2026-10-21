@@ -1,6 +1,7 @@
 // Actual components -> HTTP API -> PostgreSQL/controller/arithmetic. Explicit
 // synthetic auth, provider/source and Storage; no live model/cloud claims.
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {createRequire} from 'node:module';
 import {createServer} from 'node:http';
 import {existsSync} from 'node:fs';
@@ -11,7 +12,9 @@ if(process.argv.length!==2)throw new Error('Fixed local autonomy campaign only.'
 const api='http://127.0.0.1:4104',headers={Authorization:'Bearer explicit-software-fixture'};
 const metadata=await(await fetch(api+'/fixture-metadata')).json();assert.match(metadata.database,/^jumpserve_research_ideas_test_/);
 const directory='.test-artifacts/research-autonomy/'+new Date().toISOString().replaceAll(':','-');await mkdir(directory,{recursive:true});
-const report={protocol:'autonomy-bounded-followups-protocol-v1',database:metadata.database,checks:[],browser_errors:[],real_model_calls:0,cloud_instances:0,reviewer:{identity:'Primary Codex AI implementer',type:'AI',independent:false},conditional_gaps:['Real model evaluation/publication','Legitimate Google request','Remote Supabase Storage','Actual cloud TCP invocation and deployed bounds'],measured_charges_usd:null};
+const report={protocol:'autonomy-turn-policy-v1',database:metadata.database,checks:[],browser_errors:[],real_model_calls:0,cloud_instances:0,reviewer:{identity:'Primary Codex AI implementer',type:'AI',independent:false},conditional_gaps:['Actual model evaluation of the amended controller instruction','Legitimate Google request','Remote Supabase Storage','Actual cloud TCP invocation and deployed bounds'],measured_charges_usd:null};
+const runtimeRaw=await readFile('../jumpserve-infra/research-workflow-runtime.json');report.runtime_manifest_sha256=createHash('sha256').update(runtimeRaw).digest('hex');report.input_sha256=JSON.parse(runtimeRaw).files;
+report.frontend_input_sha256={};for(const path of ['scripts/verify-research-autonomy.mjs','app/components/research-workflow/autonomous-assessments.tsx','lib/research-autonomy.ts','lib/research-paper-upload.ts'])report.frontend_input_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
 let server,browser,study;
 const uploadFixture={name:'explicit-local-paper-storage',setup(plugin){
  plugin.onResolve({filter:/^@\/lib\/supabase\/client$/},()=>({path:'paper-upload',namespace:'paper-storage-fixture'}));
@@ -46,18 +49,20 @@ try{
   assert.equal(await page.getByLabel('Paper title',{exact:true}).count(),0);assert.equal(await page.getByLabel('Paper URL or DOI URL',{exact:true}).count(),0);
   await page.getByLabel('Paper PDF',{exact:true}).setInputFiles({name:'Autonomous browser software fixture.pdf',mimeType:'application/pdf',buffer:Buffer.from(metadata.pdf_base64,'base64')});await page.getByLabel('Research domain',{exact:true}).fill('Software verification');await page.getByLabel('Reproduction scope',{exact:true}).fill('Synthetic matched cells only; no scientific assessment.');
   await page.getByRole('button',{name:'Start autonomous assessment',exact:true}).click();await page.waitForURL(/experiment-queue\?study=/);study=new URL(page.url()).searchParams.get('study');assert.ok(study);
-  const data=await state();assert.equal(data.autonomy.workflows[0].max_spend_cents,10000);assert.equal(data.autonomy.workflows[0].max_attempts,25);return {study_id:study,initial_prompt_retained:true,background_worker:true};
+  const data=await state();assert.equal(data.autonomy.workflows[0].max_spend_cents,10000);assert.equal(data.autonomy.workflows[0].max_attempts,null);return {study_id:study,initial_prompt_retained:true,background_worker:true};
  });
  await check('closing the page does not stop parallel claims or personalized follow-up',async()=>{
   await page.goto('about:blank');let data;
   for(let i=0;i<90;i++){data=await state();const w=data.autonomy.workflows.find(w=>w.study_id===study);if(w.status!=='running')break;await new Promise(resolve=>setTimeout(resolve,500));}
   const tasks=data.autonomy.tasks.filter(t=>t.study_id===study);assert.equal(tasks.filter(t=>t.status==='resolved').length,2);assert.equal(tasks.filter(t=>t.status==='blocked').length,1);assert.equal(data.jobs.filter(j=>j.study_id===study).length,4);
   await page.goto(origin+'/research-verification/experiment-queue?study='+study);await page.getByText('completed with blockers',{exact:true}).waitFor();await page.getByText('Applicable authorized instrument or archived measurement data',{exact:true}).waitFor();
-  return {independent_of_browser:true,claims:3,resolved:2,blocked:1,experiments:4,model_bound:tasks.every(t=>t.attempts<=25)};
+  return {independent_of_browser:true,claims:3,resolved:2,blocked:1,experiments:4,turn_limit:null,attempt_counts:tasks.map(t=>t.attempts)};
  });
  await check('recorded exact prompts responses costs and tailored retry are visible per claim',async()=>{
+  await page.getByText('No AI turn limit',{exact:false}).waitFor();
+  assert.equal(await page.getByText(/\/ 25 model attempts|25 attempts per claim/).count(),0);
   const article=page.locator('article').filter({has:page.getByRole('heading',{name:/Synthetic eventual-agreement claim/})}).last();await article.getByRole('button',{name:'View prompts and responses'}).click();await article.getByText('Turn 8 · assessment · complete',{exact:true}).waitFor();
-  const details=article.locator('details').filter({has:page.locator('summary').filter({hasText:'Exact prompt and configuration'})}).first();await details.locator('summary').click();assert.match(await details.innerText(),/modelId|us.anthropic.claude-sonnet/);
+  const details=article.locator('details').filter({has:page.locator('summary').filter({hasText:'Exact prompt and configuration'})}).first();await details.locator('summary').click();assert.match(await details.innerText(),/modelId|us.anthropic.claude-sonnet/);assert.match(await details.innerText(),/autonomy-turn-policy-v1/);
   const tasks=(await state()).autonomy.tasks;const t=tasks.find(t=>t.study_id===study&&t.claim_title?.includes('eventual-agreement'));assert.ok(t);const history=await(await fetch(api+'/research/studies/'+study+'/autonomy?task='+t.id,{headers})).json();assert.equal(history.study_id,study);assert.equal(history.task_id,t.id);assert.equal(history.coverage.total,8);assert.ok(history.turns.some(r=>r.stage==='planning'&&r.number>1&&r.request.messages[0].content[0].text.includes('missing observation')));await writeFile(directory+'/prompt-history-fixture.json',JSON.stringify(history,null,2)+'\n');return {turns:8,exact_prompts:true,matched_study_and_task:true,tailored_failure_context:true,unknown_cost_preserved:true};
  });
  await check('desktop and mobile light and dark states fit with visible blockers',async()=>{
@@ -74,7 +79,7 @@ try{
  });
  await check('invalid and unavailable status stays unknown without overwriting retained evidence',async()=>{
   await page.goto(origin+'/research-verification/experiment-queue?study='+study);await page.getByText('completed with blockers',{exact:true}).waitFor();
-  await page.route(api+'/research/queue',async route=>{const response=await route.fetch();const value=await response.json();value.autonomy.tasks[0].attempts=26;await route.fulfill({response,json:value});});
+  await page.route(api+'/research/queue',async route=>{const response=await route.fetch();const value=await response.json();value.autonomy.tasks[0].attempts=-1;await route.fulfill({response,json:value});});
   await page.getByText('The latest status retrieval failed. These retained claim states may be stale; current progress is unknown.',{exact:true}).waitFor();await page.screenshot({path:directory+'/stale-invalid-status.png',fullPage:true});
   await page.unroute(api+'/research/queue');await page.route(api+'/research/queue',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Explicit local unavailable-status fixture.'})}));
   await page.reload();await page.getByRole('alert').filter({hasText:'Queue counts and current status are unknown.'}).waitFor();assert.equal(await page.locator('[aria-label="All paper job counts"]').count(),0);await page.screenshot({path:directory+'/unavailable-status.png',fullPage:true});

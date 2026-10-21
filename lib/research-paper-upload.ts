@@ -16,7 +16,7 @@ export async function paperUploadMetadata(file: File) {
 }
 
 function confirmed(result: Intake, id: string) {
-  if (result.id !== id || result.autonomy?.study_id !== id || result.autonomy.max_spend_cents !== 10000 || result.autonomy.max_attempts !== 25) throw new Error("Assessment start was not confirmed. Retry with this original request ID; inspect the queue before submitting a replacement.");
+  if (result.id !== id || result.autonomy?.study_id !== id || result.autonomy.max_spend_cents !== 10000 || result.autonomy.max_attempts !== null) throw new Error("Assessment start was not confirmed. Retry with this original request ID; inspect the queue before submitting a replacement.");
   return result;
 }
 
@@ -24,7 +24,7 @@ export async function startUploadedPaper(request: Request, id: string, file: Fil
   progress("Checking PDF…");
   const metadata = await paperUploadMetadata(file);
   const capabilities = await request<{ autonomy?: { version: string; enabled: boolean }; paper_uploads?: { version: string; maximum_bytes: number } }>("/capabilities");
-  if (!["research-autonomy-v1", "research-autonomy-v2"].includes(capabilities.autonomy?.version ?? "") || capabilities.paper_uploads?.version !== PAPER_UPLOAD_VERSION || capabilities.paper_uploads.maximum_bytes !== PAPER_UPLOAD_MAX_BYTES) throw new Error("The connected service needs the PDF upload update. No paper was uploaded.");
+  if (capabilities.autonomy?.version !== "research-autonomy-v3" || capabilities.paper_uploads?.version !== PAPER_UPLOAD_VERSION || capabilities.paper_uploads.maximum_bytes !== PAPER_UPLOAD_MAX_BYTES) throw new Error("The connected service needs the PDF upload update. No paper was uploaded.");
   if (!capabilities.autonomy?.enabled) throw new Error("Autonomous assessment is temporarily unavailable. No paper was uploaded.");
   const ticket = await request<PaperUploadTicket | { version: string; id: string; status: "started"; result: Intake }>("/paper-uploads", { method: "POST", body: JSON.stringify({ action: "reserve", request_id: id, ...metadata, ...fields }) });
   if (ticket.version !== PAPER_UPLOAD_VERSION || ticket.id !== id) throw new Error("Private upload identity was not confirmed. Retry with the original request ID.");

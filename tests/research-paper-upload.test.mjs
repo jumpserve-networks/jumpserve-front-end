@@ -6,8 +6,8 @@ const id='10000000-0000-4000-8000-000000000001';
 const raw='%PDF-1.4\nExplicit software input, not an academic paper.\n%%EOF';
 const file=()=>new File([raw],'previous-paper.pdf',{type:'application/pdf'});
 const fields={domain:'Networking',scope:'Recorded claims under original conditions'};
-const result={id,autonomy:{study_id:id,max_spend_cents:10000,max_attempts:25}};
-const capabilities={autonomy:{version:'research-autonomy-v2',enabled:true},paper_uploads:{version:'research-paper-upload-v1',maximum_bytes:PAPER_UPLOAD_MAX_BYTES}};
+const result={id,autonomy:{study_id:id,max_spend_cents:10000,max_attempts:null}};
+const capabilities={autonomy:{version:'research-autonomy-v3',enabled:true},paper_uploads:{version:'research-paper-upload-v1',maximum_bytes:PAPER_UPLOAD_MAX_BYTES}};
 function service(mutateTicket=x=>x,finalize=async()=>result){const calls=[];return {calls,request:async(path,options)=>{calls.push({path,options});if(path==='/capabilities')return capabilities;const body=JSON.parse(options.body);if(body.action==='start')return finalize();return mutateTicket({version:'research-paper-upload-v1',id,status:'pending',bucket:'research-paper-uploads',path:id+'/'+body.sha256,token:'explicit-test-upload-permission',sha256:body.sha256,byte_count:body.byte_count,maximum_bytes:PAPER_UPLOAD_MAX_BYTES});}};}
 test('PDF identity uses exact original bytes and the filename without requiring a title or URL',async()=>{
  const metadata=await paperUploadMetadata(file());assert.equal(metadata.sha256,createHash('sha256').update(raw).digest('hex'));assert.equal(metadata.byte_count,Buffer.byteLength(raw));assert.equal(metadata.filename,'previous-paper.pdf');
@@ -35,4 +35,11 @@ test('a confirmed prior start does not upload again or create a second assessmen
 });
 test('unconfirmed verification retains a useful retry error and does not automatically resubmit',async()=>{
  const s=service(x=>x,async()=>{throw new Error('Original bytes missing');});await assert.rejects(()=>startUploadedPaper(s.request,id,file(),fields,async()=>{throw new Error('Transport failed');}),/same file and request.*Original bytes missing/);assert.equal(s.calls.length,3);
+});
+
+test('old capped service is rejected before reserving a PDF and a capped confirmation is not accepted',async()=>{
+ let calls=0;
+ await assert.rejects(()=>startUploadedPaper(async()=>{calls++;return {...capabilities,autonomy:{version:'research-autonomy-v2',enabled:true}};},id,file(),fields,async()=>{}),/No paper was uploaded/);assert.equal(calls,1);
+ const s=service(x=>x,async()=>({...result,autonomy:{...result.autonomy,max_attempts:25}}));
+ await assert.rejects(()=>startUploadedPaper(s.request,id,file(),fields,async()=>{}),/same file|Retry with this original request ID/);
 });
