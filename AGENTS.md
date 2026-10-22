@@ -161,6 +161,16 @@ anonymous SELECT grants only for experiment tables and the explicit
 in public pages: requester emails are not public. Saved configurations and chat
 sessions remain authenticated. Real-world cancellation is owner-only.
 
+Paper Experiment Queue links with `?study=<id>` expose an explicit public,
+read-only status projection, even before assessment publication. The queue
+without a study and `&view=private` remain owner-only. Keep prompts, responses,
+owner information, uploaded PDFs, raw inputs, artifact paths, resource identities
+and private event history out of public responses. Use the bounded
+`/research/studies/{id}/queue?public=1` API; do not grant anonymous SQL access to
+private relations or expose unpublished ideas. Launches, cancellation and all
+other writes still require the existing Google/owner checks. See
+`docs/public-experiment-queue-v1.md` for the verification and release protocol.
+
 - Canonical production URL: `https://jumpserve.quaint-lab.org`
 - Production `NEXT_PUBLIC_SITE_URL`: `https://jumpserve.quaint-lab.org`
 - Supabase Authentication Site URL: `https://jumpserve.quaint-lab.org`

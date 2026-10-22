@@ -1,0 +1,27 @@
+{
+  "version": "public-experiment-queue-validation-v1",
+  "protocol": "public-experiment-queue-v1.md",
+  "status": "implemented-and-locally-verified-not-deployed",
+  "reviewer": {"identity": "Primary Codex AI implementer", "type": "AI", "independent": false},
+  "checks": {
+    "frontend_unit_tests": {"passed": 203, "failed": 0},
+    "backend_unit_tests": {"passed": 204, "failed": 0},
+    "final_changed_public_path_regressions": {"frontend_passed": 4, "backend_passed": 6},
+    "production_build": "passed",
+    "lint": {"errors": 0, "existing_warnings": 1, "warning": "auth-button.tsx existing internal location.assign navigation warning", "changed_runtime_files": "passed without warnings"},
+    "browser_scenarios": {"passed": 5, "failed": 0, "desktop": "1365x900", "mobile": "390x844", "themes": ["light", "dark"], "page_errors": [], "horizontal_overflow": false},
+    "private_api_access": "Anonymous private queue/history rejected; unit checks retain foreign-owner denial and authenticated writes.",
+    "public_privacy": "Serialized private-field canaries absent; public browser requests contain no authentication or cookies and no private API calls.",
+    "data_states": "Preserved zero commitments/attempts, null run status, failed/partial runs, mixed claim labels, stale data, empty preparation, invalid coverage and unavailable status.",
+    "diff_check": "passed"
+  },
+  "browser_evidence": ".test-artifacts/public-experiment-queue/2026-10-22T16-28-51.395Z/report.json",
+  "earlier_browser_evidence": [
+    {"path": ".test-artifacts/public-experiment-queue/2026-10-22T16-23-37.189Z/report.json", "outcome": "Sandbox denied loopback bind; original failure retained."},
+    {"path": ".test-artifacts/public-experiment-queue/2026-10-22T16-27-03.961Z/report.json", "outcome": "Five scenarios passed before final identity/query-bound and UI refinements; later run supersedes it."}
+  ],
+  "scope": "Actual built local Next route and Python API handler with explicitly synthetic store records; no legitimate login, real database, scientific experiment or model evaluation.",
+  "conditional_verification": ["Matching pinned backend and frontend deployment", "Production anonymous shared queue and private API denial checks", "Actual Supabase status reads and existing RLS", "Legitimate owner session/private-view check"],
+  "deployment": "Not requested for this new access change; no push, production deployment, infrastructure or database changes performed.",
+  "usage": {"new_model_calls": 0, "new_experiment_launches": 0, "measured_charges_usd": null, "unallocated_costs_usd": null}
+}

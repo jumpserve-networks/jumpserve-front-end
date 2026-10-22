@@ -4,6 +4,7 @@ import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { researchRequest } from "@/lib/research-workflow-api";
 import { validateTurnHistory, type AutonomousOverview, type AutonomousTask, type AutonomousTurn } from "@/lib/research-autonomy";
+import type { PublicAutonomousOverview, PublicAutonomousTask } from "@/lib/research-public-queue";
 
 const words = (text: string) => text.replaceAll("-", " ");
 const time = (value: string) => new Date(value).toLocaleString("en-US", { timeZone: "UTC" }) + " UTC";
@@ -41,20 +42,22 @@ function TurnHistory({ task }: { task: AutonomousTask }) {
     {before !== null ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void older()}>Show older turns</Button> : null}
   </div>;
 }
-function Claim({ task, maxAttempts }: { task: AutonomousTask; maxAttempts: number | null }) {
+function Claim({ task, maxAttempts, readOnly = false }: { task: AutonomousTask | PublicAutonomousTask; maxAttempts: number | null; readOnly?: boolean }) {
   const [open, setOpen] = useState(false);
+  const privateTask = !readOnly && "required_inputs" in task ? task : null;
   return <article className="space-y-2 rounded-md border p-4 text-sm" id={`claim-task-${task.id}`}>
     <div className="flex flex-wrap items-start justify-between gap-3"><h4 className="min-w-0 break-words font-medium">{task.claim_title ?? "Paper preparation and claim inventory"}</h4><Badge variant={task.status === "blocked" ? "destructive" : "secondary"} className="h-auto py-1">{words(task.status)}</Badge></div>
     <p>{task.claim_id === null ? "Paper preparation" : words(task.stage)} · {task.attempts}{maxAttempts === null ? " AI turns" : ` / ${maxAttempts} model attempts`}{task.label ? ` · finding: ${task.label}` : null}</p>
     {task.evidence_progress ? <p className="text-xs text-muted-foreground">{task.evidence_progress.completed_checks} / {task.evidence_progress.required_checks} retained checks examined. {task.evidence_progress.scope}</p> : null}
     <p>{task.reason}</p><p className="text-xs text-muted-foreground">Recorded update: {time(task.updated_at)}</p>
-    {task.status === "blocked" && task.required_inputs.length ? <div><p className="font-medium">Needed to resume this claim</p><ul className="mt-1 list-disc space-y-1 pl-5">{task.required_inputs.map((input, index) => <li key={index}>{input}</li>)}</ul></div> : null}
-    <Button size="sm" variant="outline" aria-expanded={open} onClick={() => setOpen(value => !value)}>{open ? "Hide prompts and responses" : "View prompts and responses"}</Button>
-    {open ? <TurnHistory task={task} /> : null}
+    {task.status === "blocked" && privateTask?.required_inputs.length ? <div><p className="font-medium">Needed to resume this claim</p><ul className="mt-1 list-disc space-y-1 pl-5">{privateTask.required_inputs.map((input, index) => <li key={index}>{input}</li>)}</ul></div> : null}
+    {privateTask ? <Button size="sm" variant="outline" aria-expanded={open} onClick={() => setOpen(value => !value)}>{open ? "Hide prompts and responses" : "View prompts and responses"}</Button> : null}
+    {open && privateTask ? <TurnHistory task={privateTask} /> : null}
   </article>;
 }
-export function AutonomousAssessments({ data, studyId, titles, stale = false }: { data: AutonomousOverview; studyId: string; titles: Map<string, string>; stale?: boolean }) {
+export function AutonomousAssessments({ data, studyId, titles, stale = false }: { data: AutonomousOverview | PublicAutonomousOverview; studyId: string; titles: Map<string, string>; stale?: boolean }) {
   const workflows = data.workflows.filter(w => !studyId || w.study_id === studyId);
+  const readOnly = "access" in data && data.access === "public-read-only";
   return <section aria-label="Autonomous paper assessments" className="space-y-4">
     <h2 className="text-lg font-semibold">Autonomous paper assessments</h2>
     {data.runtime?.runtime === "openclaw-production-v1" ? <p role="status" className="rounded-lg border p-3 text-sm">AI worker: OpenClaw · {data.runtime.model_id} · ChatGPT subscription · {words(data.runtime.status)}{data.runtime.status !== "ready" ? ". Queued claims are waiting; no paid API fallback is enabled." : ""}</p> : null}
@@ -70,8 +73,8 @@ export function AutonomousAssessments({ data, studyId, titles, stale = false }: 
         <p className="text-xs text-muted-foreground">Commitments include conservative reservations. Actual charges and unallocated costs remain unknown until reconciled. Closing this page does not stop enabled background workers.</p>
         <p className="text-sm">{w.reason}</p>
         <p className="text-sm">{claims.length} recorded candidate claims · {claims.filter(t => t.status === "resolved").length} resolved under tested conditions · {claims.filter(t => ["blocked", "attempt-limit", "budget", "deadline", "cancelled"].includes(t.status)).length} paused or stopped. {intake?.status !== "finished" ? "Claim inventory coverage is still incomplete." : "Inventory scope and omissions remain in the preparation record."}</p>
-        <details className="text-sm"><summary className="cursor-pointer">Initial paper prompt</summary><pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-all bg-muted p-3 text-xs">{w.initial_prompt}</pre><p className="mt-2 break-all text-xs">SHA256 {w.initial_sha256}</p></details>
-        <div className="space-y-3">{tasks.map(task => <Claim key={task.id} task={task} maxAttempts={w.max_attempts} />)}</div>
+        {!readOnly && "initial_prompt" in w && typeof w.initial_prompt === "string" && "initial_sha256" in w && typeof w.initial_sha256 === "string" ? <details className="text-sm"><summary className="cursor-pointer">Initial paper prompt</summary><pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-all bg-muted p-3 text-xs">{w.initial_prompt}</pre><p className="mt-2 break-all text-xs">SHA256 {w.initial_sha256}</p></details> : null}
+        <div className="space-y-3">{tasks.map(task => <Claim key={task.id} task={task} maxAttempts={w.max_attempts} readOnly={readOnly} />)}</div>
       </article>;
     })}
   </section>;

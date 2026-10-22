@@ -6,6 +6,11 @@ private, resumable follow-up with retained checks. See
 [the queue workflow and verification protocol](experiment-queue.md) for supported
 plans, status semantics, limits and conditional release checks.
 
+Sharing `/research-verification/experiment-queue?study=<id>` opens a public
+read-only status view. The base queue and `&view=private` still require the
+owner's sign-in; prompts, raw data and execution controls remain private. See
+[shared paper queue status](public-experiment-queue-v1.md).
+
 The public production release check is `npm run verify:research:production`. It
 uses only the canonical JumpServe origin, never signs in or submits owner writes,
 and preserves timestamped desktop/mobile evidence. Teaching queue downloads remain

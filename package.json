@@ -13,6 +13,7 @@
     "verify:research": "node scripts/verify-research-workflow.mjs",
     "verify:research:preparation": "node scripts/verify-research-preparation.mjs",
     "verify:research:queue": "node scripts/verify-experiment-queue.mjs",
+    "verify:research:public-queue": "node scripts/verify-public-experiment-queue.mjs",
     "verify:research:production": "node scripts/verify-research-production.mjs",
     "verify:research:ideas": "node scripts/verify-research-ideas.mjs",
     "verify:research:autonomy": "node scripts/verify-research-autonomy.mjs"

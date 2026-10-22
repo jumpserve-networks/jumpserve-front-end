@@ -70,8 +70,8 @@ try{
   return {widths:[1365,390],themes:['light','dark'],horizontal_overflow:false};
  });
  await check('actual Next routes preserve the queue alias query and sign-in return paths',async()=>{
-  const canonical='/research-verification/experiment-queue?study='+study;
-  await page.goto('http://127.0.0.1:6002/experiment-queue?study='+study,{waitUntil:'domcontentloaded'});await page.waitForURL(/\/login\?/);
+  const canonical='/research-verification/experiment-queue?study='+study+'&view=private';
+  await page.goto('http://127.0.0.1:6002/experiment-queue?study='+study+'&view=private',{waitUntil:'domcontentloaded'});await page.waitForURL(/\/login\?/);
   assert.equal(new URL(page.url()).searchParams.get('next'),canonical);
   await page.goto('http://127.0.0.1:6002/research-verification/new-study',{waitUntil:'domcontentloaded'});await page.waitForURL(/\/login\?/);
   assert.equal(new URL(page.url()).searchParams.get('next'),'/research-verification/new-study');
