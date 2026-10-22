@@ -1,0 +1,36 @@
+{
+  "version": "paper-queue-title-development-validation-v1",
+  "date": "2026-10-22",
+  "backend_revision": "2b67fba72e7a672e6b25a73e9e7b9339a019e32e",
+  "behavior": "Selected public and owner-private paper queues display a title derived from the exact uploaded PDF's retained text packet when the original study title came from its filename. Explicit study titles remain unchanged; missing or ambiguous extracted titles remain explicitly unavailable.",
+  "checks": {
+    "backend_unit_tests": {"command": "python3 -B -m unittest discover -s research_workflow/tests", "passed": 213},
+    "frontend_unit_tests": {"command": "npm test", "passed": 204},
+    "frontend_build": {"command": "npm run build", "passed": true},
+    "frontend_lint": {"command": "npm run lint", "errors": 0, "existing_warnings": ["auth-button.tsx:153 uses window.location.assign for navigation"]},
+    "public_queue_browser": {
+      "command": "npm run verify:research:public-queue",
+      "protocol": "public-experiment-queue-v2",
+      "report": ".test-artifacts/public-experiment-queue/2026-10-22T16-52-17.291Z/report.json",
+      "report_sha256": "77dc4b44a21023507e47bf4547d47fd848e83bb3ae726944a3de046bc5274119",
+      "all_reported_source_hashes_verified_before_release": true,
+      "passed_scenarios": 6,
+      "browser_errors": 0,
+      "widths": [1365, 390],
+      "themes": ["light", "dark"],
+      "data_origin": "Actual Next.js page and Python handler, explicit synthetic store; no real login, database writes, AI calls or experiments."
+    },
+    "archived_publisher_pdf": {
+      "original_sha256": "d6728c7914530ffcd75c55db80340595771ed7c4c104d22cec4cecd2501485aa",
+      "parser": "pypdf 6.19.0",
+      "title": "Making Congestion Control Algorithms Insensitive to Underlying Propagation Delays",
+      "metadata_corroborated_by_first_page": true,
+      "older_plain_text_without_metadata": "Same title extracted from the retained first-page title/byline block."
+    }
+  },
+  "coverage": ["Exact study and original PDF identity", "Packet byte count/hash verification", "Missing, malformed, ambiguous and unavailable packets", "Short-lived negative cache", "Selected owner scope and unchanged counts", "Public filename/artifact metadata omission", "Optional metadata compatibility", "Desktop/mobile title wrapping", "Missing-title status retention", "Anonymous sign-in return paths"],
+  "limits": ["Title extraction across arbitrary publisher layouts remains unvalidated.", "Development fixtures do not verify production authentication, database or deployment.", "Title inspection does not establish substantive source review or scientific claim reproduction."],
+  "production_release_record": "../jumpserve-infra/docs/paper-queue-title-production-release-v1.json",
+  "reviewer": {"identity": "Primary Codex AI implementer", "type": "AI", "independent": false},
+  "usage": {"new_model_calls": 0, "new_experiment_launches": 0, "measured_charges_usd": null}
+}

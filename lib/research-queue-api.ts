@@ -12,7 +12,8 @@ export async function requireGapQueueApi(request: Request, signal?: AbortSignal)
 }
 
 /** Older releases expose authenticated study queues, but no overview endpoint. */
-export async function loadExperimentQueue(request: Request, signal?: AbortSignal): Promise<ExperimentQueue> {
+export async function loadExperimentQueue(request: Request, signal?: AbortSignal, titleStudyId?: string): Promise<ExperimentQueue> {
+  if (titleStudyId && !isResearchId(titleStudyId)) throw new Error("The selected paper identity is invalid.");
   const controller = new AbortController();
   const relay = () => controller.abort(signal?.reason);
   if (signal?.aborted) relay(); else signal?.addEventListener("abort", relay, { once: true });
@@ -30,7 +31,7 @@ export async function loadExperimentQueue(request: Request, signal?: AbortSignal
   }
   try {
     const capabilities = await read<Capabilities>("/capabilities");
-    if (capabilities.queue?.overview_version === "research-queue-overview-v1") return validateExperimentQueue(await read("/queue"));
+    if (capabilities.queue?.overview_version === "research-queue-overview-v1") return validateExperimentQueue(await read(titleStudyId ? `/queue?${new URLSearchParams({ title_study: titleStudyId })}` : "/queue"));
     if (capabilities.queue?.version !== "research-queue-v1") throw new Error("The connected research backend does not support recorded study queues.");
     const listing = await read<{ access: string; studies: ResearchStudy[] }>("/studies?mine=1");
     if (listing.access !== "owner-drafts" || !Array.isArray(listing.studies) || listing.studies.length > 100 || new Set(listing.studies.map(s => s?.id)).size !== listing.studies.length || listing.studies.some(s => !s || !isResearchId(s.id) || typeof s.title !== "string" || !["paper", "idea"].includes(s.study_kind ?? "paper"))) throw new Error("Owned study coverage is invalid or incomplete; queue counts are unknown.");

@@ -9,9 +9,10 @@ import {chromium} from 'playwright';
 assert.equal(process.argv.length,2,'Fixed local public queue campaign only.');
 const origin='http://127.0.0.1:6103',study='11111111-1111-4111-8111-111111111111';
 const target='/research-verification/experiment-queue?study='+study;
+const paperTitle='Making Congestion Control Algorithms Insensitive to Underlying Propagation Delays';
 const directory='.test-artifacts/public-experiment-queue/'+new Date().toISOString().replaceAll(':','-');await mkdir(directory,{recursive:true});
-const report={protocol:'public-experiment-queue-v1',started_at:new Date().toISOString(),checks:[],requests:[],browser_errors:[],source_sha256:{},reviewer:{identity:'Primary Codex AI implementer',type:'AI',independent:false},conditional_gaps:['Production anonymous status and deployed private API denials','Actual Supabase reads and RLS; store fixture is synthetic','Actual authenticated owner session'],new_model_calls:0,new_experiment_launches:0,measured_charges_usd:null};
-for(const path of ['app/(modules)/research-verification/experiment-queue/page.tsx','app/components/research-workflow/public-experiment-queue.tsx','app/components/research-workflow/autonomous-assessments.tsx','lib/research-public-queue.ts','../jumpserve-back-end/research_workflow/api.py','../jumpserve-back-end/research_workflow/scheduler.py','../jumpserve-back-end/research_workflow/tests/public_queue_fixture.py','scripts/verify-public-experiment-queue.mjs'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
+const report={protocol:'public-experiment-queue-v2',started_at:new Date().toISOString(),checks:[],requests:[],browser_errors:[],source_sha256:{},reviewer:{identity:'Primary Codex AI implementer',type:'AI',independent:false},conditional_gaps:['Production anonymous status and deployed private API denials','Actual Supabase reads and RLS; store fixture is synthetic','Actual authenticated owner session','Title extraction accuracy across arbitrary PDF layouts'],new_model_calls:0,new_experiment_launches:0,measured_charges_usd:null};
+for(const path of ['app/(modules)/research-verification/experiment-queue/page.tsx','app/components/research-workflow/public-experiment-queue.tsx','app/components/research-workflow/autonomous-assessments.tsx','lib/research-public-queue.ts','../jumpserve-back-end/research_workflow/api.py','../jumpserve-back-end/research_workflow/scheduler.py','../jumpserve-back-end/research_workflow/paper_titles.py','../jumpserve-back-end/research_workflow/intake.py','../jumpserve-back-end/research_workflow/tests/public_queue_fixture.py','../jumpserve-back-end/research_workflow/tests/test_paper_titles.py','scripts/verify-public-experiment-queue.mjs'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
 let python,app,browser,pythonLog='',appLog='',fixtureOrigin;
 async function check(name,action){try{report.checks.push({name,passed:true,evidence:await action()});console.log('PASS '+name);}catch(e){report.checks.push({name,passed:false,error:e.message});throw e;}}
 async function fixtureMode(mode){const r=await fetch(fixtureOrigin+'/fixture/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});assert.equal(r.status,200);}
@@ -36,23 +37,29 @@ try{
  const page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',e=>report.browser_errors.push(e.message));await page.clock.install();
  await check('anonymous Next route reads actual API status without owner credentials or private controls',async()=>{
   const response=await page.goto(origin+target);assert.equal(response.status(),200);assert.equal(new URL(page.url()).pathname,'/research-verification/experiment-queue');
-  await page.getByTestId('public-experiment-queue').getByText('Public paper title',{exact:true}).waitFor();
+  await page.getByTestId('public-experiment-queue').getByText(paperTitle,{exact:true}).waitFor();
   assert.equal(await page.getByRole('button',{name:'View prompts and responses',exact:true}).count(),0);assert.equal(await page.getByText('Initial paper prompt',{exact:true}).count(),0);assert.equal(await page.getByRole('button',{name:'Run experiment now',exact:true}).count(),0);
   const body=await page.locator('main').innerText();for(const label of ['untested','inconclusive','reproduced','discrepant'])assert.ok(body.includes('finding: '+label));
-  assert.ok(body.includes('Paper preparation · 0 AI turns'));assert.ok(body.includes('Recorded run status: partial'));assert.ok(body.includes('Recorded run status: unavailable'));assert.ok(!body.includes('PRIVATE-CANARY'));
-  return {anonymous:true,real_python_handler:true,synthetic_store:true,claim_labels:4,private_prompt_controls:0,private_bytes:false};
+  assert.ok(body.includes('Paper preparation · 0 AI turns'));assert.ok(body.includes('Recorded run status: partial'));assert.ok(body.includes('Recorded run status: unavailable'));assert.ok(!body.includes('PRIVATE-CANARY'));assert.ok(!body.includes('ProxyDelay_Nines_CameraReady'));
+  return {anonymous:true,real_python_handler:true,synthetic_store:true,title_from_retained_first_page:paperTitle,filename_displayed:false,claim_labels:4,private_prompt_controls:0,private_bytes:false};
  });
  await check('serial polling updates actual recorded status and failed polls retain marked stale evidence',async()=>{
   await fixtureMode('running');await page.clock.runFor(10100);await page.getByRole('article').filter({hasText:'bbbbbbbb-1111-4111-8111-111111111111'}).getByText('running',{exact:true}).waitFor();
   await fixtureMode('unavailable');await page.clock.runFor(10100);await page.getByRole('alert').filter({hasText:'may be stale'}).waitFor();assert.equal(await page.locator('article[id^="job-"]').count(),2);await page.getByText(/retained claim states may be stale/).waitFor();
   return {poll_ms:10000,stale_jobs_retained:2,stale_claims_marked:true};
  });
- await fixtureMode('normal');await page.reload();await page.getByText('Public paper title',{exact:true}).waitFor();
+ await fixtureMode('normal');await page.reload();await page.getByText(paperTitle,{exact:true}).waitFor();
  await check('status filtering and 1365/390 light/dark layouts preserve claims and missingness',async()=>{
   await page.getByRole('combobox',{name:'Filter queue by status',exact:true}).click();await page.getByRole('option',{name:'failed',exact:true}).click();assert.equal(await page.locator('article[id^="job-"]').count(),1);
   await page.getByRole('combobox',{name:'Filter queue by status',exact:true}).click();await page.getByRole('option',{name:'All statuses',exact:true}).click();
   for(const width of [1365,390])for(const theme of ['Light Mode','Dark Mode']){await page.setViewportSize({width,height:width===390?844:900});await page.getByRole('button',{name:theme,exact:true}).click();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:directory+'/queue-'+width+'-'+theme.split(' ')[0].toLowerCase()+'.png',fullPage:true});}
   return {widths:[1365,390],themes:['light','dark'],overflow:false,filtered_jobs:1};
+ });
+ await check('missing paper title preserves claim and experiment status without displaying the filename',async()=>{
+  await fixtureMode('title-missing');await page.reload();await page.getByText('Paper title unavailable',{exact:true}).waitFor();
+  assert.equal(await page.locator('article[id^="claim-task-"]').count(),5);assert.equal(await page.locator('article[id^="job-"]').count(),2);
+  assert.ok(!(await page.locator('main').innerText()).includes('ProxyDelay_Nines_CameraReady'));
+  return {title_missing:true,filename_displayed:false,claim_tasks:5,jobs:2};
  });
  await check('empty initial invalid initial unavailable and missing-study states remain distinct',async()=>{
   await fixtureMode('empty');await page.reload();await page.getByRole('status').filter({hasText:'No experiment jobs have been recorded yet'}).waitFor();assert.equal(await page.locator('article[id^="claim-task-"]').count(),1);
@@ -64,7 +71,7 @@ try{
  });
  await check('private queue action paths and base queue require sign-in while shared aliases preserve IDs',async()=>{
   for(const path of [target+'&view=private','/research-verification/experiment-queue','/research-verification/experiment-queue?sourceStudy='+study+'&gap=22222222-2222-4222-8222-222222222222']){await page.goto(origin+path);assert.equal(new URL(page.url()).pathname,'/login');assert.equal(new URL(page.url()).searchParams.get('next'),path);}
-  await page.goto(origin+'/experiment-queue?study='+study);await page.getByText('Public paper title',{exact:true}).waitFor();assert.equal(new URL(page.url()).pathname,'/research-verification/experiment-queue');assert.equal(new URL(page.url()).searchParams.get('study'),study);
+  await page.goto(origin+'/experiment-queue?study='+study);await page.getByText(paperTitle,{exact:true}).waitFor();assert.equal(new URL(page.url()).pathname,'/research-verification/experiment-queue');assert.equal(new URL(page.url()).searchParams.get('study'),study);
   await page.getByRole('link',{name:'Open owner’s private queue',exact:true}).click();await page.waitForURL(/\/login\?/);assert.equal(new URL(page.url()).searchParams.get('next'),target+'&view=private');
   for(const suffix of ['/autonomy','/queue']){const r=await fetch(fixtureOrigin+'/research/studies/'+study+suffix);assert.equal(r.status,401);}
   return {private_return_paths:3,anonymous_private_API_denials:2,shared_alias_public:true};

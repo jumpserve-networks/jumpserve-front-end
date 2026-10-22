@@ -94,14 +94,14 @@ export function ExperimentQueueDashboard({ studyId, jobId, sourceStudy, gapId, l
     const controller = new AbortController(); let timer: ReturnType<typeof setTimeout> | undefined;
     async function refresh() {
       try {
-        const result = await loadExperimentQueue(researchRequest, controller.signal);
+        const result = await loadExperimentQueue(researchRequest, controller.signal, study || undefined);
         if (!controller.signal.aborted) { setData(result); setError(""); setUpdatedAt(new Date().toISOString()); }
       } catch (error) { if (!controller.signal.aborted) setError(failureText(error)); }
       finally { if (!controller.signal.aborted) timer = setTimeout(refresh, QUEUE_POLL_MS); }
     }
     void refresh();
     return () => { controller.abort(); clearTimeout(timer); };
-  }, [revision]);
+  }, [revision, study]);
   function queued(id: string, job: string) { setStudy(id); setFocusedJob(job); setStatus(""); setLimit(20); setRevision(r => r + 1); window.history.replaceState(null, "", experimentQueuePath(id, job)); }
   const jobs = data?.jobs ?? [];
   const visible = jobs.filter(j => (!study || j.study_id === study) && (!status || (status === "blocked" ? j.readiness === "blocked" : j.status === status))).sort((a, b) => Number(b.id === focusedJob) - Number(a.id === focusedJob) || b.updated_at.localeCompare(a.updated_at) || a.id.localeCompare(b.id));
