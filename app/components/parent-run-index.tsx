@@ -1,4 +1,5 @@
 "use client";
+import { LocalDateTime } from "@/app/components/user-preferences";
 
 import { EMULATED_MODULE_PATH, EMULATED_TESTS_MODULE } from "@/lib/test-modules";
 
@@ -47,19 +48,7 @@ type ParentRunSortColumn =
 type SortDirection = "asc" | "desc";
 
 function formatCreatedAt(value: string | null) {
-  if (!value) {
-    return "Unknown timestamp";
-  }
-
-  const parsed = Date.parse(value);
-  if (!Number.isFinite(parsed)) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(parsed);
+  return <LocalDateTime value={value} fallback="Unknown timestamp" />;
 }
 
 function formatSelectedValueSummary(

@@ -1,4 +1,5 @@
 "use client";
+import { LocalDateTime } from "@/app/components/user-preferences";
 
 import { Button } from "@/app/components/ui/button";
 import { Textarea } from "@/app/components/ui/textarea";
@@ -228,12 +229,7 @@ function SessionSidebar({
             >
               <p className="truncate text-xs font-medium">{s.preview}</p>
               <p className="mt-0.5 text-[11px] text-muted-foreground">
-                {new Date(s.updated_at).toLocaleDateString(undefined, {
-                  month: "short",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
+                <LocalDateTime value={s.updated_at} />
               </p>
             </Button>
             <Button

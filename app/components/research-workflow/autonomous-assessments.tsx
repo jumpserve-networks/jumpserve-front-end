@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { LocalDateTime } from "@/app/components/user-preferences";
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { researchRequest } from "@/lib/research-workflow-api";
@@ -7,7 +8,7 @@ import { validateTurnHistory, type AutonomousOverview, type AutonomousTask, type
 import type { PublicAutonomousOverview, PublicAutonomousTask } from "@/lib/research-public-queue";
 
 const words = (text: string) => text.replaceAll("-", " ");
-const time = (value: string) => new Date(value).toLocaleString("en-US", { timeZone: "UTC" }) + " UTC";
+const time = (value: string) => <LocalDateTime value={value} />;
 function TurnHistory({ task }: { task: AutonomousTask }) {
   const [turns, setTurns] = useState<AutonomousTurn[]>([]);
   const [before, setBefore] = useState<number | null>(null);

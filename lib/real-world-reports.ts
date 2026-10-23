@@ -43,14 +43,17 @@ export function dateUtc(epoch: number): string {
 export function parseReportSelection(value: string | null): string[] {
   return [...new Set((value ?? "").split(",").filter(id => /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id)))].slice(0, MAX_REPORT_SELECTION);
 }
-export function filterReportJobs(jobs: RealWorldJob[], filters: { search: string; cca: string; region: string; status: string; from: string; to: string }) {
+export function filterReportJobs(jobs: RealWorldJob[], filters: { search: string; cca: string; region: string; status: string; from: string; to: string }, localDay?: (epochSeconds: number) => string | null) {
   const from = filters.from ? Date.parse(filters.from + "T00:00:00Z") / 1000 : -Infinity;
   const to = filters.to ? Date.parse(filters.to + "T00:00:00Z") / 1000 + 86400 : Infinity;
   const search = filters.search.toLowerCase().trim();
-  return jobs.filter(job => (!filters.cca || job.config.cca === filters.cca) && (!filters.status || job.status === filters.status)
-    && (!filters.region || [job.config.server, job.config.bottleneck, ...job.config.receivers].some(n => n.region === filters.region))
-    && job.created_at >= from && job.created_at < to
-    && (!search || `${job.job_id} ${job.config.notes}`.toLowerCase().includes(search)));
+  return jobs.filter(job => {
+    const day = localDay?.(job.created_at);
+    const withinDates = localDay ? day != null && (!filters.from || day >= filters.from) && (!filters.to || day <= filters.to) : job.created_at >= from && job.created_at < to;
+    return (!filters.cca || job.config.cca === filters.cca) && (!filters.status || job.status === filters.status)
+      && (!filters.region || [job.config.server, job.config.bottleneck, ...job.config.receivers].some(n => n.region === filters.region))
+      && withinDates && (!search || `${job.job_id} ${job.config.notes}`.toLowerCase().includes(search));
+  });
 }
 
 function canonical(value: unknown): string {

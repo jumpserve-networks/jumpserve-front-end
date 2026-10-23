@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { LocalDateTime } from "@/app/components/user-preferences";
 import { useState } from "react";
 import { Activity, Ban, CheckCircle2, CircleAlert, Clock3, UserRound } from "lucide-react";
 import { Badge } from "@/app/components/ui/badge";
@@ -12,7 +13,7 @@ import { RESEARCH_WORKFLOW_MODULE_PATH } from "@/lib/test-modules";
 import { AutonomousAssessments } from "./autonomous-assessments";
 
 const words = (value: string) => value.replaceAll("-", " ");
-const recordedTime = (value: string) => new Date(value).toLocaleString("en-US", { timeZone: "UTC" }) + " UTC";
+const recordedTime = (value: string) => <LocalDateTime value={value} />;
 function statusText(job: QueueJob) {
   if (job.status === "manual") return "Needs operator";
   if (job.status === "queued" && job.readiness === "blocked") return "Blocked";

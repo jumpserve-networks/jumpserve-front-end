@@ -1,4 +1,5 @@
 "use client";
+import { LocalDateTime } from "@/app/components/user-preferences";
 
 import { REAL_WORLD_MODULE_PATH } from "@/lib/test-modules";
 
@@ -91,7 +92,7 @@ export function RealWorldTests() {
     <Card><CardHeader className="flex flex-row items-center justify-between"><CardTitle>Your tests</CardTitle><Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>Refresh</Button></CardHeader><CardContent>
       {historyError && <p role="alert" className="mb-3 text-sm text-destructive">{historyError}</p>}
       {!loading && !tests.length && !historyError ? <p className="text-sm text-muted-foreground">No real-world tests yet.</p> : <Table><TableHeader><TableRow><TableHead>Created</TableHead><TableHead>CCA</TableHead><TableHead>Receivers</TableHead><TableHead>Status</TableHead><TableHead>Results</TableHead></TableRow></TableHeader><TableBody>
-        {tests.map((job) => <TableRow key={job.job_id}><TableCell>{new Date(job.created_at * 1000).toLocaleString()}</TableCell><TableCell>{job.config.cca.toUpperCase()}</TableCell><TableCell>{job.config.receivers.length}</TableCell><TableCell>{REAL_WORLD_STAGES[job.status] ?? job.status}</TableCell><TableCell><Link className="text-primary underline underline-offset-4" href={`${REAL_WORLD_MODULE_PATH}/run-a-test/${job.job_id}`}>Open test</Link></TableCell></TableRow>)}
+        {tests.map((job) => <TableRow key={job.job_id}><TableCell><LocalDateTime value={job.created_at * 1000} /></TableCell><TableCell>{job.config.cca.toUpperCase()}</TableCell><TableCell>{job.config.receivers.length}</TableCell><TableCell>{REAL_WORLD_STAGES[job.status] ?? job.status}</TableCell><TableCell><Link className="text-primary underline underline-offset-4" href={`${REAL_WORLD_MODULE_PATH}/run-a-test/${job.job_id}`}>Open test</Link></TableCell></TableRow>)}
       </TableBody></Table>}
       {cursor && <Button className="mt-4" variant="outline" size="sm" onClick={() => void more()}>Load older tests</Button>}
     </CardContent></Card>

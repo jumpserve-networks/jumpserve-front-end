@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { LocalDateTime } from "@/app/components/user-preferences";
 import { useEffect, useState } from "react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
@@ -52,8 +53,7 @@ export function PreviousAssessments({ before }: { before?: string }) {
           return <article key={paper.id} data-paper-id={paper.id} className="space-y-3 rounded-lg border p-5">
             <h2 className="break-words font-semibold"><Link className="underline" href={paper.published ? assessment : queue}>{title}</Link></h2>
             <div className="flex flex-wrap gap-2">{paper.workflow_status !== null || !paper.published ? <Badge variant="secondary">{paperWorkflowLabel(paper.workflow_status)}</Badge> : null}<Badge variant="outline">{paper.published ? "Published assessment" : "Not published"}</Badge></div>
-            <p className="text-xs text-muted-foreground">Submitted {new Date(paper.created_at).toLocaleString("en-US", { timeZone: "UTC" })} UTC</p>
-            <p className="break-all text-xs text-muted-foreground">Assessment {paper.id}</p>
+            <p className="text-xs text-muted-foreground">Submitted <LocalDateTime value={paper.created_at} /></p>
             <div className="flex flex-wrap gap-4 text-sm"><Link className="underline" href={queue}>View experiment queue</Link>{paper.published ? <Link className="underline" href={assessment}>Read assessment</Link> : null}</div>
           </article>;
         })}</div>

@@ -1,4 +1,5 @@
 "use client";
+import { LocalDateTime } from "@/app/components/user-preferences";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -11,7 +12,7 @@ import { AutonomousAssessments } from "./autonomous-assessments";
 import { ResearchSelect } from "./select";
 
 const words = (value: string) => value.replaceAll("-", " ");
-const recordedTime = (value: string) => new Date(value).toLocaleString("en-US", { timeZone: "UTC" }) + " UTC";
+const recordedTime = (value: string) => <LocalDateTime value={value} />;
 
 export function PublicExperimentQueue({ studyId, jobId }: { studyId: string; jobId?: string }) {
   const [data, setData] = useState<PublicStudyQueue | null>(null);

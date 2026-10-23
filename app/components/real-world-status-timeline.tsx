@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Circle, CircleHelp, LoaderCircle, Minus, X } from "lucide-react";
+import { LocalDateTime } from "@/app/components/user-preferences";
 import { Badge } from "@/app/components/ui/badge";
 import { realWorldProgress, progressDuration, type ProgressState } from "@/lib/real-world-progress";
 import type { RealWorldJob } from "@/lib/real-world";
@@ -16,9 +17,6 @@ const icons = { completed: Check, current: LoaderCircle, upcoming: Circle, faile
 export function RealWorldStatusTimeline({ job }: { job: RealWorldJob }) {
   const steps = realWorldProgress(job);
   const next = steps.find(step => step.state === "upcoming");
-  const date = new Intl.DateTimeFormat(undefined, {
-    year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", timeZoneName: "short",
-  });
 
   return <div className="space-y-3 border-t pt-4">
     <ol aria-label="Test progress" className="space-y-1">
@@ -47,11 +45,11 @@ export function RealWorldStatusTimeline({ job }: { job: RealWorldJob }) {
                 variant={current ? "default" : "outline"}>{step === next ? "Up next" : labels[step.state]}</Badge>
             </div>
             {finished && <p className="text-xs text-muted-foreground">
-              {step.completedAt ? <>{step.state === "completed" ? "Completed" : "Stopped"} <time dateTime={step.completedAt}>{date.format(new Date(step.completedAt))}</time>
+              {step.completedAt ? <>{step.state === "completed" ? "Completed" : "Stopped"} <LocalDateTime value={step.completedAt} />
                 {step.durationSeconds !== null && index < steps.length - 1 && <> · {progressDuration(step.durationSeconds)}</>}</>
                 : step.state === "completed" ? "Completion time not recorded" : "Stop time not recorded"}
             </p>}
-            {current && step.startedAt && <p className="text-xs text-muted-foreground">Started <time dateTime={step.startedAt}>{date.format(new Date(step.startedAt))}</time></p>}
+            {current && step.startedAt && <p className="text-xs text-muted-foreground">Started <LocalDateTime value={step.startedAt} /></p>}
           </div>
         </li>;
       })}

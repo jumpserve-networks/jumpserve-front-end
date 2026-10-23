@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/app/components/app-shell";
+import { UserPreferencesProvider } from "@/app/components/user-preferences";
 import {
   DARK_MEDIA_QUERY,
   STORAGE_KEY,
@@ -80,7 +81,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AppShell>{children}</AppShell>
+        <UserPreferencesProvider><AppShell>{children}</AppShell></UserPreferencesProvider>
       </body>
     </html>
   );

@@ -1,4 +1,5 @@
 "use client";
+import { useDateTime } from "@/app/components/user-preferences";
 
 import { EMULATED_MODULE_PATH } from "@/lib/test-modules";
 
@@ -77,6 +78,7 @@ const STEP_LABELS = {
 };
 
 export function BenchmarkRunStatus({ initialJob, canManage = false }: { initialJob: BenchmarkJob; canManage?: boolean }) {
+  const formatDateTime = useDateTime();
   const [supabase] = useState(() => createClient());
   const [job, setJob] = useState(initialJob);
   const [pollError, setPollError] = useState<string | null>(null);
@@ -206,7 +208,7 @@ export function BenchmarkRunStatus({ initialJob, canManage = false }: { initialJ
           <dl className="grid gap-4 text-sm sm:grid-cols-2">
             {[
               ["Run ID", job.id], ["EC2 instance", job.ec2_instance_id || "Awaiting instance assignment"],
-              ["Requested at", new Date(job.created_at).toUTCString()],
+              ["Requested at", formatDateTime(job.created_at)],
               ["Clients", `${job.config.num_clients} (${job.config.client_ccas.join(", ")})`],
               ["Client delays", `${job.config.client_delays_ms.join(", ")} ms`],
               ...(job.config.script === "netem_multi_bottleneck.py"

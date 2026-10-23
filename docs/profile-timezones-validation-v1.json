@@ -1,0 +1,151 @@
+{
+  "version": "profile-timezones-validation-v1",
+  "recorded_at": "2026-10-23T14:37:34.208305+00:00",
+  "status": "implemented-and-verified-locally",
+  "route": "/profile",
+  "profile_entry": "Authenticated header name/profile icon",
+  "database": {
+    "table": "public.profiles",
+    "fields": [
+      "id",
+      "first_name",
+      "last_name",
+      "timezone"
+    ],
+    "migration": "../jumpserve-infra/database/202610230001_user_profiles.sql",
+    "migration_sha256": "24eaa3441a6636474ea462634618efc62fa0730ea92224879cf4359221e6c9ac",
+    "existing_project_inspection": "Read-only introspection of the fixed regphejnlvfpyokpniny Management API reported no existing public.profiles relation. No migration was applied remotely.",
+    "creation": "First explicit save creates the user row; a GET never inserts one.",
+    "privacy": "RLS enabled; anonymous access and browser delete denied. Authenticated SELECT/INSERT/UPDATE policies require auth.uid() = id, including the conflict-update path. No other profile fields or credentials are returned."
+  },
+  "behavior": [
+    "First and last names are editable and validated; only explicit Google given/family name fields seed an absent row.",
+    "A valid IANA timezone is saved with the names. The saved preference overrides the browser timezone, including DST. Absent preferences and anonymous viewers use the browser timezone.",
+    "A shared hydration-safe time component displays an initial placeholder rather than server-timezone text. It preserves missing/invalid values and a real recorded epoch zero.",
+    "Assessment cards/queues/history, run status/timelines/history, chat dates and research protocol timestamps use the preference. Real-world date filters use calendar days in the display timezone, including 23/25-hour DST days.",
+    "Original timestamps, scientific configurations, time axes/durations, raw JSON/provenance and CSV/JSON downloads retain their recorded representations.",
+    "The previously requested removal of Assessment <id> text from catalog cards is preserved; the record identity still drives links and React keys."
+  ],
+  "checks": {
+    "frontend_unit": {
+      "command": "npm test",
+      "passed": 220,
+      "failed": 0
+    },
+    "lint": {
+      "command": "npm run lint",
+      "errors": 0,
+      "existing_warning": "auth-button.tsx:157 internal navigation warning"
+    },
+    "build": {
+      "command": "npm run build",
+      "passed": true,
+      "normal_configuration_restored_after_fixture_build": true
+    },
+    "postgres": {
+      "command": "npm run test:database:profiles (jumpserve-infra)",
+      "passed": 11,
+      "report": "/Users/Shared/allstar/jumpserve-infra/.test-artifacts/profiles/20261023T143446119210Z/database-report.json",
+      "sha256": "3551a230e0ef777f61037caa364ba6c9d2618955230c7266287c2a5c2c1de03e"
+    },
+    "browser": {
+      "command": "npm run verify:profile",
+      "passed": 10,
+      "report": ".test-artifacts/profiles/2026-10-23T14-34-46.046Z/report.json",
+      "sha256": "6c9ab755dcca50997e6d4a1b5ea7fecfb7b0bce683c48feb7db0150ec750af94",
+      "design": "Actual built Next page, private GET and server action use a fixed loopback Supabase/Auth/PostgREST transport backed by actual isolated PostgreSQL with the migration and real RLS. The JWTs and accounts are explicitly synthetic and never accepted by a real service.",
+      "covered": [
+        "Anonymous 401 and sign-in return path",
+        "Anonymous browser-timezone fallback",
+        "Saved profile overrides browser timezone",
+        "Names/timezone persist through save and reload; selected source timestamp instant preserved",
+        "Invalid input, forged caller identity and cross-origin action cause no DB changes",
+        "Storage failure is visible; retry restores values",
+        "Desktop 1365/mobile 390 in light/dark; header profile link and no horizontal overflow",
+        "Second user receives only their own profile"
+      ]
+    },
+    "visual_review": {
+      "identity": "Primary Codex AI implementer",
+      "type": "AI",
+      "independent": false,
+      "inspected": [
+        "profile-1365-light.png",
+        "profile-390-dark.png"
+      ]
+    },
+    "react_review": "Server mutation authenticates again and validates every field; owner identity comes from verified auth. Data returned is narrow, no shared server user state or service keys; profile fetches are aborted/generation-checked on auth changes. Stable list IDs, labels, loading/error feedback and native time elements remain."
+  },
+  "limitations": [
+    "Production migration, real Google provider round trip and save behind the production CDN are unverified.",
+    "Browser persistence uses synthetic identity/HTTP transport and actual local SQL, not a legitimate user session.",
+    "Other modules compile with the shared formatter, but every module page was not independently exercised in a browser.",
+    "Changing the profile in another browser tab/device is read on reload or sign-in, without new polling."
+  ],
+  "release": {
+    "status": "Not committed, pushed, merged or deployed.",
+    "order": [
+      "Verify AWS account 395567831870 and Supabase project regphejnlvfpyokpniny before production changes.",
+      "Apply the versioned profiles migration before deploying the frontend/API.",
+      "Verify legitimate authenticated profile save/reload, owner isolation and Server Action Origin handling through the production CDN."
+    ]
+  },
+  "preserved_failures": [
+    "An early TypeScript build found a nullable header profile access; fixed before passing builds/browser tests.",
+    "Sandbox network restrictions prevented the initial local PostgreSQL/browser campaign; original failed reports remain in ignored artifact directories.",
+    "The original AWS-based schema guard encountered expired AWS credentials. A direct fixed-project read-only Supabase introspection completed; no AWS login or production change was needed."
+  ],
+  "source_sha256": {
+    "../jumpserve-infra/database/202610230001_user_profiles.sql": "24eaa3441a6636474ea462634618efc62fa0730ea92224879cf4359221e6c9ac",
+    "../jumpserve-infra/package.json": "05153c5d84e7db072e3af5cb606e74061ad9fad82cda20d2bc548d54ff92bf5d",
+    "../jumpserve-infra/test/check_profile_database.py": "ff78a884a3cd2ad5a754169a943a41468f9c5e7d0904dff6002a50d922fea637",
+    "app/(modules)/congestion-control-emulated/parent-run/[id]/page.tsx": "432cffe8026524b8a4dbc256b8fb7165cd6a991a489def9a6174cb30a4e2487c",
+    "app/(modules)/http2-compliance-study/methods/page.tsx": "26e72e87e836fdca4e353b99d01aa2728578c1b74cb6ef9c1469e9fc7fea8c87",
+    "app/(modules)/ipv6-dns-study/methods/page.tsx": "f862f6057271439f1ad3a4afd73c706d936a070c57ab79b5fa5c5555717ebe85",
+    "app/(modules)/propagation-delay-study/test-results/[trialId]/page.tsx": "789628b601e444c8e09f0be761e1ebfaaa5d4525db4db23a021d27b1fd2ce7f6",
+    "app/(modules)/reliable-sketch-study/methods/page.tsx": "746f299b677fce583c7e9c77f50bd8fdd77c8184cf2c187cefaecf8c81ca81e4",
+    "app/api/profile/route.ts": "4982be9c085bad004a85c123d68bbbf3f6916479b813e3b2995ae20d1e42c2ae",
+    "app/components/auth-button.tsx": "3add3c397b579e33504e431a2ca7268f2d15baae219c3a72b8fa626e76740893",
+    "app/components/benchmark-run-status.tsx": "272e2b97c99a87ab7acefe2f7fecdccb0d1026ccd66d23417d8a5ff2ed758064",
+    "app/components/benchmark-status.tsx": "91134705f035fe0ce8492031aab2279f2da6b8f59aedb9afeed0465ba413c23c",
+    "app/components/chat-panel.tsx": "8b6cf6600b6e9391079bbf908142d69a43009fc670b0d6449d5191ca8fadbd77",
+    "app/components/http2-study/dashboard.tsx": "c93d694cdce768328e3ef18548dbb6d870ca1078d71a2dd7a6f5f39bfe763fd7",
+    "app/components/parent-run-index.tsx": "44f614f4918211b67f8f78e94931ea4ac2e332c57bc398babbe5c68338cb0c46",
+    "app/components/profile-editor.tsx": "3e473003644509d7fa3e5bfc99b3cae1f89c9e6afd2ad9b75e8454825dd7699f",
+    "app/components/real-world-report.tsx": "e692fc714f84593ba47473f05eb737f1df3d549036a9f7fae028b7c5b6727a6b",
+    "app/components/real-world-reports.tsx": "07bab6f556885fb5baf35c0f8ad91ebcb98f0f46aa076fa1d199eb6da1f46e2a",
+    "app/components/real-world-status-timeline.tsx": "e21c23a6c1655a0e96b599a992facbb33c47c80e1f01472673e406e1ac058650",
+    "app/components/real-world-tests.tsx": "de0acef8533389fdc5b30718e7f89119b728969400bfafa2c2e5dfdf46024be2",
+    "app/components/research-workflow/assessment-experiment-queue.tsx": "393da59da6ef6ebe9f85b2216f17da024cf8de8c8e7505173a3910e09ffc931d",
+    "app/components/research-workflow/autonomous-assessments.tsx": "ee2fb1d5027358cde5e966ea4a8e67b82b1a1bdef628a1008ad6a34a80fe627a",
+    "app/components/research-workflow/claim-queue.tsx": "91a45610c321153374ae9d0c05817068580119218fd2585924c5d77f4cf70abb",
+    "app/components/research-workflow/experiment-queue.tsx": "b92370c256cfd7c2f76af67648df3d44f9b3d21ad832a9c7e6b9c37fc4846bda",
+    "app/components/research-workflow/previous-assessments.tsx": "0f4c9e3e259432e1f12711b8b6b80311f53f9058495e37a16e7fc8a06a40f3cc",
+    "app/components/research-workflow/public-experiment-queue.tsx": "5c9d0aa33352d959c9558aea8e45750e2728a9a38b3a306340f5c784edcd9511",
+    "app/components/research-workflow/study-panel.tsx": "58b98462ede5457f80106c47f83a686cdf89688552b3d721dc78db2aa7663d52",
+    "app/components/research-workflow/workspace.tsx": "6a3997693ab693247e87f1e3e49e22179b1e6e41cb942f6197c5d176d93a4df4",
+    "app/components/user-preferences.tsx": "e82596099441df3177bf0a4f32c8e72c7781e14d428662ef9ebecd19ccb4a5d0",
+    "app/layout.tsx": "4a17e7e13a34ff408dcaf5bb9a1b9c0265ca2c8a52568c279b1298ad820f375d",
+    "app/profile/actions.ts": "3ec838a3d580e745948125b4707f8ff0b4a3c7d64fd7d0df2a4a27845cb06f52",
+    "app/profile/page.tsx": "62699f097b28003503c37140ca5893e9ee27174e749482815ee21e5c0a365861",
+    "lib/date-time.ts": "466f6219ba8adfa17faf5899b594485021135ebea4bf39d05ba536b979fe44b0",
+    "lib/profile-store.ts": "73fdaa0043b86b80d18055d8cb5a2facfb777984c5ecd89dfba41c03e0919ccc",
+    "lib/profile.ts": "d0ea10c82c8573d28de2331e54d9b619c4389b1b91880af9890143e04b68f596",
+    "lib/real-world-reports.ts": "b7c2be4b0747a9f13177e5cca7e9e64740cfe5f0cf6f803fabd71608f68c5817",
+    "package.json": "707891de4cab1222f72802de897c686e6e2956ff49478f219b07218f541f1bc6",
+    "scripts/verify-profile.mjs": "93b04c495c82667bd816c506c704935f5feac455a9400e4f22a9c2aa54ef2412",
+    "tests/date-time.test.mjs": "d63780fd0f3376384bc6c2f8e6f499d4719536429d8f417827890a05623b6326",
+    "tests/profile.test.mjs": "12bf218941afa59a28361da83b3a0ebb7377f878028bd803f95624fc088c3f38"
+  },
+  "reviewer": {
+    "identity": "Primary Codex AI implementer",
+    "type": "AI",
+    "independent": false
+  },
+  "usage": {
+    "new_research_model_calls": 0,
+    "new_experiment_launches": 0,
+    "remote_database_writes": 0,
+    "measured_charges_usd": null
+  }
+}

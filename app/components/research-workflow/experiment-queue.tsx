@@ -1,4 +1,5 @@
 "use client";
+import { LocalDateTime } from "@/app/components/user-preferences";
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -15,7 +16,7 @@ import { AssessmentExperimentQueue } from "./assessment-experiment-queue";
 
 const failureText = (error: unknown) => error instanceof Error ? error.message : "Queue status is unavailable.";
 const display = (value: string) => value.replaceAll("-", " ");
-function recordedTime(value: string) { return new Date(value).toLocaleString("en-US", { timeZone: "UTC" }) + " UTC"; }
+function recordedTime(value: string) { return <LocalDateTime value={value} />; }
 
 function GapExperimentPlanner({ studyId, gapId, onQueued }: { studyId: string; gapId: string; onQueued: (studyId: string, jobId: string) => void }) {
   const [preview, setPreview] = useState<GapPreview | null>(null);

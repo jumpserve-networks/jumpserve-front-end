@@ -1,4 +1,5 @@
 "use client";
+import { useDateTime } from "@/app/components/user-preferences";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/app/components/ui/button";
@@ -23,6 +24,7 @@ function Bars({ rows, title, max = 156 }: { rows: { label: string; values: (numb
   </svg>;
 }
 export function Http2Dashboard({ data }: { data: Http2Data }) {
+  const dateTime = useDateTime();
   const [all, setAll] = useState(false);
   const visible = data.summaries.filter(s => all || s.published_counts !== null);
   const [selected, setSelected] = useState(visible[0]?.configuration_id ?? "");
@@ -70,7 +72,7 @@ export function Http2Dashboard({ data }: { data: Http2Data }) {
       </section>
     </div>
     <section className="rounded-lg border p-4"><h2 className="font-medium">Configuration, counts and comparison limits</h2>
-      <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">{[["Proxy version", `${config.proxy} · ${config.version ?? "unavailable"}`], ["Mode / TLS", `${config.mode} · TLS ${config.tls === null ? "unavailable" : config.tls ? "yes" : "no"}`], ["Recorded / planned", `${summary.recorded} / ${summary.planned}`], ["Missing / unknown", `${summary.missing} / ${summary.unknown}`], ["Observed scope / incompatible", `${summary.scope_observed} / ${summary.scope_mismatches}`], ["Worker resources", config.actual_resources ? JSON.stringify(config.actual_resources) : "unavailable"], ["Original execution UTC", run?.original_execution_at ?? "unavailable"], ["Mirrored pairs", summary.comparisons.paired_cases === null ? "not applicable: client only" : `${summary.comparisons.author_pair_differences} / 61 original differences; ${summary.comparisons.known_pairs} known pairs after recoding`]].map(([key, value]) => <div key={key}><dt className="text-xs text-muted-foreground">{key}</dt><dd>{value}</dd></div>)}</dl>
+      <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">{[["Proxy version", `${config.proxy} · ${config.version ?? "unavailable"}`], ["Mode / TLS", `${config.mode} · TLS ${config.tls === null ? "unavailable" : config.tls ? "yes" : "no"}`], ["Recorded / planned", `${summary.recorded} / ${summary.planned}`], ["Missing / unknown", `${summary.missing} / ${summary.unknown}`], ["Observed scope / incompatible", `${summary.scope_observed} / ${summary.scope_mismatches}`], ["Worker resources", config.actual_resources ? JSON.stringify(config.actual_resources) : "unavailable"], ["Original execution", dateTime(run?.original_execution_at)], ["Mirrored pairs", summary.comparisons.paired_cases === null ? "not applicable: client only" : `${summary.comparisons.author_pair_differences} / 61 original differences; ${summary.comparisons.known_pairs} known pairs after recoding`]].map(([key, value]) => <div key={key}><dt className="text-xs text-muted-foreground">{key}</dt><dd>{value}</dd></div>)}</dl>
       <p className="mt-3 text-xs text-muted-foreground">A stream error may escalate to GOAWAY; generic HTTP rejection does not validate an HTTP/2 error code. No causal estimate compares these historical versions. Unlabelled TLS and missing deployment fields prevent controlled TLS attribution.</p>
       <details className="mt-3 text-sm"><summary className="cursor-pointer">Recorded configuration and source hashes</summary><pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify({ configuration: config, run }, null, 2)}</pre></details>
       <Link className="mt-3 inline-block text-sm underline underline-offset-4" href={`${PATH}/chat?configuration=${encodeURIComponent(config.id)}`}>Prepare a question about this configuration</Link>

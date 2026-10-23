@@ -1,4 +1,5 @@
 "use client";
+import { LocalDateTime } from "@/app/components/user-preferences";
 
 import { REAL_WORLD_MODULE_PATH } from "@/lib/test-modules";
 
@@ -11,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Choice } from "@/app/components/real-world-placement";
 import { RealWorldReportChart } from "@/app/components/real-world-report-chart";
 import { realWorldRequest } from "@/lib/real-world-api";
-import { dateUtc, displayNumber, receiversCsv, tracesCsv, type RealWorldReport as Report } from "@/lib/real-world-reports";
+import { displayNumber, receiversCsv, tracesCsv, type RealWorldReport as Report } from "@/lib/real-world-reports";
 import { downloadReportFile } from "@/lib/report-download";
 
 export function RealWorldReport({ jobId }: { jobId: string }) {
@@ -41,7 +42,7 @@ export function RealWorldReport({ jobId }: { jobId: string }) {
   const queueTitle = queueMetric === "queue_delay_ms" ? "Estimated queue drain time" : queueMetric === "backlog_bytes" ? "Shared queue backlog" : "Cumulative queue drops";
   return <article className="real-world-report mt-6 space-y-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex flex-wrap items-center gap-3"><Badge variant="secondary">{job.status}</Badge><span className="text-sm text-muted-foreground">{dateUtc(job.created_at)}</span></div>
+      <div className="flex flex-wrap items-center gap-3"><Badge variant="secondary">{job.status}</Badge><span className="text-sm text-muted-foreground"><LocalDateTime value={job.created_at * 1000} /></span></div>
       <div className="flex flex-wrap gap-2 print:hidden">
         <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`${REAL_WORLD_MODULE_PATH}/chat?jobId=${jobId}`} />}>Chat with AI</Button>
         <Button variant="outline" size="sm" onClick={() => downloadReportFile(`${jobId}-receivers.csv`, receiversCsv(report), "text/csv;charset=utf-8")}>Receiver CSV</Button>

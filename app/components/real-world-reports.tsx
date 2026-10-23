@@ -1,4 +1,6 @@
 "use client";
+import { LocalDateTime, useTimeZone } from "@/app/components/user-preferences";
+import { calendarDay } from "@/lib/date-time";
 
 import { REAL_WORLD_MODULE_PATH } from "@/lib/test-modules";
 
@@ -16,11 +18,12 @@ import { Choice } from "@/app/components/real-world-placement";
 import { RealWorldReportComparison } from "@/app/components/real-world-report-comparison";
 import { realWorldRequest } from "@/lib/real-world-api";
 import { REAL_WORLD_CCAS, type RealWorldJob } from "@/lib/real-world";
-import { dateUtc, displayNumber, filterReportJobs, parseReportSelection, MAX_REPORT_SELECTION, REPORT_METRICS,
+import { displayNumber, filterReportJobs, parseReportSelection, MAX_REPORT_SELECTION, REPORT_METRICS,
   type RealWorldReport, type ReportMetric } from "@/lib/real-world-reports";
 
 type History = { tests: RealWorldJob[]; cursor: string | null };
 export function RealWorldReports() {
+  const timeZone = useTimeZone();
   const params = useSearchParams();
   const selected = useMemo(() => parseReportSelection(params.get("selected")), [params]);
   const selectionKey = [...selected].sort().join(",");
@@ -59,7 +62,7 @@ export function RealWorldReports() {
     void load(undefined, request.signal);
     return () => { request.abort(); controller.current?.abort(); };
   }, [load]);
-  const visible = filterReportJobs(jobs, filters);
+  const visible = timeZone ? filterReportJobs(jobs, filters, epoch => calendarDay(epoch * 1000, timeZone)) : [];
   const regions = [...new Set(jobs.flatMap(job => [job.config.server, job.config.bottleneck, ...job.config.receivers].map(n => n.region)))].sort();
   function toggle(id: string, checked: boolean) {
     query({ selected: (checked ? [...new Set([...selected, id])].slice(0, MAX_REPORT_SELECTION) : selected.filter(item => item !== id)).join(",") });
@@ -99,17 +102,17 @@ export function RealWorldReports() {
         <Choice label="Algorithm filter" value={filters.cca || "all"} onChange={value => query({ cca: value === "all" ? "" : value })} items={[{ value: "all", label: "All algorithms" }, ...REAL_WORLD_CCAS.map(value => ({ value, label: value.toUpperCase() }))]} />
         <Choice label="Any machine’s Region" value={filters.region || "all"} onChange={value => query({ region: value === "all" ? "" : value })} items={[{ value: "all", label: "All loaded Regions" }, ...regions.map(value => ({ value, label: value }))]} />
         <Choice label="Test status" value={filters.status || "all"} onChange={value => query({ status: value === "all" ? "" : value })} items={[{ value: "all", label: "All statuses" }, ...["completed", "failed", "cancelled", "running", "cleaning"].map(value => ({ value, label: value }))]} />
-        <div className="space-y-2"><Label htmlFor="report-from">From date (UTC)</Label><Input id="report-from" type="date" value={filters.from} onChange={event => query({ from: event.target.value })} /></div>
-        <div className="space-y-2"><Label htmlFor="report-to">Through date (UTC)</Label><Input id="report-to" type="date" value={filters.to} onChange={event => query({ to: event.target.value })} /></div>
+        <div className="space-y-2"><Label htmlFor="report-from">From date ({timeZone ?? "loading time zone"})</Label><Input id="report-from" type="date" value={filters.from} onChange={event => query({ from: event.target.value })} /></div>
+        <div className="space-y-2"><Label htmlFor="report-to">Through date ({timeZone ?? "loading time zone"})</Label><Input id="report-to" type="date" value={filters.to} onChange={event => query({ to: event.target.value })} /></div>
       </div>
-      <p className="text-xs text-muted-foreground">Showing {visible.length} of {jobs.length} loaded tests. {loading ? "Reading history." : error ? "History could not be refreshed." : cursor ? "Older tests are available below; filters apply to the loaded history." : "All available history has been loaded."} Results are publicly accessible.</p>
+      <p className="text-xs text-muted-foreground">{timeZone ? `Showing ${visible.length} of ${jobs.length} loaded tests.` : "Waiting for your time zone before applying date filters."} {loading ? "Reading history." : error ? "History could not be refreshed." : cursor ? "Older tests are available below; filters apply to the loaded history." : "All available history has been loaded."} Results are publicly accessible.</p>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {loading && <p role="status" className="text-sm text-muted-foreground">Loading test history…</p>}
-      {!loading && !error && !visible.length ? <p className="py-6 text-sm text-muted-foreground">{jobs.length ? "No tests match these filters." : "No tests yet. Launch a real-world test to collect your first results."}</p> : visible.length > 0 ? <Table><TableHeader><TableRow>
-        <TableHead>Select</TableHead><TableHead>Created (UTC) / test</TableHead><TableHead>CCA</TableHead><TableHead>Placement</TableHead><TableHead>Configuration</TableHead><TableHead>Status</TableHead><TableHead>Results</TableHead>
+      {!timeZone ? <p role="status" className="text-sm text-muted-foreground">Loading your time zone…</p> : !loading && !error && !visible.length ? <p className="py-6 text-sm text-muted-foreground">{jobs.length ? "No tests match these filters." : "No tests yet. Launch a real-world test to collect your first results."}</p> : visible.length > 0 ? <Table><TableHeader><TableRow>
+        <TableHead>Select</TableHead><TableHead>Created ({timeZone ?? "loading time zone"}) / test</TableHead><TableHead>CCA</TableHead><TableHead>Placement</TableHead><TableHead>Configuration</TableHead><TableHead>Status</TableHead><TableHead>Results</TableHead>
       </TableRow></TableHeader><TableBody>{visible.map(job => <TableRow key={job.job_id}>
         <TableCell><Checkbox aria-label={`Select test ${job.job_id}`} checked={selected.includes(job.job_id)} disabled={building || (!selected.includes(job.job_id) && selected.length >= MAX_REPORT_SELECTION)} onCheckedChange={checked => toggle(job.job_id, checked)} /></TableCell>
-        <TableCell>{dateUtc(job.created_at).replace(" UTC", "")}<br /><span className="font-mono text-xs text-muted-foreground">{job.job_id.slice(0, 8)}</span>{job.config.notes && <p className="mt-1 max-w-xs truncate text-xs text-muted-foreground" title={job.config.notes}>{job.config.notes}</p>}</TableCell>
+        <TableCell><LocalDateTime value={job.created_at * 1000} /><br /><span className="font-mono text-xs text-muted-foreground">{job.job_id.slice(0, 8)}</span>{job.config.notes && <p className="mt-1 max-w-xs truncate text-xs text-muted-foreground" title={job.config.notes}>{job.config.notes}</p>}</TableCell>
         <TableCell>{job.config.cca.toUpperCase()}</TableCell><TableCell className="text-xs">{job.config.server.region} → {job.config.bottleneck.region}<br />→ {[...new Set(job.config.receivers.map(r => r.region))].join(", ")}</TableCell>
         <TableCell className="text-xs">{job.config.receivers.length} receivers · {job.config.duration_seconds} s<br />{job.config.rate_mbit} Mbit/s · {job.config.buffer_kbytes} kB</TableCell>
         <TableCell><Badge variant="secondary">{job.status}</Badge></TableCell><TableCell><Link href={`${REAL_WORLD_MODULE_PATH}/test-results/${job.job_id}`} className="text-primary underline underline-offset-4">View results</Link></TableCell>

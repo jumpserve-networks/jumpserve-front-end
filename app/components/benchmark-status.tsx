@@ -1,4 +1,5 @@
 "use client";
+import { LocalDateTime } from "@/app/components/user-preferences";
 
 import { EMULATED_MODULE_PATH } from "@/lib/test-modules";
 
@@ -69,13 +70,7 @@ const ACTIVE_STATUSES = new Set([
 ]);
 
 function formatTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return <LocalDateTime value={iso} />;
 }
 
 function configSummary(config: BenchmarkJob["config"]) {

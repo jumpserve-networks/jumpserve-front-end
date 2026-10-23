@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { UserRound } from "lucide-react";
+import { useUserPreferences } from "@/app/components/user-preferences";
 import type { Session } from "@supabase/supabase-js";
 import { Button } from "@/app/components/ui/button";
 import { getSafeNextPath } from "@/lib/auth-redirect";
@@ -51,6 +54,7 @@ function GoogleIcon() {
 }
 
 export function AuthButton({ placement = "floating" }: AuthButtonProps) {
+  const preferences = useUserPreferences();
   const [supabase] = useState(() => createClient());
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [session, setSession] = useState<Session | null>(null);
@@ -153,7 +157,9 @@ export function AuthButton({ placement = "floating" }: AuthButtonProps) {
     window.location.assign("/");
   }
 
+  const profile = preferences?.profile;
   const userLabel =
+    (profile && profile.id === session?.user.id ? [profile.first_name, profile.last_name].filter(Boolean).join(" ") : "") ||
     session?.user.user_metadata.full_name ||
     session?.user.user_metadata.name ||
     session?.user.email ||
@@ -171,14 +177,10 @@ export function AuthButton({ placement = "floating" }: AuthButtonProps) {
     >
       {status === "logged-in" ? (
         <div className="inline-flex min-w-0 items-center gap-3 text-sm">
-          {userLabel ? (
-            <span title={userLabel}
-            className={cn("max-w-44 truncate text-muted-foreground", placement === "header" && "hidden sm:inline sm:max-w-32")}>
-              {userLabel}
-            </span>
-          ) : (
-            <span>Logged in</span>
-          )}
+          <Link href="/profile" aria-label="Your profile" title={userLabel ?? "Your profile"} className="inline-flex min-w-0 items-center gap-2 rounded-md p-1 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+            <UserRound aria-hidden="true" className="size-4 shrink-0" />
+            <span className={cn("max-w-44 truncate", placement === "header" && "hidden sm:inline sm:max-w-32")}>{userLabel ?? "Profile"}</span>
+          </Link>
           <Button
             type="button"
             variant="outline"
