@@ -94,7 +94,7 @@ try{
  await check('previous assessments include submitted running stopped and published papers with queue links',async()=>{
   await page.goto(origin+'/');await page.getByRole('link',{name:'View previous',exact:true}).click();await page.waitForURL(origin+'/research-verification/previous-assessments');
   await page.getByRole('heading',{name:'Previous Assessments',exact:true}).waitFor();await page.getByRole('link',{name:paperTitle,exact:true}).waitFor();
-  assert.equal(await page.locator('article[data-paper-id]').count(),10);assert.equal(await page.getByRole('link',{name:'View experiment queue',exact:true}).count(),10);
+  assert.equal(await page.locator('article[data-paper-id]').count(),10);assert.equal(await page.getByRole('link',{name:'View experiment queue',exact:true}).count(),0);
   const body=await page.locator('main').innerText();for(const label of ['In progress','Cancelled','Spending limit reached','Finished with gaps','Time limit reached','Published assessment','Not published'])assert.ok(body.includes(label),label);
   assert.ok(!body.includes('PRIVATE-CANARY'));assert.ok(!body.includes('ProxyDelay_Nines_CameraReady'));
   await page.locator(`article[data-paper-id="${study}"]`).getByRole('link',{name:paperTitle,exact:true}).click();await page.waitForURL(origin+target);await page.getByText(paperTitle,{exact:true}).waitFor();

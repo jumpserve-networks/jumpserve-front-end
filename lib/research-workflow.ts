@@ -5,7 +5,7 @@ export const CLAIM_LABELS = {
   untested: "No adequate check has been completed; a plan or citation is not a completed assessment.",
 } as const;
 export type ClaimLabel = keyof typeof CLAIM_LABELS;
-export type ResearchStudy = { id: string; title: string; paper_url: string | null; paper_upload?: { sha256: string; byte_count: number; filename: string } | null; study_kind?: "paper" | "idea"; claim_design?: boolean; domain: string; scope: string; origin_module: string | null; created_at: string };
+export type ResearchStudy = { id: string; title: string; paper_url: string | null; paper_upload?: { sha256: string; byte_count: number; filename: string } | null; paper_review_status?: "preparing" | "ready" | "failed" | "confirmed"; study_kind?: "paper" | "idea"; claim_design?: boolean; domain: string; scope: string; origin_module: string | null; created_at: string };
 export type ResearchRecord = { id: string; study_id: string; created_at: string; [key: string]: unknown };
 export const RECORD_KINDS = ["sources", "claims", "protocols", "configurations", "campaigns", "claim_checks", "runs", "published_values", "measurements", "summaries", "assessments", "gaps", "reviews", "publications"] as const;
 export type RecordKind = typeof RECORD_KINDS[number];

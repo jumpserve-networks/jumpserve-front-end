@@ -14,9 +14,8 @@ import { StudyPanel, type StudyView } from "@/app/components/research-workflow/s
 import { ClaimQueue } from "@/app/components/research-workflow/claim-queue";
 import { StudyPreparation } from "@/app/components/research-workflow/preparation";
 import { PaperPreparation } from "@/app/components/research-workflow/paper-preparation";
-import { startUploadedPaper } from "@/lib/research-paper-upload";
+import { prepareUploadedPaper } from "@/lib/research-paper-upload";
 import { createClient } from "@/lib/supabase/client";
-import { experimentQueuePath } from "@/lib/research-experiment-queue";
 import { NEW_ASSESSMENT_PATH } from "@/lib/test-modules";
 
 const REVIEWER = { identity: "Authenticated assessment contributor", type: "human", independence: "Assessment contributor; independent review not asserted" };
@@ -60,22 +59,21 @@ export function PaperIntake() {
     try {
       const file = data.get("paper_pdf");
       if (!(file instanceof File)) throw new Error("Choose a PDF paper to upload.");
-      const result = await startUploadedPaper(researchRequest, request.current, file, { domain: String(data.get("domain") ?? ""), scope: String(data.get("scope") ?? "") }, async (ticket, original) => {
+      const result = await prepareUploadedPaper(researchRequest, request.current, file, async (ticket, original) => {
         const { error } = await createClient().storage.from(ticket.bucket).uploadToSignedUrl(ticket.path, ticket.token, await original.arrayBuffer(), { contentType: "application/pdf", upsert: false });
         if (error) throw new Error("The PDF upload response could not be confirmed.");
       }, setPhase);
       setSavedStudy(result.id);
-      router.push(experimentQueuePath(result.id));
+      router.push(`${NEW_ASSESSMENT_PATH}/${result.id}`);
     } catch (failure) { setError(errorText(failure)); }
     finally { inFlight.current = false; setBusy(false); }
   }
-  return <form onSubmit={submit} aria-label="Start autonomous paper assessment" className="max-w-3xl space-y-4 rounded-lg border p-5">
+  return <form onSubmit={submit} aria-label="Upload paper for review" className="max-w-3xl space-y-4 rounded-lg border p-5">
     <div className="space-y-2 text-sm"><label htmlFor="paper-pdf" className="font-medium">Paper PDF</label><Input id="paper-pdf" className="text-foreground" type="file" name="paper_pdf" accept="application/pdf,.pdf" required aria-describedby="paper-pdf-help" disabled={busy || savedStudy !== null} /><p id="paper-pdf-help" className="text-xs text-muted-foreground">PDF up to 10 MB. Uploaded files stay private.</p></div>
-    <label className="block space-y-2 text-sm"><span className="font-medium">Research domain</span><Input required name="domain" maxLength={5000} disabled={busy || savedStudy !== null} /></label>
-    <label className="block space-y-2 text-sm"><span className="font-medium">Reproduction scope</span><Textarea name="scope" required maxLength={5000} disabled={busy || savedStudy !== null} placeholder="Which claims, populations, inputs and conditions should the assessment cover?" /></label>
+    <p className="text-sm text-muted-foreground">Next, review the title, research domain and claims extracted from your paper before starting the assessment.</p>
     {error ? <p role="alert" className="text-sm text-destructive">{error} Retrying preserves the original request ID.</p> : null}
     {busy ? <p role="status" className="text-sm">{phase}</p> : null}
-    {savedStudy ? <Link className="block text-sm underline" href={experimentQueuePath(savedStudy)}>View assessment progress</Link> : <Button disabled={busy} type="submit">{busy ? "Starting assessment…" : "Start autonomous assessment"}</Button>}
+    {savedStudy ? <Link className="block text-sm underline" href={`${NEW_ASSESSMENT_PATH}/${savedStudy}`}>Review paper information</Link> : <Button disabled={busy} type="submit">{busy ? "Preparing review…" : "Upload and review"}</Button>}
   </form>;
 }
 

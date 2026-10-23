@@ -54,7 +54,7 @@ export function PreviousAssessments({ before }: { before?: string }) {
             <h2 className="break-words font-semibold"><Link className="underline" href={paper.published ? assessment : queue}>{title}</Link></h2>
             <div className="flex flex-wrap gap-2">{paper.workflow_status !== null || !paper.published ? <Badge variant="secondary">{paperWorkflowLabel(paper.workflow_status)}</Badge> : null}<Badge variant="outline">{paper.published ? "Published assessment" : "Not published"}</Badge></div>
             <p className="text-xs text-muted-foreground">Submitted <LocalDateTime value={paper.created_at} /></p>
-            <div className="flex flex-wrap gap-4 text-sm"><Link className="underline" href={queue}>View experiment queue</Link>{paper.published ? <Link className="underline" href={assessment}>Read assessment</Link> : null}</div>
+            {paper.published ? <div className="text-sm"><Link className="underline" href={assessment}>Read assessment</Link></div> : null}
           </article>;
         })}</div>
       </>}

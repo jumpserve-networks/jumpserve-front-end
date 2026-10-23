@@ -1,4 +1,4 @@
-import { ASSESSMENTS_PATH, RESEARCH_IDEAS_MODULE_PATH, RESEARCH_WORKFLOW_MODULE_PATH } from "./test-modules";
+import { ASSESSMENTS_PATH, NEW_ASSESSMENT_PATH, RESEARCH_IDEAS_MODULE_PATH, RESEARCH_WORKFLOW_MODULE_PATH } from "./test-modules";
 import type { ResearchStudy } from "./research-workflow";
 
 export type ResearchStudyKind = "paper" | "idea";
@@ -40,8 +40,9 @@ export function studiesForPathway(studies: ResearchStudy[], kind: ResearchStudyK
   return studies.filter(study => researchStudyKind(study) === kind);
 }
 
-export function researchWorkspacePath(study: Pick<ResearchStudy, "id" | "study_kind" | "claim_design">) {
+export function researchWorkspacePath(study: Pick<ResearchStudy, "id" | "study_kind" | "claim_design" | "paper_review_status">) {
   const kind = researchStudyKind(study);
+  if (kind === "paper" && study.paper_review_status && study.paper_review_status !== "confirmed") return `${NEW_ASSESSMENT_PATH}/${study.id}`;
   if (kind === "paper" && study.claim_design === true) return `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-design/${study.id}`;
   return `${researchModulePath(kind)}/${kind === "idea" ? "ideas" : "workspace"}/${study.id}`;
 }
