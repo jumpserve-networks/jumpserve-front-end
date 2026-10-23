@@ -75,7 +75,7 @@ export function validatePublicStudyQueue(value: unknown, studyId: string): Publi
 
 /** Fixed GET transport: no cookies, access tokens, arbitrary paths or writes. */
 export async function loadPublicStudyQueue(studyId: string, signal?: AbortSignal, fetcher: typeof fetch = fetch): Promise<PublicStudyQueue> {
-  if (!isResearchId(studyId)) throw new Error("The shared queue link has an invalid study identity.");
+  if (!isResearchId(studyId)) throw new Error("The shared queue link has an invalid assessment identity.");
   const base = researchApiBase(process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL ?? process.env.NEXT_PUBLIC_BENCHMARK_API_URL);
   if (!base) throw new Error("The research queue service is not configured. Current status is unknown.");
   const controller = new AbortController();
@@ -91,7 +91,7 @@ export async function loadPublicStudyQueue(studyId: string, signal?: AbortSignal
     if (new TextEncoder().encode(raw).byteLength > 4_000_000) throw new Error("Shared queue exceeds its response budget. No partial counts are shown.");
     let value: unknown;
     try { value = JSON.parse(raw); } catch { throw new Error(`The queue service returned an unreadable response (HTTP ${response.status}).`); }
-    if (!response.ok) throw new Error(response.status === 404 ? "This paper queue is unavailable. Check the shared study link." : `Shared queue retrieval failed (HTTP ${response.status}). Current status is unknown.`);
+    if (!response.ok) throw new Error(response.status === 404 ? "This paper queue is unavailable. Check the shared assessment link." : `Shared queue retrieval failed (HTTP ${response.status}). Current status is unknown.`);
     return validatePublicStudyQueue(value, studyId);
   } finally { clearTimeout(timer); signal?.removeEventListener("abort", relay); }
 }

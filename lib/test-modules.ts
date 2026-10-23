@@ -6,6 +6,9 @@ export const HTTP2_STUDY_MODULE_PATH = "/http2-compliance-study";
 export const IPV6_STUDY_MODULE_PATH = "/ipv6-dns-study";
 export const RELIABLE_STUDY_MODULE_PATH = "/reliable-sketch-study";
 export const RESEARCH_WORKFLOW_MODULE_PATH = "/research-verification";
+export const NEW_ASSESSMENT_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/new-assessment`;
+export const PREVIOUS_ASSESSMENTS_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/previous-assessments`;
+export const ASSESSMENTS_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/assessments`;
 export const RESEARCH_IDEAS_MODULE_PATH = "/research-ideas";
 
 // Keep saved links and old bookmarks usable after moving module pages.
@@ -13,8 +16,19 @@ const MODULE_PATHS = [EMULATED_MODULE_PATH, REAL_WORLD_MODULE_PATH, DELAY_STUDY_
   LEO_STUDY_MODULE_PATH, HTTP2_STUDY_MODULE_PATH, IPV6_STUDY_MODULE_PATH,
   RELIABLE_STUDY_MODULE_PATH, RESEARCH_WORKFLOW_MODULE_PATH, RESEARCH_IDEAS_MODULE_PATH];
 
+// Rename only the owner list. Existing private detail URLs remain owner-only;
+// /assessments/{id} is the separate public published assessment page.
+export const LEGACY_EXACT_MODULE_ROUTES = [RESEARCH_WORKFLOW_MODULE_PATH, `/module${RESEARCH_WORKFLOW_MODULE_PATH}`, `/modules${RESEARCH_WORKFLOW_MODULE_PATH}`]
+  .map(prefix => ({ source: `${prefix}/workspace`, destination: ASSESSMENTS_PATH }));
+
 export const LEGACY_MODULE_ROUTES = [
   { source: "/experiment-queue", destination: `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-queue` },
+  ...[RESEARCH_WORKFLOW_MODULE_PATH, `/module${RESEARCH_WORKFLOW_MODULE_PATH}`, `/modules${RESEARCH_WORKFLOW_MODULE_PATH}`].map(prefix => ({ source: `${prefix}/new-study`, destination: NEW_ASSESSMENT_PATH })),
+  ...[RESEARCH_WORKFLOW_MODULE_PATH, `/module${RESEARCH_WORKFLOW_MODULE_PATH}`, `/modules${RESEARCH_WORKFLOW_MODULE_PATH}`].map(prefix => ({ source: `${prefix}/test-results`, destination: PREVIOUS_ASSESSMENTS_PATH })),
+  ...[RESEARCH_WORKFLOW_MODULE_PATH, `/module${RESEARCH_WORKFLOW_MODULE_PATH}`, `/modules${RESEARCH_WORKFLOW_MODULE_PATH}`].flatMap(prefix => [
+    { source: `${prefix}/studies`, destination: ASSESSMENTS_PATH },
+    { source: `${prefix}/api/studies`, destination: `${RESEARCH_WORKFLOW_MODULE_PATH}/api/assessments` },
+  ]),
   // Specific pathway and tool aliases must precede the broad namespace redirects.
   ...[RESEARCH_WORKFLOW_MODULE_PATH, `/module${RESEARCH_WORKFLOW_MODULE_PATH}`, `/modules${RESEARCH_WORKFLOW_MODULE_PATH}`].flatMap((prefix) => [
     { source: `${prefix}/new-idea`, destination: `${RESEARCH_IDEAS_MODULE_PATH}/new-idea` },
@@ -38,6 +52,7 @@ export type TestModuleSection = {
   label: string;
   description: string;
   paths: readonly string[];
+  descendantPaths?: readonly string[];
 };
 
 export type TestModule = {
@@ -89,9 +104,9 @@ export const RESEARCH_VERIFICATION_MODULE = {
   description: "Assess claims in academic papers with versioned sources, documented protocols, recorded measurements and clear evidence gaps.",
   status: "available", href: RESEARCH_WORKFLOW_MODULE_PATH,
   sections: [
-    { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/new-study`, label: "Assess a Paper", description: "Create a paper study, prepare available domain plans and queue their checks.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/new-study`] },
-    { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/test-results`, label: "Previous Assessments", description: "Read published paper evidence, claim coverage and next experiments.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/test-results`, `${RESEARCH_WORKFLOW_MODULE_PATH}/studies`] },
-    { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`, label: "My Workspace", description: "Build source inventories, freeze protocols and preserve paper assessment evidence.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`, `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-design`, `${RESEARCH_WORKFLOW_MODULE_PATH}/design-claim`] },
+    { href: NEW_ASSESSMENT_PATH, label: "Assess a Paper", description: "Create a paper assessment, prepare available domain plans and queue their checks.", paths: [NEW_ASSESSMENT_PATH] },
+    { href: PREVIOUS_ASSESSMENTS_PATH, label: "Previous Assessments", description: "Browse submitted paper assessments, recorded progress and published evidence.", paths: [PREVIOUS_ASSESSMENTS_PATH], descendantPaths: [ASSESSMENTS_PATH] },
+    { href: ASSESSMENTS_PATH, label: "My Assessments", description: "Build source inventories, freeze protocols and preserve paper assessment evidence.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`, `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-design`, `${RESEARCH_WORKFLOW_MODULE_PATH}/design-claim`] },
     { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-queue`, label: "Experiment Queue", description: "Follow your queued experiments, recorded runs and work awaiting an operator or review.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-queue`] },
     { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/methods`, label: "Verification Methods", description: "Choose appropriate checks and understand publication criteria.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/methods`] },
   ],
@@ -195,14 +210,14 @@ export function getTestModule(id: string) {
 }
 
 export function isModuleSectionActive(section: TestModuleSection, pathname: string) {
-  return section.paths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  return pathname === section.href || section.paths.some((path) => pathname === path || pathname.startsWith(`${path}/`)) || section.descendantPaths?.some(path => pathname.startsWith(`${path}/`)) === true;
 }
 
 // Resolve legacy next destinations as well as canonical module routes.
 export function getTestModuleForPath(path: string) {
   if (!path.startsWith("/") || path.startsWith("//") || /[\\\s]/.test(path)) return undefined;
   let pathname = path.split(/[?#]/, 1)[0];
-  const legacy = LEGACY_MODULE_ROUTES.find(({ source }) => pathname === source || pathname.startsWith(`${source}/`));
+  const legacy = LEGACY_EXACT_MODULE_ROUTES.find(({ source }) => pathname === source) ?? LEGACY_MODULE_ROUTES.find(({ source }) => pathname === source || pathname.startsWith(`${source}/`));
   if (legacy) pathname = legacy.destination + pathname.slice(legacy.source.length);
   return TEST_MODULES.find(
     (module) => module.status === "available" && (

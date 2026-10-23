@@ -39,7 +39,7 @@ try{
   page.on('pageerror',error=>report.browser_errors.push(error.message));
   async function visit(path){const response=await page.goto(origin+path,{waitUntil:'domcontentloaded',timeout:45000});assert.equal(response.status(),200);assert.doesNotMatch(await page.locator('body').innerText(),/Application error:/);}
   await check('published assessment exposes source-bound claim design links',async()=>{
-    await visit(base+'/studies/'+selected.id);
+    await visit(base+'/assessments/'+selected.id);
     const links=page.getByRole('link',{name:'Design an experiment for this claim',exact:true});
     assert.equal(await links.count(),detail.records.claims.length);
     assert.equal(await links.first().getAttribute('href'),intake);
@@ -48,7 +48,7 @@ try{
     return {claims:detail.records.claims.length,design_links:detail.records.claims.length,exact_return_path:intake};
   });
   await check('new private routes and malformed identities enforce their boundaries',async()=>{
-    for(const path of [intake,base+'/experiment-design/'+selected.id,base+'/experiment-queue',base+'/workspace']){
+    for(const path of [intake,base+'/experiment-design/'+selected.id,base+'/experiment-queue',base+'/assessments']){
       await page.goto(origin+path,{waitUntil:'domcontentloaded',timeout:45000});await page.waitForURL(/\/login\?/);
       assert.equal(new URL(page.url()).searchParams.get('next'),path);
     }
@@ -62,7 +62,7 @@ try{
       await page.setViewportSize({width,height:width===390?844:900});
       for(const theme of ['light','dark']){
         await context.addCookies([{name:'theme-preference',value:theme,url:origin}]);
-        await visit(base+'/studies/'+selected.id+'?view=gaps');
+        await visit(base+'/assessments/'+selected.id+'?view=gaps');
         await page.getByRole('button',{name:theme==='dark'?'Dark Mode':'Light Mode',exact:true}).click();
         await page.waitForFunction(dark=>document.documentElement.classList.contains('dark')===dark,theme==='dark');
         assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
@@ -72,13 +72,13 @@ try{
     return {widths:[1365,390],themes:['light','dark'],horizontal_overflow:false};
   });
   await check('published export preserves original data and missing studies stay unavailable',async()=>{
-    const response=await fetch(origin+base+'/api/studies/'+selected.id+'/export',{signal:AbortSignal.timeout(30000)});
+    const response=await fetch(origin+base+'/api/assessments/'+selected.id+'/export',{signal:AbortSignal.timeout(30000)});
     assert.equal(response.status,200);const bytes=Buffer.from(await response.arrayBuffer());
     const data=JSON.parse(bytes);assert.ok(data);
     await writeFile(directory+'/published-export.json',bytes);
     const missing='00000000-0000-4000-8000-000000000001';
-    await visit(base+'/studies/'+missing);assert.match(await page.getByRole('status').innerText(),/no public assessment/i);
-    const unavailable=await fetch(origin+base+'/api/studies/'+missing+'/export');assert.equal(unavailable.status,404);
+    await visit(base+'/assessments/'+missing);assert.match(await page.getByRole('status').innerText(),/no published snapshot/i);
+    const unavailable=await fetch(origin+base+'/api/assessments/'+missing+'/export');assert.equal(unavailable.status,404);
     return {export_bytes:bytes.length,export_sha256:createHash('sha256').update(bytes).digest('hex'),missing_export_status:404};
   });
   await check('landing, previous assessments and methods remain navigable',async()=>{
@@ -86,11 +86,11 @@ try{
     const verify=page.getByRole('button',{name:'Start verification',exact:true});
     const develop=page.getByRole('button',{name:'Start developing',exact:true});
     await verify.waitFor();await develop.waitFor();
-    assert.equal(await verify.getAttribute('href'),base+'/new-study');
+    assert.equal(await verify.getAttribute('href'),base+'/new-assessment');
     assert.equal(await develop.getAttribute('href'),'/research-ideas/new-idea');
-    await visit(base+'/test-results');await page.locator('a[href="'+base+'/studies/'+selected.id+'"]').first().waitFor();
+    await visit(base+'/previous-assessments');await page.locator('a[href="'+base+'/assessments/'+selected.id+'"]').first().waitFor();
     await visit(base+'/methods');
-    return {paths:['/',base+'/test-results',base+'/methods']};
+    return {paths:['/',base+'/previous-assessments',base+'/methods']};
   });
   assert.deepEqual(report.browser_errors,[]);assert.deepEqual(report.mutations,[]);report.passed=true;
 }catch(error){report.passed=false;report.error=error.message;process.exitCode=1;

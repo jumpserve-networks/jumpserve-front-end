@@ -15,8 +15,8 @@ try{
   try{
    const port=Number((await readFile(profile,'utf8')).split('\n')[0]);assert.ok(Number.isInteger(port)&&port>1024&&port<65536);
    connected=await chromium.connectOverCDP('http://127.0.0.1:'+port,{timeout:10000});const context=connected.contexts()[0];page=await context.newPage();
-   await page.goto(origin+'/research-verification/new-study',{waitUntil:'domcontentloaded',timeout:30000});
-   report.legitimate_existing_session=new URL(page.url()).pathname==='/research-verification/new-study';
+   await page.goto(origin+'/research-verification/new-assessment',{waitUntil:'domcontentloaded',timeout:30000});
+   report.legitimate_existing_session=new URL(page.url()).pathname==='/research-verification/new-assessment';
    if(report.legitimate_existing_session){
     const pending=page.waitForResponse(r=>r.url()===api+'/queue'&&r.request().method()==='GET',{timeout:15000}).catch(()=>null);
     await page.goto(origin+'/research-verification/experiment-queue',{waitUntil:'domcontentloaded'});
@@ -31,17 +31,17 @@ try{
  if(mode==='--deployed'){
   const chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';own=await chromium.launch({headless:true,executablePath:existsSync(chrome)?chrome:undefined});const context=await own.newContext({viewport:{width:1365,height:900}});page=await context.newPage();page.setDefaultTimeout(20000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await check('public production entry points and previous results render',async()=>{
-   for(const path of ['/','/research-verification/test-results','/research-verification/methods','/ipv6-dns-study/test-results']){const response=await page.goto(origin+path,{waitUntil:'domcontentloaded'});assert.equal(response.status(),200);assert.doesNotMatch(await page.locator('body').innerText(),/Application error:|Internal Server Error/);}
+   for(const path of ['/','/research-verification/previous-assessments','/research-verification/methods','/ipv6-dns-study/test-results']){const response=await page.goto(origin+path,{waitUntil:'domcontentloaded'});assert.equal(response.status(),200);assert.doesNotMatch(await page.locator('body').innerText(),/Application error:|Internal Server Error/);}
    await page.getByRole('heading',{name:'DNS over IPv6: results and evidence limits',exact:true}).waitFor();return {paths:4,archived_results_available:true};
   });
   await check('desktop and mobile themes preserve readable public results',async()=>{
    for(const width of [1365,390]){await page.setViewportSize({width,height:900});for(const theme of ['Light Mode','Dark Mode']){await page.getByRole('button',{name:theme,exact:true}).click();await page.waitForFunction(dark=>document.documentElement.classList.contains('dark')===dark,theme==='Dark Mode');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:directory+'/public-'+width+'-'+theme.split(' ')[0]+'.png',fullPage:true});}}return {widths:[1365,390],themes:['light','dark']};
   });
-  await check('anonymous queue and new-study paths retain their login destination',async()=>{
-   for(const path of ['/research-verification/new-study','/research-verification/experiment-queue?study=00000000-0000-4000-8000-000000000001&view=private']){await page.goto(origin+path,{waitUntil:'domcontentloaded'});assert.equal(new URL(page.url()).pathname,'/login');assert.equal(new URL(page.url()).searchParams.get('next'),path);}return {paths:2,anonymous_owner_access_denied:true};
+  await check('anonymous queue and new-assessment paths retain their login destination',async()=>{
+   for(const path of ['/research-verification/new-assessment','/research-verification/experiment-queue?assessment=00000000-0000-4000-8000-000000000001&view=private']){await page.goto(origin+path,{waitUntil:'domcontentloaded'});assert.equal(new URL(page.url()).pathname,'/login');assert.equal(new URL(page.url()).searchParams.get('next'),path);}return {paths:2,anonymous_owner_access_denied:true};
   });
   await check('missing public data is explicit and exports return 404',async()=>{
-   const id='9fe82c67-2a99-49b9-8bfc-670b69ab1944';await page.goto(origin+'/research-verification/studies/'+id,{waitUntil:'domcontentloaded'});assert.match(await page.locator('main').innerText(),/no public assessment|unavailable/i);const response=await fetch(origin+'/research-verification/api/studies/'+id+'/export');assert.equal(response.status,404);return {missing_export_status:404};
+   const id='9fe82c67-2a99-49b9-8bfc-670b69ab1944';await page.goto(origin+'/research-verification/assessments/'+id,{waitUntil:'domcontentloaded'});assert.match(await page.locator('main').innerText(),/no published snapshot|unavailable/i);const response=await fetch(origin+'/research-verification/api/assessments/'+id+'/export');assert.equal(response.status,404);return {missing_export_status:404};
   });
   await check('deployed autonomy version and fixed limits match the release',async()=>{const response=await fetch(api+'/capabilities');assert.equal(response.status,200);const data=await response.json();assert.equal(data.autonomy.version,'research-autonomy-v2');assert.equal(data.autonomy.enabled,true);assert.equal(data.autonomy.defaults.attempts_per_claim,25);assert.equal(data.autonomy.defaults.maximum_spend_usd,100);assert.equal(data.autonomy.defaults.elapsed_days,7);return {autonomy:data.autonomy};});
   assert.deepEqual(errors,[]);

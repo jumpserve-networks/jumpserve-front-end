@@ -41,7 +41,7 @@ export function PublicExperimentQueue({ studyId, jobId }: { studyId: string; job
     {error ? <p role="alert" className="rounded-lg border p-4 text-sm text-destructive">{error} {data ? "Previously retrieved status may be stale." : "Queue counts and current status are unknown."}</p> : null}
     {data ? <>
       <AutonomousAssessments data={data.autonomy} studyId={studyId} titles={new Map([[data.study.id, data.study.title]])} stale={Boolean(error)} />
-      <section aria-label="Study experiment status" className="space-y-4">
+      <section aria-label="Assessment experiment status" className="space-y-4">
         <h2 className="text-lg font-semibold">Experiment jobs</h2>
         {!data.workers_enabled ? <p className="rounded-lg border p-3 text-sm text-warning">Scheduled experiment workers are disabled; queued jobs await activation.</p> : null}
         <p className="text-sm">{data.coverage.jobs} recorded jobs for this paper. Execution and scientific findings are reported separately.</p>
@@ -51,7 +51,7 @@ export function PublicExperimentQueue({ studyId, jobId }: { studyId: string; job
           <p className="text-xs text-muted-foreground">Showing {Math.min(limit, visible.length)} of {visible.length} matching jobs.</p>
           {visible.slice(0, limit).map(job => <article key={job.id} id={`job-${job.id}`} className={`scroll-mt-24 space-y-3 rounded-lg border p-4 text-sm ${job.id === jobId ? "border-primary ring-1 ring-primary" : ""}`}>
             <div className="flex flex-wrap items-start justify-between gap-3"><h3 className="break-all font-semibold">Experiment {job.id}</h3><Badge variant={job.status === "failed" || job.status === "expired" ? "destructive" : "secondary"} className="h-auto py-1">{job.status === "manual" ? "Needs operator" : words(job.status)}</Badge></div>
-            <p>{job.execution_mode === "manual" ? "Requires an operator; queueing does not execute a test." : "Automatic experiment"}</p>
+            <p>{job.execution_mode === "manual" ? "Requires an operator; queueing does not execute an experiment." : "Automatic experiment"}</p>
             <p>Recorded run status: {job.run_status === null ? "unavailable" : words(job.run_status)}. Run completion does not establish claim validity.</p>
             <p className="text-xs text-muted-foreground">Queued {recordedTime(job.created_at)} · last recorded change {recordedTime(job.updated_at)}</p>
             <Link className="underline" href={experimentQueuePath(studyId, job.id)}>Link to this job</Link>

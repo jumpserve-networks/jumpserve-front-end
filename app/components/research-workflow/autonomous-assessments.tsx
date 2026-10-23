@@ -42,11 +42,12 @@ function TurnHistory({ task }: { task: AutonomousTask }) {
     {before !== null ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void older()}>Show older turns</Button> : null}
   </div>;
 }
-function Claim({ task, maxAttempts, readOnly = false }: { task: AutonomousTask | PublicAutonomousTask; maxAttempts: number | null; readOnly?: boolean }) {
+function Claim({ task, maxAttempts, readOnly = false, embedded = false }: { task: AutonomousTask | PublicAutonomousTask; maxAttempts: number | null; readOnly?: boolean; embedded?: boolean }) {
   const [open, setOpen] = useState(false);
   const privateTask = !readOnly && "required_inputs" in task ? task : null;
+  const Heading = embedded ? "h5" : "h4";
   return <article className="space-y-2 rounded-md border p-4 text-sm" id={`claim-task-${task.id}`}>
-    <div className="flex flex-wrap items-start justify-between gap-3"><h4 className="min-w-0 break-words font-medium">{task.claim_title ?? "Paper preparation and claim inventory"}</h4><Badge variant={task.status === "blocked" ? "destructive" : "secondary"} className="h-auto py-1">{words(task.status)}</Badge></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><Heading className="min-w-0 break-words font-medium">{task.claim_title ?? "Paper preparation and claim inventory"}</Heading><Badge variant={task.status === "blocked" ? "destructive" : "secondary"} className="h-auto py-1">{words(task.status)}</Badge></div>
     <p>{task.claim_id === null ? "Paper preparation" : words(task.stage)} · {task.attempts}{maxAttempts === null ? " AI turns" : ` / ${maxAttempts} model attempts`}{task.label ? ` · finding: ${task.label}` : null}</p>
     {task.evidence_progress ? <p className="text-xs text-muted-foreground">{task.evidence_progress.completed_checks} / {task.evidence_progress.required_checks} retained checks examined. {task.evidence_progress.scope}</p> : null}
     <p>{task.reason}</p><p className="text-xs text-muted-foreground">Recorded update: {time(task.updated_at)}</p>
@@ -55,27 +56,33 @@ function Claim({ task, maxAttempts, readOnly = false }: { task: AutonomousTask |
     {open && privateTask ? <TurnHistory task={privateTask} /> : null}
   </article>;
 }
-export function AutonomousAssessments({ data, studyId, titles, stale = false }: { data: AutonomousOverview | PublicAutonomousOverview; studyId: string; titles: Map<string, string>; stale?: boolean }) {
-  const workflows = data.workflows.filter(w => !studyId || w.study_id === studyId);
-  const readOnly = "access" in data && data.access === "public-read-only";
-  return <section aria-label="Autonomous paper assessments" className="space-y-4">
-    <h2 className="text-lg font-semibold">Autonomous paper assessments</h2>
+export function AutonomousAssessmentStatus({ data, stale = false }: { data: AutonomousOverview | PublicAutonomousOverview; stale?: boolean }) {
+  return <>
     {data.runtime?.runtime === "openclaw-production-v1" ? <p role="status" className="rounded-lg border p-3 text-sm">AI worker: OpenClaw · {data.runtime.model_id} · ChatGPT subscription · {words(data.runtime.status)}{data.runtime.status !== "ready" ? ". Queued claims are waiting; no paid API fallback is enabled." : ""}</p> : null}
     {stale ? <p role="status" className="rounded-lg border p-3 text-sm text-warning">The latest status retrieval failed. These retained claim states may be stale; current progress is unknown.</p> : null}
     {!data.enabled ? <p role="status" className="rounded-lg border p-3 text-sm">The autonomous controller is not enabled in this environment. Saved requests remain queued.</p> : null}
-    {!workflows.length ? <p className="text-sm text-muted-foreground">No autonomous assessments in this view.</p> : null}
+  </>;
+}
+
+export function AutonomousAssessments({ data, studyId, titles, stale = false, embedded = false }: { data: AutonomousOverview | PublicAutonomousOverview; studyId: string; titles: Map<string, string>; stale?: boolean; embedded?: boolean }) {
+  const workflows = data.workflows.filter(w => !studyId || w.study_id === studyId);
+  const readOnly = "access" in data && data.access === "public-read-only";
+  const Container = embedded ? "div" : "article";
+  return <section aria-label={embedded ? "Assessment claim progress" : "Autonomous paper assessments"} className="space-y-4">
+    {!embedded ? <><h2 className="text-lg font-semibold">Autonomous paper assessments</h2><AutonomousAssessmentStatus data={data} stale={stale} /></> : null}
+    {!workflows.length ? <p className="text-sm text-muted-foreground">{embedded ? "Autonomous claim progress is not recorded for this assessment." : "No autonomous assessments in this view."}</p> : null}
     {workflows.map(w => {
       const tasks = data.tasks.filter(t => t.study_id === w.study_id), claims = tasks.filter(t => t.claim_id !== null);
       const intake = tasks.find(t => t.claim_id === null);
-      return <article key={w.study_id} className="space-y-4 rounded-lg border border-primary/40 p-5">
-        <div className="flex flex-wrap justify-between gap-3"><h3 className="font-semibold">{titles.get(w.study_id) ?? "Paper assessment"}</h3><Badge variant="secondary">{words(w.status)}</Badge></div>
+      return <Container key={w.study_id} className={embedded ? "space-y-4" : "space-y-4 rounded-lg border border-primary/40 p-5"}>
+        <div className="flex flex-wrap justify-between gap-3">{embedded ? <h4 className="font-semibold">Claim progress</h4> : <h3 className="font-semibold">{titles.get(w.study_id) ?? "Paper assessment"}</h3>}<Badge variant="secondary">{words(w.status)}</Badge></div>
         <p className="text-sm">${(w.committed_cents / 100).toFixed(2)} committed of $100 · deadline {time(w.deadline_at)} · {w.max_attempts === null ? "No AI turn limit" : `${w.max_attempts} attempts per claim`}</p>
         <p className="text-xs text-muted-foreground">Commitments include conservative reservations. Actual charges and unallocated costs remain unknown until reconciled. Closing this page does not stop enabled background workers.</p>
         <p className="text-sm">{w.reason}</p>
         <p className="text-sm">{claims.length} recorded candidate claims · {claims.filter(t => t.status === "resolved").length} resolved under tested conditions · {claims.filter(t => ["blocked", "attempt-limit", "budget", "deadline", "cancelled"].includes(t.status)).length} paused or stopped. {intake?.status !== "finished" ? "Claim inventory coverage is still incomplete." : "Inventory scope and omissions remain in the preparation record."}</p>
         {!readOnly && "initial_prompt" in w && typeof w.initial_prompt === "string" && "initial_sha256" in w && typeof w.initial_sha256 === "string" ? <details className="text-sm"><summary className="cursor-pointer">Initial paper prompt</summary><pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-all bg-muted p-3 text-xs">{w.initial_prompt}</pre><p className="mt-2 break-all text-xs">SHA256 {w.initial_sha256}</p></details> : null}
-        <div className="space-y-3">{tasks.map(task => <Claim key={task.id} task={task} maxAttempts={w.max_attempts} readOnly={readOnly} />)}</div>
-      </article>;
+        <div className="space-y-3">{tasks.map(task => <Claim key={task.id} task={task} maxAttempts={w.max_attempts} readOnly={readOnly} embedded={embedded} />)}</div>
+      </Container>;
     })}
   </section>;
 }

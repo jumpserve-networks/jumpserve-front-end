@@ -2,7 +2,7 @@ export const CLAIM_LABELS = {
   reproduced: "The declared check meets its criterion under recorded conditions; broader validity is not implied.",
   discrepant: "Examined evidence conflicts with the claim or declared criterion; comparability limits remain explicit.",
   inconclusive: "Relevant evidence was examined but cannot resolve the claim within the declared scope.",
-  untested: "No adequate check has been completed; a plan or citation is not a test.",
+  untested: "No adequate check has been completed; a plan or citation is not a completed assessment.",
 } as const;
 export type ClaimLabel = keyof typeof CLAIM_LABELS;
 export type ResearchStudy = { id: string; title: string; paper_url: string | null; paper_upload?: { sha256: string; byte_count: number; filename: string } | null; study_kind?: "paper" | "idea"; claim_design?: boolean; domain: string; scope: string; origin_module: string | null; created_at: string };

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { requireAccessToken } from "@/lib/browser-auth";
-import { researchRequest, ResearchRequestError } from "@/lib/research-workflow-api";
+import { RESEARCH_SIGN_IN_REQUIRED, researchRequest, ResearchRequestError } from "@/lib/research-workflow-api";
 import { requireGapQueueApi } from "@/lib/research-queue-api";
 import { experimentQueuePath, gapExperimentPath, validateGapPreview } from "@/lib/research-experiment-queue";
 import { consumeGapRunIntent, runGapExperiments, saveGapRunIntent } from "@/lib/research-gap-run";
@@ -32,8 +32,8 @@ export function RunGapExperiment({ studyId, gapId, launchId, onQueued }: { study
     if (!requestId.current) requestId.current = crypto.randomUUID();
     const abort = new AbortController(); controller.current = abort;
     try {
-      try { await requireAccessToken(); }
-      catch (failure) { if (abort.signal.aborted) return; if (failure instanceof Error && failure.message === "Sign in to run tests or chat with the AI.") { signIn(); return; } throw failure; }
+      try { await requireAccessToken(RESEARCH_SIGN_IN_REQUIRED); }
+      catch (failure) { if (abort.signal.aborted) return; if (failure instanceof Error && failure.message === RESEARCH_SIGN_IN_REQUIRED) { signIn(); return; } throw failure; }
       if (abort.signal.aborted) return;
       await requireGapQueueApi(researchRequest, abort.signal);
       const preview = validateGapPreview(await researchRequest(`/studies/${studyId}/gap-experiments?${new URLSearchParams({ gap_id: gapId })}`, { signal: abort.signal }), studyId, gapId);

@@ -1,4 +1,4 @@
-import { RESEARCH_IDEAS_MODULE_PATH, RESEARCH_WORKFLOW_MODULE_PATH } from "./test-modules";
+import { ASSESSMENTS_PATH, RESEARCH_IDEAS_MODULE_PATH, RESEARCH_WORKFLOW_MODULE_PATH } from "./test-modules";
 import type { ResearchStudy } from "./research-workflow";
 
 export type ResearchStudyKind = "paper" | "idea";
@@ -10,6 +10,30 @@ export function researchStudyKind(study: Pick<ResearchStudy, "study_kind">): Res
 
 export function researchModulePath(kind: ResearchStudyKind) {
   return kind === "idea" ? RESEARCH_IDEAS_MODULE_PATH : RESEARCH_WORKFLOW_MODULE_PATH;
+}
+
+export function researchPublishedPath(kind: ResearchStudyKind, id: string) {
+  return `${kind === "paper" ? ASSESSMENTS_PATH : `${RESEARCH_IDEAS_MODULE_PATH}/studies`}/${id}`;
+}
+
+export function researchExportPath(kind: ResearchStudyKind, id: string) {
+  return `${researchModulePath(kind)}/api/${kind === "paper" ? "assessments" : "studies"}/${id}/export`;
+}
+
+// Normalize saved queue links without choosing between conflicting identities.
+// Validation remains the caller's responsibility; repeated IDs are not collapsed.
+export function assessmentQueueQuery(input: Record<string, string | string[] | undefined>) {
+  const query = { ...input };
+  let changed = false;
+  let conflicting = false;
+  for (const [legacy, canonical] of [["study", "assessment"], ["sourceStudy", "sourceAssessment"]]) {
+    if (query[legacy] === undefined) continue;
+    if (query[canonical] !== undefined) { conflicting = true; continue; }
+    query[canonical] = query[legacy];
+    delete query[legacy];
+    changed = true;
+  }
+  return { query, changed, conflicting };
 }
 
 export function studiesForPathway(studies: ResearchStudy[], kind: ResearchStudyKind) {

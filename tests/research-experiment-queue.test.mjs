@@ -26,8 +26,9 @@ test('partial handoff does not claim the selected job was queued',()=>{
  assert.equal(validateGapEnqueued({...r,queued_job_ids:[job],complete:true}).job_id,job);
 });
 test('queue and gap links retain exact identities in the paper module only',()=>{
- assert.equal(new URL(gapExperimentPath(study,campaign),'https://example.org').searchParams.get('gap'),campaign);
+ const gapUrl=new URL(gapExperimentPath(study,campaign),'https://example.org');assert.equal(gapUrl.searchParams.get('gap'),campaign);assert.equal(gapUrl.searchParams.get('sourceAssessment'),study);assert.equal(gapUrl.searchParams.has('sourceStudy'),false);
  const url=new URL(experimentQueuePath(study,job),'https://example.org');assert.equal(url.pathname,'/research-verification/experiment-queue');assert.equal(url.searchParams.get('job'),job);
+ assert.equal(url.searchParams.get('assessment'),study);assert.equal(url.searchParams.has('study'),false);
  assert.ok(RESEARCH_VERIFICATION_MODULE.sections.some(s=>s.label==='Experiment Queue'&&s.href===url.pathname));assert.ok(!RESEARCH_IDEAS_MODULE.sections.some(s=>s.label==='Experiment Queue'));
 });
 test('only a recent same-tab click resumes writes after sign-in; intent is consumed once',()=>{

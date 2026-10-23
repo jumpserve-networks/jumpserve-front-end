@@ -7,7 +7,7 @@ import { getTestModuleForPath, LEGACY_MODULE_ROUTES, RESEARCH_IDEAS_MODULE, RESE
 const hook = registerHooks({ resolve(specifier, context, nextResolve) {
   return nextResolve(specifier === "./test-modules" ? new URL("../lib/test-modules.ts", import.meta.url).href : specifier, context);
 } });
-const { researchModulePath, researchSearchSuffix, researchStudyKind, researchWorkspacePath, studiesForPathway } = await import("../lib/research-pathways.ts");
+const { assessmentQueueQuery, researchExportPath, researchPublishedPath, researchModulePath, researchSearchSuffix, researchStudyKind, researchWorkspacePath, studiesForPathway } = await import("../lib/research-pathways.ts");
 hook.deregister();
 
 test("paper and idea modules keep every sidebar section within their own namespace", () => {
@@ -62,4 +62,24 @@ test("return paths preserve repeated query values without interpreting their con
 test("paper experiment designs resume their own workspace without relabeling them as ideas", () => {
   assert.equal(researchWorkspacePath({ id: "paper", study_kind: "paper", claim_design: true }), "/research-verification/experiment-design/paper");
   assert.equal(researchWorkspacePath({ id: "idea", study_kind: "idea", claim_design: true }), "/research-ideas/ideas/idea");
+});
+
+test("paper detail and export paths use assessments while idea URLs retain their own namespace", () => {
+  assert.equal(researchPublishedPath("paper", "id"), "/research-verification/assessments/id");
+  assert.equal(researchExportPath("paper", "id"), "/research-verification/api/assessments/id/export");
+  assert.equal(researchPublishedPath("idea", "id"), "/research-ideas/studies/id");
+  assert.equal(researchExportPath("idea", "id"), "/research-ideas/api/studies/id/export");
+  for (const prefix of ["", "/module", "/modules"]) for (const [suffix, target] of [["/studies", "/assessments"], ["/api/studies", "/api/assessments"]]) {
+    assert.equal(LEGACY_MODULE_ROUTES.find(r => r.source === prefix + RESEARCH_VERIFICATION_MODULE.href + suffix)?.destination, RESEARCH_VERIFICATION_MODULE.href + target);
+  }
+});
+
+test("saved queue identities normalize without discarding repeated values or resolving conflicting identities", () => {
+  const input = { study: "id", sourceStudy: "origin", tag: ["a&b", "second"], view: "private" };
+  const normalized = assessmentQueueQuery(input);
+  assert.deepEqual(normalized, { query: { assessment: "id", sourceAssessment: "origin", tag: ["a&b", "second"], view: "private" }, changed: true, conflicting: false });
+  assert.equal(input.study, "id");
+  assert.equal(assessmentQueueQuery(normalized.query).changed, false);
+  for (const input of [{ study: "a", assessment: "b" }, { sourceStudy: "a", sourceAssessment: "a" }]) assert.equal(assessmentQueueQuery(input).conflicting, true);
+  assert.deepEqual(assessmentQueueQuery({ study: ["a", "b"] }).query.assessment, ["a", "b"]);
 });

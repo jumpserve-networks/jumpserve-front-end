@@ -8,7 +8,7 @@ function validatePlan(plan: PreparedPlan) {
 }
 export function validatePreparation(value: unknown): PreparationStatus {
   const status = value as PreparationStatus;
-  if (!status || status.version !== "research-preparation-v1" || !Array.isArray(status.prepared) || !Number.isInteger(status.uploaded_plan_bytes) || !("available_plan" in status) || typeof status.limitation !== "string") throw new Error("Preparation status is incomplete; saved study data remain available.");
+  if (!status || status.version !== "research-preparation-v1" || !Array.isArray(status.prepared) || !Number.isInteger(status.uploaded_plan_bytes) || !("available_plan" in status) || typeof status.limitation !== "string") throw new Error("Preparation status is incomplete; saved assessment data remain available.");
   for (const plan of status.prepared) validatePlan(plan);
   return status;
 }

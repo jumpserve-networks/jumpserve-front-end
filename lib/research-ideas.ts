@@ -16,7 +16,7 @@ export function validateIdeaState(value: unknown, studyId: string): IdeaState {
   const state = value as IdeaState;
   if (!state || state.version !== IDEA_VERSION || typeof state.ready !== "boolean" || !Array.isArray(state.missing)) throw new Error("Idea response is incomplete or unsupported.");
   for (const key of ["packets", "runs", "decisions", "campaigns"] as const) {
-    if (!Array.isArray(state[key]) || new Set(state[key].map(row => row.id)).size !== state[key].length || state[key].some(row => row.study_id !== studyId)) throw new Error("Idea history has incomplete or conflicting study identities.");
+    if (!Array.isArray(state[key]) || new Set(state[key].map(row => row.id)).size !== state[key].length || state[key].some(row => row.study_id !== studyId)) throw new Error("Idea history has incomplete or conflicting assessment identities.");
   }
   const packets = new Map(state.packets.map(packet => [packet.id, packet]));
   for (const packet of state.packets) {

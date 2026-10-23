@@ -125,7 +125,7 @@ try {
       const menuColors = await pathwayColors(page, testModule.base, theme, width < 1024);
       const links = await navigation.locator("a").evaluateAll(elements => elements.map(element => element.getAttribute("href")));
       assert.ok(links.length >= 4 && links.every(href => href === testModule.base || href.startsWith(testModule.base + "/")));
-      if (testModule.base === paper) assert.deepEqual(await navigation.locator("a").allTextContents(), ["Overview", "Assess a Paper", "Previous Assessments", "My Workspace", "Experiment Queue", "Verification Methods"]);
+      if (testModule.base === paper) assert.deepEqual(await navigation.locator("a").allTextContents(), ["Overview", "Assess a Paper", "Previous Assessments", "My Assessments", "Experiment Queue", "Verification Methods"]);
       assert.equal(await navigation.locator('[aria-current="page"]').getAttribute("href"), testModule.base);
       assert.equal(await menu.getByRole("combobox", { name: "Theme", exact: true }).count(), 0);
       await navigation.getByRole("link", { name: testModule.methods, exact: true }).click();
@@ -227,7 +227,7 @@ try {
       assert.equal(url.pathname, "/login");
       assertSameRoute(url.searchParams.get("next"), ideas + suffix);
     }
-    for (const route of [paper + "/new-study", ideas + "/workspace", ideas + `/workspace/${id}?view=gaps`]) {
+    for (const route of [paper + "/new-assessment", ideas + "/workspace", ideas + `/workspace/${id}?view=gaps`]) {
       await page.goto(origin + route, { waitUntil: "domcontentloaded" });
       assertSameRoute(new URL(page.url()).searchParams.get("next"), route);
     }
@@ -235,19 +235,19 @@ try {
   });
   await check("public snapshot and exports retain the recorded pathway", async () => {
     assert.ok(paperStudyId, "A public paper assessment is required for the read-only export check");
-    const json = await context.request.get(`${origin}${paper}/api/studies/${paperStudyId}/export`);
+    const json = await context.request.get(`${origin}${paper}/api/assessments/${paperStudyId}/export`);
     assert.equal(json.status(), 200);
     const snapshot = await json.json(); assert.equal(snapshot.study.id, paperStudyId); assert.notEqual(snapshot.study.study_kind, "idea");
-    await page.goto(`${origin}${paper}/studies/${paperStudyId}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${origin}${paper}/assessments/${paperStudyId}`, { waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: snapshot.study.title, exact: true }).waitFor();
     const detailColors = await pathwayColors(page, paper, "light");
     assert.ok(detailColors.selected_evidence_tab);
     await page.goto(origin + ideas + "/studies/invalid", { waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: "Research assessment unavailable", exact: true }).waitFor();
     const unavailableColors = await pathwayColors(page, ideas, "light");
-    const csv = await context.request.get(`${origin}${paper}/api/studies/${paperStudyId}/export?format=csv`);
+    const csv = await context.request.get(`${origin}${paper}/api/assessments/${paperStudyId}/export?format=csv`);
     assert.equal(csv.status(), 200); assert.match(await csv.text(), /^run_id,observation_id,configuration_identity,metric,units,status,value,reason/);
-    for (const suffix of [`/api/studies/${paperStudyId}/export?format=csv`, `/studies/${paperStudyId}?view=gaps&tag=a%26b`]) {
+    for (const suffix of [`/api/assessments/${paperStudyId}/export?format=csv`, `/assessments/${paperStudyId}?view=gaps&tag=a%26b`]) {
       const response = await context.request.get(origin + ideas + suffix, { maxRedirects: 0 });
       assert.equal(response.status(), 308);
       assertSameRoute(response.headers().location, origin + paper + suffix);

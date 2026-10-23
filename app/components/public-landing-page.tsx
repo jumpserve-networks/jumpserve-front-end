@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/app/components/ui/card";
 import { getSafeNextPath } from "@/lib/auth-redirect";
-import { getTestModuleForPath, RESEARCH_IDEAS_MODULE_PATH, RESEARCH_WORKFLOW_MODULE_PATH } from "@/lib/test-modules";
+import { getTestModuleForPath, NEW_ASSESSMENT_PATH, PREVIOUS_ASSESSMENTS_PATH, RESEARCH_IDEAS_MODULE_PATH } from "@/lib/test-modules";
 import { cn } from "@/lib/utils";
 
 const PATHWAYS = [
@@ -12,9 +12,9 @@ const PATHWAYS = [
     accent: "border-home-paper-border border-t-home-paper bg-home-paper-surface hover:border-home-paper focus-within:border-home-paper [&_h2]:text-home-paper",
     buttonAccent: "bg-home-paper hover:bg-home-paper/90 focus-visible:ring-home-paper dark:bg-primary dark:hover:bg-primary/90 dark:focus-visible:ring-ring/50",
     description: "Start with an academic paper. Identify its claims, plan checks and compare the results with the published evidence.",
-    href: `${RESEARCH_WORKFLOW_MODULE_PATH}/new-study`,
+    href: NEW_ASSESSMENT_PATH,
     action: "Start verification",
-    previousHref: `${RESEARCH_WORKFLOW_MODULE_PATH}/test-results`,
+    previousHref: PREVIOUS_ASSESSMENTS_PATH,
   },
   {
     title: "Develop a New Idea",

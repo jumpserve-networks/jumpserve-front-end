@@ -17,12 +17,12 @@ export const QUEUE_POLL_MS = 10000;
 export const isResearchId = (value: unknown): value is string => typeof value === "string" && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value);
 export function experimentQueuePath(studyId?: string, jobId?: string) {
   const query = new URLSearchParams();
-  if (studyId) query.set("study", studyId);
+  if (studyId) query.set("assessment", studyId);
   if (jobId) query.set("job", jobId);
   return `${PATH}/experiment-queue${query.size ? `?${query}` : ""}`;
 }
 export function gapExperimentPath(studyId: string, gapId: string) {
-  return `${PATH}/experiment-queue?${new URLSearchParams({ sourceStudy: studyId, gap: gapId })}`;
+  return `${PATH}/experiment-queue?${new URLSearchParams({ sourceAssessment: studyId, gap: gapId })}`;
 }
 export function validateExperimentQueue(value: unknown): ExperimentQueue {
   const queue = value as ExperimentQueue;
@@ -30,9 +30,9 @@ export function validateExperimentQueue(value: unknown): ExperimentQueue {
   const ids = new Set(queue.studies.map(s => s.id));
   if (queue.autonomy) {
     validateAutonomy(queue.autonomy);
-    if (queue.autonomy.workflows.some(w => !ids.has(w.study_id))) throw new Error("Autonomous progress belongs to an unavailable study.");
+    if (queue.autonomy.workflows.some(w => !ids.has(w.study_id))) throw new Error("Autonomous progress belongs to an unavailable assessment.");
   }
-  if (ids.size !== queue.studies.length || queue.studies.some(s => !isResearchId(s.id) || typeof s.title !== "string" || (s.study_kind ?? "paper") !== "paper") || new Set(queue.jobs.map(j => j.id)).size !== queue.jobs.length || queue.jobs.some(j => !ids.has(j.study_id) || typeof j.campaign_title !== "string")) throw new Error("Experiment queue study identities are invalid.");
+  if (ids.size !== queue.studies.length || queue.studies.some(s => !isResearchId(s.id) || typeof s.title !== "string" || (s.study_kind ?? "paper") !== "paper") || new Set(queue.jobs.map(j => j.id)).size !== queue.jobs.length || queue.jobs.some(j => !ids.has(j.study_id) || typeof j.campaign_title !== "string")) throw new Error("Experiment queue assessment identities are invalid.");
   // The same strict per-study validator checks dependency coverage and leases.
   for (const study of queue.studies) {
     const jobs = queue.jobs.filter(j => j.study_id === study.id);

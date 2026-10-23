@@ -37,7 +37,7 @@ try{
   }return {viewports:[1365,390],themes:['dark','light']};
  });
  await check('existing completed paper assessments remain publicly readable and exportable',async()=>{
-  const result=await (await context.request.get('https://d3o7xdethb.execute-api.us-east-1.amazonaws.com/research/studies')).json();assert.ok(result.studies.length>0);const study=result.studies[0];await page.goto(origin+base+'/studies/'+study.id,{waitUntil:'domcontentloaded'});await page.getByRole('heading',{name:study.title,exact:true}).waitFor();await page.getByRole('navigation',{name:'Study evidence',exact:true}).waitFor();
+  const result=await (await context.request.get('https://d3o7xdethb.execute-api.us-east-1.amazonaws.com/research/studies')).json();assert.ok(result.studies.length>0);const study=result.studies[0];await page.goto(origin+base+'/studies/'+study.id,{waitUntil:'domcontentloaded'});await page.getByRole('heading',{name:study.title,exact:true}).waitFor();await page.getByRole('navigation',{name:'Assessment evidence',exact:true}).waitFor();
   const response=await context.request.get(origin+base+'/api/studies/'+study.id+'/export');assert.equal(response.status(),200);const raw=await response.body();await writeFile(directory+'/recorded-study-export.json',raw);const data=JSON.parse(raw);assert.equal(data.study.id,study.id);assert.ok(data.records.measurements.length>0);assert.equal(data.coverage.measurements,data.records.measurements.length);return {published_studies:result.studies.length,checked_study:study.id,measurement_rows:data.records.measurements.length,export_sha256:createHash('sha256').update(raw).digest('hex'),scope:'Existing archived/simulation assessments, no experiments rerun'};
  });
  assert.deepEqual(report.browser_errors,[]);report.passed=true;

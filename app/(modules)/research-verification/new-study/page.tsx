@@ -1,9 +1,7 @@
-import { ResearchHeader } from "@/app/components/research-workflow/header";
-import { PaperIntake } from "@/app/components/research-workflow/workspace";
-import { requireGoogleUser } from "@/lib/auth";
-import { RESEARCH_WORKFLOW_MODULE_PATH as PATH } from "@/lib/test-modules";
-export const dynamic = "force-dynamic";
-export default async function NewStudy() {
-  await requireGoogleUser(`${PATH}/new-study`);
-  return <main className="mx-auto max-w-5xl space-y-6 px-4 py-6"><ResearchHeader title="Start a research assessment" /><PaperIntake /></main>;
+import { permanentRedirect } from "next/navigation";
+import { NEW_ASSESSMENT_PATH } from "@/lib/test-modules";
+import { researchSearchSuffix } from "@/lib/research-pathways";
+
+export default async function LegacyNewStudy({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  permanentRedirect(NEW_ASSESSMENT_PATH + researchSearchSuffix(await searchParams));
 }

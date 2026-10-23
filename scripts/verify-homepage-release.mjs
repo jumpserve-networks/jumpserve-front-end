@@ -79,7 +79,7 @@ try {
       assert.deepEqual(await pathways.getByRole("heading", { level: 2 }).allTextContents(), ["Verify Existing Claims", "Develop a New Idea"]);
       // Base UI's Button renders these anchors with role=button and nativeButton=false.
       const primary = pathways.getByRole("button", { name: "Start verification", exact: true });
-      assert.equal(await primary.getAttribute("href"), path + "/new-study");
+      assert.equal(await primary.getAttribute("href"), path + "/new-assessment");
       assert.equal(await pathways.getByRole("button", { name: "Start developing", exact: true }).getAttribute("href"), ideasPath + "/new-idea");
       await page.waitForFunction(dark => document.documentElement.classList.contains("dark") === dark, theme === "dark");
       const contrast = await homepageTextContrast(page);
@@ -92,18 +92,18 @@ try {
       await page.screenshot({ path: `${directory}/homepage-${width}-${theme}.png`, fullPage: true });
       if (width === 1365 && theme === "light") {
         await primary.click(); await page.waitForURL(/\/login\?/);
-        assert.equal(new URL(page.url()).searchParams.get("next"), path + "/new-study");
+        assert.equal(new URL(page.url()).searchParams.get("next"), path + "/new-assessment");
         await page.goto(origin, { waitUntil: "domcontentloaded" });
         await page.getByRole("link", { name: "View previous", exact: true }).click();
-        await page.waitForURL(origin + path + "/test-results");
+        await page.waitForURL(origin + path + "/previous-assessments");
         const ids = ["a0c13133-7f02-5aae-93d0-43fb1332e0ad", "8672163c-c3c1-51bb-9115-c6fa94875071", "10f01fe6-ebe3-5d1f-8789-915581de9c0a", "83ae477c-3bc1-5d87-8a6d-90e1a018be14", "99689ce0-e872-52ec-a8e5-a08e217019c0"];
-        for (const id of ids) await page.locator(`a[href="${path}/studies/${id}"]`).waitFor();
+        for (const id of ids) await page.locator(`a[href="${path}/assessments/${id}"]`).waitFor();
         await page.screenshot({ path: directory + "/published-catalogue.png", fullPage: true });
       }
       return { pathways: ["Verify Existing Claims", "Develop a New Idea"], header_width_px: headerBounds.width, viewport_width_px: viewportWidth, text_contrast: contrast };
     });
     await check(`sign-in return paths ${width} ${theme}`, async () => {
-      const routes = [path + "/new-study", ideasPath + "/new-idea", path + "/workspace/76c70fd9-0217-464e-8c26-0a47832409a3?view=gaps"];
+      const routes = [path + "/new-assessment", ideasPath + "/new-idea", path + "/workspace/76c70fd9-0217-464e-8c26-0a47832409a3?view=gaps"];
       for (const route of routes) {
         await page.goto(origin + route, { waitUntil: "domcontentloaded" });
         const url = new URL(page.url()); assert.equal(url.pathname, "/login"); assert.equal(url.searchParams.get("next"), route);
@@ -128,10 +128,10 @@ try {
     await context.close();
   }
   if (args[0] === "--production") await check("canonical production callback origin", async () => {
-    const response = await fetch(origin + "/auth/callback?next=" + encodeURIComponent(path + "/new-study"), { redirect: "manual" });
+    const response = await fetch(origin + "/auth/callback?next=" + encodeURIComponent(path + "/new-assessment"), { redirect: "manual" });
     assert.equal(response.status, 307);
     const location = new URL(response.headers.get("location"));
-    assert.equal(location.origin, origin); assert.equal(location.pathname, "/login"); assert.equal(location.searchParams.get("next"), path + "/new-study");
+    assert.equal(location.origin, origin); assert.equal(location.pathname, "/login"); assert.equal(location.searchParams.get("next"), path + "/new-assessment");
     return { redirect_origin: location.origin, provider_round_trip: "Not exercised; callback missing-code path only" };
   });
 } catch (error) {

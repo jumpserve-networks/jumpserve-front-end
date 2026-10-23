@@ -11,7 +11,7 @@ export async function ideaModelRequest(body: Record<string, unknown>, signal?: A
   try { origin = researchApiBase(process.env.NEXT_PUBLIC_AGENT_URL); }
   catch (error) { throw new IdeaRequestError(error instanceof Error ? error.message : "AI configuration or sign-in could not be verified.", false); }
   if (!origin) throw new IdeaRequestError("Idea AI is not configured. Your saved packet remains available.", false);
-  try { token = await requireAccessToken(); }
+  try { token = await requireAccessToken("Sign in before requesting AI help."); }
   catch (error) { throw new IdeaRequestError(error instanceof Error ? error.message : "Sign in before requesting AI help.", false); }
   let invocationStarted = false;
   const controller = new AbortController();

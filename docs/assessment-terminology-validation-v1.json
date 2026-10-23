@@ -1,0 +1,156 @@
+{
+  "version": "assessment-terminology-validation-v1",
+  "recorded_at": "2026-10-22T23:28:59.362714+00:00",
+  "status": "implemented-and-verified-locally",
+  "scope": "Research-verification application labels, accessibility labels, messages, generated links, canonical page/export URLs and queue query parameters use assessment terminology.",
+  "canonical_routes": {
+    "intake": "/research-verification/new-assessment",
+    "catalog": "/research-verification/previous-assessments",
+    "published_detail": "/research-verification/assessments/<id>",
+    "public_export": "/research-verification/api/assessments/<id>/export",
+    "queue": "/research-verification/experiment-queue?assessment=<id>",
+    "gap_action": "/research-verification/experiment-queue?sourceAssessment=<id>&gap=<id>"
+  },
+  "compatibility": "Retained /new-study, /test-results, /studies/<id> and /api/studies/<id>/export aliases, including /module and /modules namespaces, redirect permanently. Legacy study and sourceStudy queue keys redirect after validation. Repeated non-identity query values are preserved. Duplicate/conflicting identity keys are rejected without selecting an assessment or invoking an action.",
+  "data_provenance": "Original source titles, stored evidence, published numerical values, scientific finding labels (including untested), serialized data fields, database identities and versioned protocol names retain their original content. No data migration is required. Internal AWS API contracts retain existing /research/studies paths under repository conventions; the module-owned public export URL uses /api/assessments.",
+  "module_boundaries": "Paper detail/export links use assessments; idea URLs retain their existing namespace. Shared networking editor receives explicit assessment terminology in the paper claim designer.",
+  "checks": {
+    "frontend_unit_tests": {
+      "command": "npm test",
+      "passed": 213,
+      "failed": 0
+    },
+    "frontend_build": {
+      "command": "npm run build",
+      "status": "passed",
+      "note": "A separate fixture build supported browser checks. Rebuilt afterward with the normal local environment, preserving .env.local unchanged."
+    },
+    "lint": {
+      "command": "npm run lint",
+      "errors": 0,
+      "existing_warnings": [
+        "auth-button.tsx:153 internal navigation warning"
+      ]
+    },
+    "whitespace_diff": "passed",
+    "browser": {
+      "command": "npm run verify:research:public-queue",
+      "protocol": "public-experiment-queue-v5",
+      "passed": 13,
+      "failed": 0,
+      "report": ".test-artifacts/public-experiment-queue/2026-10-22T23-27-52.469Z/report.json",
+      "report_sha256": "c146e41e5ad9de7900456bcfc8c53aa5859153c0072259f302d836dd0a40c119",
+      "design": "Actual built Next server and browser -> actual local Python API/snapshot handler -> explicitly synthetic store. Build points to loopback; public Supabase configuration is synthetic. No production API reads or writes.",
+      "visual_review": "Desktop dark and mobile light assessment detail screenshots inspected by AI implementer; all four desktop/mobile light/dark combinations passed overflow checks.",
+      "viewports": [
+        1365,
+        390
+      ],
+      "themes": [
+        "light",
+        "dark"
+      ]
+    },
+    "queue_components": {
+      "command": "npm run verify:research:queue -- --components",
+      "passed": 7,
+      "failed": 0,
+      "report": ".test-artifacts/experiment-queue/2026-10-22T23-27-31.941Z/report.json",
+      "report_sha256": "66229357a2778398f83862fb30ff9b2a1aa40a9531cd62b7a500394dfa98e3ca",
+      "design": "Actual React components with explicit synthetic transport and navigation. Includes filters, saved links, failures, polling and same-tab sign-in resume intent; no real authentication is asserted."
+    }
+  },
+  "source_sha256": {
+    "app/(modules)/research-verification/new-assessment/page.tsx": "b92a1d3abea1e0fb88c3920ef6edba375cfcae16c4e0209ee23b4b7ce1f85a8b",
+    "app/(modules)/research-verification/new-study/page.tsx": "f4f6780b31c2b69756da461fcdd6f63a23f80ca31b4df5f0305c10fdddde6da5",
+    "app/components/public-landing-page.tsx": "1cefb47b2410380e091183839a0e4ee7a4e9043da578eb163377c6019ab029fe",
+    "app/components/research-workflow/experiment-queue.tsx": "c1a8cd99504e2ef090d9afc51f5d1fa4ce433a5931d121d50c7b0d6ff812d076",
+    "app/components/research-workflow/published-studies.tsx": "9c85e758e3dd6a193855249f6b8a599e03fba6534d1c3cf9fae3ac0322de9de9",
+    "app/components/research-workflow/workspace.tsx": "71f492924ba954afa2741abc9e80d9d169f00be9f9c908faf1b2693d5223a69d",
+    "lib/research-pathways.ts": "d20c013359605de7ca31759cd10b28126e8f0a67d605169a276c9d43633d9eaf",
+    "lib/auth.ts": "62cf514a577cb4d7a65f4c2cdddfe95576a087181b3f899b4904f8d4f0e6d7bb",
+    "lib/auth-redirect.ts": "0c8b0eaa1ccb48d2e603a0fcd50ccf4d65893529acabef5706b626877854ab12",
+    "next.config.ts": "d5eecc160db1d92968399563958061782c4a7ba1def32b94ec36eab13599d2a8",
+    "app/(modules)/research-verification/experiment-queue/page.tsx": "af849c0a4b1e4a3903d2e69818dc53554962a31f5ac2e374537e9b39e2d1e781",
+    "app/(modules)/research-verification/previous-assessments/page.tsx": "133b7564ce07733ba4e0e851d18b8804034ff868619caea5dfe1dff704cf71ec",
+    "app/components/research-workflow/previous-assessments.tsx": "fa096c90061aec37fd609693974da147b147b6a6d8f5a10355a0c68f9e2571ce",
+    "lib/research-paper-catalog.ts": "e42557ab75cdaae39f15c8525a59f42c5108db9ba25e4fbc61fe43a6c4bb7803",
+    "lib/test-modules.ts": "b5dbe9fff8040b2ddb280f0367340eae7a1fb2bff5fe1a1a1be10b0983b101bc",
+    "app/components/research-workflow/public-experiment-queue.tsx": "a641ba374425ea9217f82c95ce10b690b03ff1908dc560d7b18b659bc44070fe",
+    "app/components/research-workflow/autonomous-assessments.tsx": "8e120242417f9494a943c5099f9db79b5e6a5af447969776f2e7d9c71d1fdc3f",
+    "lib/research-public-queue.ts": "cb19487c62f308220dc8ec09b9615e2d4c28022099c09755a46ed0278b9742ee",
+    "../jumpserve-back-end/research_workflow/api.py": "ea34af8427f793827bdc1e01f19c8d35f4c87f13f2109afca18cd66736a28be4",
+    "../jumpserve-back-end/research_workflow/paper_catalog.py": "e2cd06bbba9fc4308b5588e178ee1dfd3dd1d779a98afc9902fe4e7bb2ddbb30",
+    "../jumpserve-back-end/research_workflow/scheduler.py": "8b0d6f0aae2e65cb0c367d333520fcd20635d6f73acbd41062f638773fad771c",
+    "../jumpserve-back-end/research_workflow/paper_titles.py": "04f7640a1ce8e35aefef6fa14a019013212b0784a57325acab36dd7ace9ae6b8",
+    "../jumpserve-back-end/research_workflow/intake.py": "6833dd2e22be112b4b4f8c91c0946fb850d9e8cc823b4f9b4c0416a4df882cce",
+    "../jumpserve-back-end/research_workflow/tests/public_queue_fixture.py": "65c9461f6a94cab6e2849eebae23da3965dba6219bd2336eb71a34ef4db9ff63",
+    "../jumpserve-back-end/research_workflow/tests/test_paper_titles.py": "099400aca7e5f136109d01b62a16036c16f4f6c8e46539c27a5972bccc01910f",
+    "scripts/verify-public-experiment-queue.mjs": "ea2cb4e689dbe016660dc0f7d6ac17fa0bffd115150000b0239b837ae018bff6",
+    "app/(modules)/research-verification/assessments/[assessmentId]/page.tsx": "225ef066f336639e79a9103f4f2e279993e4132e43a5e858d6ca314ce4ac2c04",
+    "app/(modules)/research-verification/studies/[studyId]/page.tsx": "e89e9c0966e33040781e3f8d8d4e8d4a62332392927ea9f2e0b71a1b59ef9647",
+    "app/(modules)/research-verification/api/assessments/[assessmentId]/export/route.ts": "114dd4874dd4efab410e4705e659d503a668539915d93dfedc8f26998754cfc3",
+    "app/(modules)/research-verification/api/studies/[studyId]/export/route.ts": "7f77854c0c565681e1421d26194a27b57841c5f1fecd1dd97d36706e3a87ab4f",
+    "lib/research-export.ts": "4a0759b5c7e655014d28c645d6340787a971363e4b755552c24dd8727a1cfb5e",
+    "lib/research-experiment-queue.ts": "97161c5dd7794d4e9f35e683609a468fdb3ee194f12e584d8efbce559a39187b",
+    "lib/research-workflow-server.ts": "cb37534c7085304f9c39d3d0200833fa8a963e34e92de4da5add22078deb0f49",
+    "app/components/research-workflow/study-panel.tsx": "e8d739e8b580b74b79305da4e228aad00aefee24d0f365c66b0ed0c0126dfd8f",
+    "app/components/research-ideas/idea-workspace.tsx": "e448582bf5b08eee30a888b3050647c51bfcf4ad98ad600a4eb5d25a4985b423",
+    "app/components/research-ideas/network-protocol-editor.tsx": "81ee5212b69131cb142306832833f2b422da16583c5eec521eb0067a51e05b7c",
+    "lib/network-execution.ts": "3e463759a7cc1b78e9bd5f517170b98d528df37e7a43c7d561d8b6c5087d6852",
+    "lib/research-workflow.ts": "3e5233c19d43bb2cc56a42287731e525e83562725754c960134c65ea633eb3d9",
+    "lib/research-workflow-api.ts": "49e8a23a916097457c96ffdd0fc8823d0a913ff17e5fe60b16da018994ead4bf",
+    "lib/browser-auth.ts": "fd274d97ac88b68290a1b9f6868cca99f90ce53734c4913b2c2684807a0bf447",
+    "app/components/research-workflow/claim-designer.tsx": "b2e78533ad2f761b2c7f6e0d5fa9f88a484fe945c5afa5ecd53d89e08c36acce",
+    "app/components/research-workflow/claim-queue.tsx": "25d6758c8c7f6a5e2bdaf028453a7a2731d11460f154aacdda1e2b857204fd54",
+    "app/components/research-workflow/evidence-methods.tsx": "04fe86787a050bc439d135e8968817d6358f84e47b014cc197b7a032d92f0621",
+    "app/components/research-workflow/network-job-cancel.tsx": "abfb4c4f541e09899169731d86b8d6d169067f986922a1a0d5fd607f85506d65",
+    "app/components/research-workflow/queue-example.tsx": "2bb4d37f1acf9f725e285bac2323f58ae7d6e92ef9d54505a7ebe6fbc13748dc",
+    "app/components/research-workflow/run-gap-experiment.tsx": "2886c7ad808cd7240b420bddc340b884dfe750b47361bc10c5c28aa5dfff32c7",
+    "lib/research-gap-run.ts": "6c4e5f97e4c44d36387172237149979216e8aa9d4421f3d9e5f1b0e5681e35e7",
+    "lib/research-idea-api.ts": "eaefb99ad69297b0a09cb20e18e6858d374e7bbd7c2356995ef20f7d04f71347",
+    "lib/research-ideas.ts": "2ef6f32f330a4407ef7fd0030468ecfa4b36a2ff84b7ddf5a7c5e5ea7127a560",
+    "lib/research-preparation.ts": "b0ffb8252f4a6ad0b6df647853da3deddb639e25ee5a13a7f720ca3a2f22a4e0",
+    "lib/research-queue-api.ts": "d9f0720ee35c583c952861d804f9428cf0f541320af9c94203db906439b0dd37",
+    "lib/research-queue.ts": "0c54675d7826596abdcbba4b3dfb7a1ec4942645912a827580038ea142ab897a",
+    "tests/research-pathways.test.mjs": "bf2959c8c28ac2b915d9cde791c5e8912191dd44a42c225b044244ac386cd8e8",
+    "tests/research-experiment-queue.test.mjs": "179f7f756c2783c23e5f82c5f12c5cf4262574d0c9dec5bd38b16ea4c5f9ff78",
+    "tests/research-workflow.test.mjs": "1d7a6c15c8f2ff934321fa8c09e1448d36bc62283c3829c7ec9f94a7e6e6e846",
+    "tests/research-public-queue.test.mjs": "d5a680ce927e56e887aa967a28be816c4acd5123496d3bbc96c9bc4fb8582bb1",
+    "scripts/verify-experiment-queue.mjs": "7f1aaf9495cce0cf327bbd85f7b6209be5b31e368e51e4c213c93e353ed65037"
+  },
+  "reviewer": {
+    "identity": "Primary Codex AI implementer",
+    "type": "AI",
+    "independent": false
+  },
+  "retained_failed_campaigns": [
+    {
+      "report": ".test-artifacts/public-experiment-queue/2026-10-22T23-25-22.020Z/report.json",
+      "reason": "New synthetic published record retained canary-only fields from a private catalog fixture. Reconstructed that published fixture with explicit public columns; no production projection was changed."
+    },
+    {
+      "report": ".test-artifacts/experiment-queue/2026-10-22T23-26-13.714Z/report.json",
+      "reason": "Older component transport did not support the existing selected-title /queue?title_study request. Added that fixed read fixture and reran successfully."
+    }
+  ],
+  "prior_evidence": [
+    "docs/previous-assessments-validation-v1.json",
+    "docs/new-assessment-route-validation-v1.json",
+    ".test-artifacts/public-experiment-queue/2026-10-22T23-25-49.314Z/report.json"
+  ],
+  "limitations": [
+    "No real authenticated paper upload, AI planning or experiment execution was performed for this terminology change.",
+    "Synthetic store checks do not establish production Supabase or RLS behavior for the pending paper catalog.",
+    "Development checks and visual inspection were performed by the AI implementer; no independent or human review is claimed.",
+    "Older versioned evidence reports are preserved; their historical source hashes describe their recorded versions."
+  ],
+  "release_status": "Not committed, pushed, merged or deployed. No production status checks or database/infrastructure changes were performed.",
+  "pending_catalog_release_requirements": "An explicit deployment request must verify AWS 395567831870 and Supabase regphejnlvfpyokpniny, pin the catalog backend revision, deploy /research/papers and /research/papers/{studyId}/title GET routes, deploy frontend, then verify production. See previous-assessments-validation-v1.json.",
+  "usage": {
+    "new_model_calls": 0,
+    "new_experiment_launches": 0,
+    "measured_charges_usd": null,
+    "unallocated_costs_usd": null
+  }
+}

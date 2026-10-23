@@ -32,9 +32,9 @@ export async function loadExperimentQueue(request: Request, signal?: AbortSignal
   try {
     const capabilities = await read<Capabilities>("/capabilities");
     if (capabilities.queue?.overview_version === "research-queue-overview-v1") return validateExperimentQueue(await read(titleStudyId ? `/queue?${new URLSearchParams({ title_study: titleStudyId })}` : "/queue"));
-    if (capabilities.queue?.version !== "research-queue-v1") throw new Error("The connected research backend does not support recorded study queues.");
+    if (capabilities.queue?.version !== "research-queue-v1") throw new Error("The connected research backend does not support recorded assessment queues.");
     const listing = await read<{ access: string; studies: ResearchStudy[] }>("/studies?mine=1");
-    if (listing.access !== "owner-drafts" || !Array.isArray(listing.studies) || listing.studies.length > 100 || new Set(listing.studies.map(s => s?.id)).size !== listing.studies.length || listing.studies.some(s => !s || !isResearchId(s.id) || typeof s.title !== "string" || !["paper", "idea"].includes(s.study_kind ?? "paper"))) throw new Error("Owned study coverage is invalid or incomplete; queue counts are unknown.");
+    if (listing.access !== "owner-drafts" || !Array.isArray(listing.studies) || listing.studies.length > 100 || new Set(listing.studies.map(s => s?.id)).size !== listing.studies.length || listing.studies.some(s => !s || !isResearchId(s.id) || typeof s.title !== "string" || !["paper", "idea"].includes(s.study_kind ?? "paper"))) throw new Error("Owned assessment coverage is invalid or incomplete; queue counts are unknown.");
     const studies = listing.studies.filter(s => (s.study_kind ?? "paper") === "paper");
     const collected = new Map<string, ExperimentQueue["jobs"]>();
     let cursor = 0; let count = 0; let metadataMissing = 0; let failure: unknown;
@@ -74,6 +74,6 @@ export async function loadExperimentQueue(request: Request, signal?: AbortSignal
     return validateExperimentQueue({ version: "research-queue-overview-v1", access: "owner-private", studies, jobs,
       workers_enabled: capabilities.queue.workers_enabled, limits: capabilities.queue.limits,
       coverage: { studies: studies.length, jobs: jobs.length },
-      limitations: `Read from existing owner study queues. Studies are retrieved separately; combined counts are not an atomic global snapshot. Execution and scientific review remain separate.${metadataMissing ? ` Campaign metadata could not be retrieved for ${metadataMissing} studies; job status remains recorded and unavailable titles are labelled.` : ""}` });
+      limitations: `Read from existing owner assessment queues. Assessments are retrieved separately; combined counts are not an atomic global snapshot. Execution and scientific review remain separate.${metadataMissing ? ` Campaign metadata could not be retrieved for ${metadataMissing} assessments; job status remains recorded and unavailable titles are labelled.` : ""}` });
   } finally { clearTimeout(timer); signal?.removeEventListener("abort", relay); }
 }

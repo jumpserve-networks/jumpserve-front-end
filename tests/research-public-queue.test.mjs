@@ -22,7 +22,7 @@ test('empty preparation is distinct from absent data and never receives a scient
 test('shared status uses only the fixed anonymous GET and never forwards credentials',async()=>{
  const previous=process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL;process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL='https://example.org';
  try{let calls=0;const q=await loadPublicStudyQueue(study,undefined,async(url,options)=>{calls++;assert.equal(url,`https://example.org/research/studies/${study}/queue?public=1`);assert.equal(options.method,'GET');assert.equal(options.credentials,'omit');assert.equal(options.cache,'no-store');assert.deepEqual(options.headers,{Accept:'application/json'});return Response.json(fixture());});assert.equal(calls,1);assert.equal(q.study.id,study);
- await assert.rejects(()=>loadPublicStudyQueue('../private',undefined,()=>{throw Error('must not fetch');}),/invalid study/);
+ await assert.rejects(()=>loadPublicStudyQueue('../private',undefined,()=>{throw Error('must not fetch');}),/invalid assessment/);
  const controller=new AbortController();controller.abort(new Error('Cancelled'));await assert.rejects(()=>loadPublicStudyQueue(study,controller.signal,()=>{throw Error('must not fetch');}),/Cancelled/);
  for(const [response,pattern] of [[new Response('<html>private canary</html>',{status:502}),/unreadable response/],[Response.json({error:'private canary'},{status:404}),/queue is unavailable/],[Response.json({error:'private canary'},{status:503}),/HTTP 503/]]){await assert.rejects(()=>loadPublicStudyQueue(study,undefined,async()=>response),pattern);}
  }finally{if(previous===undefined)delete process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL;else process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL=previous;}

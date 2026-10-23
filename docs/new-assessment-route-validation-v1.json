@@ -1,0 +1,99 @@
+{
+  "version": "new-assessment-route-validation-v1",
+  "recorded_at": "2026-10-22T23:20:36.376019+00:00",
+  "status": "implemented-and-verified-locally",
+  "canonical_route": "/research-verification/new-assessment",
+  "legacy_routes": [
+    "/research-verification/new-study",
+    "/module/research-verification/new-study",
+    "/modules/research-verification/new-study"
+  ],
+  "behavior": "Direct permanent 308 redirects preserve repeated query values. Homepage, sidebar and paper empty-state links use the canonical route. Google sign-in remains required and returns to the canonical route with its complete query. PDF intake implementation is reused.",
+  "checks": {
+    "frontend_unit_tests": {
+      "command": "npm test",
+      "passed": 211,
+      "failed": 0
+    },
+    "frontend_build": {
+      "command": "npm run build",
+      "status": "passed"
+    },
+    "lint": {
+      "command": "npm run lint",
+      "errors": 0,
+      "existing_warnings": [
+        "auth-button.tsx:153 internal navigation warning"
+      ]
+    },
+    "diff_whitespace": "passed",
+    "browser": {
+      "command": "npm run verify:research:public-queue",
+      "protocol": "public-experiment-queue-v4",
+      "passed": 11,
+      "failed": 0,
+      "report": ".test-artifacts/public-experiment-queue/2026-10-22T21-34-25.419Z/report.json",
+      "report_sha256": "ac6500e998eece661eea1b28a41abc35c0397d563b759271a15541bce8e1621c",
+      "browser_errors": [],
+      "new_route_evidence": {
+        "canonical_route": "/research-verification/new-assessment",
+        "homepage_link": true,
+        "empty_state_link": true,
+        "sidebar_link": true,
+        "direct_permanent_legacy_redirects": 3,
+        "sign_in_return_paths": 4,
+        "repeated_query_values_preserved": true,
+        "authenticated_pdf_submission": "not exercised"
+      }
+    }
+  },
+  "source_sha256": {
+    "app/(modules)/research-verification/new-assessment/page.tsx": "b92a1d3abea1e0fb88c3920ef6edba375cfcae16c4e0209ee23b4b7ce1f85a8b",
+    "app/(modules)/research-verification/new-study/page.tsx": "f4f6780b31c2b69756da461fcdd6f63a23f80ca31b4df5f0305c10fdddde6da5",
+    "app/components/public-landing-page.tsx": "1cefb47b2410380e091183839a0e4ee7a4e9043da578eb163377c6019ab029fe",
+    "app/components/research-workflow/experiment-queue.tsx": "468a78d94afe57f697d8959dcb5514120cb26ae502e427256b7db7d4595fae0e",
+    "app/components/research-workflow/published-studies.tsx": "bec689901fbc767a1379317e1366f68c6a3d1450fafb8149674dfa4df56d7775",
+    "app/components/research-workflow/workspace.tsx": "ce22333f25354012e474478447a2a45e871576a892a4ee3376f16598becc54da",
+    "lib/research-pathways.ts": "9136fcc36e54fe9adfd4c075034a55c1e17ea7421af9b0af986de5300e686feb",
+    "lib/auth.ts": "62cf514a577cb4d7a65f4c2cdddfe95576a087181b3f899b4904f8d4f0e6d7bb",
+    "lib/auth-redirect.ts": "0c8b0eaa1ccb48d2e603a0fcd50ccf4d65893529acabef5706b626877854ab12",
+    "next.config.ts": "d5eecc160db1d92968399563958061782c4a7ba1def32b94ec36eab13599d2a8",
+    "app/(modules)/research-verification/experiment-queue/page.tsx": "a15311a4478e86a74f9579df62f01be1c52bd974e51aced1ad6dc128aaab4826",
+    "app/(modules)/research-verification/previous-assessments/page.tsx": "133b7564ce07733ba4e0e851d18b8804034ff868619caea5dfe1dff704cf71ec",
+    "app/components/research-workflow/previous-assessments.tsx": "08923a503d98ab2b3b8682b9da2b3f2004a33ba4ff5f5795ea3587488fa95cff",
+    "lib/research-paper-catalog.ts": "e42557ab75cdaae39f15c8525a59f42c5108db9ba25e4fbc61fe43a6c4bb7803",
+    "lib/test-modules.ts": "3fde5d8314e94b0f11702116f1ee5bbed143359123d3aecfdf006410e9016031",
+    "app/components/research-workflow/public-experiment-queue.tsx": "85f4fd29a9067889c464cd038110d0939e43e9362f4aa529dadcece544f88070",
+    "app/components/research-workflow/autonomous-assessments.tsx": "8e120242417f9494a943c5099f9db79b5e6a5af447969776f2e7d9c71d1fdc3f",
+    "lib/research-public-queue.ts": "da5add814b02120cc6acdc2aae755773252ebb505e4c8e5ebc67ecd241258d04",
+    "../jumpserve-back-end/research_workflow/api.py": "ea34af8427f793827bdc1e01f19c8d35f4c87f13f2109afca18cd66736a28be4",
+    "../jumpserve-back-end/research_workflow/paper_catalog.py": "e2cd06bbba9fc4308b5588e178ee1dfd3dd1d779a98afc9902fe4e7bb2ddbb30",
+    "../jumpserve-back-end/research_workflow/scheduler.py": "8b0d6f0aae2e65cb0c367d333520fcd20635d6f73acbd41062f638773fad771c",
+    "../jumpserve-back-end/research_workflow/paper_titles.py": "04f7640a1ce8e35aefef6fa14a019013212b0784a57325acab36dd7ace9ae6b8",
+    "../jumpserve-back-end/research_workflow/intake.py": "6833dd2e22be112b4b4f8c91c0946fb850d9e8cc823b4f9b4c0416a4df882cce",
+    "../jumpserve-back-end/research_workflow/tests/public_queue_fixture.py": "6a9dabd5e8bd1fe8b7bbc3797b4490b6950be02fa975af3853f25414ea23d00d",
+    "../jumpserve-back-end/research_workflow/tests/test_paper_titles.py": "099400aca7e5f136109d01b62a16036c16f4f6c8e46539c27a5972bccc01910f",
+    "scripts/verify-public-experiment-queue.mjs": "9c07f1ed17aa7f8d3c856acb78889542e66f7837b3d514ba7354eb49a13f964f"
+  },
+  "prior_validation": "docs/previous-assessments-validation-v1.json records the earlier catalog version. Its original bytes and historical source hashes are retained; the browser report above covers the combined local changes.",
+  "retained_failed_campaign": {
+    "report": ".test-artifacts/public-experiment-queue/2026-10-22T21-33-55.987Z/report.json",
+    "reason": "The added test incorrectly selected the homepage call to action with role=link; Base UI renders its accessibility role as button. Corrected the selector and reran the campaign. No product change was required."
+  },
+  "reviewer": {
+    "identity": "Primary Codex AI implementer",
+    "type": "AI",
+    "independent": false
+  },
+  "limitations": [
+    "Anonymous browser routing and login return paths were exercised; an authenticated PDF submission at the new route was not exercised.",
+    "Catalog and queue tests use the actual local API handler with a synthetic store, not production Supabase.",
+    "Development checks are AI implementer checks, not independent or human review."
+  ],
+  "release_status": "Not committed, pushed, merged or deployed. No production status checks or writes were performed for this route change.",
+  "usage": {
+    "new_model_calls": 0,
+    "new_experiment_launches": 0,
+    "measured_charges_usd": null
+  }
+}

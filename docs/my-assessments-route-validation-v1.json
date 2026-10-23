@@ -1,0 +1,128 @@
+{
+  "version": "my-assessments-route-validation-v1",
+  "recorded_at": "2026-10-22T23:38:18.353992+00:00",
+  "status": "implemented-and-verified-locally",
+  "canonical_list": "/research-verification/assessments",
+  "sidebar_label": "My Assessments",
+  "redirects": {
+    "status": 308,
+    "exact_list_aliases": [
+      "/research-verification/workspace",
+      "/module/research-verification/workspace",
+      "/modules/research-verification/workspace"
+    ],
+    "repeated_query_values_preserved": true
+  },
+  "access_and_navigation": "The owner list still requires Google sign-in and uses the existing owner-scoped list component. Sign-in returns to the canonical list with its complete query. Private /workspace/<id> detail routes retain authentication, and public /assessments/<id> published details remain public. Only one sidebar item is active: My Assessments for the list/private tools and Previous Assessments for public details.",
+  "checks": {
+    "frontend_unit_checks": {
+      "command": "npm test",
+      "passed": 214,
+      "failed": 0
+    },
+    "build": {
+      "command": "npm run build",
+      "status": "passed",
+      "normal_local_configuration_restored_after_fixture_campaign": true
+    },
+    "lint": {
+      "command": "npm run lint",
+      "errors": 0,
+      "existing_warnings": [
+        "auth-button.tsx:153 internal navigation warning"
+      ]
+    },
+    "diff_whitespace": "passed",
+    "browser": {
+      "command": "npm run verify:research:public-queue",
+      "protocol": "public-experiment-queue-v7",
+      "passed": 14,
+      "report": ".test-artifacts/public-experiment-queue/2026-10-22T23-37-22.047Z/report.json",
+      "report_sha256": "f49921be502f478cfc46e89fb21f3a5b41ee8a5d267bb62fd7eb8083ad5e1286",
+      "new_case": {
+        "canonical_list": "/research-verification/assessments",
+        "sidebar_label": "My Assessments",
+        "legacy_root_redirects": 3,
+        "repeated_queries_preserved": true,
+        "anonymous_list_requires_login": true,
+        "private_detail_requires_login": true,
+        "published_detail_public": true,
+        "desktop_and_mobile_navigation": true,
+        "authenticated_list_contents": "not exercised"
+      },
+      "design": "Built Next server/browser and real local Python handler against an explicit synthetic store. Browser and build API reads point at loopback; no real account is simulated."
+    }
+  },
+  "source_sha256": {
+    "app/(modules)/research-verification/new-assessment/page.tsx": "b92a1d3abea1e0fb88c3920ef6edba375cfcae16c4e0209ee23b4b7ce1f85a8b",
+    "app/(modules)/research-verification/new-study/page.tsx": "f4f6780b31c2b69756da461fcdd6f63a23f80ca31b4df5f0305c10fdddde6da5",
+    "app/components/public-landing-page.tsx": "1cefb47b2410380e091183839a0e4ee7a4e9043da578eb163377c6019ab029fe",
+    "app/components/research-workflow/experiment-queue.tsx": "3e00e5a94301eb03549cf17648d600ded4da7eb8efe01fac8ea6a9ba40db6202",
+    "app/components/research-workflow/published-studies.tsx": "9c85e758e3dd6a193855249f6b8a599e03fba6534d1c3cf9fae3ac0322de9de9",
+    "app/components/research-workflow/workspace.tsx": "71f492924ba954afa2741abc9e80d9d169f00be9f9c908faf1b2693d5223a69d",
+    "lib/research-pathways.ts": "d20c013359605de7ca31759cd10b28126e8f0a67d605169a276c9d43633d9eaf",
+    "lib/auth.ts": "62cf514a577cb4d7a65f4c2cdddfe95576a087181b3f899b4904f8d4f0e6d7bb",
+    "lib/auth-redirect.ts": "0c8b0eaa1ccb48d2e603a0fcd50ccf4d65893529acabef5706b626877854ab12",
+    "next.config.ts": "28f6ba3a636f002eeca1d2fbc491c764c3a191355abd4d27dfb501800427fe17",
+    "app/(modules)/research-verification/experiment-queue/page.tsx": "af849c0a4b1e4a3903d2e69818dc53554962a31f5ac2e374537e9b39e2d1e781",
+    "app/(modules)/research-verification/previous-assessments/page.tsx": "133b7564ce07733ba4e0e851d18b8804034ff868619caea5dfe1dff704cf71ec",
+    "app/components/research-workflow/previous-assessments.tsx": "fa096c90061aec37fd609693974da147b147b6a6d8f5a10355a0c68f9e2571ce",
+    "lib/research-paper-catalog.ts": "e42557ab75cdaae39f15c8525a59f42c5108db9ba25e4fbc61fe43a6c4bb7803",
+    "lib/test-modules.ts": "239edfd05de4415714b898a01f05e2245eaae2ee92a3351b01833b03b76334f5",
+    "app/components/research-workflow/public-experiment-queue.tsx": "a641ba374425ea9217f82c95ce10b690b03ff1908dc560d7b18b659bc44070fe",
+    "app/components/research-workflow/autonomous-assessments.tsx": "1c706652184cbfb5e054bf9c21273663fcdce9cb60533e44b6470c7401024be0",
+    "lib/research-public-queue.ts": "cb19487c62f308220dc8ec09b9615e2d4c28022099c09755a46ed0278b9742ee",
+    "../jumpserve-back-end/research_workflow/api.py": "ea34af8427f793827bdc1e01f19c8d35f4c87f13f2109afca18cd66736a28be4",
+    "../jumpserve-back-end/research_workflow/paper_catalog.py": "e2cd06bbba9fc4308b5588e178ee1dfd3dd1d779a98afc9902fe4e7bb2ddbb30",
+    "../jumpserve-back-end/research_workflow/scheduler.py": "8b0d6f0aae2e65cb0c367d333520fcd20635d6f73acbd41062f638773fad771c",
+    "../jumpserve-back-end/research_workflow/paper_titles.py": "04f7640a1ce8e35aefef6fa14a019013212b0784a57325acab36dd7ace9ae6b8",
+    "../jumpserve-back-end/research_workflow/intake.py": "6833dd2e22be112b4b4f8c91c0946fb850d9e8cc823b4f9b4c0416a4df882cce",
+    "../jumpserve-back-end/research_workflow/tests/public_queue_fixture.py": "65c9461f6a94cab6e2849eebae23da3965dba6219bd2336eb71a34ef4db9ff63",
+    "../jumpserve-back-end/research_workflow/tests/test_paper_titles.py": "099400aca7e5f136109d01b62a16036c16f4f6c8e46539c27a5972bccc01910f",
+    "scripts/verify-public-experiment-queue.mjs": "e834c0c1830c13745bc43352211273396cb91890d06cd8dc5ed0139d7f17c3cf",
+    "app/(modules)/research-verification/assessments/[assessmentId]/page.tsx": "225ef066f336639e79a9103f4f2e279993e4132e43a5e858d6ca314ce4ac2c04",
+    "app/(modules)/research-verification/studies/[studyId]/page.tsx": "e89e9c0966e33040781e3f8d8d4e8d4a62332392927ea9f2e0b71a1b59ef9647",
+    "app/(modules)/research-verification/api/assessments/[assessmentId]/export/route.ts": "114dd4874dd4efab410e4705e659d503a668539915d93dfedc8f26998754cfc3",
+    "app/(modules)/research-verification/api/studies/[studyId]/export/route.ts": "7f77854c0c565681e1421d26194a27b57841c5f1fecd1dd97d36706e3a87ab4f",
+    "lib/research-export.ts": "4a0759b5c7e655014d28c645d6340787a971363e4b755552c24dd8727a1cfb5e",
+    "lib/research-experiment-queue.ts": "97161c5dd7794d4e9f35e683609a468fdb3ee194f12e584d8efbce559a39187b",
+    "lib/research-workflow-server.ts": "cb37534c7085304f9c39d3d0200833fa8a963e34e92de4da5add22078deb0f49",
+    "app/components/research-workflow/study-panel.tsx": "e8d739e8b580b74b79305da4e228aad00aefee24d0f365c66b0ed0c0126dfd8f",
+    "app/components/research-ideas/idea-workspace.tsx": "e448582bf5b08eee30a888b3050647c51bfcf4ad98ad600a4eb5d25a4985b423",
+    "app/components/research-ideas/network-protocol-editor.tsx": "81ee5212b69131cb142306832833f2b422da16583c5eec521eb0067a51e05b7c",
+    "lib/network-execution.ts": "3e463759a7cc1b78e9bd5f517170b98d528df37e7a43c7d561d8b6c5087d6852",
+    "lib/research-workflow.ts": "3e5233c19d43bb2cc56a42287731e525e83562725754c960134c65ea633eb3d9",
+    "lib/research-workflow-api.ts": "49e8a23a916097457c96ffdd0fc8823d0a913ff17e5fe60b16da018994ead4bf",
+    "lib/browser-auth.ts": "fd274d97ac88b68290a1b9f6868cca99f90ce53734c4913b2c2684807a0bf447",
+    "app/components/research-workflow/claim-designer.tsx": "b2e78533ad2f761b2c7f6e0d5fa9f88a484fe945c5afa5ecd53d89e08c36acce",
+    "app/components/research-workflow/claim-queue.tsx": "25d6758c8c7f6a5e2bdaf028453a7a2731d11460f154aacdda1e2b857204fd54",
+    "app/components/research-workflow/evidence-methods.tsx": "04fe86787a050bc439d135e8968817d6358f84e47b014cc197b7a032d92f0621",
+    "app/components/research-workflow/network-job-cancel.tsx": "abfb4c4f541e09899169731d86b8d6d169067f986922a1a0d5fd607f85506d65",
+    "app/components/research-workflow/queue-example.tsx": "2bb4d37f1acf9f725e285bac2323f58ae7d6e92ef9d54505a7ebe6fbc13748dc",
+    "app/components/research-workflow/run-gap-experiment.tsx": "2886c7ad808cd7240b420bddc340b884dfe750b47361bc10c5c28aa5dfff32c7",
+    "app/components/research-workflow/assessment-experiment-queue.tsx": "1528d42b884136cd0f194fccb6809043c1c89040ae53cbb8b2d2ae668b137947",
+    "app/(modules)/research-verification/assessments/page.tsx": "361de32bb98a6ab530113f9edc69e3473c4ebf56af86faa5cc6d71d06e7936d8",
+    "app/(modules)/research-verification/workspace/page.tsx": "f7268a92981e82f4583962ac21e81bd4ddce5b0f0263bf3b9616c0a633da36e0",
+    "app/(modules)/research-verification/workspace/[studyId]/page.tsx": "5ca42a91da45ebd6016d67199ed7d7d9518ccb8e88a3798f409379be65cfff56",
+    "tests/test-modules.test.mjs": "6e3759aca14aeba37ff198fb2510023d90cec87a0395bdf23b4c5697864ca76d",
+    "scripts/verify-research-pathways.mjs": "bffc9f3ad5a8498230e7a38a5c2e70eb5b592a1e934855c9ac8f4065dd393f95",
+    "scripts/verify-research-production.mjs": "43f5ef7121813dda518a0e5f873736fdb125108c42493b07e031030e4d413cf2",
+    "scripts/verify-claim-design-production.mjs": "e9fd77def3fe6259571a2997387b1ef8ef5cc5bd591e6df1e35df7bbf3e94ba4"
+  },
+  "reviewer": {
+    "identity": "Primary Codex AI implementer",
+    "type": "AI",
+    "independent": false
+  },
+  "limitations": [
+    "Authenticated owner list contents were not exercised with a legitimate session; the existing owner-scoped list implementation is reused.",
+    "Synthetic store checks do not verify production Supabase/RLS for earlier pending catalog work.",
+    "Historical validation records and source hashes remain preserved as evidence of their recorded versions."
+  ],
+  "release_status": "Not committed, pushed, merged or deployed; no production status checks or writes performed.",
+  "usage": {
+    "new_model_calls": 0,
+    "new_experiment_launches": 0,
+    "measured_charges_usd": null
+  }
+}

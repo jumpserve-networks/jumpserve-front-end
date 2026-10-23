@@ -1,7 +1,8 @@
-import { PublishedStudies } from "@/app/components/research-workflow/published-studies";
+import { permanentRedirect } from "next/navigation";
+import { PREVIOUS_ASSESSMENTS_PATH } from "@/lib/test-modules";
+import { researchSearchSuffix } from "@/lib/research-pathways";
 
-export const dynamic = "force-dynamic";
-
-export default function Results() {
-  return <PublishedStudies kind="paper" />;
+// The config redirect runs first; retain a route fallback for saved links.
+export default async function LegacyResults({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  permanentRedirect(PREVIOUS_ASSESSMENTS_PATH + researchSearchSuffix(await searchParams));
 }

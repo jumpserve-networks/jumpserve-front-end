@@ -24,16 +24,16 @@ try{
  async function select(label,text){await page.getByRole('combobox',{name:label,exact:true}).click();await page.getByRole('option',{name:text,exact:true}).click();}
  await check('production navigation and meaningful empty publication state',async()=>{
   await page.goto(origin,{waitUntil:'domcontentloaded'});await page.locator(`a[href="${path}"]`).first().waitFor();
-  await visit('');await page.locator(`a[href="${path}/new-study"]`).first().waitFor();
+  await visit('');await page.locator(`a[href="${path}/new-assessment"]`).first().waitFor();
   await visit('/test-results');await page.getByRole('heading',{name:'No published assessments yet',exact:true}).waitFor();assert.match(await page.locator('main').innerText(),/Private drafts and planned experiments are not completed studies/);
   await page.screenshot({path:directory+'/desktop-empty-results.png',fullPage:true});return {published_studies:0,empty_is_not_zero_claims:true};
  });
  if(preparationRelease)await check('deployed preparation navigation and explicit draft guidance',async()=>{
-  await visit('/methods');await page.locator(`a[href="${path}/new-study"]`).filter({hasText:'Assess a Paper'}).first().waitFor();
+  await visit('/methods');await page.locator(`a[href="${path}/new-assessment"]`).filter({hasText:'Assess a Paper'}).first().waitFor();
   await page.getByText('Explore an illustrative claim queue',{exact:true}).click();
   await select('Queue example state','New study awaiting preparation');
   const example=page.getByTestId('queue-example');assert.match(await example.innerText(),/Prepare paper and queue checks/);assert.match(await example.innerText(),/source-grounded plan/);assert.match(await example.innerText(),/No jobs queued/);
-  await example.screenshot({path:directory+'/new-study-preparation-guidance.png'});
+  await example.screenshot({path:directory+'/new-assessment-preparation-guidance.png'});
   await select('Queue example state','Mixed work and blocked prerequisites');await page.getByText('Explore an illustrative claim queue',{exact:true}).click();
   return {navigation:'Assess a Paper',draft_guidance:'Source-grounded preparation required; no jobs fabricated',google_owner_request:'Conditional; no legitimate session'};
  });
@@ -59,11 +59,11 @@ try{
   return {viewports:['1365x900','390x844'],themes:['light','dark'],queue_states:['mixed','empty','unavailable'],body_horizontal_overflow:false};
  });
  await check('production missing study and export do not fabricate results',async()=>{
-  const missing='9fe82c67-2a99-49b9-8bfc-670b69ab1944';await visit('/studies/'+missing);assert.match(await page.getByRole('status').innerText(),/no public assessment/);assert.equal(await page.locator('[aria-label="Current claim coverage"]').count(),0);
-  const response=await fetch(origin+path+'/api/studies/'+missing+'/export');assert.equal(response.status,404);return {missing_study_html_status:200,missing_export_status:404,claim_coverage:'Unavailable, not zero'};
+  const missing='9fe82c67-2a99-49b9-8bfc-670b69ab1944';await visit('/assessments/'+missing);assert.match(await page.getByRole('status').innerText(),/no published snapshot/);assert.equal(await page.locator('[aria-label="Current claim coverage"]').count(),0);
+  const response=await fetch(origin+path+'/api/assessments/'+missing+'/export');assert.equal(response.status,404);return {missing_study_html_status:200,missing_export_status:404,claim_coverage:'Unavailable, not zero'};
  });
  await check('sign-in return paths and existing completed IPv6 module remain available',async()=>{
-  const suffixes=['/new-study','/workspace','/workspace/9fe82c67-2a99-49b9-8bfc-670b69ab1944?view=gaps'];
+  const suffixes=['/new-assessment','/assessments','/workspace/9fe82c67-2a99-49b9-8bfc-670b69ab1944?view=gaps'];
   if(preparationRelease)suffixes.push('/workspace/76c70fd9-0217-464e-8c26-0a47832409a3');
   for(const suffix of suffixes){
    await page.goto(origin+path+suffix,{waitUntil:'domcontentloaded'});const url=new URL(page.url());assert.equal(url.pathname,'/login');assert.equal(url.searchParams.get('next'),path+suffix);

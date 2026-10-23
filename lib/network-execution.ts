@@ -11,7 +11,7 @@ export type NetworkingCapabilities = { version: string; runners: { id: string; n
 
 export function executableCandidate(plan: IdeaDocument, previous: Record<string, unknown> | null, runner: string, identity: string, config: unknown,
   replications: number, limits: { wall_seconds: number; max_instances: number; max_output_bytes: number; max_network_bytes: number }, metrics: unknown) {
-  if (!NETWORK_RUNNERS.some(item => item.id === runner) || !identity.trim() || !config || typeof config !== "object" || Array.isArray(config)) throw new Error("Choose an executor, configuration identity, and test configuration.");
+  if (!NETWORK_RUNNERS.some(item => item.id === runner) || !identity.trim() || !config || typeof config !== "object" || Array.isArray(config)) throw new Error("Choose an executor, configuration identity, and experiment configuration.");
   if (!Number.isInteger(replications) || replications < 1 || replications > 32) throw new Error("Choose 1–32 experimental invocations per configuration.");
   if (!Array.isArray(metrics) || !metrics.length || metrics.some(m => !m || typeof m.name !== "string" || !m.name.trim() || typeof m.units !== "string" || !m.units.trim())) throw new Error("Declare metric names and units explicitly.");
   const prior = previous ?? {};

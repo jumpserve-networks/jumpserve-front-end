@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { getPostLoginPath, getSafeNextPath } from "../lib/auth-redirect.ts";
-import { EMULATED_TESTS_MODULE, LEGACY_MODULE_ROUTES, TEST_MODULES, getTestModule, getTestModuleForPath, isModuleSectionActive } from "../lib/test-modules.ts";
+import { ASSESSMENTS_PATH, EMULATED_TESTS_MODULE, LEGACY_EXACT_MODULE_ROUTES, LEGACY_MODULE_ROUTES, NEW_ASSESSMENT_PATH, PREVIOUS_ASSESSMENTS_PATH, TEST_MODULES, getTestModule, getTestModuleForPath, isModuleSectionActive } from "../lib/test-modules.ts";
 
 test("sign-in without a destination returns home", () => {
   for (const next of [null, "", "/", "/login", "/auth/callback?code=expired"]) {
@@ -89,6 +89,49 @@ test("navigation highlights the parent tool for detail pages with path boundarie
   assert.equal(isModuleSectionActive(lookup, `${EMULATED_TESTS_MODULE.href}/parent-run/2352`), true);
   assert.equal(isModuleSectionActive(lookup, `${EMULATED_TESTS_MODULE.href}/parent-runs`), false);
   assert.equal(isModuleSectionActive(lookup, `${EMULATED_TESTS_MODULE.href}/chat`), false);
+});
+test("previous paper assessments have a canonical route with direct legacy aliases", () => {
+  const paperModule = getTestModule("research-verification");
+  assert.equal(paperModule.sections[1].href, PREVIOUS_ASSESSMENTS_PATH);
+  assert.equal(PREVIOUS_ASSESSMENTS_PATH, "/research-verification/previous-assessments");
+  assert.ok(isModuleSectionActive(paperModule.sections[1], PREVIOUS_ASSESSMENTS_PATH));
+  for (const prefix of ["", "/module", "/modules"]) {
+    const old = `${prefix}/research-verification/test-results`;
+    assert.equal(LEGACY_MODULE_ROUTES.find(r => r.source === old)?.destination, PREVIOUS_ASSESSMENTS_PATH);
+    assert.equal(getTestModuleForPath(old), paperModule);
+  }
+  assert.equal(getTestModule("research-ideas").sections[2].href, "/research-ideas/test-results");
+});
+test("new paper assessment route is canonical and old intake links remain usable", () => {
+  const paperModule = getTestModule("research-verification");
+  assert.equal(NEW_ASSESSMENT_PATH, "/research-verification/new-assessment");
+  assert.equal(paperModule.sections[0].href, NEW_ASSESSMENT_PATH);
+  assert.ok(isModuleSectionActive(paperModule.sections[0], NEW_ASSESSMENT_PATH));
+  assert.equal(getPostLoginPath(NEW_ASSESSMENT_PATH + "?source=paper&tag=a%26b&tag=second"), NEW_ASSESSMENT_PATH + "?source=paper&tag=a%26b&tag=second");
+  for (const prefix of ["", "/module", "/modules"]) {
+    const old = `${prefix}/research-verification/new-study`;
+    assert.equal(LEGACY_MODULE_ROUTES.find(r => r.source === old)?.destination, NEW_ASSESSMENT_PATH);
+    assert.equal(getTestModuleForPath(old), paperModule);
+  }
+});
+
+test("My Assessments owns the canonical list while published details and private work retain distinct navigation", () => {
+  const paperModule = getTestModule("research-verification");
+  const mine = paperModule.sections.find(s => s.label === "My Assessments");
+  const previous = paperModule.sections.find(s => s.label === "Previous Assessments");
+  assert.equal(mine.href, ASSESSMENTS_PATH);
+  assert.equal(isModuleSectionActive(mine, ASSESSMENTS_PATH), true);
+  assert.equal(isModuleSectionActive(previous, ASSESSMENTS_PATH), false);
+  assert.equal(isModuleSectionActive(previous, ASSESSMENTS_PATH + "/paper-id"), true);
+  assert.equal(isModuleSectionActive(mine, ASSESSMENTS_PATH + "/paper-id"), false);
+  assert.equal(isModuleSectionActive(mine, "/research-verification/workspace/paper-id"), true);
+  assert.equal(isModuleSectionActive(previous, ASSESSMENTS_PATH + "-archive"), false);
+  assert.equal(getPostLoginPath(ASSESSMENTS_PATH + "?tag=a%26b&tag=second"), ASSESSMENTS_PATH + "?tag=a%26b&tag=second");
+  for (const prefix of ["", "/module", "/modules"]) {
+    const old = prefix + "/research-verification/workspace";
+    assert.equal(LEGACY_EXACT_MODULE_ROUTES.find(r => r.source === old)?.destination, ASSESSMENTS_PATH);
+    assert.equal(getTestModuleForPath(old), paperModule);
+  }
 });
 
 test("module overviews and every navigation section use their top-level namespace", () => {

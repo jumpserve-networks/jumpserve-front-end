@@ -20,7 +20,7 @@ const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 export function validateQueue(value: unknown, studyId: string): ResearchQueue {
   if (!value || typeof value !== "object") throw new Error("Queue response is missing.");
   const queue = value as ResearchQueue;
-  if (queue.version !== "research-queue-v1" || queue.study_id !== studyId || queue.access !== "owner-private" || typeof queue.workers_enabled !== "boolean" || !queue.limits || !queue.coverage || typeof queue.limitations !== "string") throw new Error("Queue response is incomplete or belongs to another study.");
+  if (queue.version !== "research-queue-v1" || queue.study_id !== studyId || queue.access !== "owner-private" || typeof queue.workers_enabled !== "boolean" || !queue.limits || !queue.coverage || typeof queue.limitations !== "string") throw new Error("Queue response is incomplete or belongs to another assessment.");
   for (const field of ["global_jobs", "study_jobs", "invocation_jobs", "lease_seconds"] as const) if (!Number.isInteger(queue.limits[field]) || queue.limits[field] < 1) throw new Error("Queue resource limits are invalid.");
   if (queue.limits.automatic_retries !== 0) throw new Error("Queue retry policy is unsupported.");
   for (const field of ["jobs", "events"] as const) {

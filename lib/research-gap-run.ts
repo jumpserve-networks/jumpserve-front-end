@@ -29,7 +29,7 @@ export async function runGapExperiments(preview: GapPreview, requestId: string, 
   for (const choice of preview.choices) {
     progress(`Queueing ${choice.title}…`, followup.study_id);
     const result = validateGapEnqueued(await request(path, { method: "POST", body: JSON.stringify({ ...selection, key: choice.key, action: "enqueue" }) }));
-    if (result.study_id !== followup.study_id) throw new Error("Queue response identifies another follow-up study.");
+    if (result.study_id !== followup.study_id) throw new Error("Queue response identifies another follow-up assessment.");
     if (!result.complete) return { studyId: followup.study_id, jobIds: jobs, complete: false };
     jobs.push(result.job_id);
   }

@@ -22,7 +22,7 @@ function savedExecution(text: string) {
   } catch { return null; }
 }
 
-export function NetworkProtocolEditor({ studyId, document, protocol, onChange, guided = false, onEditing }: { studyId: string; document: IdeaDocument; protocol: string; onChange: (text: string) => void; guided?: boolean; onEditing?: () => void }) {
+export function NetworkProtocolEditor({ studyId, document, protocol, onChange, guided = false, onEditing, assessment = false }: { studyId: string; document: IdeaDocument; protocol: string; onChange: (text: string) => void; guided?: boolean; onEditing?: () => void; assessment?: boolean }) {
   const [initial] = useState(() => savedExecution(protocol));
   const [runner, setRunner] = useState<string>(initial?.runner ?? NETWORK_RUNNERS[0].id);
   const [identity, setIdentity] = useState(initial?.identity ?? "configuration-1");
@@ -98,12 +98,12 @@ export function NetworkProtocolEditor({ studyId, document, protocol, onChange, g
   }
   return <details open={guided || undefined} className="rounded-md border p-4"><summary className="cursor-pointer text-sm font-medium">Automatic networking execution</summary>
     <div className="mt-4 space-y-4 text-sm">
-      <p>Choose a built-in networking test or a versioned custom package. The reviewed protocol freezes its configuration, repetitions and resource limits. Each invocation becomes a separate automatic queue job; completion preserves measurements and leaves scientific review pending.</p>
+      <p>Choose a built-in networking {assessment ? "assessment" : "test"} or a versioned custom package. The reviewed protocol freezes its configuration, repetitions and resource limits. Each invocation becomes a separate automatic queue job; completion preserves measurements and leaves scientific review pending.</p>
       {!capabilities ? <p role="status">The connected backend has not confirmed networking execution support.</p> : !capabilities.runners.find(item => item.id === runner)?.enabled ? <p role="status">This runner is registered but cloud execution is not enabled in the connected environment.</p> : null}
       <ResearchSelect label="Networking executor" value={runner} onChange={choose} options={NETWORK_RUNNERS.map(item => ({ value: item.id, label: item.name }))} />
       <label className="block space-y-1"><span>Configuration identity</span><Input disabled={busy} value={identity} onChange={e => { edit(); setIdentity(e.target.value); }} /></label>
       {guided ? <NetworkingFields key={runner} runner={runner} text={config} disabled={busy} onChange={updateConfig} onValidityChange={valid => { setFieldsValid(valid); if (!valid) edit(); }} /> : null}
-      <details open={!guided || undefined}><summary className="cursor-pointer font-medium">Full test configuration</summary><label className="mt-3 block space-y-1"><span>Networking test configuration JSON</span><Textarea aria-label="Networking test configuration JSON" disabled={busy} className="min-h-48 font-mono text-xs" value={config} onChange={e => { edit(); setConfig(e.target.value); }} /></label></details>
+      <details open={!guided || undefined}><summary className="cursor-pointer font-medium">Full {assessment ? "assessment" : "test"} configuration</summary><label className="mt-3 block space-y-1"><span>Networking {assessment ? "assessment" : "test"} configuration JSON</span><Textarea aria-label={`Networking ${assessment ? "assessment" : "test"} configuration JSON`} disabled={busy} className="min-h-48 font-mono text-xs" value={config} onChange={e => { edit(); setConfig(e.target.value); }} /></label></details>
       {runner === "custom-package-v1" ? <div className="space-y-3 rounded-md border p-3">
         <p>Python scripts receive JUMPSERVE_SPEC and write JUMPSERVE_OUTPUT using the network-observations-v1 contract. Upload original source privately, or enter a public container image pinned by sha256 digest in the configuration. Custom packages run on one isolated EC2 host; external endpoints and required equipment must be specified. Credentials belong in private inputs.</p>
         <label className="block space-y-1"><span>Package version</span><Input disabled={busy} value={packageVersion} onChange={e => setPackageVersion(e.target.value)} /></label>

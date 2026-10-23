@@ -9,7 +9,7 @@ import { researchRequest } from "@/lib/research-workflow-api";
 import { ideaModelRequest } from "@/lib/research-idea-api";
 import { CLAIM_DESIGN_VERSION, CLAIM_DESIGN_RESPONSE_VERSION, consumeClaimDesignIntent, validateClaimDesign, type ClaimDesignState } from "@/lib/research-claim-design";
 import { experimentQueuePath } from "@/lib/research-experiment-queue";
-import { RESEARCH_WORKFLOW_MODULE_PATH as PATH } from "@/lib/test-modules";
+import { ASSESSMENTS_PATH, RESEARCH_WORKFLOW_MODULE_PATH as PATH } from "@/lib/test-modules";
 
 const errorText = (value: unknown) => value instanceof Error ? value.message : "Request was not confirmed. Your saved history remains available.";
 async function verifiedState(value: unknown, studyId: string) {
@@ -101,7 +101,7 @@ export function ClaimDesigner({ studyId }: { studyId: string }) {
       <p className="text-sm">1. Answer the AI’s questions until a complete candidate is available. 2. Adopt and review the plan. 3. Freeze the reviewed protocol and queue its experiment.</p>
       <p className="text-sm text-muted-foreground">The AI receives recorded claim and source metadata. A proposal is a draft; the original assessment stays unchanged. Unsupported equipment or implementations remain explicit operator work.</p>
       <p className="text-sm text-muted-foreground">This designer prepares descriptive pilots. JumpServe supplies their decision policy; overlap or a non-significant result cannot decide the paper claim. Inferential conclusions need a separately reviewed analysis design. To change a saved configuration, edit and save a new plan version before requesting fresh reviews.</p>
-      <div className="flex flex-wrap gap-4 text-sm"><Link className="underline" href={`${PATH}/studies/${origin.study.id}?view=gaps`}>Original assessment</Link><Link className="underline" href={experimentQueuePath(studyId)}>Experiment Queue</Link><Link className="underline" href={`${PATH}/workspace/${studyId}`}>Evidence workspace</Link></div>
+      <div className="flex flex-wrap gap-4 text-sm"><Link className="underline" href={`${ASSESSMENTS_PATH}/${origin.study.id}?view=gaps`}>Original assessment</Link><Link className="underline" href={experimentQueuePath(studyId)}>Experiment Queue</Link><Link className="underline" href={`${PATH}/workspace/${studyId}`}>Evidence workspace</Link></div>
       <Button size="sm" variant="outline" onClick={() => void download()}>Download experiment design</Button>
     </section>
     {error ? <p role="alert" className="rounded-md border p-3 text-sm text-destructive">{error}</p> : null}

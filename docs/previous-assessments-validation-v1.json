@@ -1,0 +1,122 @@
+{
+  "version": "previous-assessments-development-validation-v1",
+  "date": "2026-10-22T21:30:54.509312+00:00",
+  "status": "implemented-and-verified-locally",
+  "canonical_route": "/research-verification/previous-assessments",
+  "legacy_routes": [
+    "/research-verification/test-results",
+    "/module/research-verification/test-results",
+    "/modules/research-verification/test-results"
+  ],
+  "redirect": "308 direct permanent redirect, preserving repeated query values; route fallback retained",
+  "data_scope": "All successfully created paper assessments, including every accepted new-study submission and existing paper assessments/imports. One entry per immutable assessment ID. Submitted, running, stopped and cancelled work is visible regardless of publication. Pending/rejected upload reservations are not created studies; unpublished ideas are excluded.",
+  "public_projection": [
+    "id",
+    "title (null until separately resolved when upload filename is not a paper title)",
+    "created_at",
+    "workflow_status (null when no workflow is recorded)",
+    "published (current anonymous RLS membership)"
+  ],
+  "privacy": "No owners, emails, private draft scope, source URL, upload metadata, prompts, raw artifacts or execution controls are returned. Existing workspace authentication, RLS and browser write denial are unchanged.",
+  "pagination": "10 records per keyset page, created_at descending with UUID tie-breaker. Exhaust server page caps. No first-100 ceiling. Development test reaches 126 unique papers; insertion between pages does not shift older membership.",
+  "titles": "At most two separate read-only title requests in flight per page; retained text packet identities and hashes checked by the existing resolver. A missing or failed title does not erase status or a queue link.",
+  "checks": {
+    "backend_unit_tests": {
+      "passed": 219,
+      "command": "python3 -B -m unittest discover -s research_workflow/tests"
+    },
+    "frontend_unit_tests": {
+      "passed": 210,
+      "command": "npm test"
+    },
+    "targeted_latest_catalogue_and_navigation_tests": {
+      "passed": 19
+    },
+    "targeted_latest_backend_catalogue_tests": {
+      "passed": 6
+    },
+    "frontend_build": "passed",
+    "infrastructure_build": "passed",
+    "infrastructure_route_contract_tests": {
+      "passed": 15
+    },
+    "lint": {
+      "errors": 0,
+      "existing_warnings": [
+        "auth-button.tsx:153 navigation warning"
+      ]
+    },
+    "browser": {
+      "protocol": "public-experiment-queue-v3",
+      "scenarios_passed": 10,
+      "report": ".test-artifacts/public-experiment-queue/2026-10-22T21-29-54.271Z/report.json",
+      "report_sha256": "b5e21a66dc36e3f8f344e0665c270b4a8994a4fa13e229f25b3636b12b8bdd3b",
+      "browser_errors": [],
+      "viewports": [
+        1365,
+        390
+      ],
+      "themes": [
+        "light",
+        "dark"
+      ],
+      "data_origin": "Actual built Next app -> actual Python API handler -> explicit synthetic store, without real credentials or experiment execution",
+      "visual_review": "Settled desktop dark and mobile light screenshots inspected by the AI implementer; all four combinations checked for overflow and navigation."
+    }
+  },
+  "source_sha256": {
+    "app/(modules)/research-verification/experiment-queue/page.tsx": "a15311a4478e86a74f9579df62f01be1c52bd974e51aced1ad6dc128aaab4826",
+    "app/(modules)/research-verification/previous-assessments/page.tsx": "133b7564ce07733ba4e0e851d18b8804034ff868619caea5dfe1dff704cf71ec",
+    "app/components/research-workflow/previous-assessments.tsx": "ea5faa162e360f3f54c7002901967f1ed12cd7ec82d5090dfda5ab3d38686385",
+    "lib/research-paper-catalog.ts": "e42557ab75cdaae39f15c8525a59f42c5108db9ba25e4fbc61fe43a6c4bb7803",
+    "lib/test-modules.ts": "359770f2e935aaa7c788f03bbeb71c91d6aec4d05b2894d2aecd42b8d72bab7f",
+    "app/components/research-workflow/public-experiment-queue.tsx": "85f4fd29a9067889c464cd038110d0939e43e9362f4aa529dadcece544f88070",
+    "app/components/research-workflow/autonomous-assessments.tsx": "8e120242417f9494a943c5099f9db79b5e6a5af447969776f2e7d9c71d1fdc3f",
+    "lib/research-public-queue.ts": "da5add814b02120cc6acdc2aae755773252ebb505e4c8e5ebc67ecd241258d04",
+    "../jumpserve-back-end/research_workflow/api.py": "ea34af8427f793827bdc1e01f19c8d35f4c87f13f2109afca18cd66736a28be4",
+    "../jumpserve-back-end/research_workflow/paper_catalog.py": "e2cd06bbba9fc4308b5588e178ee1dfd3dd1d779a98afc9902fe4e7bb2ddbb30",
+    "../jumpserve-back-end/research_workflow/scheduler.py": "8b0d6f0aae2e65cb0c367d333520fcd20635d6f73acbd41062f638773fad771c",
+    "../jumpserve-back-end/research_workflow/paper_titles.py": "04f7640a1ce8e35aefef6fa14a019013212b0784a57325acab36dd7ace9ae6b8",
+    "../jumpserve-back-end/research_workflow/intake.py": "6833dd2e22be112b4b4f8c91c0946fb850d9e8cc823b4f9b4c0416a4df882cce",
+    "../jumpserve-back-end/research_workflow/tests/public_queue_fixture.py": "6a9dabd5e8bd1fe8b7bbc3797b4490b6950be02fa975af3853f25414ea23d00d",
+    "../jumpserve-back-end/research_workflow/tests/test_paper_titles.py": "099400aca7e5f136109d01b62a16036c16f4f6c8e46539c27a5972bccc01910f",
+    "scripts/verify-public-experiment-queue.mjs": "4a2df76bba80cbd82078dd413b8dd409ee63dac4d39e771f6b57e7011bceca69",
+    "app/components/public-landing-page.tsx": "1ecf9a18be86c91457b75c74551af595a6526a35a53049a078242091fd5349db",
+    "app/(modules)/research-verification/test-results/page.tsx": "555e6f461d506cc85a34dc25900e2b576986401884d0e2b87d4baf289dd0e3cd",
+    "tests/research-paper-catalog.test.mjs": "707816277dd410a614109c1002ede9f7e4984394490e38da0a7a7bb7c79797f0",
+    "tests/test-modules.test.mjs": "bdce859b5f951bd3cac4b102a7a26a47a827a54b6a93cf927835fa364ad0b1bc",
+    "../jumpserve-back-end/research_workflow/tests/test_paper_catalog.py": "05bb46d5c4c88593b5a0bb6ac26ee6c405c140c9c0ff4be019c7984399793cf2",
+    "../jumpserve-infra/lib/research-workflow.ts": "710cb66b8ddb5e6f97b1d0f22097fee5ccadbbd9e808c0f3b45cc7059e427377",
+    "../jumpserve-infra/test/research-workflow.test.ts": "52e086e1885f233233dfaa72c023234060bf342c621115d973a09edc08cfd5a3"
+  },
+  "reviewer": {
+    "identity": "Primary Codex AI implementer",
+    "type": "AI",
+    "independent": false
+  },
+  "amendments": [
+    "Initial build caught a TypeScript unknown-value narrowing issue and a generated dev type reference to the removed route. Added explicit return narrowing and a thin permanent redirect fallback; rebuilt successfully.",
+    "Initial full lint caught a test variable named module. Renamed it and reran lint; only the existing unrelated warning remains.",
+    "First browser campaign passed functional checks, but screenshots did not wait for theme transitions or reset retained scroll. Repeated the campaign with explicit theme/finite-animation waits and top scroll; original report remains at .test-artifacts/public-experiment-queue/2026-10-22T21-28-00.940Z/report.json."
+  ],
+  "release_status": "Not committed, pushed or deployed; no production status checks or production writes performed.",
+  "release_requirements": [
+    "On an explicit deployment request, verify AWS 395567831870 and Supabase regphejnlvfpyokpniny.",
+    "Commit backend, pin a new exact runtime revision including paper_catalog.py and changed api.py, then stage original bytes before deploying.",
+    "Deploy the two GET API Gateway routes /research/papers and /research/papers/{studyId}/title with the backend before the frontend.",
+    "No schema/RLS migration is needed. Existing deployed runtime manifest remains unchanged during local editing.",
+    "Verify actual production pagination, current publication/RLS membership, title reads and anonymous metadata privacy after deployment."
+  ],
+  "limitations": [
+    "Synthetic-store browser tests do not establish actual production Supabase/RLS behavior for the new catalogue.",
+    "Generic PDF title extraction limitations are unchanged.",
+    "No scientific findings are created or updated; operational workflow completion is not presented as claim reproduction.",
+    "Historical scientific and production reports are retained; development cases are not independent or human validation."
+  ],
+  "usage": {
+    "new_model_calls": 0,
+    "new_experiment_launches": 0,
+    "measured_charges_usd": null,
+    "unallocated_costs_usd": null
+  }
+}
