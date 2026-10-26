@@ -3,9 +3,9 @@ import test from 'node:test';
 import { registerHooks } from 'node:module';
 const hooks = registerHooks({resolve(s,c,next){return next(s.startsWith('@/lib/')?new URL('../lib/'+s.slice(6)+'.ts',import.meta.url).href:s,c);}});
 const {parseProfileInput,parseProfile}=await import('../lib/profile.ts');
-const {readOwnProfile,writeOwnProfile}=await import('../lib/profile-store.ts');
+const {readOwnProfile,writeOwnProfile,initializeGoogleProfile}=await import('../lib/profile-store.ts');
 hooks.deregister();
-const user={id:'11111111-1111-4111-8111-111111111111',user_metadata:{given_name:'Ada',family_name:'Lovelace'}};
+const user={id:'11111111-1111-4111-8111-111111111111',app_metadata:{provider:'google'},user_metadata:{given_name:'Ada',family_name:'Lovelace'}};
 const input={first_name:'  Zoë ',last_name:"O’Brien",timezone:'America/New_York'};
 
 test('profile edits validate names and IANA time zones without accepting caller identity or arbitrary fields',()=>{
@@ -17,12 +17,31 @@ test('profile edits validate names and IANA time zones without accepting caller 
 
 function client({row=null,error=null}={}){
  const calls=[];
- const builder={select(value){calls.push(['select',value]);return builder;},eq(key,value){calls.push(['eq',key,value]);return builder;},maybeSingle:async()=>({data:row,error}),single:async()=>({data:row,error}),upsert(value,options){calls.push(['upsert',value,options]);return builder;}};
+ const builder={select(value){calls.push(['select',value]);return builder;},eq(key,value){calls.push(['eq',key,value]);return builder;},maybeSingle:async()=>({data:row,error}),single:async()=>({data:row,error}),upsert(value,options){calls.push(['upsert',value,options]);return builder;},then(resolve,reject){return Promise.resolve({data:row,error}).then(resolve,reject);}};
  return {calls,from(table){calls.push(['from',table]);return builder;}};
 }
 test('a missing profile uses explicit Google name fields and does not write on a read',async()=>{
  const c=client();assert.deepEqual(await readOwnProfile(c,user),{id:user.id,first_name:'Ada',last_name:'Lovelace',timezone:null});
  assert.ok(c.calls.some(x=>x[0]==='eq'&&x[1]==='id'&&x[2]===user.id));assert.ok(!c.calls.some(x=>x[0]==='upsert'));
+});
+
+test('first Google sign-in persists explicit names without setting a timezone or allowing a concurrent profile overwrite',async()=>{
+ const c=client();await initializeGoogleProfile(c,user);
+ assert.ok(c.calls.some(x=>x[0]==='eq'&&x[1]==='id'&&x[2]===user.id));
+ assert.deepEqual(c.calls.find(x=>x[0]==='upsert'),['upsert',{id:user.id,first_name:'Ada',last_name:'Lovelace',timezone:null},{onConflict:'id',ignoreDuplicates:true}]);
+});
+
+test('later Google logins preserve saved edits, deliberately blank names and timezone',async()=>{
+ for(const row of [{id:user.id,first_name:'Grace',last_name:'Hopper',timezone:'Asia/Tokyo'},{id:user.id,first_name:'',last_name:'',timezone:null}]){
+  const c=client({row});await initializeGoogleProfile(c,user,'unused-token');
+  assert.ok(!c.calls.some(x=>x[0]==='upsert'));assert.deepEqual(await readOwnProfile(c,user),row);
+ }
+});
+
+test('non-Google identities, unavailable names and profile storage failures do not create empty profiles',async()=>{
+ const c=client();await initializeGoogleProfile(c,{...user,app_metadata:{provider:'email'}});assert.deepEqual(c.calls,[]);
+ await initializeGoogleProfile(c,{...user,user_metadata:{full_name:'An ambiguous display name'}});assert.ok(!c.calls.some(x=>x[0]==='upsert'));
+ await assert.rejects(()=>initializeGoogleProfile(client({error:{message:'Private database detail'}}),user),{message:'Google profile initialization could not read the profile.'});
 });
 test('profile upsert derives identity from the verified user and checks the returned identity',async()=>{
  const row={...input,first_name:'Zoë',id:user.id};const c=client({row});assert.deepEqual(await writeOwnProfile(c,user,input),row);

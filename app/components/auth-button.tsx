@@ -132,6 +132,7 @@ export function AuthButton({ placement = "floating" }: AuthButtonProps) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
+        scopes: "openid profile email",
         redirectTo: callbackUrl.toString(),
       },
     });

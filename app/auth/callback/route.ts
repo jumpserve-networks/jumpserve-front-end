@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getPostLoginPath, getSafeNextPath } from "@/lib/auth-redirect";
 import { getConfiguredSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
+import { initializeGoogleProfile } from "@/lib/profile-store";
 
 const PRODUCTION_SITE_ORIGIN = "https://jumpserve.quaint-lab.org";
 
@@ -33,9 +34,18 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
+      if (data.user) {
+        try {
+          await initializeGoogleProfile(supabase, data.user, data.session?.provider_token);
+        } catch {
+          // Authentication has succeeded. A profile outage must not discard the
+          // session or the requested destination; the next login can retry.
+          console.warn("Google profile initialization unavailable after sign-in.");
+        }
+      }
       return NextResponse.redirect(new URL(getPostLoginPath(nextPath), redirectOrigin));
     }
 

@@ -28,6 +28,17 @@ try{
  await context.route('**/*',route=>{const u=new URL(route.request().url());return ['http:','https:'].includes(u.protocol)&&!['127.0.0.1','localhost'].includes(u.hostname)?route.abort():route.continue();});
  const page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',e=>report.browser_errors.push(e.message));
  await check('anonymous profile requires sign-in and public timestamps use browser timezone',async()=>{assert.equal((await context.request.get(origin+'/api/profile')).status(),401);await page.goto(origin+'/profile');const u=new URL(page.url());assert.equal(u.pathname,'/login');assert.equal(u.searchParams.get('next'),'/profile');await page.goto(origin+'/research-verification/previous-assessments');await page.locator('article[data-paper-id] time').filter({hasText:'Oct 23, 2026, 11:00:00 AM PDT'}).waitFor();return {private_get_status:401,next:'/profile',anonymous_timezone:'America/Los_Angeles'};});
+ await check('first Google callback persists names automatically and resumes the requested page',async()=>{
+  const first='44444444-4444-4444-8444-444444444444';
+  const before=await (await fetch(api+'/fixture/state')).json();assert.ok(!before.rows.some(row=>row.id===first));
+  await context.addCookies([{name:'sb-127-auth-token-code-verifier',value:'base64-'+Buffer.from(JSON.stringify('explicit-local-code-verifier')).toString('base64url'),url:origin,sameSite:'Lax'}]);
+  await page.goto(origin+'/auth/callback?code=explicit-local-first-login&next='+encodeURIComponent('/research-verification/previous-assessments?from=oauth'));
+  assert.equal(new URL(page.url()).pathname,'/research-verification/previous-assessments');assert.equal(new URL(page.url()).search,'?from=oauth');
+  const state=await (await fetch(api+'/fixture/state')).json();assert.deepEqual(state.rows.find(row=>row.id===first),{id:first,first_name:'Fixture',last_name:'User',timezone:null});
+  const response=await context.request.get(origin+'/api/profile');assert.equal(response.status(),200);assert.equal((await response.json()).profile.first_name,'Fixture');
+  await page.goto(origin+'/profile');await page.getByLabel('First name',{exact:true}).waitFor();assert.equal(await page.getByLabel('First name',{exact:true}).inputValue(),'Fixture');assert.equal(await page.getByLabel('Last name',{exact:true}).inputValue(),'User');
+  await context.clearCookies();return {actual_next_callback:true,actual_postgres_insert:true,synthetic_google_exchange:true,manual_name_entry:false,requested_destination_preserved:true};
+ });
  await session(context,metadata.sessions[actor]);
  await check('saved profile loads through actual Next API and database',async()=>{await page.goto(origin+'/profile');await page.getByLabel('First name',{exact:true}).waitFor();assert.equal(await page.getByLabel('First name',{exact:true}).inputValue(),'Ada');assert.equal(await page.getByLabel('Time zone',{exact:true}).inputValue(),'America/New_York');return {browser_timezone:'America/Los_Angeles',saved_timezone:'America/New_York'};});
  let actionId;
