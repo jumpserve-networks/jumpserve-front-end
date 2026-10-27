@@ -5,10 +5,10 @@ export class ResearchRequestError extends Error {
   constructor(message: string, status: number) { super(message); this.status = status; this.name = "ResearchRequestError"; }
 }
 export const RESEARCH_SIGN_IN_REQUIRED = "Sign in to run assessments or chat with the AI.";
-export async function researchRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function researchRequest<T>(path: string, options: RequestInit = {}, expectedUserId?: string): Promise<T> {
   const base = researchApiBase(process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL ?? process.env.NEXT_PUBLIC_BENCHMARK_API_URL);
   if (!base) throw new Error("The research workflow service is not configured. Your unsaved input remains in this form.");
-  const token = await requireAccessToken(RESEARCH_SIGN_IN_REQUIRED);
+  const token = await requireAccessToken(RESEARCH_SIGN_IN_REQUIRED, expectedUserId);
   const controller = new AbortController();
   const relayAbort = () => controller.abort(options.signal?.reason);
   if (options.signal?.aborted) relayAbort();

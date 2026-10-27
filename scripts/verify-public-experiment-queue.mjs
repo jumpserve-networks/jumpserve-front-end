@@ -11,13 +11,14 @@ const origin='http://127.0.0.1:6103',study='11111111-1111-4111-8111-111111111111
 const target='/research-verification/experiment-queue?assessment='+study;
 const paperTitle='Making Congestion Control Algorithms Insensitive to Underlying Propagation Delays';
 const directory='.test-artifacts/public-experiment-queue/'+new Date().toISOString().replaceAll(':','-');await mkdir(directory,{recursive:true});
-const report={protocol:'public-experiment-queue-v7',started_at:new Date().toISOString(),checks:[],requests:[],browser_errors:[],source_sha256:{},reviewer:{identity:'Primary Codex AI implementer',type:'AI',independent:false},conditional_gaps:['Production anonymous status and deployed private API denials','Actual Supabase reads and RLS; store fixture is synthetic','Actual authenticated owner session','Title extraction accuracy across arbitrary PDF layouts'],new_model_calls:0,new_experiment_launches:0,measured_charges_usd:null};
+const report={protocol:'public-experiment-queue-v9',started_at:new Date().toISOString(),checks:[],requests:[],browser_errors:[],source_sha256:{},reviewer:{identity:'Primary Codex AI implementer',type:'AI',independent:false},conditional_gaps:['Production anonymous status and deployed private API denials','Actual Supabase reads and RLS; store fixture is synthetic','Actual authenticated owner session','Title extraction accuracy across arbitrary PDF layouts','Format-based diagnostic redaction is not a complete privacy review of arbitrary text'],new_model_calls:0,new_experiment_launches:0,measured_charges_usd:null};
 for(const path of ['app/(modules)/research-verification/new-assessment/page.tsx','app/(modules)/research-verification/new-study/page.tsx','app/components/public-landing-page.tsx','app/components/research-workflow/experiment-queue.tsx','app/components/research-workflow/published-studies.tsx','app/components/research-workflow/workspace.tsx','lib/research-pathways.ts','lib/auth.ts','lib/auth-redirect.ts','next.config.ts'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
 for(const path of ['app/(modules)/research-verification/experiment-queue/page.tsx','app/(modules)/research-verification/previous-assessments/page.tsx','app/components/research-workflow/previous-assessments.tsx','lib/research-paper-catalog.ts','lib/test-modules.ts','app/components/research-workflow/public-experiment-queue.tsx','app/components/research-workflow/autonomous-assessments.tsx','lib/research-public-queue.ts','../jumpserve-back-end/research_workflow/api.py','../jumpserve-back-end/research_workflow/paper_catalog.py','../jumpserve-back-end/research_workflow/scheduler.py','../jumpserve-back-end/research_workflow/paper_titles.py','../jumpserve-back-end/research_workflow/intake.py','../jumpserve-back-end/research_workflow/tests/public_queue_fixture.py','../jumpserve-back-end/research_workflow/tests/test_paper_titles.py','scripts/verify-public-experiment-queue.mjs'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
 for(const path of ['app/(modules)/research-verification/assessments/[assessmentId]/page.tsx','app/(modules)/research-verification/studies/[studyId]/page.tsx','app/(modules)/research-verification/api/assessments/[assessmentId]/export/route.ts','app/(modules)/research-verification/api/studies/[studyId]/export/route.ts','lib/research-export.ts','lib/research-experiment-queue.ts','lib/research-workflow-server.ts','app/components/research-workflow/study-panel.tsx'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
 for(const path of ['app/components/research-ideas/idea-workspace.tsx','app/components/research-ideas/network-protocol-editor.tsx','lib/network-execution.ts','lib/research-workflow.ts','lib/research-workflow-api.ts','lib/browser-auth.ts','app/components/research-workflow/claim-designer.tsx','app/components/research-workflow/claim-queue.tsx','app/components/research-workflow/evidence-methods.tsx','app/components/research-workflow/network-job-cancel.tsx','app/components/research-workflow/queue-example.tsx','app/components/research-workflow/run-gap-experiment.tsx'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
 report.source_sha256['app/components/research-workflow/assessment-experiment-queue.tsx']=createHash('sha256').update(await readFile('app/components/research-workflow/assessment-experiment-queue.tsx')).digest('hex');
-for(const path of ['app/(modules)/research-verification/assessments/page.tsx','app/(modules)/research-verification/workspace/page.tsx','app/(modules)/research-verification/workspace/[studyId]/page.tsx'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
+for(const path of ['app/(modules)/research-verification/my-assessments/page.tsx','app/(modules)/research-verification/assessments/page.tsx','app/(modules)/research-verification/workspace/page.tsx','app/(modules)/research-verification/workspace/[studyId]/page.tsx'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
+for(const path of ['app/components/research-workflow/shared-assessment-records.tsx','app/components/research-workflow/autonomous-assessments.tsx','lib/research-pathways.ts','tests/research-shared-details.test.mjs','../jumpserve-back-end/research_workflow/tests/test_shared_details.py'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
 let python,build,app,browser,pythonLog='',buildLog='',appLog='',fixtureOrigin;
 async function check(name,action){try{report.checks.push({name,passed:true,evidence:await action()});console.log('PASS '+name);}catch(e){report.checks.push({name,passed:false,error:e.message});throw e;}}
 async function fixtureMode(mode){const r=await fetch(fixtureOrigin+'/fixture/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});assert.equal(r.status,200);}
@@ -40,7 +41,7 @@ try{
  const chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';browser=await chromium.launch({headless:true,executablePath:existsSync(chrome)?chrome:undefined});
  const context=await browser.newContext({viewport:{width:1365,height:900}});
  await context.route('**/*',async route=>{const req=route.request(),u=new URL(req.url());
-  if((u.pathname.startsWith('/research/studies/')&&u.pathname.endsWith('/queue')&&u.search==='?public=1')||u.pathname==='/research/papers'||/^\/research\/papers\/[a-f0-9-]+\/title$/.test(u.pathname)){
+  if((u.pathname.startsWith('/research/studies/')&&['/queue','/autonomy'].some(suffix=>u.pathname.endsWith(suffix))&&u.searchParams.get('public')==='1')||u.pathname==='/research/papers'||/^\/research\/papers\/[a-f0-9-]+\/title$/.test(u.pathname)){
    const headers=await req.allHeaders();report.requests.push({path:u.pathname+u.search,method:req.method(),authorization_present:!!headers.authorization,cookie_present:!!headers.cookie});assert.equal(req.method(),'GET');assert.equal(headers.authorization,undefined);assert.equal(headers.cookie,undefined);
    const response=await fetch(fixtureOrigin+u.pathname+u.search);const raw=await response.text();assert.ok(!raw.includes('PRIVATE-CANARY'));
    return route.fulfill({status:response.status,body:raw,contentType:'application/json',headers:{'Access-Control-Allow-Origin':origin,'Cache-Control':'no-store'}});
@@ -53,10 +54,40 @@ try{
  await check('anonymous Next route reads actual API status without owner credentials or private controls',async()=>{
   const response=await page.goto(origin+target);assert.equal(response.status(),200);assert.equal(new URL(page.url()).pathname,'/research-verification/experiment-queue');
   await page.getByTestId('public-experiment-queue').getByText(paperTitle,{exact:true}).waitFor();
-  assert.equal(await page.getByRole('button',{name:'View prompts and responses',exact:true}).count(),0);assert.equal(await page.getByText('Initial paper prompt',{exact:true}).count(),0);assert.equal(await page.getByRole('button',{name:'Run experiment now',exact:true}).count(),0);
+  assert.equal(await page.getByRole('button',{name:'View prompts and responses',exact:true}).count(),5);assert.equal(await page.getByText('Initial paper prompt',{exact:true}).count(),0);assert.equal(await page.getByRole('button',{name:'Run experiment now',exact:true}).count(),0);
   const body=await page.locator('main').innerText();for(const label of ['untested','inconclusive','reproduced','discrepant'])assert.ok(body.includes('finding: '+label));
   assert.ok(body.includes('Paper preparation · 0 AI turns'));assert.ok(body.includes('Recorded run status: partial'));assert.ok(body.includes('Recorded run status: unavailable'));assert.ok(!body.includes('PRIVATE-CANARY'));assert.ok(!body.includes('ProxyDelay_Nines_CameraReady'));
-  return {anonymous:true,real_python_handler:true,synthetic_store:true,title_from_retained_first_page:paperTitle,filename_displayed:false,claim_labels:4,private_prompt_controls:0,private_bytes:false};
+  assert.ok(body.includes('ValueError: archived input version is unavailable.'));assert.ok(body.includes('Supply the archived 1988 trace in CSV format.'));
+  assert.ok(body.includes('Executor timed out after 10 seconds.'));assert.ok(body.includes('Only 2 of 3 observations were recorded.'));
+  assert.ok(!body.includes('study owner can inspect'));assert.ok(!body.includes('private-owner@example.org'));assert.ok(body.includes('[redacted]'));
+  return {anonymous:true,real_python_handler:true,synthetic_store:true,title_from_retained_first_page:paperTitle,filename_displayed:false,claim_labels:4,shared_prompt_controls:5,credential_bytes:false};
+ });
+ await check('shared failure details remain readable without sign-in and absent details stay explicitly missing',async()=>{
+  await fixtureMode('details-missing');await page.reload();await page.getByText('Paused. No failure details or requirements were recorded.',{exact:true}).waitFor();
+  await page.getByText('No failure details were returned by the service.',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'View prompts and responses',exact:true}).count(),5);
+  await fixtureMode('normal');await page.reload();await page.locator('#job-44444444-4444-4444-8444-444444444444').getByText(/Executor timed out after 10 seconds/).waitFor();
+  assert.ok(report.requests.filter(r=>r.path?.includes('/queue?')).every(r=>r.path.endsWith('?public=1&diagnostics=1')&&!r.authorization_present&&!r.cookie_present));
+  return {anonymous:true,task_and_workflow_details:true,job_and_run_details:true,requirements_visible:true,credentials_redacted:true,missing_details_not_invented:true};
+ });
+ await check('anonymous readers inspect every turn, initial request, configurations and events without a private mode',async()=>{
+  const task=page.locator('#claim-task-33333333-3333-4333-8333-333333333333');
+  await task.getByRole('button',{name:'View prompts and responses',exact:true}).click();
+  await task.getByText('Turn 12 · planning · failed',{exact:true}).waitFor();assert.equal(await task.locator('article').count(),10);
+  await task.locator('summary').filter({hasText:'Prompt and configuration (shared copy)'}).first().click();
+  assert.ok((await task.innerText()).includes('Check the archived configuration in milliseconds.'));
+  assert.ok((await task.innerText()).includes('Hashes identify retained originals'));
+  await task.getByRole('button',{name:'Show older turns',exact:true}).click();await task.getByText('Turn 1 · planning · failed',{exact:true}).waitFor();assert.equal(await task.locator('article').count(),12);
+  await page.getByRole('button',{name:'View assessment records',exact:true}).click();const records=page.getByRole('region',{name:'Shared assessment records',exact:true});
+  await records.locator('pre').filter({hasText:'Assess only source-grounded networking claims.'}).waitFor();
+  await records.getByRole('combobox',{name:'Recorded information',exact:true}).click();await page.getByRole('option',{name:'Configurations',exact:true}).click();
+  await records.locator('pre').filter({hasText:'explicit-software-fixture'}).waitFor();const config=JSON.parse(await records.locator('pre').innerText())[0];assert.equal(config.details.delay_ms,10);assert.equal(config.details.recorded_zero,0);assert.equal(config.details.missing,null);assert.equal(config.details.api_key,'[redacted]');
+  await records.getByRole('combobox',{name:'Recorded information',exact:true}).click();await page.getByRole('option',{name:'Event history',exact:true}).click();await records.locator('pre').filter({hasText:'Fixture executor timed out.'}).waitFor();
+  for(const width of [1365,390])for(const theme of ['Light Mode','Dark Mode']){await page.setViewportSize({width,height:width===390?844:900});await page.getByRole('button',{name:theme,exact:true}).click();await settledTheme(page,theme);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await records.screenshot({path:directory+'/shared-records-'+width+'-'+theme.split(' ')[0].toLowerCase()+'.png'});}
+  assert.ok(!(await page.locator('body').innerText()).includes('PRIVATE-CANARY'));
+  await fixtureMode('turns-missing');await page.reload();const missing=page.locator('#claim-task-33333333-3333-4333-8333-333333333333');await missing.getByRole('button',{name:'View prompts and responses',exact:true}).click();await missing.getByText('No turn records were returned. The attempt counter remains recorded; missing responses are unknown.',{exact:true}).waitFor();
+  await fixtureMode('normal');await page.reload();await page.getByText(paperTitle,{exact:true}).waitFor();
+  return {anonymous:true,turns_seen:12,paginated:true,initial_request:true,configurations_and_events:true,recorded_zero_and_missing_preserved:true,missing_turns_explicit:true,redacted_credentials:true,desktop_mobile_themes:true};
  });
  await check('serial polling updates actual recorded status and failed polls retain marked stale evidence',async()=>{
   await fixtureMode('running');await page.clock.runFor(10100);await page.getByRole('article').filter({hasText:'bbbbbbbb-1111-4111-8111-111111111111'}).getByText('running',{exact:true}).waitFor();
@@ -84,12 +115,12 @@ try{
   const before=report.requests.length;await page.goto(origin+'/research-verification/experiment-queue?assessment=invalid');await page.getByRole('alert').filter({hasText:'invalid assessment'}).waitFor();assert.equal(report.requests.length,before);
   return {states:['empty','invalid response','unavailable','missing paper','invalid ID'],failed_counts_not_zero:true};
  });
- await check('private queue action paths and base queue require sign-in while shared aliases preserve IDs',async()=>{
-  for(const path of [target+'&view=private','/research-verification/experiment-queue','/research-verification/experiment-queue?sourceAssessment='+study+'&gap=22222222-2222-4222-8222-222222222222']){await page.goto(origin+path);assert.equal(new URL(page.url()).pathname,'/login');assert.equal(new URL(page.url()).searchParams.get('next'),path);}
+ await check('legacy private-mode links redirect to shared details while writes and personal listings retain authentication',async()=>{
+  for(const path of ['/research-verification/experiment-queue','/research-verification/experiment-queue?sourceAssessment='+study+'&gap=22222222-2222-4222-8222-222222222222']){await page.goto(origin+path);assert.equal(new URL(page.url()).pathname,'/login');assert.equal(new URL(page.url()).searchParams.get('next'),path);}
   await page.goto(origin+'/experiment-queue?assessment='+study);await page.getByText(paperTitle,{exact:true}).waitFor();assert.equal(new URL(page.url()).pathname,'/research-verification/experiment-queue');assert.equal(new URL(page.url()).searchParams.get('assessment'),study);
-  await page.getByRole('link',{name:'Open owner’s private queue',exact:true}).click();await page.waitForURL(/\/login\?/);assert.equal(new URL(page.url()).searchParams.get('next'),target+'&view=private');
+  await page.goto(origin+target+'&view=private&tag=first&tag=second');await page.getByText(paperTitle,{exact:true}).waitFor();assert.equal(new URL(page.url()).pathname,'/research-verification/experiment-queue');assert.equal(new URL(page.url()).searchParams.has('view'),false);assert.deepEqual(new URL(page.url()).searchParams.getAll('tag'),['first','second']);assert.equal(await page.getByRole('link',{name:'Open owner’s private queue',exact:true}).count(),0);
   for(const suffix of ['/autonomy','/queue']){const r=await fetch(fixtureOrigin+'/research/studies/'+study+suffix);assert.equal(r.status,401);}
-  return {private_return_paths:3,anonymous_private_API_denials:2,shared_alias_public:true};
+  return {authenticated_action_and_index_paths:2,legacy_private_mode_redirects_to_public:true,unprojected_API_denials:2,shared_alias_public:true};
  });
  await check('previous assessments include submitted running stopped and published papers with queue links',async()=>{
   await page.goto(origin+'/');await page.getByRole('link',{name:'View previous',exact:true}).click();await page.waitForURL(origin+'/research-verification/previous-assessments');
@@ -97,6 +128,9 @@ try{
   assert.equal(await page.locator('article[data-paper-id]').count(),10);assert.equal(await page.getByRole('link',{name:'View experiment queue',exact:true}).count(),0);
   const body=await page.locator('main').innerText();for(const label of ['In progress','Cancelled','Spending limit reached','Finished with gaps','Time limit reached','Published assessment','Not published'])assert.ok(body.includes(label),label);
   assert.ok(!body.includes('PRIVATE-CANARY'));assert.ok(!body.includes('ProxyDelay_Nines_CameraReady'));
+  await page.locator(`article[data-paper-id="${study}"] [data-paper-authors]`).filter({hasText:'Cyrus Illick, Michael Roger'}).waitFor();
+  await page.locator(`article[data-paper-id="${study}"]`).getByText('Initiated by: Casey Researcher',{exact:true}).waitFor();
+  assert.ok(body.includes('Initiated by: Name unavailable'));
   await page.locator(`article[data-paper-id="${study}"]`).getByRole('link',{name:paperTitle,exact:true}).click();await page.waitForURL(origin+target);await page.getByText(paperTitle,{exact:true}).waitFor();
   return {first_page:10,unpublished_papers_visible:true,published_link_retained:true,private_bytes:false,queue_link_works:true};
  });
@@ -107,6 +141,19 @@ try{
   assert.equal(await page.locator('article[data-paper-id]').count(),3);const older=await page.locator('article[data-paper-id]').evaluateAll(nodes=>nodes.map(n=>n.dataset.paperId));assert.ok(older.every(id=>!first.includes(id)));
   for(const prefix of ['','/module','/modules']){const r=await fetch(origin+prefix+'/research-verification/test-results?tag=a%26b&tag=second',{redirect:'manual'});assert.equal(r.status,308);const u=new URL(r.headers.get('location'),origin);assert.equal(u.pathname,'/research-verification/previous-assessments');assert.deepEqual(u.searchParams.getAll('tag'),['a&b','second']);}
   return {unique_assessments_seen:new Set([...first,...older]).size,older_page:3,direct_permanent_legacy_redirects:3,repeated_query_values_preserved:true};
+ });
+ await check('previous assessments reuse the prepared TCP88 title without PDF extraction or private review data',async()=>{
+  await fixtureMode('review-title');await page.goto(origin+'/research-verification/previous-assessments');
+  const card=page.locator(`article[data-paper-id="${study}"]`);
+  await card.getByRole('link',{name:'Congestion Avoidance and Control',exact:true}).waitFor();
+  assert.ok(!(await card.innerText()).includes('Paper title unavailable'));assert.ok(!(await card.innerText()).includes('TCP88.pdf'));
+  await card.locator('[data-paper-authors]').filter({hasText:'Van Jacobson, Michael J. Karels'}).waitFor();
+  const response=await fetch(fixtureOrigin+'/research/papers/'+study+'/title?bibliography=1');assert.equal(response.status,200);
+  const title=await response.json();assert.equal(title.title,'Congestion Avoidance and Control');
+  assert.deepEqual(title.authors,['Van Jacobson','Michael J. Karels']);
+  assert.ok(!JSON.stringify(title).includes('PRIVATE-CANARY'));assert.ok(!(await page.locator('main').innerText()).includes('PRIVATE-CANARY'));
+  await fixtureMode('normal');
+  return {saved_review_title_used:true,original_filename_not_shown:true,pdf_text_artifacts_absent:true,public_title_endpoint_matches:true,private_review_fields_absent:true};
  });
  await check('previous assessments preserve missing title empty invalid and unavailable states',async()=>{
   await fixtureMode('title-missing');await page.goto(origin+'/research-verification/previous-assessments');await page.getByText('Paper title unavailable',{exact:true}).waitFor();assert.equal(await page.locator('article[data-paper-id]').count(),10);
@@ -153,17 +200,33 @@ try{
   return {saved_query_redirects:2,repeated_tags_preserved:true,owner_action_return_preserved:true,ambiguous_selections_rejected:4,assessment_terminology:true};
  });
  await check('My Assessments list replaces workspace with exact redirects and retains private versus public access',async()=>{
-  const canonical='/research-verification/assessments',query='?tag=a%26b&tag=second';
+  const canonical='/research-verification/my-assessments',query='?tag=a%26b&tag=second';
   await page.setViewportSize({width:1365,height:900});await fixtureMode('normal');await page.goto(origin+'/research-verification/previous-assessments');await page.getByRole('link',{name:'Read assessment',exact:true}).waitFor();
   const mine=page.locator('aside').getByRole('link',{name:'My Assessments',exact:true});assert.equal(await mine.getAttribute('href'),canonical);assert.equal(await page.getByRole('link',{name:'My Workspace',exact:true}).count(),0);await mine.click();await page.waitForURL(/\/login\?/);assert.equal(new URL(page.url()).searchParams.get('next'),canonical);
-  for(const path of [canonical,...['','/module','/modules'].map(prefix=>prefix+'/research-verification/workspace')]){
+  for(const path of [canonical,...['','/module','/modules'].flatMap(prefix=>['workspace','assessments','studies'].map(suffix=>prefix+'/research-verification/'+suffix))]){
    if(path!==canonical){const r=await fetch(origin+path+query,{redirect:'manual'});assert.equal(r.status,308);const location=new URL(r.headers.get('location'),origin);assert.equal(location.pathname,canonical);assert.deepEqual(location.searchParams.getAll('tag'),['a&b','second']);}
    await page.goto(origin+path+query);assert.equal(new URL(page.url()).pathname,'/login');const next=new URL(new URL(page.url()).searchParams.get('next'),origin);assert.equal(next.pathname,canonical);assert.deepEqual(next.searchParams.getAll('tag'),['a&b','second']);
   }
   const privateDetail='/research-verification/workspace/'+study+'?view=gaps';await page.goto(origin+privateDetail);assert.equal(new URL(page.url()).pathname,'/login');assert.equal(new URL(page.url()).searchParams.get('next'),privateDetail);
   await page.goto(origin+'/research-verification/previous-assessments');const read=page.getByRole('link',{name:'Read assessment',exact:true});await read.waitFor();const publicDetail=await read.getAttribute('href');await read.click();await page.waitForURL(origin+publicDetail);await page.getByRole('heading',{name:'Synthetic published paper assessment',exact:true}).waitFor();assert.equal(await page.locator('aside a[aria-current="page"]').getAttribute('href'),'/research-verification/previous-assessments');
   await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Open module menu',exact:true}).click();assert.equal(await page.getByRole('dialog').getByRole('link',{name:'My Assessments',exact:true}).getAttribute('href'),canonical);await page.getByRole('dialog').getByRole('link',{name:'My Assessments',exact:true}).click();await page.waitForURL(/\/login\?/);assert.equal(new URL(page.url()).searchParams.get('next'),canonical);
-  return {canonical_list:canonical,sidebar_label:'My Assessments',legacy_root_redirects:3,repeated_queries_preserved:true,anonymous_list_requires_login:true,private_detail_requires_login:true,published_detail_public:true,desktop_and_mobile_navigation:true,authenticated_list_contents:'not exercised'};
+  return {canonical_list:canonical,sidebar_label:'My Assessments',legacy_root_redirects:9,repeated_queries_preserved:true,anonymous_list_requires_login:true,private_detail_requires_login:true,published_detail_public:true,desktop_and_mobile_navigation:true,authenticated_list_contents:'not exercised'};
+ });
+ report.amendment='experiment-builder-ui-v1';
+ await check('native builder history and original evidence remain readable on desktop and mobile',async()=>{
+  await fixtureMode('builder');
+  for(const width of [1365,390]){
+   await page.setViewportSize({width,height:900});await page.goto(origin+target);
+   const task=page.locator('#claim-task-33333333-3333-4333-8333-333333333333');await task.getByText('Building a versioned experiment from retained files.',{exact:true}).waitFor();
+   await task.getByRole('button',{name:'View prompts and responses',exact:true}).click();await task.getByText('AI call 31 · complete',{exact:true}).waitFor();
+   await task.getByRole('button',{name:'Native prompt and tool results',exact:true}).click();await task.locator('pre').filter({hasText:'Write and test a bounded experiment.'}).waitFor();
+   await task.getByRole('button',{name:'Native response and tool calls',exact:true}).click();await task.locator('pre').filter({hasText:'function_call'}).waitFor();
+   assert.ok(!(await task.innerText()).includes('PRIVATE-CANARY'));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+   await page.screenshot({path:directory+`/builder-${width}.png`,fullPage:true});
+  }
+  await fixtureMode('builder-missing');await page.goto(origin+target);const task=page.locator('#claim-task-33333333-3333-4333-8333-333333333333');await task.getByRole('button',{name:'View prompts and responses',exact:true}).click();await task.getByText('AI call 31 · unknown',{exact:true}).waitFor();await task.getByRole('button',{name:'Native response and tool calls',exact:true}).click();await task.getByText('No original provider response was received or retained; missing is not zero.',{exact:true}).waitFor();
+  await fixtureMode('builder-invalid');await page.goto(origin+target);await page.locator('#claim-task-33333333-3333-4333-8333-333333333333').getByRole('button',{name:'View prompts and responses',exact:true}).click();await page.getByRole('alert').filter({hasText:'Native builder call history is invalid or incomplete.'}).waitFor();
+  return {desktop_and_mobile:true,native_prompt:true,native_tool_calls:true,missing_response_explicit:true,invalid_history_rejected:true,external_model_calls:0};
  });
  assert.deepEqual(report.browser_errors,[]);assert.ok(report.requests.length);assert.ok(report.requests.every(r=>r.method==='GET'&&!r.authorization_present&&!r.cookie_present&&!r.unexpected_private_path));report.passed=true;
 }catch(error){report.passed=false;report.error=error.stack;process.exitCode=1;if(browser){const page=browser.contexts()[0]?.pages()[0];if(page){await writeFile(directory+'/failure.html',await page.content());await page.screenshot({path:directory+'/failure.png',fullPage:true});}}}

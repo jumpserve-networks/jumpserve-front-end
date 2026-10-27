@@ -116,10 +116,11 @@ frontend. See `jumpserve-infra/docs/leo-study-chat.md` for the release order.
 - Next.js `16.3.8` (App Router)
 - React `19.2.3`
 - TypeScript `5`
+- Node.js `22` or newer (Supabase SDK requirement)
 - Tailwind CSS `4`
 - shadcn/ui (Base UI, with shared components in `app/components/ui`)
 - Supabase client libraries:
-  - `@supabase/supabase-js`
+  - `@supabase/supabase-js` `2.118.0`
   - `@supabase/ssr`
 
 ## Useful commands
@@ -161,15 +162,18 @@ anonymous SELECT grants only for experiment tables and the explicit
 in public pages: requester emails are not public. Saved configurations and chat
 sessions remain authenticated. Real-world cancellation is owner-only.
 
-Paper Experiment Queue links with `?study=<id>` expose an explicit public,
-read-only status projection, even before assessment publication. The queue
-without a study and `&view=private` remain owner-only. Keep prompts, responses,
-owner information, uploaded PDFs, raw inputs, artifact paths, resource identities
-and private event history out of public responses. Use the bounded
-`/research/studies/{id}/queue?public=1` API; do not grant anonymous SQL access to
-private relations or expose unpublished ideas. Launches, cancellation and all
-other writes still require the existing Google/owner checks. See
-`docs/public-experiment-queue-v1.md` for the verification and release protocol.
+Paper Experiment Queue links with `?assessment=<id>` expose public read-only
+assessment details, even before publication. Legacy `?study=<id>` aliases remain
+supported; `&view=private` redirects to the same shared view. Prompts, responses,
+requirements, evidence records, configurations and event history are available
+through bounded, on-demand public projections. Use the explicit public queue and
+task-history APIs; never grant anonymous SQL access to private relations or expose
+unpublished research ideas. Protect credentials, account/contact data, private
+storage locations and original file downloads. Shared copies label redactions
+and size limits, preserve missing values and zero, and identify hashes as belonging
+to unchanged originals. The queue without an assessment remains a personal owner
+listing. Launches, cancellation and every write retain Google/owner checks. See
+`docs/shared-assessment-details-v1.md` for current access rules and verification.
 
 - Canonical production URL: `https://jumpserve.quaint-lab.org`
 - Production `NEXT_PUBLIC_SITE_URL`: `https://jumpserve.quaint-lab.org`

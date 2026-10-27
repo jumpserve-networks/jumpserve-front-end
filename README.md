@@ -9,6 +9,9 @@ Starter app using:
 
 ## Quick Start
 
+Use Node.js 22 or newer. The pinned Supabase SDK requires Node.js 22+; local
+verification currently uses Node.js 24.
+
 1. Install dependencies:
 
 ```bash

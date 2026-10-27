@@ -10,20 +10,22 @@ import { experimentQueuePath, QUEUE_POLL_MS } from "@/lib/research-experiment-qu
 import { QUEUE_STATUSES } from "@/lib/research-queue";
 import { AutonomousAssessments } from "./autonomous-assessments";
 import { ResearchSelect } from "./select";
+import { SharedAssessmentRecords } from "./shared-assessment-records";
 
 const words = (value: string) => value.replaceAll("-", " ");
 const recordedTime = (value: string) => <LocalDateTime value={value} />;
 
 export function PublicExperimentQueue({ studyId, jobId }: { studyId: string; jobId?: string }) {
   const [data, setData] = useState<PublicStudyQueue | null>(null);
-  const [error, setError] = useState(""); const [updatedAt, setUpdatedAt] = useState("");
+  const [error, setError] = useState("");
   const [status, setStatus] = useState(""); const [limit, setLimit] = useState(20);
+  const [recordsOpen, setRecordsOpen] = useState(false);
   useEffect(() => {
     const controller = new AbortController(); let timer: ReturnType<typeof setTimeout> | undefined;
     async function refresh() {
       try {
         const result = await loadPublicStudyQueue(studyId, controller.signal);
-        if (!controller.signal.aborted) { setData(result); setError(""); setUpdatedAt(new Date().toISOString()); }
+        if (!controller.signal.aborted) { setData(result); setError(""); }
       } catch (failure) {
         if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : "Shared queue status is unavailable.");
       } finally { if (!controller.signal.aborted) timer = setTimeout(refresh, QUEUE_POLL_MS); }
@@ -36,12 +38,12 @@ export function PublicExperimentQueue({ studyId, jobId }: { studyId: string; job
   return <div className="space-y-6" data-testid="public-experiment-queue">
     <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
       <p>Public status · refreshes every 10 seconds</p>
-      <Link className="underline" href={`${experimentQueuePath(studyId, jobId)}&view=private`}>Open owner’s private queue</Link>
     </div>
-    {updatedAt ? <p className="text-xs text-muted-foreground">Last successful status retrieval: {recordedTime(updatedAt)}. Progress timestamps are recorded by the backend.</p> : null}
     {error ? <p role="alert" className="rounded-lg border p-4 text-sm text-destructive">{error} {data ? "Previously retrieved status may be stale." : "Queue counts and current status are unknown."}</p> : null}
     {data ? <>
       <AutonomousAssessments data={data.autonomy} studyId={studyId} titles={new Map([[data.study.id, data.study.title]])} stale={Boolean(error)} />
+      <Button variant="outline" aria-expanded={recordsOpen} onClick={() => setRecordsOpen(value => !value)}>{recordsOpen ? "Hide assessment records" : "View assessment records"}</Button>
+      {recordsOpen ? <SharedAssessmentRecords studyId={studyId} /> : null}
       <section aria-label="Assessment experiment status" className="space-y-4">
         <h2 className="text-lg font-semibold">Experiment jobs</h2>
         {!data.workers_enabled ? <p className="rounded-lg border p-3 text-sm text-warning">Scheduled experiment workers are disabled; queued jobs await activation.</p> : null}
@@ -54,6 +56,9 @@ export function PublicExperimentQueue({ studyId, jobId }: { studyId: string; job
             <div className="flex flex-wrap items-start justify-between gap-3"><h3 className="break-all font-semibold">Experiment {job.id}</h3><Badge variant={job.status === "failed" || job.status === "expired" ? "destructive" : "secondary"} className="h-auto py-1">{job.status === "manual" ? "Needs operator" : words(job.status)}</Badge></div>
             <p>{job.execution_mode === "manual" ? "Requires an operator; queueing does not execute an experiment." : "Automatic experiment"}</p>
             <p>Recorded run status: {job.run_status === null ? "unavailable" : words(job.run_status)}. Run completion does not establish claim validity.</p>
+            {job.reason ? <div><h4 className="font-medium">Recorded job details</h4><p className="whitespace-pre-wrap break-words">{job.reason}</p></div> : null}
+            {job.run_reason ? <div><h4 className="font-medium">Recorded run details</h4><p className="whitespace-pre-wrap break-words">{job.run_reason}</p></div> : null}
+            {!job.reason && !job.run_reason && (job.status === "failed" || job.status === "expired" || ["failed", "partial", "excluded", "invalid"].includes(job.run_status ?? "")) ? <p className="text-muted-foreground">No failure details were returned by the service.</p> : null}
             <p className="text-xs text-muted-foreground">Queued {recordedTime(job.created_at)} · last recorded change {recordedTime(job.updated_at)}</p>
             <Link className="underline" href={experimentQueuePath(studyId, job.id)}>Link to this job</Link>
           </article>)}

@@ -9,6 +9,7 @@ export const RESEARCH_WORKFLOW_MODULE_PATH = "/research-verification";
 export const NEW_ASSESSMENT_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/new-assessment`;
 export const PREVIOUS_ASSESSMENTS_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/previous-assessments`;
 export const ASSESSMENTS_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/assessments`;
+export const MY_ASSESSMENTS_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/my-assessments`;
 export const RESEARCH_IDEAS_MODULE_PATH = "/research-ideas";
 
 // Keep saved links and old bookmarks usable after moving module pages.
@@ -19,7 +20,7 @@ const MODULE_PATHS = [EMULATED_MODULE_PATH, REAL_WORLD_MODULE_PATH, DELAY_STUDY_
 // Rename only the owner list. Existing private detail URLs remain owner-only;
 // /assessments/{id} is the separate public published assessment page.
 export const LEGACY_EXACT_MODULE_ROUTES = [RESEARCH_WORKFLOW_MODULE_PATH, `/module${RESEARCH_WORKFLOW_MODULE_PATH}`, `/modules${RESEARCH_WORKFLOW_MODULE_PATH}`]
-  .map(prefix => ({ source: `${prefix}/workspace`, destination: ASSESSMENTS_PATH }));
+  .flatMap(prefix => ["workspace", "assessments", "studies"].map(path => ({ source: `${prefix}/${path}`, destination: MY_ASSESSMENTS_PATH })));
 
 export const LEGACY_MODULE_ROUTES = [
   { source: "/experiment-queue", destination: `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-queue` },
@@ -106,7 +107,7 @@ export const RESEARCH_VERIFICATION_MODULE = {
   sections: [
     { href: NEW_ASSESSMENT_PATH, label: "Assess a Paper", description: "Create a paper assessment, prepare available domain plans and queue their checks.", paths: [NEW_ASSESSMENT_PATH] },
     { href: PREVIOUS_ASSESSMENTS_PATH, label: "Previous Assessments", description: "Browse submitted paper assessments, recorded progress and published evidence.", paths: [PREVIOUS_ASSESSMENTS_PATH], descendantPaths: [ASSESSMENTS_PATH] },
-    { href: ASSESSMENTS_PATH, label: "My Assessments", description: "Build source inventories, freeze protocols and preserve paper assessment evidence.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`, `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-design`, `${RESEARCH_WORKFLOW_MODULE_PATH}/design-claim`] },
+    { href: MY_ASSESSMENTS_PATH, label: "My Assessments", description: "Build source inventories, freeze protocols and preserve paper assessment evidence.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`, `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-design`, `${RESEARCH_WORKFLOW_MODULE_PATH}/design-claim`] },
     { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-queue`, label: "Experiment Queue", description: "Follow your queued experiments, recorded runs and work awaiting an operator or review.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-queue`] },
     { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/methods`, label: "Verification Methods", description: "Choose appropriate checks and understand publication criteria.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/methods`] },
   ],

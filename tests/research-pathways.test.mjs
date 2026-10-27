@@ -77,7 +77,7 @@ test("paper detail and export paths use assessments while idea URLs retain their
 test("saved queue identities normalize without discarding repeated values or resolving conflicting identities", () => {
   const input = { study: "id", sourceStudy: "origin", tag: ["a&b", "second"], view: "private" };
   const normalized = assessmentQueueQuery(input);
-  assert.deepEqual(normalized, { query: { assessment: "id", sourceAssessment: "origin", tag: ["a&b", "second"], view: "private" }, changed: true, conflicting: false });
+  assert.deepEqual(normalized, { query: { assessment: "id", sourceAssessment: "origin", tag: ["a&b", "second"] }, changed: true, conflicting: false });
   assert.equal(input.study, "id");
   assert.equal(assessmentQueueQuery(normalized.query).changed, false);
   for (const input of [{ study: "a", assessment: "b" }, { sourceStudy: "a", sourceAssessment: "a" }]) assert.equal(assessmentQueueQuery(input).conflicting, true);

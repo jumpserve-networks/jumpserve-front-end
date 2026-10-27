@@ -26,6 +26,7 @@ export function assessmentQueueQuery(input: Record<string, string | string[] | u
   const query = { ...input };
   let changed = false;
   let conflicting = false;
+  if (query.view === "private") { delete query.view; changed = true; }
   for (const [legacy, canonical] of [["study", "assessment"], ["sourceStudy", "sourceAssessment"]]) {
     if (query[legacy] === undefined) continue;
     if (query[canonical] !== undefined) { conflicting = true; continue; }

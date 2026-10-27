@@ -9,5 +9,5 @@ export default async function ReviewPaper({ params }: { params: Promise<{ assess
   const { assessmentId } = await params;
   if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(assessmentId)) notFound();
   await requireGoogleUser(`${NEW_ASSESSMENT_PATH}/${assessmentId}`);
-  return <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6"><ResearchHeader title="Review your paper" /><PaperReviewPanel key={assessmentId} assessmentId={assessmentId} /></main>;
+  return <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6"><ResearchHeader title="Review your paper" showModuleLabel={false} /><PaperReviewPanel key={assessmentId} assessmentId={assessmentId} /></main>;
 }

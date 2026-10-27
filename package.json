@@ -15,6 +15,8 @@
     "verify:research:queue": "node scripts/verify-experiment-queue.mjs",
     "verify:research:public-queue": "node scripts/verify-public-experiment-queue.mjs",
     "verify:profile": "node scripts/verify-profile.mjs",
+    "verify:auth": "node scripts/verify-browser-auth.mjs",
+    "verify:paper-uploads": "node scripts/verify-paper-uploads.mjs",
     "verify:research:production": "node scripts/verify-research-production.mjs",
     "verify:research:ideas": "node scripts/verify-research-ideas.mjs",
     "verify:research:autonomy": "node scripts/verify-research-autonomy.mjs"
@@ -22,7 +24,7 @@
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@supabase/ssr": "^0.8.0",
-    "@supabase/supabase-js": "^2.97.0",
+    "@supabase/supabase-js": "2.118.0",
     "@tailwindcss/typography": "^0.5.19",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",

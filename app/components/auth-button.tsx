@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { UserRound } from "lucide-react";
@@ -9,11 +9,12 @@ import type { Session } from "@supabase/supabase-js";
 import { Button } from "@/app/components/ui/button";
 import { getSafeNextPath } from "@/lib/auth-redirect";
 import { isGoogleAuthenticatedUser } from "@/lib/auth-provider";
+import { hasResolvedAuthState, readBrowserSession } from "@/lib/browser-auth";
 import { getConfiguredSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
-type AuthStatus = "loading" | "logged-out" | "logged-in";
+type AuthStatus = "loading" | "logged-out" | "logged-in" | "unavailable";
 
 type AuthButtonProps = {
   placement?: "floating" | "inline" | "header";
@@ -60,50 +61,60 @@ export function AuthButton({ placement = "floating" }: AuthButtonProps) {
   const [session, setSession] = useState<Session | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sessionRevision, setSessionRevision] = useState(0);
+  const retrySession = useCallback(() => {
+    setStatus("loading");
+    setErrorMessage(null);
+    setSessionRevision(value => value + 1);
+    preferences?.refresh();
+  }, [preferences]);
 
   useEffect(() => {
     let isMounted = true;
+    let generation = 0;
+    let unsubscribe: (() => void) | undefined;
 
-    async function loadSession() {
-      const {
-        data: { session: nextSession },
-      } = await supabase.auth.getSession();
-
-      if (!isMounted) {
-        return;
-      }
-
-      setSession(nextSession);
-      setStatus(
-        isGoogleAuthenticatedUser(nextSession?.user ?? null)
-          ? "logged-in"
-          : "logged-out",
-      );
+    function subscribe() {
+      if (unsubscribe) return;
+      // Register after the initial read. SDK initial-event reads can otherwise
+      // time out behind a failed refresh and reject outside the caller's promise.
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+        if (!isMounted || !hasResolvedAuthState(event, nextSession)) return;
+        generation++;
+        setSession(nextSession);
+        setStatus(isGoogleAuthenticatedUser(nextSession?.user ?? null) ? "logged-in" : "logged-out");
+        setErrorMessage(null);
+      });
+      unsubscribe = () => subscription.unsubscribe();
     }
 
-    loadSession();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (!isMounted) {
-        return;
+    async function loadSession() {
+      const current = ++generation;
+      try {
+        const nextSession = await readBrowserSession(supabase.auth);
+        if (!isMounted || current !== generation) return;
+        setSession(nextSession);
+        setStatus(isGoogleAuthenticatedUser(nextSession?.user ?? null) ? "logged-in" : "logged-out");
+        setErrorMessage(null);
+        subscribe();
+      } catch (error) {
+        if (!isMounted || current !== generation) return;
+        setSession(null);
+        setStatus("unavailable");
+        setErrorMessage(error instanceof Error ? error.message : "Unable to check your sign-in. Please retry.");
       }
+    }
 
-      setSession(nextSession);
-      setStatus(
-        isGoogleAuthenticatedUser(nextSession?.user ?? null)
-          ? "logged-in"
-          : "logged-out",
-      );
-      setErrorMessage(null);
-    });
+    void loadSession();
+    const onOnline = () => { void loadSession(); };
+    window.addEventListener("online", onOnline);
 
     return () => {
       isMounted = false;
-      subscription.unsubscribe();
+      window.removeEventListener("online", onOnline);
+      unsubscribe?.();
     };
-  }, [supabase]);
+  }, [supabase, sessionRevision]);
 
   async function handleGoogleLogin() {
     setErrorMessage(null);
@@ -197,23 +208,25 @@ export function AuthButton({ placement = "floating" }: AuthButtonProps) {
         <Button
           type="button"
           variant="outline"
-          onClick={handleGoogleLogin}
+          onClick={status === "unavailable" ? retrySession : handleGoogleLogin}
           disabled={status === "loading" || isSubmitting}
           className={cn("disabled:cursor-wait", placement === "inline" && "w-full", placement === "header" && "h-8 px-3 text-xs sm:text-sm")}
         >
-          {placement === "inline" ? <GoogleIcon /> : null}
+          {placement === "inline" && status !== "unavailable" ? <GoogleIcon /> : null}
           <span>
             {status === "loading"
               ? "Checking login..."
-              : isSubmitting
-                ? placement === "inline" ? "Opening Google..." : "Opening sign-in..."
-                : placement === "inline" ? "Login with Google" : "Sign in"}
+              : status === "unavailable"
+                ? "Retry connection"
+                : isSubmitting
+                  ? placement === "inline" ? "Opening Google..." : "Opening sign-in..."
+                  : placement === "inline" ? "Login with Google" : "Sign in"}
           </span>
         </Button>
       )}
 
       {errorMessage ? (
-        <p className={cn("max-w-sm rounded-lg border border-red-200 bg-red-50/95 px-3 py-2 text-sm text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200", placement === "header" && "absolute top-full right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)]")}>
+        <p role="alert" className={cn("max-w-sm rounded-lg border border-red-200 bg-red-50/95 px-3 py-2 text-sm text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200", placement === "header" && "absolute top-full right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)]")}>
           {errorMessage}
         </p>
       ) : null}

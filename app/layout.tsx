@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { AppShell } from "@/app/components/app-shell";
 import { UserPreferencesProvider } from "@/app/components/user-preferences";
+import { PaperUploadsProvider } from "@/app/components/research-workflow/paper-uploads-provider";
 import {
   DARK_MEDIA_QUERY,
   STORAGE_KEY,
@@ -10,14 +11,20 @@ import {
 } from "@/lib/theme-preference-shared";
 import "./globals.css";
 
-const geistSans = Geist({
+const geistSans = localFont({
+  src: "./fonts/Geist-Variable.woff2",
   variable: "--font-geist-sans",
-  subsets: ["latin"],
+  weight: "100 900",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+  src: "./fonts/GeistMono-Variable.woff2",
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: "100 900",
+  display: "swap",
+  adjustFontFallback: false,
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", "monospace"],
 });
 
 export const metadata: Metadata = {
@@ -81,7 +88,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <UserPreferencesProvider><AppShell>{children}</AppShell></UserPreferencesProvider>
+        <UserPreferencesProvider><PaperUploadsProvider><AppShell>{children}</AppShell></PaperUploadsProvider></UserPreferencesProvider>
       </body>
     </html>
   );

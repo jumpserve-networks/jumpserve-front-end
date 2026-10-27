@@ -45,7 +45,7 @@ export function AssessmentExperimentQueue({ assessment, data, status, focusedJob
 
   return <section data-assessment-id={assessment.id} id={`assessment-${assessment.id}`} aria-labelledby={`assessment-title-${assessment.id}`} className="space-y-5 rounded-lg border border-primary/40 p-4 sm:p-5">
     <header className="space-y-2">
-      <h3 id={`assessment-title-${assessment.id}`} className="break-words text-lg font-semibold"><Link className="underline underline-offset-4" href={`${experimentQueuePath(assessment.id)}&view=private`}>{assessment.title}</Link></h3>
+      <h3 id={`assessment-title-${assessment.id}`} className="break-words text-lg font-semibold"><Link className="underline underline-offset-4" href={experimentQueuePath(assessment.id)}>{assessment.title}</Link></h3>
       <p className="break-all text-xs text-muted-foreground">Assessment {assessment.id}</p>
     </header>
     {data.autonomy ? <AutonomousAssessments data={data.autonomy} studyId={assessment.id} titles={new Map([[assessment.id, assessment.title]])} embedded /> : <p className="text-sm text-muted-foreground">Claim progress is unavailable from the connected backend. Recorded experiment jobs appear below.</p>}
@@ -64,7 +64,7 @@ export function AssessmentExperimentQueue({ assessment, data, status, focusedJob
           {job.run_id ? <p className="break-words text-xs">Recorded run {job.run_id}: {job.run_status ?? "status unavailable"}. Run completion does not establish claim validity.</p> : null}
           <p className="text-xs text-muted-foreground">Queued {recordedTime(job.created_at)} · last recorded change {recordedTime(job.updated_at)}</p>
           <p className="break-all text-xs text-muted-foreground">Job {job.id} · recorded status {words(job.status)}</p>
-          <div className="flex flex-wrap gap-4"><Link className="underline" href={`${RESEARCH_WORKFLOW_MODULE_PATH}/workspace/${assessment.id}#experiment-queue`}>Open assessment, evidence and event history</Link><Link className="underline" href={experimentQueuePath(assessment.id, job.id)}>Link to this job</Link></div>
+          <div className="flex flex-wrap gap-4"><Link className="underline" href={`${RESEARCH_WORKFLOW_MODULE_PATH}/workspace/${assessment.id}#experiment-queue`}>Edit assessment</Link><Link className="underline" href={experimentQueuePath(assessment.id, job.id)}>Link to this job</Link></div>
         </article>)}</div>
         {visible.length > limit ? <Button variant="outline" onClick={() => setPage(previous => ({ status, limit: (previous.status === status ? previous.limit : 20) + 20 }))}>Show more jobs</Button> : null}
       </>}

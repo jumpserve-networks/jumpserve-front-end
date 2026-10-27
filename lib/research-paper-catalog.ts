@@ -3,10 +3,12 @@ import { researchApiBase } from "@/lib/research-workflow";
 
 export const PAPER_WORKFLOW_STATUSES = ["running", "completed", "completed-with-blockers", "deadline", "budget", "cancelled"] as const;
 export type PaperWorkflowStatus = typeof PAPER_WORKFLOW_STATUSES[number];
-export type PaperAssessment = { id: string; title: string | null; created_at: string; workflow_status: PaperWorkflowStatus | null; published: boolean };
+export type PaperAssessment = { id: string; title: string | null; authors?: string[] | null; initiated_by?: string | null; created_at: string; workflow_status: PaperWorkflowStatus | null; published: boolean };
+export type PaperMetadata = { title: string; authors: string[] | null };
 export type PaperCatalog = { version: "research-paper-catalog-v1"; access: "public-read-only"; papers: PaperAssessment[]; coverage: { papers: number }; next_cursor: string | null };
 const fields = (v: unknown, keys: string[]): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v) && Object.keys(v).every(k => keys.includes(k));
 const title = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0 && v.length <= 4000;
+export const validPaperAuthors = (value: unknown): value is string[] => Array.isArray(value) && value.length > 0 && value.length <= 100 && value.every(name => typeof name === "string" && name.trim().length > 0 && [...name].length <= 200 && !/[\p{Cc}<>@]/u.test(name));
 const cursor = (v: unknown): v is string => typeof v === "string" && /^[A-Za-z0-9_-]{1,256}$/.test(v);
 const fail = (): never => { throw new Error("The assessment list is invalid or incomplete. Assessment counts are unknown."); };
 
@@ -16,7 +18,7 @@ export function validatePaperCatalog(value: unknown): PaperCatalog {
       !Array.isArray(q.papers) || q.papers.length > 10 || !fields(q.coverage, ["papers"]) || q.coverage.papers !== q.papers.length ||
       (q.next_cursor !== null && (!cursor(q.next_cursor) || q.papers.length !== 10))) fail();
   for (const p of q.papers) {
-    if (!fields(p, ["id", "title", "created_at", "workflow_status", "published"]) || !isResearchId(p.id) ||
+    if (!fields(p, ["id", "title", "authors", "initiated_by", "created_at", "workflow_status", "published"]) || !isResearchId(p.id) || (p.authors != null && !validPaperAuthors(p.authors)) || (p.initiated_by != null && (typeof p.initiated_by !== "string" || !p.initiated_by.trim() || [...p.initiated_by].length > 201 || /[\p{Cc}<>@]/u.test(p.initiated_by))) ||
         (p.title !== null && !title(p.title)) || typeof p.created_at !== "string" || !Number.isFinite(Date.parse(p.created_at)) || typeof p.published !== "boolean" ||
         (p.workflow_status !== null && !PAPER_WORKFLOW_STATUSES.includes(p.workflow_status))) fail();
   }
@@ -44,7 +46,9 @@ async function read(path: string, signal?: AbortSignal, fetcher: typeof fetch = 
 
 export async function loadPaperCatalog(before?: string, signal?: AbortSignal, fetcher: typeof fetch = fetch) {
   if (before !== undefined && !cursor(before)) throw new Error("The assessment page link is invalid.");
-  const result = validatePaperCatalog(await read(before ? `/papers?${new URLSearchParams({ before })}` : "/papers", signal, fetcher));
+  const query = new URLSearchParams({ bibliography: "1", initiator: "1" });
+  if (before) query.set("before", before);
+  const result = validatePaperCatalog(await read(`/papers?${query}`, signal, fetcher));
   if (before && result.next_cursor === before) fail();
   return result;
 }
@@ -54,6 +58,13 @@ export async function loadPaperTitle(id: string, signal?: AbortSignal, fetcher: 
   const result = await read(`/papers/${id}/title`, signal, fetcher);
   if (!fields(result, ["version", "access", "id", "title"]) || result.version !== "research-paper-catalog-v1" || result.access !== "public-read-only" || result.id !== id || !title(result.title)) return fail();
   return result.title;
+}
+
+export async function loadPaperMetadata(id: string, signal?: AbortSignal, fetcher: typeof fetch = fetch): Promise<PaperMetadata> {
+  if (!isResearchId(id)) throw new Error("The paper identity is invalid.");
+  const result = await read(`/papers/${id}/title?bibliography=1`, signal, fetcher);
+  if (!fields(result, ["version", "access", "id", "title", "authors"]) || result.version !== "research-paper-catalog-v1" || result.access !== "public-read-only" || result.id !== id || !title(result.title) || result.authors != null && !validPaperAuthors(result.authors)) return fail();
+  return { title: result.title, authors: result.authors == null ? null : result.authors as string[] };
 }
 
 export function paperWorkflowLabel(status: PaperWorkflowStatus | null) {

@@ -1,7 +1,7 @@
 "use client";
 import { useDateTime } from "@/app/components/user-preferences";
 import Link from "next/link";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -14,9 +14,9 @@ import { StudyPanel, type StudyView } from "@/app/components/research-workflow/s
 import { ClaimQueue } from "@/app/components/research-workflow/claim-queue";
 import { StudyPreparation } from "@/app/components/research-workflow/preparation";
 import { PaperPreparation } from "@/app/components/research-workflow/paper-preparation";
-import { prepareUploadedPaper } from "@/lib/research-paper-upload";
-import { createClient } from "@/lib/supabase/client";
+import { usePaperUploads } from "./paper-uploads-provider";
 import { NEW_ASSESSMENT_PATH } from "@/lib/test-modules";
+import { PaperAuthors, usePaperBibliography } from "./paper-bibliography";
 
 const REVIEWER = { identity: "Authenticated assessment contributor", type: "human", independence: "Assessment contributor; independent review not asserted" };
 const NULLABLE = new Set(["source_url", "retrieved_url", "retrieved_version", "sha256", "byte_count", "supersedes_id", "amendment_reason", "followup_of", "campaign_id", "assessment_id", "estimated_cost_usd"]);
@@ -44,37 +44,31 @@ function templates(snapshot: ResearchSnapshot): Record<string, Record<string, un
 }
 
 export function PaperIntake() {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
+  const uploads = usePaperUploads();
   const [error, setError] = useState("");
-  const [savedStudy, setSavedStudy] = useState<string | null>(null);
-  const [phase, setPhase] = useState("");
-  const request = useRef("");
-  const inFlight = useRef(false);
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (inFlight.current) return;
-    inFlight.current = true; setBusy(true); setError("");
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setError("");
     const data = new FormData(event.currentTarget);
-    request.current ||= crypto.randomUUID();
     try {
-      const file = data.get("paper_pdf");
-      if (!(file instanceof File)) throw new Error("Choose a PDF paper to upload.");
-      const result = await prepareUploadedPaper(researchRequest, request.current, file, async (ticket, original) => {
-        const { error } = await createClient().storage.from(ticket.bucket).uploadToSignedUrl(ticket.path, ticket.token, await original.arrayBuffer(), { contentType: "application/pdf", upsert: false });
-        if (error) throw new Error("The PDF upload response could not be confirmed.");
-      }, setPhase);
-      setSavedStudy(result.id);
-      router.push(`${NEW_ASSESSMENT_PATH}/${result.id}`);
+      const files = data.getAll("paper_pdf");
+      if (!files.length || !files.every(file => file instanceof File && file.size > 0)) throw new Error("Choose one or more PDF papers to upload.");
+      uploads.enqueue(files as File[]);
+      event.currentTarget.reset();
     } catch (failure) { setError(errorText(failure)); }
-    finally { inFlight.current = false; setBusy(false); }
   }
-  return <form onSubmit={submit} aria-label="Upload paper for review" className="max-w-3xl space-y-4 rounded-lg border p-5">
-    <div className="space-y-2 text-sm"><label htmlFor="paper-pdf" className="font-medium">Paper PDF</label><Input id="paper-pdf" className="text-foreground" type="file" name="paper_pdf" accept="application/pdf,.pdf" required aria-describedby="paper-pdf-help" disabled={busy || savedStudy !== null} /><p id="paper-pdf-help" className="text-xs text-muted-foreground">PDF up to 10 MB. Uploaded files stay private.</p></div>
-    <p className="text-sm text-muted-foreground">Next, review the title, research domain and claims extracted from your paper before starting the assessment.</p>
-    {error ? <p role="alert" className="text-sm text-destructive">{error} Retrying preserves the original request ID.</p> : null}
-    {busy ? <p role="status" className="text-sm">{phase}</p> : null}
-    {savedStudy ? <Link className="block text-sm underline" href={`${NEW_ASSESSMENT_PATH}/${savedStudy}`}>Review paper information</Link> : <Button disabled={busy} type="submit">{busy ? "Preparing review…" : "Upload and review"}</Button>}
-  </form>;
+  return <div className="max-w-3xl space-y-5">
+    <form onSubmit={submit} aria-label="Upload paper for review" className="space-y-4 rounded-lg border p-5">
+      <div className="space-y-2 text-sm"><label htmlFor="paper-pdf" className="font-medium">Paper PDF</label><Input id="paper-pdf" className="text-foreground" type="file" name="paper_pdf" accept="application/pdf,.pdf" multiple required aria-describedby="paper-pdf-help" /><p id="paper-pdf-help" className="text-xs text-muted-foreground">PDFs up to 10 MB each.</p></div>
+      <p className="text-sm text-muted-foreground">Browse the site while your papers are prepared. We’ll notify you when they’re ready to review.</p>
+      {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+      <Button disabled={!uploads.signedIn} type="submit">{uploads.signedIn ? "Upload" : "Checking sign-in…"}</Button>
+    </form>
+    {uploads.error || uploads.persistenceError ? <p role="alert" className="text-sm text-destructive">{uploads.error || uploads.persistenceError} <Button variant="outline" size="sm" onClick={() => void uploads.refresh()}>Retry status</Button></p> : null}
+    {uploads.uploads.length ? <section aria-label="Your paper uploads" className="space-y-3"><h2 className="text-lg font-semibold">Your paper uploads</h2>{uploads.uploads.map(upload => <article key={upload.id} className="space-y-2 rounded-lg border p-4 text-sm">
+      <h3 className="break-words font-medium">{upload.title}</h3><p role={upload.phase === "failed" ? "alert" : "status"}>{upload.phase === "queued" || upload.phase === "uploading" ? upload.message : upload.phase === "preparing" ? "Preparing paper information…" : upload.phase === "ready" ? "Ready to review" : upload.phase === "confirmed" ? "Assessment started" : upload.message || "Paper preparation needs attention."}</p>
+      {upload.retryable ? <Button size="sm" variant="outline" onClick={() => uploads.retry(upload.id)}>Retry upload</Button> : ["preparing", "ready", "failed"].includes(upload.phase) ? <Link className="underline" href={`${NEW_ASSESSMENT_PATH}/${upload.id}`}>{upload.phase === "ready" ? "Review paper" : "View paper preparation"}</Link> : null}
+    </article>)}</section> : null}
+  </div>;
 }
 
 export function OwnerStudies({ kind = "paper" }: { kind?: ResearchStudyKind }) {
@@ -85,8 +79,9 @@ export function OwnerStudies({ kind = "paper" }: { kind?: ResearchStudyKind }) {
     researchRequest<{ studies: ResearchStudy[] }>("/studies?mine=1", { signal: controller.signal }).then(value => { if (!controller.signal.aborted) setResult(value); }).catch(failure => { if (!controller.signal.aborted) setError(errorText(failure)); });
     return () => controller.abort();
   }, []);
-  const studies = studiesForPathway(result?.studies ?? [], kind);
-  return <section className="space-y-4">{error ? <p role="alert" className="rounded-lg border p-4 text-sm text-destructive">{error}</p> : !result ? <p role="status">Loading your {kind === "idea" ? "ideas" : "paper assessments"}…</p> : studies.length === 0 ? <p className="rounded-lg border p-4 text-sm">You have no {kind === "idea" ? "idea" : "paper assessment"} drafts yet. <Link className="underline" href={kind === "idea" ? `${researchModulePath(kind)}/new-idea` : NEW_ASSESSMENT_PATH}>{kind === "idea" ? "Develop an idea" : "Assess a paper"}</Link>.</p> : studies.map(study => <article key={study.id} className="space-y-2 rounded-lg border p-4"><h2 className="font-semibold"><Link className="underline" href={researchWorkspacePath(study)}>{study.title}</Link></h2><p className="text-xs text-muted-foreground">{kind === "idea" ? "Unpublished research idea" : "Paper assessment"}</p><p className="text-sm text-muted-foreground">{study.domain} · {study.scope}</p></article>)}</section>;
+  const studies = useMemo(() => studiesForPathway(result?.studies ?? [], kind), [result, kind]);
+  const bibliography = usePaperBibliography(kind === "paper" ? studies : undefined);
+  return <section className="space-y-4">{error ? <p role="alert" className="rounded-lg border p-4 text-sm text-destructive">{error}</p> : !result ? <p role="status">Loading your {kind === "idea" ? "ideas" : "paper assessments"}…</p> : studies.length === 0 ? <p className="rounded-lg border p-4 text-sm">You have no {kind === "idea" ? "idea" : "paper assessment"} drafts yet. <Link className="underline" href={kind === "idea" ? `${researchModulePath(kind)}/new-idea` : NEW_ASSESSMENT_PATH}>{kind === "idea" ? "Develop an idea" : "Assess a paper"}</Link>.</p> : studies.map(study => <article key={study.id} className="space-y-2 rounded-lg border p-4"><h2 className="font-semibold"><Link className="underline" href={researchWorkspacePath(study)}>{study.title}</Link></h2>{kind === "paper" ? <PaperAuthors authors={study.authors ?? bibliography[study.id]?.authors} loading={study.authors == null && !bibliography[study.id]} /> : null}<p className="text-xs text-muted-foreground">{kind === "idea" ? "Unpublished research idea" : "Paper assessment"}</p><p className="text-sm text-muted-foreground">{study.domain} · {study.scope}</p></article>)}</section>;
 }
 
 function RecordEditor({ snapshot, onSaved }: { snapshot: ResearchSnapshot; onSaved: () => Promise<void> }) {

@@ -195,7 +195,7 @@ try {
   await app.getByRole('heading',{name:'Evidence gaps and next experiments',exact:true}).waitFor();
   const action=app.getByRole('button',{name:'Run experiment now',exact:true}).first();await action.waitFor();const studyPath=new URL(app.url()).pathname;await action.click();
   await app.waitForURL('**/login?**');const pending=new URL(new URL(app.url()).searchParams.get('next'),'https://example.org');assert.equal(pending.pathname,'/research-verification/experiment-queue');assert.equal(pending.searchParams.get('sourceAssessment'),studyPath.split('/').at(-1));assert.ok(pending.searchParams.get('gap'));assert.ok(pending.searchParams.get('run'));
-  const target='/research-verification/experiment-queue?assessment='+ids.study+'&job='+ids.job+'&view=private';await app.goto('http://localhost:6001'+target);assert.equal(new URL(app.url()).searchParams.get('next'),target);
+  const target='/research-verification/experiment-queue';await app.goto('http://localhost:6001'+target);assert.equal(new URL(app.url()).searchParams.get('next'),target);
   await app.setViewportSize({width:390,height:844});await app.goto('http://localhost:6001/research-verification');await app.getByRole('button',{name:'Open module menu',exact:true}).click();assert.ok(await app.getByRole('dialog').getByRole('link',{name:'Experiment Queue',exact:true}).isVisible());
   return {sidebar:true,mobile_menu:true,gap_identity_preserved:true,actual_login:false};
  });

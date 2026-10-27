@@ -1,6 +1,4 @@
 "use client";
-import { LocalDateTime } from "@/app/components/user-preferences";
-
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/app/components/ui/button";
@@ -16,7 +14,6 @@ import { AssessmentExperimentQueue } from "./assessment-experiment-queue";
 
 const failureText = (error: unknown) => error instanceof Error ? error.message : "Queue status is unavailable.";
 const display = (value: string) => value.replaceAll("-", " ");
-function recordedTime(value: string) { return <LocalDateTime value={value} />; }
 
 function GapExperimentPlanner({ studyId, gapId, onQueued }: { studyId: string; gapId: string; onQueued: (studyId: string, jobId: string) => void }) {
   const [preview, setPreview] = useState<GapPreview | null>(null);
@@ -81,7 +78,7 @@ function GapExperimentPlanner({ studyId, gapId, onQueued }: { studyId: string; g
 
 export function ExperimentQueueDashboard({ studyId, jobId, sourceAssessment, gapId, launchId }: { studyId?: string; jobId?: string; sourceAssessment?: string; gapId?: string; launchId?: string }) {
   const [data, setData] = useState<ExperimentQueue | null>(null); const [error, setError] = useState("");
-  const [updatedAt, setUpdatedAt] = useState(""); const [revision, setRevision] = useState(0);
+  const [revision, setRevision] = useState(0);
   const [study, setStudy] = useState(studyId ?? ""); const [status, setStatus] = useState("");
   const [focusedJob, setFocusedJob] = useState(jobId ?? "");
   useEffect(() => {
@@ -89,7 +86,7 @@ export function ExperimentQueueDashboard({ studyId, jobId, sourceAssessment, gap
     async function refresh() {
       try {
         const result = await loadExperimentQueue(researchRequest, controller.signal, study || undefined);
-        if (!controller.signal.aborted) { setData(result); setError(""); setUpdatedAt(new Date().toISOString()); }
+        if (!controller.signal.aborted) { setData(result); setError(""); }
       } catch (error) { if (!controller.signal.aborted) setError(failureText(error)); }
       finally { if (!controller.signal.aborted) timer = setTimeout(refresh, QUEUE_POLL_MS); }
     }
@@ -107,7 +104,6 @@ export function ExperimentQueueDashboard({ studyId, jobId, sourceAssessment, gap
     <section className="space-y-4" aria-label="Your experiment status">
       <h2 className="text-lg font-semibold">Your experiment status</h2>
       <p className="text-sm text-muted-foreground">Follow each assessment’s claim progress and experiment jobs below. Status refreshes every 10 seconds. Execution and scientific findings are reported separately.</p>
-      {updatedAt ? <p className="text-xs text-muted-foreground">Last successful status retrieval: {recordedTime(updatedAt)}. Job timestamps below are recorded by the backend.</p> : null}
       {error ? <p role="alert" className="rounded-lg border p-4 text-sm text-destructive">{error} {data ? "Previously retrieved status is shown and may be stale." : "Queue counts and current status are unknown."}</p> : null}
       {data ? <>
         {!data.workers_enabled ? <p className="rounded-lg border p-3 text-sm text-warning">Scheduled workers are disabled. Automatic jobs can be recorded but will not start until workers are activated.</p> : null}
