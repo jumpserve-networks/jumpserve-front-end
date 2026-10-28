@@ -98,7 +98,7 @@ export function AutonomousAssessments({ data, studyId, titles, stale = false, em
       const intake = tasks.find(t => t.claim_id === null);
       return <Container key={w.study_id} className={embedded ? "space-y-4" : "space-y-4 rounded-lg border border-primary/40 p-5"}>
         <div className="flex flex-wrap justify-between gap-3">{embedded ? <h4 className="font-semibold">Claim progress</h4> : <h3 className="font-semibold">{titles.get(w.study_id) ?? "Paper assessment"}</h3>}<Badge variant="secondary">{words(w.status)}</Badge></div>
-        <p className="text-sm">${(w.committed_cents / 100).toFixed(2)} committed of $100 · deadline {time(w.deadline_at)}{w.max_attempts !== null ? ` · ${w.max_attempts} attempts per claim` : null}</p>
+        <p className="text-sm">${(w.committed_cents / 100).toFixed(2)} committed of ${(w.max_spend_cents / 100).toFixed(2)} · deadline {time(w.deadline_at)}{w.max_attempts !== null ? ` · ${w.max_attempts} attempts per claim` : null}</p>
         <p className="text-xs text-muted-foreground">Commitments include conservative reservations. Actual charges and unallocated costs remain unknown until reconciled. Closing this page does not stop enabled background workers.</p>
         <p className="whitespace-pre-wrap break-words text-sm">{w.reason}</p>
         <p className="text-sm">{claims.length} recorded candidate claims · {claims.filter(t => t.status === "resolved").length} resolved under tested conditions · {claims.filter(t => ["blocked", "attempt-limit", "budget", "deadline", "cancelled"].includes(t.status)).length} paused or stopped. {intake?.status !== "finished" ? "Claim inventory coverage is still incomplete." : "Inventory scope and omissions remain in the preparation record."}</p>
