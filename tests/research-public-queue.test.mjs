@@ -9,6 +9,12 @@ test('public status preserves recorded zero missing run status and unresolved fi
  const q=validatePublicStudyQueue(fixture(),study);assert.equal(q.autonomy.workflows[0].committed_cents,0);assert.equal(q.jobs[0].run_status,null);assert.equal(q.autonomy.tasks[0].attempts,0);assert.equal(q.autonomy.tasks[0].label,'untested');
  for(const label of ['reproduced','discrepant','inconclusive']){const v=fixture();v.autonomy.tasks[0].label=label;v.autonomy.tasks[0].status=label==='inconclusive'?'blocked':'resolved';assert.equal(validatePublicStudyQueue(v,study).autonomy.tasks[0].label,label);}
 });
+test('shared queue accepts an amended $1000 budget without changing defaults or accepting an overrun',()=>{
+ const q=fixture();q.autonomy.workflows[0].max_spend_cents=100000;q.autonomy.workflows[0].committed_cents=9980;
+ assert.equal(validatePublicStudyQueue(q,study).autonomy.defaults.maximum_spend_usd,100);
+ q.autonomy.workflows[0].committed_cents=100001;assert.throws(()=>validatePublicStudyQueue(q,study));
+ q.autonomy.workflows[0].committed_cents=9980;q.autonomy.workflows[0].max_spend_cents=100001;assert.throws(()=>validatePublicStudyQueue(q,study));
+});
 test('owner projections private fields mismatched studies and incomplete counts are rejected',()=>{
  for(const change of [q=>q.access='owner-private',q=>q.study.paper_upload={},q=>q.jobs[0].request={},q=>q.autonomy.workflows[0].initial_prompt='secret',q=>q.autonomy.tasks[0].required_inputs=['secret'],q=>q.autonomy.runtime={runtime:'openclaw-production-v1',model_id:'x',status:'ready',grant:'secret'},q=>q.autonomy.defaults.secret='secret',q=>q.coverage.jobs=0,q=>q.autonomy.coverage.tasks=0,q=>q.jobs[0].study_id=id,q=>q.autonomy.tasks[0].study_id=id,q=>q.autonomy.tasks[0].status='resolved',q=>q.jobs.push(q.jobs[0]),q=>q.autonomy.tasks[0].evidence_progress={required_checks:0,completed_checks:1,scope:'Invalid'},q=>q.autonomy.workflows=[],q=>q.jobs[0]=null]){const q=fixture();change(q);assert.throws(()=>validatePublicStudyQueue(q,study));}
  assert.throws(()=>validatePublicStudyQueue(fixture(),id));

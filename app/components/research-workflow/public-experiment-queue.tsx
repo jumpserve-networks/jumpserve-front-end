@@ -65,7 +65,6 @@ export function PublicExperimentQueue({ studyId, jobId }: { studyId: string; job
           {visible.length > limit ? <Button variant="outline" onClick={() => setLimit(n => n + 20)}>Show more jobs</Button> : null}
         </>}
       </section>
-      <p className="text-xs text-muted-foreground">{data.limitations}</p>
     </> : !error ? <p role="status">Loading shared experiment status…</p> : null}
   </div>;
 }

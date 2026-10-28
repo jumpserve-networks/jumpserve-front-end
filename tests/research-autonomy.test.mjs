@@ -3,6 +3,12 @@ import test from 'node:test';
 import { startAutonomousPaper, validateAutonomy, validateTurnHistory } from '../lib/research-autonomy.ts';
 const id='10000000-0000-4000-8000-000000000001',taskId='10000000-0000-4000-8000-000000000002';
 function fixture(){return {version:'research-autonomy-v3',enabled:true,defaults:{maximum_spend_usd:100,elapsed_days:7,attempts_per_claim:null},workflows:[{study_id:id,initial_prompt:'Original user request',initial_sha256:'a'.repeat(64),max_spend_cents:10000,max_attempts:null,committed_cents:500,status:'running',reason:'Background intake pending',created_at:'2026-10-18T00:00:00Z',deadline_at:'2026-10-25T00:00:00Z',updated_at:'2026-10-18T00:00:00Z'}],tasks:[{id:taskId,study_id:id,claim_id:null,claim_title:null,stage:'intake',status:'queued',label:null,attempts:0,reason:'Awaiting source retrieval',required_inputs:[],next_at:'2026-10-18T00:00:00Z',created_at:'2026-10-18T00:00:00Z',updated_at:'2026-10-18T00:00:00Z'}],coverage:{workflows:1,tasks:1}};}
+test('recorded assessment budget amendments retain the default and enforce actual remaining funds',()=>{
+ const value=fixture();value.workflows[0].max_spend_cents=100000;value.workflows[0].committed_cents=9980;
+ assert.equal(validateAutonomy(value).defaults.maximum_spend_usd,100);
+ for(const maximum of [9999,100001,100000.5,NaN,'100000']){const bad=structuredClone(value);bad.workflows[0].max_spend_cents=maximum;assert.throws(()=>validateAutonomy(bad));}
+ value.workflows[0].committed_cents=100001;assert.throws(()=>validateAutonomy(value));
+});
 test('one submission atomically starts autonomy with fixed application defaults',async()=>{
  const calls=[];const paper={title:'Paper',paper_url:'https://example.org/paper.pdf'};
  const request=async(path,options)=>{calls.push({path,options});return path==='/capabilities'?{autonomy:{version:'research-autonomy-v3'}}:{id,autonomy:fixture().workflows[0]};};

@@ -1,4 +1,5 @@
 import type { AutonomousOverview, AutonomousTask, AutonomousWorkflow } from "@/lib/research-autonomy";
+import { isAssessmentBudgetCents } from "@/lib/research-autonomy";
 import { isResearchId } from "@/lib/research-experiment-queue";
 import { QUEUE_STATUSES, type QueueStatus } from "@/lib/research-queue";
 import { researchApiBase } from "@/lib/research-workflow";
@@ -58,7 +59,7 @@ export function validatePublicStudyQueue(value: unknown, studyId: string): Publi
       !["configured", "ready", "auth-required", "paused-quota", "unavailable"].includes(a.runtime.status))) fail();
   for (const w of a.workflows) {
     if (!fields(w, ["study_id", "max_spend_cents", "max_attempts", "committed_cents", "status", "reason", "created_at", "deadline_at", "updated_at"]) ||
-        w.study_id !== studyId || w.max_spend_cents !== 10000 || w.max_attempts !== a.defaults.attempts_per_claim ||
+        w.study_id !== studyId || !isAssessmentBudgetCents(w.max_spend_cents) || w.max_attempts !== a.defaults.attempts_per_claim ||
         !whole(w.committed_cents, w.max_spend_cents) || !workflowStatuses.includes(w.status) || typeof w.reason !== "string" ||
         !date(w.created_at) || !date(w.deadline_at) || !date(w.updated_at)) fail();
   }
