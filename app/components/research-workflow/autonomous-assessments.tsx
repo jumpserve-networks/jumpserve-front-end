@@ -10,6 +10,7 @@ import { loadSharedTurnHistory, loadSharedBuilderEvidence, publicStatusReason, t
 
 const words = (text: string) => text.replaceAll("-", " ");
 const time = (value: string) => <LocalDateTime value={value} />;
+const repairLabels = {diagnosing:"Diagnosing",repairing:"Repairing",validating:"Validating",resuming:"Resuming",waiting:"Waiting for reconciliation",resolved:"Repair completed",blocked:"Repair paused",budget:"Repair spending limit reached",deadline:"Repair time limit reached",cancelled:"Repair cancelled"} as const;
 function NativeEvidence({call,kind,readOnly}:{call:BuilderCall;kind:"request"|"response";readOnly:boolean}) {
   const [open,setOpen]=useState(false);const [fragments,setFragments]=useState<string[]>([]);
   const [cursor,setCursor]=useState<number|null>(0);const [busy,setBusy]=useState(false);const [error,setError]=useState("");const [reason,setReason]=useState("");
@@ -72,6 +73,10 @@ function Claim({ task, maxAttempts, readOnly = false, embedded = false }: { task
   return <article className="space-y-2 rounded-md border p-4 text-sm" id={`claim-task-${task.id}`}>
     <div className="flex flex-wrap items-start justify-between gap-3"><Heading className="min-w-0 break-words font-medium">{task.claim_title ?? "Paper preparation and claim inventory"}</Heading><Badge variant={task.status === "blocked" ? "destructive" : "secondary"} className="h-auto py-1">{words(task.status)}</Badge></div>
     <p>{task.claim_id === null ? "Paper preparation" : words(task.stage)} · {task.attempts}{maxAttempts === null ? " AI turns" : ` / ${maxAttempts} model attempts`}{task.label ? ` · finding: ${task.label}` : null}</p>
+    {task.repair_progress ? <div className="space-y-1 rounded-md border border-primary/40 p-3" data-repair-state={task.repair_progress.state}>
+      <p className="font-medium">{repairLabels[task.repair_progress.state]}</p>
+      <p className="text-xs text-muted-foreground">{words(task.repair_progress.category)} recovery · recorded update {time(task.repair_progress.updated_at)}. Repair progress does not establish a scientific finding.</p>
+    </div> : null}
     {task.evidence_progress ? <p className="text-xs text-muted-foreground">{task.evidence_progress.completed_checks} / {task.evidence_progress.required_checks} retained checks examined. {task.evidence_progress.scope}</p> : null}
     <p className="whitespace-pre-wrap break-words" data-recorded-task-details>{readOnly ? publicStatusReason(task.reason) : task.reason}</p><p className="text-xs text-muted-foreground">Recorded update: {time(task.updated_at)}</p>
     {task.status === "blocked" && privateTask?.required_inputs.length ? <div><p className="font-medium">Needed to resume this claim</p><ul className="mt-1 list-disc space-y-1 pl-5">{privateTask.required_inputs.map((input, index) => <li key={index}>{input}</li>)}</ul></div> : null}

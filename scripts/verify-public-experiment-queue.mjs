@@ -19,6 +19,7 @@ for(const path of ['app/components/research-ideas/idea-workspace.tsx','app/compo
 report.source_sha256['app/components/research-workflow/assessment-experiment-queue.tsx']=createHash('sha256').update(await readFile('app/components/research-workflow/assessment-experiment-queue.tsx')).digest('hex');
 for(const path of ['app/(modules)/research-verification/my-assessments/page.tsx','app/(modules)/research-verification/assessments/page.tsx','app/(modules)/research-verification/workspace/page.tsx','app/(modules)/research-verification/workspace/[studyId]/page.tsx'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
 for(const path of ['app/components/research-workflow/shared-assessment-records.tsx','app/components/research-workflow/autonomous-assessments.tsx','lib/research-pathways.ts','tests/research-shared-details.test.mjs','../jumpserve-back-end/research_workflow/tests/test_shared_details.py'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
+for(const path of ['lib/research-autonomy.ts','../jumpserve-back-end/research_workflow/autonomous_repair.py','../jumpserve-back-end/research_workflow/repair_validation.py'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
 let python,build,app,browser,pythonLog='',buildLog='',appLog='',fixtureOrigin;
 async function check(name,action){try{report.checks.push({name,passed:true,evidence:await action()});console.log('PASS '+name);}catch(e){report.checks.push({name,passed:false,error:e.message});throw e;}}
 async function fixtureMode(mode){const r=await fetch(fixtureOrigin+'/fixture/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});assert.equal(r.status,200);}
@@ -61,6 +62,15 @@ try{
   assert.ok(body.includes('Executor timed out after 10 seconds.'));assert.ok(body.includes('Only 2 of 3 observations were recorded.'));
   assert.ok(!body.includes('study owner can inspect'));assert.ok(!body.includes('private-owner@example.org'));assert.ok(body.includes('[redacted]'));
   return {anonymous:true,real_python_handler:true,synthetic_store:true,title_from_retained_first_page:paperTitle,filename_displayed:false,claim_labels:4,shared_prompt_controls:5,credential_bytes:false};
+ });
+ await check('operational repair stages are visible on desktop/mobile without changing the scientific finding',async()=>{
+  const labels={diagnosing:'Diagnosing',repairing:'Repairing',validating:'Validating',resuming:'Resuming',waiting:'Waiting for reconciliation',resolved:'Repair completed'};
+  for(const [state,label] of Object.entries(labels)){
+   await fixtureMode('repair-'+state);await page.reload();const claim=page.locator('#claim-task-33333333-3333-4333-8333-333333333333');await claim.getByText(label,{exact:true}).waitFor();assert.ok((await claim.innerText()).includes('finding: untested'));
+  }
+  await fixtureMode('repair-repairing');await page.reload();await page.locator('[data-repair-state=repairing]').waitFor();
+  for(const width of [1365,390])for(const theme of ['Light Mode','Dark Mode']){await page.setViewportSize({width,height:900});await page.getByRole('button',{name:theme,exact:true}).click();await settledTheme(page,theme);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:directory+'/repair-'+width+'-'+theme.split(' ')[0].toLowerCase()+'.png',fullPage:true});}
+  await fixtureMode('normal');await page.reload();await page.getByText(paperTitle,{exact:true}).waitFor();return {states:Object.keys(labels),scientific_finding:'untested',widths:[1365,390],themes:['light','dark'],actual_repairs_executed:false};
  });
  await check('shared failure details remain readable without sign-in and absent details stay explicitly missing',async()=>{
   await fixtureMode('details-missing');await page.reload();await page.getByText('Paused. No failure details or requirements were recorded.',{exact:true}).waitFor();

@@ -1,5 +1,5 @@
 import type { AutonomousOverview, AutonomousTask, AutonomousWorkflow } from "@/lib/research-autonomy";
-import { isAssessmentBudgetCents } from "@/lib/research-autonomy";
+import { isAssessmentBudgetCents, validRepairProgress } from "@/lib/research-autonomy";
 import { isResearchId } from "@/lib/research-experiment-queue";
 import { QUEUE_STATUSES, type QueueStatus } from "@/lib/research-queue";
 import { researchApiBase } from "@/lib/research-workflow";
@@ -64,7 +64,7 @@ export function validatePublicStudyQueue(value: unknown, studyId: string): Publi
         !date(w.created_at) || !date(w.deadline_at) || !date(w.updated_at)) fail();
   }
   for (const t of a.tasks) {
-    if (!fields(t, ["id", "study_id", "claim_id", "claim_title", "stage", "status", "label", "attempts", "reason", "evidence_progress", "created_at", "updated_at"]) ||
+    if (!fields(t, ["id", "study_id", "claim_id", "claim_title", "stage", "status", "label", "attempts", "reason", "evidence_progress", "repair_progress", "created_at", "updated_at"]) ||
         !isResearchId(t.id) || t.study_id !== studyId || !whole(t.attempts) || typeof t.reason !== "string" ||
         !["intake", "planning", "building", "comprehension", "critic", "execution", "assessment"].includes(t.stage) || !taskStatuses.includes(t.status) ||
         !date(t.created_at) || !date(t.updated_at) ||
@@ -72,6 +72,7 @@ export function validatePublicStudyQueue(value: unknown, studyId: string): Publi
           !isResearchId(t.claim_id) || typeof t.claim_title !== "string" || !["untested", "inconclusive", "reproduced", "discrepant"].includes(t.label ?? "")) ||
         (t.claim_id !== null && t.status === "resolved" && !["reproduced", "discrepant"].includes(t.label ?? ""))) fail();
     const p = t.evidence_progress;
+    if (t.repair_progress != null && !validRepairProgress(t.repair_progress)) fail();
     if (p != null && (!fields(p, ["required_checks", "completed_checks", "scope"]) || !whole(p.required_checks, 1000) || !whole(p.completed_checks, p.required_checks) || typeof p.scope !== "string")) fail();
   }
   if (a.tasks.filter(t => t.claim_id === null).length > 1) fail();
@@ -131,6 +132,7 @@ export async function loadPublicStudyQueue(studyId: string, signal?: AbortSignal
 
 export const SHARED_RECORD_KINDS = {
   autonomy_workflows: "Workflow and initial paper request", autonomy_tasks: "Claim planning and execution context",
+  autonomy_repairs: "Repair incidents and validation", autonomy_repair_events: "Repair event history",
   sources: "Sources and literature", claims: "Claims", protocols: "Protocols", configurations: "Configurations",
   campaigns: "Campaigns", claim_checks: "Claim checks", queue_jobs: "Experiment jobs", queue_events: "Event history",
   runs: "Runs and resource usage", published_values: "Published values", measurements: "Measurements", summaries: "Summaries",

@@ -25,6 +25,26 @@ This purpose applies to Congestion Control Emulated Tests, Congestion Control
 Real World Tests, and future test modules. Treat persistence in Supabase as a
 core requirement when adding or changing tests and measurements.
 
+## Research assessment autonomy
+
+The goal of research assessments is **100% unattended autonomy** after the user
+submits the paper or idea and confirms the assessment scope. JumpServe should
+plan, implement, validate and execute experiments, analyze measurements, and
+diagnose, repair and resume recoverable failures without routine user input.
+Installing dependencies, writing instrumentation and repairing experiment
+packages are system responsibilities. Run claims in parallel where appropriate,
+share compatible acquisitions, and make repair and execution progress visible
+in Experiment Queue. Persist prompts, responses, actions, failures, repairs and
+measurement provenance as versioned Supabase records.
+
+Continue useful work within the approved spending, elapsed-time and authorization
+limits, honoring cancellation. Unattended operation does not guarantee conclusive
+findings: preserve honest inconclusive or untested outcomes when evidence or
+external prerequisites remain insufficient. Never fabricate data, weaken frozen
+scientific criteria, reset limits or blindly replay uncertain calls to force
+completion. Record the exact remaining blocker and retained evidence. This goal
+does not change the separate requirement for an explicit merge/deployment request.
+
 `jumpserve-front-end` is a Next.js app for networking test modules. Logged-out
 visitors see a public overview and module links at `/`. Results and comparisons
 are public; only test execution, cancellation, and AI chat require Google sign-in

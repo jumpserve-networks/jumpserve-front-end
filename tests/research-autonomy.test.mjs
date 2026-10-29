@@ -9,6 +9,10 @@ test('recorded assessment budget amendments retain the default and enforce actua
  for(const maximum of [9999,100001,100000.5,NaN,'100000']){const bad=structuredClone(value);bad.workflows[0].max_spend_cents=maximum;assert.throws(()=>validateAutonomy(bad));}
  value.workflows[0].committed_cents=100001;assert.throws(()=>validateAutonomy(value));
 });
+test('owner repair progress remains operational and validates complete recorded state',()=>{
+ const value=fixture();value.tasks[0].repair_progress={version:'autonomous-repair-v1',id:taskId,state:'repairing',category:'implementation',revision:2,updated_at:'2026-10-28T00:00:00Z'};
+ assert.equal(validateAutonomy(value).tasks[0].label,null);value.tasks[0].repair_progress.revision=NaN;assert.throws(()=>validateAutonomy(value),/recovery is unknown/);
+});
 test('one submission atomically starts autonomy with fixed application defaults',async()=>{
  const calls=[];const paper={title:'Paper',paper_url:'https://example.org/paper.pdf'};
  const request=async(path,options)=>{calls.push({path,options});return path==='/capabilities'?{autonomy:{version:'research-autonomy-v3'}}:{id,autonomy:fixture().workflows[0]};};
