@@ -13,7 +13,13 @@ test('shared queue accepts an amended $1000 budget without changing defaults or 
  const q=fixture();q.autonomy.workflows[0].max_spend_cents=100000;q.autonomy.workflows[0].committed_cents=9980;
  assert.equal(validatePublicStudyQueue(q,study).autonomy.defaults.maximum_spend_usd,100);
  q.autonomy.workflows[0].committed_cents=100001;assert.throws(()=>validatePublicStudyQueue(q,study));
- q.autonomy.workflows[0].committed_cents=9980;q.autonomy.workflows[0].max_spend_cents=100001;assert.throws(()=>validatePublicStudyQueue(q,study));
+ q.autonomy.workflows[0].committed_cents=9980;q.autonomy.workflows[0].max_spend_cents=2147483648;assert.throws(()=>validatePublicStudyQueue(q,study));
+});
+test('shared unlimited authorization is explicit and never hides retained commitments or unresolved claims',()=>{
+ const q=fixture(),w=q.autonomy.workflows[0];w.max_spend_cents=null;w.committed_cents=150000;
+ const parsed=validatePublicStudyQueue(q,study);assert.equal(parsed.autonomy.workflows[0].max_spend_cents,null);assert.equal(parsed.autonomy.tasks[0].label,'untested');
+ for(const cap of [undefined,0,Infinity,'unlimited']){w.max_spend_cents=cap;assert.throws(()=>validatePublicStudyQueue(q,study));}
+ w.max_spend_cents=200000;assert.equal(validatePublicStudyQueue(q,study).autonomy.workflows[0].committed_cents,150000);
 });
 test('operational recovery preserves scientific labels and rejects malformed or private progress fields',()=>{
  const q=fixture(),p={version:'autonomous-repair-v1',id,state:'diagnosing',category:'runtime',revision:0,updated_at:stamp};

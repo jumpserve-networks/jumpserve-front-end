@@ -6,8 +6,15 @@ function fixture(){return {version:'research-autonomy-v3',enabled:true,defaults:
 test('recorded assessment budget amendments retain the default and enforce actual remaining funds',()=>{
  const value=fixture();value.workflows[0].max_spend_cents=100000;value.workflows[0].committed_cents=9980;
  assert.equal(validateAutonomy(value).defaults.maximum_spend_usd,100);
- for(const maximum of [9999,100001,100000.5,NaN,'100000']){const bad=structuredClone(value);bad.workflows[0].max_spend_cents=maximum;assert.throws(()=>validateAutonomy(bad));}
+ for(const maximum of [9999,2147483648,100000.5,NaN,'100000',undefined]){const bad=structuredClone(value);bad.workflows[0].max_spend_cents=maximum;assert.throws(()=>validateAutonomy(bad));}
  value.workflows[0].committed_cents=100001;assert.throws(()=>validateAutonomy(value));
+});
+test('an explicit unlimited budget retains usage and the unchanged default; missing and zero are invalid',()=>{
+ const value=fixture();value.workflows[0].max_spend_cents=null;value.workflows[0].committed_cents=150000;
+ assert.equal(validateAutonomy(value).workflows[0].max_spend_cents,null);assert.equal(value.defaults.maximum_spend_usd,100);
+ for(const maximum of [undefined,0,'unlimited',Infinity]){const bad=structuredClone(value);bad.workflows[0].max_spend_cents=maximum;assert.throws(()=>validateAutonomy(bad));}
+ value.workflows[0].max_spend_cents=200000;assert.equal(validateAutonomy(value).workflows[0].committed_cents,150000);
+ value.workflows[0].max_spend_cents=100000;assert.throws(()=>validateAutonomy(value));
 });
 test('owner repair progress remains operational and validates complete recorded state',()=>{
  const value=fixture();value.tasks[0].repair_progress={version:'autonomous-repair-v1',id:taskId,state:'repairing',category:'implementation',revision:2,updated_at:'2026-10-28T00:00:00Z'};

@@ -60,7 +60,7 @@ export function validatePublicStudyQueue(value: unknown, studyId: string): Publi
   for (const w of a.workflows) {
     if (!fields(w, ["study_id", "max_spend_cents", "max_attempts", "committed_cents", "status", "reason", "created_at", "deadline_at", "updated_at"]) ||
         w.study_id !== studyId || !isAssessmentBudgetCents(w.max_spend_cents) || w.max_attempts !== a.defaults.attempts_per_claim ||
-        !whole(w.committed_cents, w.max_spend_cents) || !workflowStatuses.includes(w.status) || typeof w.reason !== "string" ||
+        !whole(w.committed_cents, w.max_spend_cents ?? 2147483647) || !workflowStatuses.includes(w.status) || typeof w.reason !== "string" ||
         !date(w.created_at) || !date(w.deadline_at) || !date(w.updated_at)) fail();
   }
   for (const t of a.tasks) {
