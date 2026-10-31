@@ -1,5 +1,5 @@
 import type { AutonomousOverview, AutonomousTask, AutonomousWorkflow } from "@/lib/research-autonomy";
-import { isAssessmentBudgetCents, isAssessmentDefaultBudget, validRepairProgress } from "@/lib/research-autonomy";
+import { isAssessmentBudgetCents, isAssessmentDefaultBudget, validAssessmentBudgetPolicy, validRepairProgress } from "@/lib/research-autonomy";
 import { isResearchId } from "@/lib/research-experiment-queue";
 import { QUEUE_STATUSES, type QueueStatus } from "@/lib/research-queue";
 import { researchApiBase } from "@/lib/research-workflow";
@@ -49,7 +49,7 @@ export function validatePublicStudyQueue(value: unknown, studyId: string): Publi
   const a = q.autonomy;
   if (!fields(a, ["version", "access", "defaults", "enabled", "runtime", "workflows", "tasks", "coverage"]) ||
       a.access !== "public-read-only" || !["research-autonomy-v1", "research-autonomy-v2", "research-autonomy-v3"].includes(a.version) ||
-      typeof a.enabled !== "boolean" || !fields(a.defaults, ["maximum_spend_usd", "elapsed_days", "attempts_per_claim", "parallel_claims_per_paper", "global_parallel_claims"]) || !isAssessmentDefaultBudget(a.defaults.maximum_spend_usd, a.version) || a.defaults.elapsed_days !== 7 ||
+      typeof a.enabled !== "boolean" || !fields(a.defaults, ["maximum_spend_usd", "elapsed_days", "attempts_per_claim", "parallel_claims_per_paper", "global_parallel_claims", "budget_policy"]) || a.defaults.budget_policy !== undefined && !validAssessmentBudgetPolicy(a.defaults.budget_policy) || !isAssessmentDefaultBudget(a.defaults.maximum_spend_usd, a.version,a.defaults.budget_policy) || a.defaults.elapsed_days !== 7 ||
       a.defaults.attempts_per_claim !== (a.version === "research-autonomy-v3" ? null : 25) ||
       !Array.isArray(a.workflows) || a.workflows.length > 1 || !Array.isArray(a.tasks) || a.tasks.length > 1000 ||
       !unique(a.tasks) || !fields(a.coverage, ["workflows", "tasks"]) || a.coverage.workflows !== a.workflows.length || a.coverage.tasks !== a.tasks.length ||
@@ -59,8 +59,8 @@ export function validatePublicStudyQueue(value: unknown, studyId: string): Publi
       !["configured", "ready", "auth-required", "paused-quota", "unavailable"].includes(a.runtime.status))) fail();
   for (const w of a.workflows) {
     if (!fields(w, ["study_id", "max_spend_cents", "max_attempts", "committed_cents", "status", "reason", "created_at", "deadline_at", "updated_at"]) ||
-        w.study_id !== studyId || !isAssessmentBudgetCents(w.max_spend_cents) || w.max_attempts !== a.defaults.attempts_per_claim ||
-        !whole(w.committed_cents, w.max_spend_cents ?? 2147483647) || !workflowStatuses.includes(w.status) || typeof w.reason !== "string" ||
+        w.study_id !== studyId || !isAssessmentBudgetCents(w.max_spend_cents,a.defaults.budget_policy) || w.max_attempts !== a.defaults.attempts_per_claim ||
+        !whole(w.committed_cents, validAssessmentBudgetPolicy(a.defaults.budget_policy) ? 2147483647 : w.max_spend_cents ?? 2147483647) || !workflowStatuses.includes(w.status) || typeof w.reason !== "string" ||
         !date(w.created_at) || !date(w.deadline_at) || !date(w.updated_at)) fail();
   }
   for (const t of a.tasks) {

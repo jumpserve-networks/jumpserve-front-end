@@ -7,6 +7,15 @@ const {readPlatform,controlPlatform}=await import('../lib/platform-updates-store
 const id='11111111-1111-4111-8111-111111111111';
 const enqueue={action:'enqueue',request_id:id,task_id:id,payload:{title:'Repair status',objective:'Preserve exact revision status.',repositories:['jumpserve-networks/jumpserve-front-end'],max_reserved_cents:100,elapsed_seconds:300}};
 const snapshot={version:'platform-supervisor-v1',operator_id:id,operator_role:'owner',settings:{paused:true,automatic_releases:true,worker_status:'not-configured'},tasks:[],events:[],changes:[],releases:[],runs:[],artifacts:[],has_more_events:false,has_more_tasks:false};
+test('category budgets distinguish unlimited from zero and reject missing or invalid limits',()=>{
+ const categories=['research_assessment','platform_manual','platform_maintenance','platform_repair'].map(category=>({category,label:category,scope:category==='research_assessment'?'assessment':'platform-task',max_spend_cents:-1,max_model_calls:-1,revision:1}));
+ const value={...snapshot,budget_categories:categories,tasks:[{id,status:'investigating',committed_cents:25000,max_reserved_cents:-1}]};
+ assert.equal(platformMoney(-1),'Unlimited');assert.equal(platformMoney(0),'$0.00');assert.equal(parsePlatformSnapshot(value).tasks[0].committed_cents,25000);
+ for(const budget of [-2,null,undefined,true,'-1']){const bad=structuredClone(value);bad.budget_categories[0].max_spend_cents=budget;assert.throws(()=>parsePlatformSnapshot(bad));}
+ assert.throws(()=>parsePlatformSnapshot({...value,budget_categories:categories.slice(1)}));
+ assert.throws(()=>platformMoney(-2));
+ const lowered=structuredClone(value);lowered.tasks[0].max_reserved_cents=0;assert.equal(parsePlatformSnapshot(lowered).tasks[0].committed_cents,25000);
+});
 test('controls admit bounded authorized repository scope and stable request identities',()=>{
  assert.deepEqual(parsePlatformControl(enqueue),enqueue);
  for(const value of [{...enqueue,actor:id},{...enqueue,request_id:'bad'},{...enqueue,payload:{...enqueue.payload,repositories:['other/repo']}},{...enqueue,payload:{...enqueue.payload,max_reserved_cents:Infinity}},{...enqueue,payload:{...enqueue.payload,elapsed_seconds:299}},{...enqueue,payload:{...enqueue.payload,title:' '}},{action:'resume',request_id:id,task_id:id,payload:{}}])assert.throws(()=>parsePlatformControl(value));
