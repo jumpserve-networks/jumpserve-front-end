@@ -13,6 +13,18 @@ Last updated: 2026-10-17
   deployment status only as part of an explicitly requested deployment or when
   the user specifically asks for a deployment status check.
 
+### Named platform supervisor
+
+The user explicitly authorized the **Platform Development Supervisor OpenClaw**
+to merge and deploy qualified improvements to the three JumpServe repositories.
+After its initial explicitly requested activation, that named service may use
+the immutable Supabase `platform_authorizations` policy without per-release
+human confirmation. Fixed checks, exact protected GitHub revisions, scoped AWS
+release roles, recorded production verification, owner controls and task limits
+remain mandatory. This exception does not extend standing deployment authority
+to unrelated interactive editing sessions. See
+`jumpserve-infra/docs/platform-supervisor-v1.md` for scope and activation order.
+
 ## Project purpose
 
 JumpServe's central purpose is to collect networking test measurements and store
