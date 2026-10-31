@@ -1,5 +1,5 @@
 import type { AutonomousOverview, AutonomousTask, AutonomousWorkflow } from "@/lib/research-autonomy";
-import { isAssessmentBudgetCents, validRepairProgress } from "@/lib/research-autonomy";
+import { isAssessmentBudgetCents, isAssessmentDefaultBudget, validRepairProgress } from "@/lib/research-autonomy";
 import { isResearchId } from "@/lib/research-experiment-queue";
 import { QUEUE_STATUSES, type QueueStatus } from "@/lib/research-queue";
 import { researchApiBase } from "@/lib/research-workflow";
@@ -49,7 +49,7 @@ export function validatePublicStudyQueue(value: unknown, studyId: string): Publi
   const a = q.autonomy;
   if (!fields(a, ["version", "access", "defaults", "enabled", "runtime", "workflows", "tasks", "coverage"]) ||
       a.access !== "public-read-only" || !["research-autonomy-v1", "research-autonomy-v2", "research-autonomy-v3"].includes(a.version) ||
-      typeof a.enabled !== "boolean" || !fields(a.defaults, ["maximum_spend_usd", "elapsed_days", "attempts_per_claim", "parallel_claims_per_paper", "global_parallel_claims"]) || a.defaults.maximum_spend_usd !== 100 || a.defaults.elapsed_days !== 7 ||
+      typeof a.enabled !== "boolean" || !fields(a.defaults, ["maximum_spend_usd", "elapsed_days", "attempts_per_claim", "parallel_claims_per_paper", "global_parallel_claims"]) || !isAssessmentDefaultBudget(a.defaults.maximum_spend_usd, a.version) || a.defaults.elapsed_days !== 7 ||
       a.defaults.attempts_per_claim !== (a.version === "research-autonomy-v3" ? null : 25) ||
       !Array.isArray(a.workflows) || a.workflows.length > 1 || !Array.isArray(a.tasks) || a.tasks.length > 1000 ||
       !unique(a.tasks) || !fields(a.coverage, ["workflows", "tasks"]) || a.coverage.workflows !== a.workflows.length || a.coverage.tasks !== a.tasks.length ||

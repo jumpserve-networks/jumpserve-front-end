@@ -21,6 +21,13 @@ test('shared unlimited authorization is explicit and never hides retained commit
  for(const cap of [undefined,0,Infinity,'unlimited']){w.max_spend_cents=cap;assert.throws(()=>validatePublicStudyQueue(q,study));}
  w.max_spend_cents=200000;assert.equal(validatePublicStudyQueue(q,study).autonomy.workflows[0].committed_cents,150000);
 });
+
+test('shared queues accept the explicit unlimited default while retaining historical finite caps',()=>{
+ const q=fixture();q.autonomy.defaults.maximum_spend_usd=null;
+ assert.equal(validatePublicStudyQueue(q,study).autonomy.defaults.maximum_spend_usd,null);
+ assert.equal(q.autonomy.workflows[0].max_spend_cents,10000);
+ for(const invalid of [undefined,0,'unlimited',Infinity,101]){q.autonomy.defaults.maximum_spend_usd=invalid;assert.throws(()=>validatePublicStudyQueue(q,study));}
+});
 test('operational recovery preserves scientific labels and rejects malformed or private progress fields',()=>{
  const q=fixture(),p={version:'autonomous-repair-v1',id,state:'diagnosing',category:'runtime',revision:0,updated_at:stamp};
  for(const state of ['diagnosing','repairing','validating','resuming','waiting','resolved','blocked','budget','deadline','cancelled']){

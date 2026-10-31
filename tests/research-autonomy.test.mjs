@@ -81,3 +81,20 @@ test('recorded OpenClaw readiness retains quota pauses and rejects invented work
  assert.equal(validateAutonomy(value).runtime.status,'paused-quota');assert.equal(value.tasks[0].attempts,0);
  value.runtime.status='assume-ready';assert.throws(()=>validateAutonomy(value),/AI worker status/);
 });
+
+test('unlimited defaults preserve legacy finite records and reject missing budget metadata',()=>{
+ const value=fixture();value.defaults.maximum_spend_usd=null;
+ assert.equal(validateAutonomy(value).defaults.maximum_spend_usd,null);
+ assert.equal(validateAutonomy(value).workflows[0].max_spend_cents,10000);
+ for(const invalid of [undefined,0,'unlimited',101,Infinity]){const bad=structuredClone(value);bad.defaults.maximum_spend_usd=invalid;assert.throws(()=>validateAutonomy(bad));}
+ value.version='research-autonomy-v2';value.defaults.attempts_per_claim=25;value.workflows[0].max_attempts=25;
+ assert.throws(()=>validateAutonomy(value));
+});
+
+test('one intake accepts the explicit unlimited default without replacing its request identity',async()=>{
+ const calls=[];const result={id,autonomy:{...fixture().workflows[0],max_spend_cents:null}};
+ const request=async(path,options)=>{calls.push({path,options});return path==='/capabilities'?{autonomy:{version:'research-autonomy-v3',defaults:{maximum_spend_usd:null}}}:result;};
+ assert.equal((await startAutonomousPaper(request,id,{title:'Paper'})).autonomy.max_spend_cents,null);
+ assert.equal(calls.filter(call=>call.options?.method==='POST').length,1);
+ for(const missing of [undefined,0,'unlimited',100000]){result.autonomy.max_spend_cents=missing;await assert.rejects(()=>startAutonomousPaper(request,id,{}),/Preserve this request ID/);}
+});
