@@ -8,7 +8,7 @@ import { Input } from "@/app/components/ui/input";
 import { Checkbox } from "@/app/components/ui/checkbox";
 import { researchRequest } from "@/lib/research-workflow-api";
 import { experimentQueuePath } from "@/lib/research-experiment-queue";
-import { validatePaperReview, reviewRoles, type ReviewGroup, type PaperReview } from "@/lib/research-paper-review";
+import { validatePaperReview, paperReviewBudgetTerms, reviewRoles, type ReviewGroup, type PaperReview } from "@/lib/research-paper-review";
 import { usePaperUploads } from "@/app/components/research-workflow/paper-uploads-provider";
 
 export function PaperReviewPanel({ assessmentId }: { assessmentId: string }) {
@@ -111,7 +111,7 @@ export function PaperReviewPanel({ assessmentId }: { assessmentId: string }) {
         {matching.slice(0, otherLimit).map(claim => <article key={claim.id} className="space-y-2 rounded-md border p-3 text-sm"><p className="whitespace-pre-wrap break-words">{claim.description}</p><p className="text-xs text-muted-foreground">{claim.location} · {claim.claim_type}{review.status === "confirmed" && selected.includes(claim.id) ? " · Included in the original assessment; category was not recorded." : ""}</p>{!readOnly ? <div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" onClick={() => move(claim.id, "central_claims")}>Add to central claims</Button><Button type="button" size="sm" variant="outline" onClick={() => move(claim.id, "testable_findings")}>Add to testable findings</Button></div> : null}</article>)}
         {matching.length > otherLimit ? <Button type="button" variant="outline" size="sm" onClick={() => setOtherLimit(n => n + 20)}>Show more statements</Button> : null}
       </div> : null}</details> : null}
-      {review.status === "confirmed" ? <Link className="underline" href={experimentQueuePath(assessmentId)}>View assessment progress</Link> : <><p className="text-xs text-muted-foreground">Preparation and assessment share the paper’s $100 spending limit and seven-day window.</p>{!review.can_start ? <p role="alert" className="text-sm text-destructive">This paper’s authorization no longer admits work. Review the preparation details in Experiment Queue.</p> : null}<Button type="submit" size="lg" disabled={busy || !review.can_start || selected.length === 0 || !review.organization || selected.some(id => !roles[id]) || !title.trim() || !domain.trim()}>{busy ? "Starting assessment…" : "Confirm and start assessment"}</Button></>}
+      {review.status === "confirmed" ? <Link className="underline" href={experimentQueuePath(assessmentId)}>View assessment progress</Link> : <><p className="text-xs text-muted-foreground">{paperReviewBudgetTerms(review.limits)}</p>{!review.can_start ? <p role="alert" className="text-sm text-destructive">This paper’s authorization no longer admits work. Review the preparation details in Experiment Queue.</p> : null}<Button type="submit" size="lg" disabled={busy || !review.can_start || selected.length === 0 || !review.organization || selected.some(id => !roles[id]) || !title.trim() || !domain.trim()}>{busy ? "Starting assessment…" : "Confirm and start assessment"}</Button></>}
     </form> : null}
   </section>;
 }

@@ -52,3 +52,8 @@ export function reviewRoles(review: PaperReview): Record<string, ReviewGroup> {
   }
   return roles;
 }
+
+export function paperReviewBudgetTerms(limits: PaperReview["limits"]): string {
+  const funding = limits.max_spend_cents === null ? "No aggregate spending cap applies to this assessment." : `This assessment has a ${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(limits.max_spend_cents / 100)} aggregate spending cap.`;
+  return `Preparation and assessment share the recorded deadline. ${funding}`;
+}
