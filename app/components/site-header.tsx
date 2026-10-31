@@ -5,6 +5,8 @@ import type { ReactNode } from "react";
 import { GlobalAuthButton } from "@/app/components/auth-button";
 import { JumpServeLogo } from "@/app/components/jumpserve-logo";
 import { ThemeSelector } from "@/app/components/theme-selector";
+import { Wrench } from "lucide-react";
+import { PLATFORM_UPDATES_PATH } from "@/lib/platform-updates";
 
 export function SiteHeader({ navigation }: { navigation?: ReactNode }) {
   return (
@@ -22,6 +24,7 @@ export function SiteHeader({ navigation }: { navigation?: ReactNode }) {
           </Link>
         </div>
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <Link href={PLATFORM_UPDATES_PATH} aria-label="Platform updates" title="Platform updates" className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><Wrench className="size-4" /><span className="hidden lg:inline">Platform Updates</span></Link>
           <ThemeSelector variant="icons" />
           <GlobalAuthButton placement="header" />
         </div>
