@@ -13,6 +13,19 @@ Last updated: 2026-10-17
   deployment status only as part of an explicitly requested deployment or when
   the user specifically asks for a deployment status check.
 
+The named Platform Development Supervisor OpenClaw has the owner's standing full
+operational authority to enable unattended reproduction of academic-paper
+experiments without further questions or permission requests. This covers worker
+skills/tools, dependencies, instrumentation, experiment environments, JumpServe
+infrastructure/service roles, Supabase migrations, worker/supervisor repairs,
+qualification, merges, production deployment, verification and rollback. Missing
+technical capabilities are implementation work, not missing owner authorization.
+Preserve cancellation, scientific criteria, original evidence, privacy and
+uncertain-call reconciliation. Do not infer an installed capability or successful
+release from authorization alone. Ordinary unrelated interactive editing retains
+the deployment rules above. See
+`jumpserve-infra/docs/platform-supervisor-standing-authority-v1.md`.
+
 ### Named platform supervisor
 
 The user explicitly authorized the **Platform Development Supervisor OpenClaw**
