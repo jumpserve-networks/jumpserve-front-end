@@ -12,7 +12,7 @@ function getBenchmarkApiUrl(): string {
     throw new Error('The benchmark service URL is invalid. Please contact the site administrator.');
   }
 
-  if (!['http:', 'https:'].includes(url.protocol) || url.search || url.hash) {
+  if (!['http:', 'https:'].includes(url.protocol) || url.search || url.hash || url.username || url.password) {
     throw new Error('The benchmark service URL is invalid. Please contact the site administrator.');
   }
 

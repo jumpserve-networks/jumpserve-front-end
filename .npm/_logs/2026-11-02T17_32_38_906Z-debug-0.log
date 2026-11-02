@@ -1,0 +1,11 @@
+0 verbose cli /usr/local/bin/node /usr/local/bin/npm
+1 info using npm@11.13.0
+2 info using node@v24.16.0
+3 silly config load:file:/usr/local/lib/node_modules/npm/npmrc
+4 silly config load:file:/workspace/jumpserve-front-end/.npmrc
+5 silly config load:file:/usr/local/etc/npmrc
+6 verbose title npm run lint
+7 verbose argv "run" "lint"
+8 verbose logfile logs-max:10 dir:/workspace/jumpserve-front-end/.npm/_logs/2026-11-02T17_32_38_906Z-
+9 verbose logfile /workspace/jumpserve-front-end/.npm/_logs/2026-11-02T17_32_38_906Z-debug-0.log
+10 silly logfile done cleaning log files
