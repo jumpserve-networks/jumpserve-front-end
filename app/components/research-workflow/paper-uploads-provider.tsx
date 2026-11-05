@@ -9,7 +9,7 @@ import { PaperUploadManager } from "@/lib/paper-upload-manager";
 import { researchRequest } from "@/lib/research-workflow-api";
 import { createClient } from "@/lib/supabase/client";
 import { NEW_ASSESSMENT_PATH } from "@/lib/test-modules";
-import { experimentQueuePath } from "@/lib/research-experiment-queue";
+import { researchAssessmentPath } from "@/lib/research-pathways";
 import { assessmentActivityHeading, type AssessmentActivity } from "@/lib/assessment-notifications";
 import { cn } from "@/lib/utils";
 
@@ -23,9 +23,9 @@ function AssessmentNotice({ activity, stale, onDismiss }: { activity: Assessment
     <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 items-start gap-2"><span aria-hidden="true" className={cn("mt-0.5 shrink-0 text-primary", pending && "animate-spin")}><Icon className="size-4" /></span><h2 className="text-sm font-semibold">{assessmentActivityHeading(activity)}</h2></div><Button variant="ghost" size="icon-sm" className="shrink-0 text-foreground" aria-label={`Dismiss assessment notification for ${activity.title}`} onClick={onDismiss}><X aria-hidden="true" /></Button></div>
     <p className="break-words text-sm font-medium">{activity.title}</p>
     {stale ? <p className="text-sm text-warning">Status is temporarily unavailable. {activity.counts ? "The last recorded progress is shown." : "JumpServe will retry automatically."}{activity.statusError ? <span className="mt-1 block">{activity.statusError}</span> : null}</p> : null}
-    {activity.status === "unavailable" ? <p className="text-sm text-muted-foreground">Current assessment progress is unknown. Open Experiment Queue for details.</p> : activity.phase === "preparing" ? <p className="text-sm text-muted-foreground">Extracting the paper information for your review.</p> : activity.counts ? <div className="space-y-1 text-sm text-muted-foreground"><p>{activity.counts.finished} of {activity.counts.total} recorded claim checks finished.</p><p>{activity.counts.reproduced} reproduced · {activity.counts.discrepant} discrepant{activity.counts.blocked ? ` · ${activity.counts.blocked} need attention` : ""}</p>{activity.phase === "assessing" ? <p>{activity.counts.running} running · {activity.counts.queued} queued{activity.counts.waiting ? ` · ${activity.counts.waiting} waiting` : ""}</p> : null}</div> : <p className="text-sm text-muted-foreground">Waiting for recorded claim status.</p>}
+    {activity.status === "unavailable" ? <p className="text-sm text-muted-foreground">Current assessment progress is unknown.</p> : activity.phase === "preparing" ? <p className="text-sm text-muted-foreground">Extracting the paper information for your review.</p> : activity.counts ? <div className="space-y-1 text-sm text-muted-foreground"><p>{activity.counts.finished} of {activity.counts.total} recorded claim checks finished.</p><p>{activity.counts.reproduced} reproduced · {activity.counts.discrepant} discrepant{activity.counts.blocked ? ` · ${activity.counts.blocked} need attention` : ""}</p>{activity.phase === "assessing" ? <p>{activity.counts.running} running · {activity.counts.queued} queued{activity.counts.waiting ? ` · ${activity.counts.waiting} waiting` : ""}</p> : null}</div> : <p className="text-sm text-muted-foreground">Waiting for recorded claim status.</p>}
     {pending ? <div role="progressbar" aria-label={activity.phase === "preparing" ? "Paper preparation in progress" : "Paper assessment in progress"} className="h-1 overflow-hidden rounded-full bg-primary/20"><div className="h-full w-full animate-pulse rounded-full bg-primary/60" /></div> : null}
-    <Link prefetch={false} href={experimentQueuePath(activity.id)} onClick={onDismiss} className={buttonVariants({ size: "sm" })}>View experiment queue</Link>
+    <Link prefetch={false} href={researchAssessmentPath(activity.id)} onClick={onDismiss} className={buttonVariants({ size: "sm" })}>View Assessment</Link>
     {activity.phase !== "finished" ? <p className="text-xs text-muted-foreground">{activity.phase === "preparing" ? "Preparation continues in the background." : "The assessment continues in the background."}</p> : null}
   </article>;
 }

@@ -115,10 +115,11 @@ try {
   const bundled = await build({ stdin: { contents: `import React,{useEffect,useState} from 'react';import {createRoot} from 'react-dom/client';import Link from 'next/link';import {UserPreferencesProvider} from './app/components/user-preferences';import {PaperUploadsProvider} from './app/components/research-workflow/paper-uploads-provider';import {PaperIntake} from './app/components/research-workflow/workspace';import {Assessments} from './app/components/research-workflow/assessments';import {PaperReviewPanel} from './app/components/research-workflow/paper-review';function App(){const [path,setPath]=useState(location.pathname+location.search);useEffect(()=>{const changed=()=>setPath(location.pathname+location.search);addEventListener('popstate',changed);return()=>removeEventListener('popstate',changed)},[]);return <><nav><Link href='/research-verification/new-assessment'>Upload papers</Link><Link href='/'>Browse home</Link><Link href='/research-ideas'>Browse ideas</Link><Link href='/research-verification/assessments?mine=1'>My assessments</Link><Link href='/research-verification/assessments'>Assessments</Link></nav><main>{path.split('?')[0]==='/research-verification/assessments'?<Assessments key={path} mine={new URLSearchParams(location.search).get('mine')==='1'}/>:path==='/research-verification/new-assessment'?<PaperIntake/>:path.startsWith('/research-verification/new-assessment/')?<PaperReviewPanel assessmentId={path.split('/').pop()}/>:<h1>Browsing JumpServe</h1>}</main></>;}createRoot(document.getElementById('root')).render(<React.StrictMode><UserPreferencesProvider><PaperUploadsProvider><App/></PaperUploadsProvider></UserPreferencesProvider></React.StrictMode>);`, resolveDir: process.cwd(), sourcefile: 'paper-uploads-browser.tsx', loader: 'tsx' },
     bundle: true, write: false, platform: 'browser', format: 'iife', define: { 'process.env.NODE_ENV': '"development"', 'process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL': JSON.stringify(origin),'process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL':JSON.stringify(origin) },
     plugins: [{ name: 'synthetic-auth-storage-and-next-navigation', setup(p) {
-      p.onResolve({ filter: /^(@\/lib\/supabase\/client|next\/(link|navigation))$/ }, a => ({ path: a.path, namespace: 'fixture' }));
+      p.onResolve({ filter: /^(@\/lib\/supabase\/client|next\/(link|navigation|form))$/ }, a => ({ path: a.path, namespace: 'fixture' }));
       p.onLoad({ filter: /.*/, namespace: 'fixture' }, a => ({ loader: 'js', resolveDir: process.cwd(), contents: a.path === 'next/link'
         ? `import React from 'react';export default function Link({href,prefetch:ignored,onClick,...props}){return React.createElement('a',{...props,href,onClick(e){onClick?.(e);if(!e.defaultPrevented&&!e.metaKey&&!e.ctrlKey){e.preventDefault();history.pushState({},'',href);dispatchEvent(new PopStateEvent('popstate'))}}})}`
         : a.path === 'next/navigation' ? `export function useRouter(){return{push(path){history.pushState({},'',path);dispatchEvent(new PopStateEvent('popstate'))}}}`
+        : a.path === 'next/form' ? `import React from 'react';export default function Form({action,...props}){return React.createElement('form',{...props,action,onSubmit(e){e.preventDefault();const query=new URLSearchParams(new FormData(e.currentTarget));history.pushState({},'',action+(query.size?'?'+query:''));dispatchEvent(new PopStateEvent('popstate'))}})}`
         : `const callbacks=new Set();function session(){document.cookie='fixture_owner='+window.fixtureOwner+'; Path=/';return window.fixtureOwner?{access_token:'fixture:'+window.fixtureOwner,user:{id:window.fixtureOwner,app_metadata:{provider:'google'},user_metadata:{}}}:null}window.fixtureSwitchOwner=id=>{window.fixtureOwner=id;const value=session();callbacks.forEach(fn=>fn(value?'SIGNED_IN':'SIGNED_OUT',value))};const client={auth:{async getSession(){return{data:{session:session()},error:null}},onAuthStateChange(fn){callbacks.add(fn);return{data:{subscription:{unsubscribe(){callbacks.delete(fn)}}}}}},storage:{from(){return{async uploadToSignedUrl(path,token,file){const r=await fetch('/storage/'+path,{method:'PUT',body:file,headers:{Authorization:'Bearer fixture:'+window.fixtureOwner}});return{error:r.ok?null:new Error('Local storage fixture rejected upload')}}}}}};export function createClient(){return client}`,
       }));
     } }],
@@ -151,6 +152,7 @@ try {
     assert.ok([...records.values()].every(r => r.bytes_verified));
     await page.locator('[data-assessment-notice]').nth(1).waitFor();
     assert.equal(await page.getByRole('progressbar', { name: 'Paper preparation in progress' }).count(), 2);
+    for(const row of records.values())assert.equal(await page.locator(`[data-assessment-notice="${row.id}"]`).getByRole('link',{name:'View Assessment',exact:true}).getAttribute('href'),'/research-verification/assessment/'+row.id);
     return { parallel_papers: 2, route: '/', exact_bytes_verified: true, confirm_requests: 0 };
   });
   const [a, b] = [...records.values()];
@@ -227,11 +229,11 @@ try {
     await page.waitForFunction(() => !document.body.innerText.includes('Shared queue retrieval failed'));
     return { legacy_field_missing: true, completed_intake_accepted_without_scientific_label: true, recorded_counts_preserved: true, per_paper_failures: true, anonymous_read_only_requests: calls.length, tokens_and_cookies_forwarded: false, recovery: true };
   });
-  await check('assessment progress stays while browsing with recorded counts and an exact queue link', async () => {
+  await check('assessment progress stays while browsing with recorded counts and an exact assessment link', async () => {
     const card=page.locator(`[data-assessment-notice="${a.id}"]`);
     await card.getByRole('heading',{name:'Assessing your paper…',exact:true}).waitFor();
     await card.getByText('0 of 1 recorded claim checks finished.',{exact:true}).waitFor();
-    assert.equal(await card.getByRole('link',{name:'View experiment queue'}).getAttribute('href'),'/research-verification/experiment-queue?assessment='+a.id);
+    assert.equal(await card.getByRole('link',{name:'View Assessment',exact:true}).getAttribute('href'),'/research-verification/assessment/'+a.id);
     await page.getByRole('link',{name:'Browse ideas',exact:true}).click();await card.waitFor();
     for(const width of [1365,390])for(const dark of [false,true]){
       await page.setViewportSize({width,height:width===390?844:900});await page.evaluate(value=>document.documentElement.classList.toggle('dark',value),dark);
@@ -244,11 +246,11 @@ try {
     assert.equal(await card.getByRole('progressbar').count(),0);
     await card.getByText('0 of 1 recorded claim checks finished.',{exact:true}).waitFor();
     failureMode=false;await page.getByRole('button',{name:'Retry status',exact:true}).click();await card.getByRole('progressbar').waitFor();
-    await card.getByRole('link',{name:'View experiment queue',exact:true}).click();await page.waitForURL(/experiment-queue\?assessment=/);
-    assert.equal(new URL(page.url()).searchParams.get('assessment'),a.id);assert.equal(await card.count(),0);
+    await card.getByRole('link',{name:'View Assessment',exact:true}).click();await page.waitForURL(new RegExp('/research-verification/assessment/'+a.id+'$'));
+    assert.equal(new URL(page.url()).pathname,'/research-verification/assessment/'+a.id);assert.equal(await card.count(),0);
     await page.reload();await page.locator(`[data-paper-notice="${b.id}"]`).waitFor();assert.equal(await card.count(),0);
     assert.equal(requests.filter(r=>r.action==='cancel').length,0);
-    return {counts_from_recorded_status:true,route_navigation:true,reload_restoration:true,widths:[1365,390],themes:['light','dark'],stale_status_explicit:true,matching_queue_link:true,view_link_closes_popup:true,cancel_requests:0};
+    return {counts_from_recorded_status:true,route_navigation:true,reload_restoration:true,widths:[1365,390],themes:['light','dark'],stale_status_explicit:true,matching_assessment_link:true,view_link_closes_popup:true,cancel_requests:0};
   });
   await check('a later completion with gaps appears after progress was closed and stays until dismissed',async()=>{
     a.assessment_status={status:'completed-with-blockers',updated_at:new Date().toISOString(),counts:{total:1,finished:0,reproduced:0,discrepant:0,blocked:1,running:0,queued:0,waiting:0}};
