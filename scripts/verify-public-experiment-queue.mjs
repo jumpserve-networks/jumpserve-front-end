@@ -86,6 +86,19 @@ try{
   for(const width of [1365,390])for(const theme of ['Light Mode','Dark Mode']){await page.setViewportSize({width,height:900});await page.getByRole('button',{name:theme,exact:true}).click();await settledTheme(page,theme);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:directory+'/repair-'+width+'-'+theme.split(' ')[0].toLowerCase()+'.png',fullPage:true});}
   await fixtureMode('normal');await page.reload();await page.getByText(paperTitle,{exact:true}).waitFor();return {states:Object.keys(labels),scientific_finding:'untested',widths:[1365,390],themes:['light','dark'],actual_repairs_executed:false};
  });
+ await check('parallel intake chunks remain readable and cannot imply complete inventory before the root finishes',async()=>{
+  await fixtureMode('parallel-intake');await page.goto(origin+target);
+  const progress=page.getByRole('region',{name:'Assessment claim progress',exact:true});await progress.locator('article[id^="claim-task-"]').nth(6).waitFor();
+  assert.equal(await progress.locator('article[id^="claim-task-"]').count(),7);await progress.getByText(/Claim inventory coverage is still incomplete/).waitFor();
+  const snapshot=await(await fetch(fixtureOrigin+'/research/studies/'+study+'/queue?public=1&diagnostics=1')).json();assert.equal(snapshot.autonomy.tasks.filter(t=>t.claim_id===null).length,3);
+  assert.equal(await page.getByRole('region',{name:'Claim progress',exact:true}).locator('tbody tr').count(),7);
+  assert.equal(await page.getByRole('region',{name:'Assessment status',exact:true}).getByText('2 of 4 finished',{exact:true}).count(),1);
+  assert.equal(await progress.getByRole('button',{name:'View prompts and responses',exact:true}).count(),7);
+  await fixtureMode('parallel-intake-finished');await page.reload();await progress.getByText(/Inventory scope and omissions remain in the preparation record/).waitFor();
+  assert.equal(await progress.getByText(/Claim inventory coverage is still incomplete/).count(),0);
+  await fixtureMode('normal');await page.goto(origin+target);await page.getByRole('heading',{name:paperTitle,exact:true}).waitFor();
+  return {source_tasks:3,claim_tasks:4,all_source_states_visible:true,scientific_counts_exclude_preparation:true,root_readiness_required:true,source_history_controls:true};
+ });
  await check('shared failure details remain readable without sign-in and absent details stay explicitly missing',async()=>{
   await fixtureMode('details-missing');await page.reload();await page.getByText('Paused. No failure details or requirements were recorded.',{exact:true}).waitFor();
   await page.getByText('No failure details were returned by the service.',{exact:true}).waitFor();
