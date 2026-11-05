@@ -118,9 +118,7 @@ export function AnimatedImageUploadPanel() {
             Upload an animated image from your computer
           </h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            The old location-style prompt is replaced with a local file picker.
-            This accepts GIF, WebP, APNG/PNG, and AVIF files so you can choose an
-            animated image directly from disk.
+            GIF, WebP, APNG/PNG, or AVIF.
           </p>
         </div>
 

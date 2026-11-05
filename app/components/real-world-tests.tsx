@@ -59,7 +59,7 @@ export function RealWorldTests() {
   return <div className="mt-6 space-y-6">
     <Card><CardHeader><CardTitle>New real-world test</CardTitle></CardHeader><CardContent>
       <form onSubmit={launch} className="space-y-6">
-        <p className="text-sm text-muted-foreground">One server → one shared bottleneck → {config.receivers.length} receivers. Each machine is a fresh EC2 instance. Test traffic and acknowledgments travel through the bottleneck.</p>
+        <p className="text-sm text-muted-foreground">One server → one shared bottleneck → {config.receivers.length} receivers · fresh EC2 instances.</p>
         <fieldset disabled={submitting || loading} className="min-w-0 space-y-5">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Choice label="Server congestion control" value={config.cca} items={REAL_WORLD_CCAS.map((cca) => ({ value: cca, label: cca.toUpperCase() }))} onChange={(cca) => update({ cca: cca as RealWorldConfig["cca"] })} />
@@ -67,7 +67,7 @@ export function RealWorldTests() {
               <div key={key} className="space-y-2"><Label htmlFor={key}>{label}</Label><Input id={key} type="number" min={min} max={max} step={1} required value={Number.isNaN(config[key]) ? "" : config[key]} onChange={(e) => update({ [key]: e.target.valueAsNumber })} /></div>)}
           </div>
           <p className="text-xs text-muted-foreground">One TCP stream per receiver, starting together. Buffer sizes use decimal kB (1,000 bytes). BBR uses the stock Linux implementation recorded with the results.</p>
-          <p className="text-xs text-muted-foreground">Choose t3.small, t3.medium, or t3.large for each machine. T3 CPU and network bandwidth are burstable; instance limits can affect measurements at high rates.</p>
+          <p className="text-xs text-muted-foreground">T3 CPU and bandwidth are burstable and can limit high-rate measurements.</p>
           <RealWorldPlacement label="Server" value={config.server} regions={regions} onChange={(change) => setConfig((old) => updateRealWorldPlacement(old, "server", change))}
             disabled={submitting || loading} />
           <Button type="button" variant="outline" size="sm" className="h-auto max-w-full whitespace-normal py-2 text-left" disabled={!config.server.region || !config.server.zone_id} onClick={() => setConfig((old) => ({ ...old, bottleneck: { ...old.server }, receivers: old.receivers.map(() => ({ ...old.server })) }))}>Use server placement and instance type for all machines</Button>
@@ -78,7 +78,7 @@ export function RealWorldTests() {
             <Button type="button" variant="outline" size="sm" disabled={config.receivers.length >= 16} onClick={() => setConfig((old) => ({ ...old, receivers: [...old.receivers, emptyPlacement()] }))}>Add receiver</Button>
             <Button type="button" variant="outline" size="sm" disabled={config.receivers.length <= 1} onClick={() => setConfig((old) => ({ ...old, receivers: old.receivers.slice(0, -1) }))}>Remove last receiver</Button>
           </div>
-          <p className="text-xs text-muted-foreground">AWS publishes Regions and Availability Zones rather than individual data centers. Locations are fetched from AWS for this account. An available zone that supports the instance type is selected at random for each machine. You can change it using the zone dropdown.</p>
+          <p className="text-xs text-muted-foreground">An available zone is selected at random for each machine.</p>
           <div className="space-y-2"><Label htmlFor="real-world-notes">Hypothesis / notes</Label><Textarea id="real-world-notes" maxLength={4000} value={config.notes} onChange={(e) => update({ notes: e.target.value })} /></div>
         </fieldset>
         {loading && <p role="status" className="text-sm text-muted-foreground">Loading AWS locations and test history…</p>}

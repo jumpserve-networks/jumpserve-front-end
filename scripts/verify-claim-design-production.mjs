@@ -81,16 +81,16 @@ try{
     const unavailable=await fetch(origin+base+'/api/assessments/'+missing+'/export');assert.equal(unavailable.status,404);
     return {export_bytes:bytes.length,export_sha256:createHash('sha256').update(bytes).digest('hex'),missing_export_status:404};
   });
-  await check('landing, previous assessments and methods remain navigable',async()=>{
+  await check('landing, assessments and methods remain navigable',async()=>{
     await visit('/');
     const verify=page.getByRole('button',{name:'Start verification',exact:true});
     const develop=page.getByRole('button',{name:'Start developing',exact:true});
     await verify.waitFor();await develop.waitFor();
     assert.equal(await verify.getAttribute('href'),base+'/new-assessment');
     assert.equal(await develop.getAttribute('href'),'/research-ideas/new-idea');
-    await visit(base+'/previous-assessments');await page.locator('a[href="'+base+'/assessments/'+selected.id+'"]').first().waitFor();
+    await visit(base+'/assessments');await page.locator('a[href="'+base+'/assessments/'+selected.id+'"]').first().waitFor();
     await visit(base+'/methods');
-    return {paths:['/',base+'/previous-assessments',base+'/methods']};
+    return {paths:['/',base+'/assessments',base+'/methods']};
   });
   assert.deepEqual(report.browser_errors,[]);assert.deepEqual(report.mutations,[]);report.passed=true;
 }catch(error){report.passed=false;report.error=error.message;process.exitCode=1;

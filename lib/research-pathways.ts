@@ -1,7 +1,11 @@
-import { ASSESSMENTS_PATH, NEW_ASSESSMENT_PATH, RESEARCH_IDEAS_MODULE_PATH, RESEARCH_WORKFLOW_MODULE_PATH } from "./test-modules";
+import { ASSESSMENT_PATH, ASSESSMENTS_PATH, NEW_ASSESSMENT_PATH, RESEARCH_IDEAS_MODULE_PATH, RESEARCH_WORKFLOW_MODULE_PATH } from "./test-modules";
 import type { ResearchStudy } from "./research-workflow";
 
 export type ResearchStudyKind = "paper" | "idea";
+
+export function researchAssessmentPath(id: string) {
+  return `${ASSESSMENT_PATH}/${id}`;
+}
 
 // Older paper assessments predate study_kind. Their existing identities stay intact.
 export function researchStudyKind(study: Pick<ResearchStudy, "study_kind">): ResearchStudyKind {

@@ -17,7 +17,7 @@ test('profile edits validate names and IANA time zones without accepting caller 
 
 function client({row=null,error=null}={}){
  const calls=[];
- const builder={select(value){calls.push(['select',value]);return builder;},eq(key,value){calls.push(['eq',key,value]);return builder;},maybeSingle:async()=>({data:row,error}),single:async()=>({data:row,error}),upsert(value,options){calls.push(['upsert',value,options]);return builder;},then(resolve,reject){return Promise.resolve({data:row,error}).then(resolve,reject);}};
+ const builder={select(value){calls.push(['select',value]);return builder;},eq(key,value){calls.push(['eq',key,value]);return builder;},maybeSingle:async()=>({data:row,error}),single:async()=>({data:row,error}),upsert(value,options){calls.push(['upsert',value,options]);return builder;},update(value){calls.push(['update',value]);return builder;},then(resolve,reject){return Promise.resolve({data:row,error}).then(resolve,reject);}};
  return {calls,from(table){calls.push(['from',table]);return builder;}};
 }
 test('a missing profile uses explicit Google name fields and does not write on a read',async()=>{
@@ -31,11 +31,27 @@ test('first Google sign-in persists explicit names without setting a timezone or
  assert.deepEqual(c.calls.find(x=>x[0]==='upsert'),['upsert',{id:user.id,first_name:'Ada',last_name:'Lovelace',timezone:null},{onConflict:'id',ignoreDuplicates:true}]);
 });
 
-test('later Google logins preserve saved edits, deliberately blank names and timezone',async()=>{
- for(const row of [{id:user.id,first_name:'Grace',last_name:'Hopper',timezone:'Asia/Tokyo'},{id:user.id,first_name:'',last_name:'',timezone:null}]){
-  const c=client({row});await initializeGoogleProfile(c,user,'unused-token');
-  assert.ok(!c.calls.some(x=>x[0]==='upsert'));assert.deepEqual(await readOwnProfile(c,user),row);
+test('later Google logins preserve saved names and timezone',async()=>{
+ const row={id:user.id,first_name:'Grace',last_name:'Hopper',timezone:'Asia/Tokyo'};
+ const c=client({row});await initializeGoogleProfile(c,user,'unused-token');
+ assert.ok(!c.calls.some(x=>['upsert','update'].includes(x[0])));assert.deepEqual(await readOwnProfile(c,user),row);
+});
+test('Google logins fill only blank name components with conditional owner-scoped updates',async()=>{
+ for(const row of [{id:user.id,first_name:'',last_name:'',timezone:'Asia/Tokyo'},{id:user.id,first_name:'Chosen',last_name:'',timezone:null},{id:user.id,first_name:'  ',last_name:'Saved',timezone:'UTC'}]){
+  const c=client({row});await initializeGoogleProfile(c,user);
+  const updates=c.calls.filter(x=>x[0]==='update');
+  assert.deepEqual(updates,[...(!row.first_name.trim()?[['update',{first_name:'Ada'}]]:[]),...(!row.last_name.trim()?[['update',{last_name:'Lovelace'}]]:[])]);
+  for(const field of ['first_name','last_name'])if(!row[field].trim()){
+   const index=c.calls.findIndex(call=>call[0]==='update'&&field in call[1]);
+   assert.deepEqual(c.calls.slice(index+1,index+3),[['eq','id',user.id],['eq',field,row[field]]]);
+  }
+  assert.ok(!c.calls.some(x=>x[0]==='upsert'||x[0]==='update'&&'timezone' in x[1]));
  }
+});
+test('blank existing profiles remain unchanged when Google has no verified name components',async()=>{
+ const row={id:user.id,first_name:'',last_name:'',timezone:'Asia/Tokyo'},c=client({row});
+ await initializeGoogleProfile(c,{...user,user_metadata:{full_name:'Ambiguous Full Name'}});
+ assert.ok(!c.calls.some(x=>['update','upsert'].includes(x[0])));
 });
 
 test('non-Google identities, unavailable names and profile storage failures do not create empty profiles',async()=>{

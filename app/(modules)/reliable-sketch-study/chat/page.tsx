@@ -7,5 +7,5 @@ export default async function Chat({ searchParams }: { searchParams: Promise<{ c
  const p=await searchParams; const configuration=typeof p.configuration==="string" && /^[A-Za-z0-9._-]{1,100}$/.test(p.configuration) ? p.configuration : null;
  const user=await requireGoogleUser(`${PATH}/chat${configuration ? `?configuration=${encodeURIComponent(configuration)}` : ""}`);
  const initialMessage=configuration ? `Read ${configuration}. Explain recorded outliers, allocated versus nominal memory, interval checks and limits of this ReliableSketch assessment.` : "";
- return <main className="mx-auto max-w-5xl px-4 py-6"><ReliableHeader title="Chat with AI · ReliableSketch" description="Discuss saved stream-counting evidence and source coverage. A configuration link prepares an editable question; sending it is your choice." /><ChatPanel key={configuration ?? "reliable"} userEmail={user.email} moduleId="reliable-sketch-study" initialMessage={initialMessage} /></main>;
+ return <main className="mx-auto max-w-5xl px-4 py-6"><ReliableHeader title="Chat with AI · ReliableSketch" /><ChatPanel key={configuration ?? "reliable"} userEmail={user.email} moduleId="reliable-sketch-study" initialMessage={initialMessage} /></main>;
 }

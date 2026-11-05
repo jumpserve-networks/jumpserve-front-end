@@ -31,7 +31,7 @@ try{
  if(mode==='--deployed'){
   const chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';own=await chromium.launch({headless:true,executablePath:existsSync(chrome)?chrome:undefined});const context=await own.newContext({viewport:{width:1365,height:900}});page=await context.newPage();page.setDefaultTimeout(20000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await check('public production entry points and previous results render',async()=>{
-   for(const path of ['/','/research-verification/previous-assessments','/research-verification/methods','/ipv6-dns-study/test-results']){const response=await page.goto(origin+path,{waitUntil:'domcontentloaded'});assert.equal(response.status(),200);assert.doesNotMatch(await page.locator('body').innerText(),/Application error:|Internal Server Error/);}
+   for(const path of ['/','/research-verification/assessments','/research-verification/methods','/ipv6-dns-study/test-results']){const response=await page.goto(origin+path,{waitUntil:'domcontentloaded'});assert.equal(response.status(),200);assert.doesNotMatch(await page.locator('body').innerText(),/Application error:|Internal Server Error/);}
    await page.getByRole('heading',{name:'DNS over IPv6: results and evidence limits',exact:true}).waitFor();return {paths:4,archived_results_available:true};
   });
   await check('desktop and mobile themes preserve readable public results',async()=>{

@@ -2,15 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {registerHooks} from 'node:module';
 const hook=registerHooks({resolve(specifier,context,next){return next(['./research-paper-upload','./research-autonomy'].includes(specifier)?new URL('../lib/'+specifier.slice(2)+'.ts',import.meta.url).href:specifier,context);}});
-const {validatePaperReview,paperReviewBudgetTerms,reviewRoles,selectedReviewIds}=await import('../lib/research-paper-review.ts');hook.deregister();
+const {validatePaperReview,reviewRoles,selectedReviewIds,parseReviewAuthors,PAPER_AUTHORS_VERSION}=await import('../lib/research-paper-review.ts');hook.deregister();
 const id='10000000-0000-4000-8000-000000000001';
 const base={version:'research-paper-review-v1',id,status:'ready',revision:4,title:'Paper',domain:'Networking',progress:'Extraction finished',reason:null,can_start:true,claims:[{id:'claim',description:'Recorded latency is 10 ms.',claim_type:'numerical',location:'PDF page 1',source_id:'source'}],coverage:{},confirmation:null,limits:{max_spend_cents:10000,committed_cents:500,deadline_at:'2026-11-01T00:00:00Z'}};
-test('confirmation terms use the recorded funding limit and shared deadline',()=>{
- assert.match(paperReviewBudgetTerms({...base.limits,max_spend_cents:null}),/No aggregate spending cap/);
- assert.match(paperReviewBudgetTerms(base.limits),/\$100\.00 aggregate spending cap/);
- assert.match(paperReviewBudgetTerms({...base.limits,max_spend_cents:100000}),/\$1,000\.00/);
- assert.match(paperReviewBudgetTerms(base.limits),/recorded deadline/);
-});
 test('ready review and missing metadata retain exact claim units and missing values',()=>{const value={...base,title:null,domain:null};assert.equal(validatePaperReview(value,id),value);assert.equal(value.title,null);assert.equal(value.claims[0].description,'Recorded latency is 10 ms.');});
 test('cross-paper identity, old versions, duplicate claims and false authorization fail closed',()=>{
  for(const patch of [{id:'other'},{version:'old'},{revision:0},{claims:[...base.claims,...base.claims]},{status:'preparing'},{limits:{...base.limits,max_spend_cents:9999}},{progress:{injected:'text'}}])assert.throws(()=>validatePaperReview({...base,...patch},id),/could not be verified/);
@@ -40,4 +34,15 @@ test('confirmed owner categories override suggestions without rewriting the orig
  const value={...base,organization,status:'confirmed',can_start:false,confirmation:{title:'Paper',domain:'Networking',claim_ids:['claim'],selection:{central_claims:['claim'],testable_findings:[]}}};
  assert.deepEqual(reviewRoles(validatePaperReview(value,id)),{claim:'central_claims'});
  assert.throws(()=>validatePaperReview({...value,confirmation:{...value.confirmation,selection:{central_claims:[],testable_findings:[]}}},id),/do not match/);
+});
+test('author edits preserve order, Unicode and commas and support an unknown byline',()=>{
+ assert.deepEqual(parseReviewAuthors('  Doe, Jane\r\nMaría José de la Cruz\n\nAnne O’Connor  '),['Doe, Jane','María José de la Cruz','Anne O’Connor']);
+ assert.deepEqual(parseReviewAuthors(' \n\n'),[]);
+ for(const text of ['a'.repeat(201),Array(101).fill('Author').join('\n'),'mail@example.org','https://example.org','Name\u0000'])assert.throws(()=>parseReviewAuthors(text));
+});
+test('review author fields remain compatible with older responses and reject malformed lists',()=>{
+ assert.equal(validatePaperReview(base,id),base);
+ assert.deepEqual(validatePaperReview({...base,authors_version:PAPER_AUTHORS_VERSION,authors:['Doe, Jane']},id).authors,['Doe, Jane']);
+ assert.equal(validatePaperReview({...base,authors_version:PAPER_AUTHORS_VERSION,authors:null},id).authors,null);
+ for(const change of [{authors_version:'unknown',authors:[]},{authors_version:PAPER_AUTHORS_VERSION},{authors:'Author'},{authors:['']},{authors:['a'.repeat(201)]}])assert.throws(()=>validatePaperReview({...base,...change},id));
 });

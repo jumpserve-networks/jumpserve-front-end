@@ -60,7 +60,6 @@ function GapExperimentPlanner({ studyId, gapId, onQueued }: { studyId: string; g
   }
   return <section aria-label="Queue a follow-up experiment" className="space-y-4 rounded-lg border border-primary/40 p-5">
     <h2 className="text-lg font-semibold">Queue a follow-up experiment</h2>
-    <p className="text-sm">Choose a retained check for this claim. JumpServe creates your private follow-up, preserves the original inputs and queues the selected check with its prerequisites. Returning to the same selection resumes its existing jobs.</p>
     <Link className="text-sm underline" href={`${ASSESSMENTS_PATH}/${studyId}?view=gaps#gap-${gapId}`}>Back to the evidence gap</Link>
     {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
     {preview ? <>
@@ -103,15 +102,14 @@ export function ExperimentQueueDashboard({ studyId, jobId, sourceAssessment, gap
     {sourceAssessment && gapId ? launchId ? <section aria-label="Run requested experiment" className="space-y-3 rounded-lg border p-5"><h2 className="text-lg font-semibold">Run requested experiment</h2><RunGapExperiment studyId={sourceAssessment} gapId={gapId} launchId={launchId} onQueued={queued} /></section> : <GapExperimentPlanner studyId={sourceAssessment} gapId={gapId} onQueued={queued} /> : null}
     <section className="space-y-4" aria-label="Your experiment status">
       <h2 className="text-lg font-semibold">Your experiment status</h2>
-      <p className="text-sm text-muted-foreground">Follow each assessment’s claim progress and experiment jobs below. Status refreshes every 10 seconds. Execution and scientific findings are reported separately.</p>
       {error ? <p role="alert" className="rounded-lg border p-4 text-sm text-destructive">{error} {data ? "Previously retrieved status is shown and may be stale." : "Queue counts and current status are unknown."}</p> : null}
       {data ? <>
         {!data.workers_enabled ? <p className="rounded-lg border p-3 text-sm text-warning">Scheduled workers are disabled. Automatic jobs can be recorded but will not start until workers are activated.</p> : null}
         {data.autonomy ? <AutonomousAssessmentStatus data={data.autonomy} stale={Boolean(error)} /> : null}
         <p className="text-xs text-muted-foreground">{data.coverage.jobs} recorded jobs across {data.coverage.studies} paper assessments · global execution limit {data.limits.global_jobs} · per-assessment limit {data.limits.study_jobs}. Job counts within each assessment include all statuses, including cancelled jobs.</p>
         <div className="grid gap-3 sm:grid-cols-2"><ResearchSelect label="Filter queue by assessment" value={study} onChange={setStudy} options={[{ value: "", label: "All paper assessments" }, ...data.studies.map(s => ({ value: s.id, label: (titleCounts.get(s.title) ?? 0) > 1 ? `${s.title} · ${s.id}` : s.title })), ...(study && !names.has(study) ? [{ value: study, label: "Requested assessment unavailable" }] : [])]} /><ResearchSelect label="Filter queue by status" value={status} onChange={setStatus} options={[{ value: "", label: "All statuses" }, { value: "blocked", label: "Blocked" }, ...QUEUE_STATUSES.map(s => ({ value: s, label: s === "manual" ? "Needs operator" : display(s) }))]} /></div>
-        {focusedJob && !jobs.some(j => j.id === focusedJob && (!study || j.study_id === study)) ? <p role="status" className="rounded-lg border p-4 text-sm">The requested job was not returned for this assessment and account. Its status is unverified; no successful execution is inferred.</p> : null}
-        {study && !names.has(study) ? <p role="status" className="text-sm">This assessment is unavailable in your paper queue. Published assessments do not grant access to another owner’s jobs.</p> : !assessments.length ? <p role="status" className="rounded-lg border p-5 text-sm">No paper assessments are available in your queue.</p> : <div className="space-y-6">{assessments.map(assessment => <AssessmentExperimentQueue key={assessment.id} assessment={assessment} data={data} status={status} focusedJob={focusedJob} stale={Boolean(error)} />)}</div>}
+        {focusedJob && !jobs.some(j => j.id === focusedJob && (!study || j.study_id === study)) ? <p role="status" className="rounded-lg border p-4 text-sm">The requested job is unavailable for this assessment and account.</p> : null}
+        {study && !names.has(study) ? <p role="status" className="text-sm">This assessment is unavailable in your paper queue.</p> : !assessments.length ? <p role="status" className="rounded-lg border p-5 text-sm">No paper assessments are available in your queue.</p> : <div className="space-y-6">{assessments.map(assessment => <AssessmentExperimentQueue key={assessment.id} assessment={assessment} data={data} status={status} focusedJob={focusedJob} stale={Boolean(error)} />)}</div>}
         <p className="text-xs text-muted-foreground">{data.limitations}</p>
       </> : !error ? <p role="status">Loading your experiment queue…</p> : null}
     </section>

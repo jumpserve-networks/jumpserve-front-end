@@ -68,7 +68,7 @@ export function NetworkProtocolEditor({ studyId, document, protocol, onChange, g
       const value = JSON.parse(config);
       const saved = await researchRequest<Record<string, unknown>>(`/studies/${studyId}/network`, { method: "POST", body: JSON.stringify({ action: "upload-package", request_id: crypto.randomUUID(), source, version: packageVersion }) });
       setConfig(JSON.stringify({ ...value, package: saved }, null, 2));
-      setMessage("Original package source retained privately with its SHA256. Apply the executable configuration, then save and review the new plan version.");
+      setMessage("Package source saved privately with its SHA256.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Package persistence was not confirmed."); }
     finally { setBusy(false); }
   }
@@ -80,7 +80,7 @@ export function NetworkProtocolEditor({ studyId, document, protocol, onChange, g
         { wall_seconds: wall, max_instances: instances, max_output_bytes: outputBytes, max_network_bytes: networkBytes }, JSON.parse(metrics));
       const compiled = await researchRequest<{ document: Record<string, unknown> }>(`/studies/${studyId}/network`, { method: "POST", body: JSON.stringify({ action: "compile", document: value, original_configuration: config, configuration_identity: identity }) });
       onChange(JSON.stringify(compiled.document, null, 2));
-      setMessage("Executable specifications and exact input hashes added to the candidate. Empty scientific-method fields still need your decisions. Save a new plan version before reviews.");
+      setMessage("Configuration and input hashes added. Save the new plan version for review.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Configuration compilation failed."); }
     finally { setBusy(false); }
   }
@@ -98,7 +98,6 @@ export function NetworkProtocolEditor({ studyId, document, protocol, onChange, g
   }
   return <details open={guided || undefined} className="rounded-md border p-4"><summary className="cursor-pointer text-sm font-medium">Automatic networking execution</summary>
     <div className="mt-4 space-y-4 text-sm">
-      <p>Choose a built-in networking {assessment ? "assessment" : "test"} or a versioned custom package. The reviewed protocol freezes its configuration, repetitions and resource limits. Each invocation becomes a separate automatic queue job; completion preserves measurements and leaves scientific review pending.</p>
       {!capabilities ? <p role="status">The connected backend has not confirmed networking execution support.</p> : !capabilities.runners.find(item => item.id === runner)?.enabled ? <p role="status">This runner is registered but cloud execution is not enabled in the connected environment.</p> : null}
       <ResearchSelect label="Networking executor" value={runner} onChange={choose} options={NETWORK_RUNNERS.map(item => ({ value: item.id, label: item.name }))} />
       <label className="block space-y-1"><span>Configuration identity</span><Input disabled={busy} value={identity} onChange={e => { edit(); setIdentity(e.target.value); }} /></label>
@@ -124,7 +123,7 @@ export function NetworkProtocolEditor({ studyId, document, protocol, onChange, g
         ["Maximum instances per invocation", instances, setInstances, 1, 18], ["Maximum output bytes", outputBytes, setOutputBytes, 1024, 3000000],
         ["Network byte threshold (custom host sampling)", networkBytes, setNetworkBytes, 1024, 10000000000],
       ].map(([label, value, setter, min, max]) => <label key={String(label)} className="block space-y-1"><span>{String(label)}</span><Input disabled={busy} type="number" min={Number(min)} max={Number(max)} value={Number(value)} onChange={event => { edit(); (setter as (value: number) => void)(Number(event.target.value)); }} /></label>)}</div>
-      <p className="text-xs text-muted-foreground">Defaults are editable execution settings. Dates, sampling rationale, exclusions, dependence and other scientific choices remain unknown until you specify them. Add shared exclusive resource identities in execution.exclusive_resources where trials could interfere. Custom hosts sample network and output counters; thresholds can overshoot between checks. Built-in runners retain their existing traffic controls and do not enforce this network byte threshold. Configured limits are not measured charges.</p>
+      <p className="text-xs text-muted-foreground">Custom-host byte limits can overshoot between samples. Built-in runners do not enforce this byte limit. Configured limits are not measured charges.</p>
       <Button type="button" disabled={busy || !capabilities || !fieldsValid} onClick={() => void compile()}>{busy ? "Preserving configuration…" : "Apply executable configuration to candidate"}</Button>
       {message ? <p role="status">{message}</p> : null}
     </div>

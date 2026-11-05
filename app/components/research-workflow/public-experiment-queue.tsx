@@ -47,10 +47,10 @@ export function PublicExperimentQueue({ studyId, jobId }: { studyId: string; job
       <section aria-label="Assessment experiment status" className="space-y-4">
         <h2 className="text-lg font-semibold">Experiment jobs</h2>
         {!data.workers_enabled ? <p className="rounded-lg border p-3 text-sm text-warning">Scheduled experiment workers are disabled; queued jobs await activation.</p> : null}
-        <p className="text-sm">{data.coverage.jobs} recorded jobs for this paper. Execution and scientific findings are reported separately.</p>
+        <p className="text-sm">{data.coverage.jobs} recorded jobs for this paper.</p>
         {jobs.length ? <ResearchSelect label="Filter queue by status" value={status} onChange={value => { setStatus(value); setLimit(20); }} options={[{ value: "", label: "All statuses" }, ...QUEUE_STATUSES.map(s => ({ value: s, label: s === "manual" ? "Needs operator" : words(s) }))]} /> : null}
         {jobId && !jobs.some(j => j.id === jobId) ? <p role="status" className="text-sm">The requested job was not returned for this paper. Its status is unknown.</p> : null}
-        {!visible.length ? <p role="status" className="rounded-lg border p-4 text-sm">{jobs.length ? "No jobs match this filter." : "No experiment jobs have been recorded yet. Paper preparation and claim planning appear above when available."}</p> : <>
+        {!visible.length ? <p role="status" className="rounded-lg border p-4 text-sm">{jobs.length ? "No jobs match this filter." : "No experiment jobs recorded yet."}</p> : <>
           <p className="text-xs text-muted-foreground">Showing {Math.min(limit, visible.length)} of {visible.length} matching jobs.</p>
           {visible.slice(0, limit).map(job => <article key={job.id} id={`job-${job.id}`} className={`scroll-mt-24 space-y-3 rounded-lg border p-4 text-sm ${job.id === jobId ? "border-primary ring-1 ring-primary" : ""}`}>
             <div className="flex flex-wrap items-start justify-between gap-3"><h3 className="break-all font-semibold">Experiment {job.id}</h3><Badge variant={job.status === "failed" || job.status === "expired" ? "destructive" : "secondary"} className="h-auto py-1">{job.status === "manual" ? "Needs operator" : words(job.status)}</Badge></div>

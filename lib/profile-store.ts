@@ -7,13 +7,24 @@ export async function initializeGoogleProfile(client: SupabaseClient, user: User
   if (!isGoogleAuthenticatedUser(user)) return;
   const { data, error } = await client.from("profiles").select(PROFILE_COLUMNS).eq("id", user.id).maybeSingle();
   if (error) throw new Error("Google profile initialization could not read the profile.");
-  if (data) return;
+  const profile = data ? parseProfile(data, user.id) : null;
+  if (profile?.first_name && profile.last_name) return;
 
   const names = await readGoogleAccountNames(user, providerToken);
   if (!names.first_name && !names.last_name) return;
-  // Insert once. A concurrent profile save or second callback wins the conflict;
-  // subsequent sign-ins never overwrite saved names (including empty ones) or
-  // the user's preferred time zone. The user's JWT and existing RLS apply.
+  if (profile && data) {
+    // Fill only empty components. Comparing the stored value in the UPDATE
+    // protects edits saved after the initial read; timezone is never written.
+    for (const field of ["first_name", "last_name"] as const) {
+      if (profile[field] || !names[field]) continue;
+      const { error: updateError } = await client.from("profiles").update({ [field]: names[field] })
+        .eq("id", user.id).eq(field, data[field]);
+      if (updateError) throw new Error("Google profile initialization could not save the profile.");
+    }
+    return;
+  }
+  // Insert once. A concurrent manual save wins an insert conflict. All writes
+  // use the user's JWT and the existing owner-only RLS policies.
   const { error: insertError } = await client.from("profiles").upsert(
     { id: user.id, ...names, timezone: null },
     { onConflict: "id", ignoreDuplicates: true },

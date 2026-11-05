@@ -140,11 +140,12 @@ export function AwsRegionMap({ label, regions, value, onChange, disabled = false
     <div className="space-y-2 border-t bg-muted/20 px-3 py-3 text-xs text-muted-foreground">
       <p role="status" className="text-sm text-foreground">
         {selected ? <><span className="font-medium">Selected:</span> {selected.name} <span className="font-mono text-xs">({value})</span></>
-          : value ? <>Selected: {value}. Map location unavailable; use the Region dropdown.</> : "Select a marker or use the Region dropdown."}
+          : value ? <>Selected: {value}. Map location unavailable; use the Region dropdown.</> : "No Region selected."}
       </p>
       <p className="min-h-4">{inspection ? `${inspection.name} · ${inspection.region}${inspection.enabled ? "" : " · requires account opt-in"}`
-        : "Numbered markers group nearby Regions. Dashed markers require account opt-in."}</p>
-      <p id={instructionsId}>Drag or scroll to pan in any direction; the world repeats at every edge. Use the controls to zoom. <span className="sr-only">Focus the map and use arrow keys to pan, plus or minus to zoom, and Home to reset. Tab to markers and press Enter to select or expand them. </span>Locations are approximate, not individual data centers.
+        : "Numbered: grouped Regions. Dashed: account opt-in required."}</p>
+      <p id={instructionsId} className="sr-only">Drag or scroll to pan. Use arrow keys to pan, plus or minus to zoom, and Home to reset. Tab to markers and press Enter to select or expand them.</p>
+      <p>Approximate locations.
         {" "}<a href="https://www.naturalearthdata.com/about/terms-of-use/" target="_blank" rel="noreferrer" className="underline underline-offset-2">Map: Natural Earth</a>
       </p>
     </div>

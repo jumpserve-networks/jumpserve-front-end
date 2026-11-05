@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { getPostLoginPath, getSafeNextPath } from "../lib/auth-redirect.ts";
-import { ASSESSMENTS_PATH, MY_ASSESSMENTS_PATH, EMULATED_TESTS_MODULE, LEGACY_EXACT_MODULE_ROUTES, LEGACY_MODULE_ROUTES, NEW_ASSESSMENT_PATH, PREVIOUS_ASSESSMENTS_PATH, TEST_MODULES, getTestModule, getTestModuleForPath, isModuleSectionActive } from "../lib/test-modules.ts";
+import { ASSESSMENTS_PATH, MY_ASSESSMENTS_PATH, EMULATED_TESTS_MODULE, LEGACY_EXACT_MODULE_ROUTES, LEGACY_MODULE_ROUTES, NEW_ASSESSMENT_PATH, TEST_MODULES, getTestModule, getTestModuleForPath, isModuleSectionActive } from "../lib/test-modules.ts";
 
 test("sign-in without a destination returns home", () => {
   for (const next of [null, "", "/", "/login", "/auth/callback?code=expired"]) {
@@ -90,15 +90,19 @@ test("navigation highlights the parent tool for detail pages with path boundarie
   assert.equal(isModuleSectionActive(lookup, `${EMULATED_TESTS_MODULE.href}/parent-runs`), false);
   assert.equal(isModuleSectionActive(lookup, `${EMULATED_TESTS_MODULE.href}/chat`), false);
 });
-test("previous paper assessments have a canonical route with direct legacy aliases", () => {
+test("paper assessments have a canonical route with direct legacy aliases", () => {
   const paperModule = getTestModule("research-verification");
-  assert.equal(paperModule.sections[1].href, PREVIOUS_ASSESSMENTS_PATH);
-  assert.equal(PREVIOUS_ASSESSMENTS_PATH, "/research-verification/previous-assessments");
-  assert.ok(isModuleSectionActive(paperModule.sections[1], PREVIOUS_ASSESSMENTS_PATH));
+  assert.equal(paperModule.sections[1].href, ASSESSMENTS_PATH);
+  assert.equal(paperModule.sections[1].label, "Assessments");
+  assert.equal(ASSESSMENTS_PATH, "/research-verification/assessments");
+  assert.ok(isModuleSectionActive(paperModule.sections[1], ASSESSMENTS_PATH));
   for (const prefix of ["", "/module", "/modules"]) {
-    const old = `${prefix}/research-verification/test-results`;
-    assert.equal(LEGACY_MODULE_ROUTES.find(r => r.source === old)?.destination, PREVIOUS_ASSESSMENTS_PATH);
-    assert.equal(getTestModuleForPath(old), paperModule);
+    for (const suffix of ["test-results", "previous-assessments"]) {
+      const old = `${prefix}/research-verification/${suffix}`;
+      assert.equal(LEGACY_MODULE_ROUTES.find(r => r.source === old)?.destination, ASSESSMENTS_PATH);
+      assert.equal(getTestModuleForPath(old), paperModule);
+    }
+    assert.equal(LEGACY_EXACT_MODULE_ROUTES.some(r => r.source === `${prefix}/research-verification/assessments`), false);
   }
   assert.equal(getTestModule("research-ideas").sections[2].href, "/research-ideas/test-results");
 });
@@ -115,21 +119,21 @@ test("new paper assessment route is canonical and old intake links remain usable
   }
 });
 
-test("My Assessments owns the canonical list while published details and private work retain distinct navigation", () => {
+test("one Assessments section owns both list scopes and private assessment details", () => {
   const paperModule = getTestModule("research-verification");
-  const mine = paperModule.sections.find(s => s.label === "My Assessments");
-  const previous = paperModule.sections.find(s => s.label === "Previous Assessments");
-  assert.equal(MY_ASSESSMENTS_PATH, "/research-verification/my-assessments");
-  assert.equal(mine.href, MY_ASSESSMENTS_PATH);
-  assert.equal(isModuleSectionActive(mine, MY_ASSESSMENTS_PATH), true);
-  assert.equal(isModuleSectionActive(previous, MY_ASSESSMENTS_PATH), false);
-  assert.equal(isModuleSectionActive(previous, ASSESSMENTS_PATH + "/paper-id"), true);
-  assert.equal(isModuleSectionActive(mine, ASSESSMENTS_PATH + "/paper-id"), false);
-  assert.equal(isModuleSectionActive(mine, "/research-verification/workspace/paper-id"), true);
-  assert.equal(isModuleSectionActive(previous, ASSESSMENTS_PATH + "-archive"), false);
-  assert.equal(getPostLoginPath(MY_ASSESSMENTS_PATH + "?tag=a%26b&tag=second"), MY_ASSESSMENTS_PATH + "?tag=a%26b&tag=second");
+  const assessments = paperModule.sections.find(s => s.label === "Assessments");
+  assert.equal(paperModule.sections.some(s => s.label === "My Assessments"), false);
+  assert.equal(MY_ASSESSMENTS_PATH, "/research-verification/assessments?mine=1");
+  assert.equal(isModuleSectionActive(assessments, ASSESSMENTS_PATH), true);
+  assert.equal(isModuleSectionActive(assessments, ASSESSMENTS_PATH + "/paper-id"), true);
+  assert.equal(isModuleSectionActive(assessments, "/research-verification/assessment/paper-id"), true);
+  for (const suffix of ["workspace", "experiment-design", "design-claim"]) {
+    assert.equal(isModuleSectionActive(assessments, `/research-verification/${suffix}/paper-id`), true);
+  }
+  assert.equal(isModuleSectionActive(assessments, ASSESSMENTS_PATH + "-archive"), false);
+  assert.equal(getPostLoginPath(MY_ASSESSMENTS_PATH + "&tag=a%26b&tag=second"), MY_ASSESSMENTS_PATH + "&tag=a%26b&tag=second");
   for (const prefix of ["", "/module", "/modules"]) {
-    for (const suffix of ["workspace", "assessments", "studies"]) {
+    for (const suffix of ["my-assessments", "workspace", "studies"]) {
       const old = prefix + "/research-verification/" + suffix;
       assert.equal(LEGACY_EXACT_MODULE_ROUTES.find(r => r.source === old)?.destination, MY_ASSESSMENTS_PATH);
       assert.equal(getTestModuleForPath(old), paperModule);

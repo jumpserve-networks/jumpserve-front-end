@@ -180,14 +180,14 @@ export function BenchmarkRunStatus({ initialJob, canManage = false }: { initialJ
           </ol>
 
           <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
-            The instance is configured to shut down and terminate automatically after the benchmark exits. This page shows benchmark progress; it does not confirm EC2 termination.
+            Automatic EC2 termination is configured; termination status is not tracked here.
           </p>
 
           <div className="flex flex-wrap items-center gap-3">
             {successful && job.parent_run_id != null && <Button nativeButton={false} render={<Link href={`${EMULATED_MODULE_PATH}/parent-run/${job.parent_run_id}`} />}>View results</Button>}
             {terminal && <Button variant="outline" nativeButton={false} render={<Link href={`${EMULATED_MODULE_PATH}/benchmarks`} />}>Configure another benchmark</Button>}
             {canManage && !terminal && !confirmCancel && <Button variant="outline" onClick={() => setConfirmCancel(true)}>Cancel benchmark</Button>}
-            {!terminal && <span className="text-xs text-muted-foreground">Updates every 5 seconds. You can leave and return to this URL.</span>}
+            {!terminal && <span className="text-xs text-muted-foreground">Updates every 5 seconds.</span>}
           </div>
           {canManage && !terminal && confirmCancel && (
             <div className="space-y-3 rounded-lg border p-4">
