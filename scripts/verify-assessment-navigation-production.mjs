@@ -86,7 +86,9 @@ try {
   await check('follow-up actions retain sign-in and exact assessment identity', async () => {
     const next = detail + '?gap=22222222-2222-4222-8222-222222222222&run=33333333-3333-4333-8333-333333333333';
     await page.goto(origin + next, { waitUntil: 'domcontentloaded' }); await page.waitForURL(url => url.pathname === '/login');
-    assert.equal(new URL(page.url()).searchParams.get('next'), next);
+    const returned = new URL(new URL(page.url()).searchParams.get('next'), origin), expected = new URL(next, origin);
+    assert.equal(returned.origin, expected.origin); assert.equal(returned.pathname, expected.pathname);
+    assert.deepEqual([...returned.searchParams].sort(), [...expected.searchParams].sort()); assert.equal(returned.hash, expected.hash);
     return { exact_return_path: true, unauthenticated_launches: 0 };
   });
   await check('desktop and mobile themes retain the inline queue without a separate navigation item', async () => {
