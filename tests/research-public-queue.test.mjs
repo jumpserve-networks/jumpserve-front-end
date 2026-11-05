@@ -47,6 +47,15 @@ test('empty preparation is distinct from absent data and never receives a scient
  q.autonomy.tasks[0].label='reproduced';assert.throws(()=>validatePublicStudyQueue(q,study));
  q.autonomy.tasks=[];q.autonomy.workflows=[];q.autonomy.coverage={tasks:0,workflows:0};assert.equal(validatePublicStudyQueue(q,study).jobs.length,0);
 });
+test('parallel preparation tasks remain distinct and never count as scientific claims',()=>{
+ const q=fixture();
+ const root={...q.autonomy.tasks[0],id:'44444444-4444-4444-8444-444444444444',claim_id:null,claim_title:null,stage:'intake',status:'waiting',label:null};
+ q.autonomy.tasks.push(root,{...root,id:'55555555-5555-4555-8555-555555555555',status:'finished'},{...root,id:'66666666-6666-4666-8666-666666666666',status:'running'});q.autonomy.coverage.tasks=q.autonomy.tasks.length;
+ assert.equal(validatePublicStudyQueue(q,study).autonomy.tasks.length,4);assert.equal(assessmentSummaryFromPublicQueue(q,study).counts.total,1);assert.equal(assessmentSummaryFromPublicQueue(q,study).counts.finished,0);
+ for(const mutate of [t=>t.label='reproduced',t=>t.claim_title='Fabricated claim',t=>t.stage='assessment',t=>t.study_id=id,t=>t.id=root.id]){
+  const value=structuredClone(q);mutate(value.autonomy.tasks[2]);assert.throws(()=>validatePublicStudyQueue(value,study));
+ }
+});
 test('shared status uses only the fixed anonymous GET and never forwards credentials',async()=>{
  const previous=process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL;process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL='https://example.org';
  try{let calls=0;const q=await loadPublicStudyQueue(study,undefined,async(url,options)=>{calls++;assert.equal(url,`https://example.org/research/studies/${study}/queue?public=1&diagnostics=1`);assert.equal(options.method,'GET');assert.equal(options.credentials,'omit');assert.equal(options.cache,'no-store');assert.deepEqual(options.headers,{Accept:'application/json'});return Response.json(fixture());});assert.equal(calls,1);assert.equal(q.study.id,study);

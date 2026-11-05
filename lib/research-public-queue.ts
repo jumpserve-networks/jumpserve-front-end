@@ -75,7 +75,8 @@ export function validatePublicStudyQueue(value: unknown, studyId: string): Publi
     if (t.repair_progress != null && !validRepairProgress(t.repair_progress)) fail();
     if (p != null && (!fields(p, ["required_checks", "completed_checks", "scope"]) || !whole(p.required_checks, 1000) || !whole(p.completed_checks, p.required_checks) || typeof p.scope !== "string")) fail();
   }
-  if (a.tasks.filter(t => t.claim_id === null).length > 1) fail();
+  // Dedicated intake has independent source-chunk tasks as well as its root.
+  // Each remains a validated, uniquely identified non-claim preparation row.
   return q;
 }
 

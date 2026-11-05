@@ -9,6 +9,10 @@ links preserve the focused job and its anchor; repeated unrelated query values
 are retained. Conflicting, repeated or malformed identities return 404 without
 reading assessment data. The standalone queue page and sidebar entry are retired;
 queue links without an assessment open `/research-verification/assessments?mine=1`.
+Dedicated intake can return multiple preparation tasks for independent source
+chunks alongside the original root. These remain non-claim rows and do not
+increase scientific claim counts. Inventory coverage stays incomplete until
+every preparation task, including the root, is finished.
 Legacy `view=private` links use the same shared view. This amendment replaces the
 earlier owner-only prompt/history view. Research ideas are unaffected.
 
