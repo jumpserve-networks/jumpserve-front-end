@@ -3,6 +3,10 @@
 Current behavior is amended by [the direct-run workflow v2](experiment-queue-run-now-amendment-v2.md)
 and [backend compatibility v3](experiment-queue-compatibility-amendment-v3.md).
 Public per-paper status links are specified in [shared queue status v1](public-experiment-queue-v1.md).
+The current queue lives inside each `/research-verification/assessment/<id>` page;
+the standalone queue and sidebar entry are retired. Saved queue links redirect
+to the corresponding assessment. See [shared assessment details](shared-assessment-details-v1.md)
+for current navigation, public reads and authenticated follow-up actions.
 The original selection workflow and protocol below remain as version history.
 
 From a published assessment's **Evidence gaps & next experiments** view, choose

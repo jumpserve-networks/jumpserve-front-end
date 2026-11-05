@@ -207,17 +207,18 @@ anonymous SELECT grants only for experiment tables and the explicit
 in public pages: requester emails are not public. Saved configurations and chat
 sessions remain authenticated. Real-world cancellation is owner-only.
 
-Paper Experiment Queue links with `?assessment=<id>` expose public read-only
-assessment details, even before publication. Legacy `?study=<id>` aliases remain
-supported; `&view=private` redirects to the same shared view. Prompts, responses,
+Each `/research-verification/assessment/<id>` page includes a public read-only
+Experiment Queue section, even before publication. Retired queue links with
+`?assessment=<id>` or `?study=<id>` redirect there, retaining job identities;
+`&view=private` uses the same shared view. Prompts, responses,
 requirements, evidence records, configurations and event history are available
 through bounded, on-demand public projections. Use the explicit public queue and
 task-history APIs; never grant anonymous SQL access to private relations or expose
 unpublished research ideas. Protect credentials, account/contact data, private
 storage locations and original file downloads. Shared copies label redactions
 and size limits, preserve missing values and zero, and identify hashes as belonging
-to unchanged originals. The queue without an assessment remains a personal owner
-listing. Launches, cancellation and every write retain Google/owner checks. See
+to unchanged originals. Retired queue links without an assessment open the
+My Assessments filter. Launches, cancellation and every write retain Google/owner checks. See
 `docs/shared-assessment-details-v1.md` for current access rules and verification.
 
 - Canonical production URL: `https://jumpserve.quaint-lab.org`

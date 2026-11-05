@@ -26,10 +26,10 @@ test('partial handoff does not claim the selected job was queued',()=>{
  assert.equal(validateGapEnqueued({...r,queued_job_ids:[job],complete:true}).job_id,job);
 });
 test('queue and gap links retain exact identities in the paper module only',()=>{
- const gapUrl=new URL(gapExperimentPath(study,campaign),'https://example.org');assert.equal(gapUrl.searchParams.get('gap'),campaign);assert.equal(gapUrl.searchParams.get('sourceAssessment'),study);assert.equal(gapUrl.searchParams.has('sourceStudy'),false);
- const url=new URL(experimentQueuePath(study,job),'https://example.org');assert.equal(url.pathname,'/research-verification/experiment-queue');assert.equal(url.searchParams.get('job'),job);
- assert.equal(url.searchParams.get('assessment'),study);assert.equal(url.searchParams.has('study'),false);
- assert.ok(RESEARCH_VERIFICATION_MODULE.sections.some(s=>s.label==='Experiment Queue'&&s.href===url.pathname));assert.ok(!RESEARCH_IDEAS_MODULE.sections.some(s=>s.label==='Experiment Queue'));
+ const gapUrl=new URL(gapExperimentPath(study,campaign),'https://example.org');assert.equal(gapUrl.pathname,'/research-verification/assessment/'+study);assert.equal(gapUrl.searchParams.get('gap'),campaign);assert.equal(gapUrl.searchParams.has('sourceAssessment'),false);assert.equal(gapUrl.searchParams.has('sourceStudy'),false);
+ const url=new URL(experimentQueuePath(study,job),'https://example.org');assert.equal(url.pathname,'/research-verification/assessment/'+study);assert.equal(url.searchParams.get('job'),job);assert.equal(url.hash,'#job-'+job);
+ assert.equal(experimentQueuePath(study),'/research-verification/assessment/'+study+'#experiment-queue');assert.equal(url.searchParams.has('assessment'),false);assert.equal(url.searchParams.has('study'),false);
+ assert.ok(!RESEARCH_VERIFICATION_MODULE.sections.some(s=>s.label==='Experiment Queue'));assert.ok(!RESEARCH_IDEAS_MODULE.sections.some(s=>s.label==='Experiment Queue'));
 });
 test('only a recent same-tab click resumes writes after sign-in; intent is consumed once',()=>{
  const values=new Map();const storage={getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};

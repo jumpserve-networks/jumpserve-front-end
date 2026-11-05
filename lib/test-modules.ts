@@ -107,7 +107,6 @@ export const RESEARCH_VERIFICATION_MODULE = {
   sections: [
     { href: NEW_ASSESSMENT_PATH, label: "Assess a Paper", description: "Create a paper assessment, prepare available domain plans and queue their checks.", paths: [NEW_ASSESSMENT_PATH] },
     { href: ASSESSMENTS_PATH, label: "Assessments", description: "Browse submitted paper assessments, recorded progress and published evidence.", paths: [ASSESSMENTS_PATH, ASSESSMENT_PATH, `${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`, `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-design`, `${RESEARCH_WORKFLOW_MODULE_PATH}/design-claim`] },
-    { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-queue`, label: "Experiment Queue", description: "Follow your queued experiments, recorded runs and work awaiting an operator or review.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-queue`] },
     { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/methods`, label: "Verification Methods", description: "Choose appropriate checks and understand publication criteria.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/methods`] },
   ],
 } as const satisfies TestModule;

@@ -194,7 +194,7 @@ try {
   });
   await check('dismissal survives navigation reload and subsequent polling', async () => {
     await page.getByRole('button', { name: 'Confirm and start assessment', exact: true }).click();
-    await page.waitForURL(/experiment-queue\?assessment=/);
+    await page.waitForURL(/\/assessment\/[a-f0-9-]+#experiment-queue$/);
     assert.equal(requests.filter(r => r.action === 'confirm').length, 1);
     assert.equal(a.paper_review_status, 'confirmed');
     await page.getByRole('link', { name: 'Browse home', exact: true }).click(); await page.reload();
@@ -313,7 +313,7 @@ try {
     // Keep the unrelated notice open; use the unobstructed desktop form action.
     await page.setViewportSize({ width: 1365, height: 900 });
     await page.getByRole('button', { name: 'Confirm and start assessment' }).click();
-    await page.waitForURL(/experiment-queue\?assessment=/);
+    await page.waitForURL(/\/assessment\/[a-f0-9-]+#experiment-queue$/);
     assert.deepEqual(new Set(saved.selection.central_claims), new Set([claims[0].id, claims[3].id]));
     assert.deepEqual(saved.selection.testable_findings, [claims[183].id]); assert.equal(saved.claim_ids.length, 3);
     assert.deepEqual(saved.authors,['Doe, Jane','María José de la Cruz']);
@@ -351,8 +351,8 @@ try {
     a.title='Congestion Avoidance and Control';a.authors=['Van Jacobson','Michael J. Karels'];b.authors=null;
     for(const route of ['/research-verification/assessments?mine=1','/research-verification/assessments']){
       await page.goto(origin+route);
-      const article=page.getByRole('link',{name:a.title,exact:true}).locator('xpath=ancestor::article');
-      await article.locator('[data-paper-authors]').filter({hasText:'Van Jacobson, Michael J. Karels'}).waitFor();
+      const row=page.getByRole('link',{name:a.title,exact:true}).locator('xpath=ancestor::tr');
+      await row.locator('[data-paper-authors]').filter({hasText:'Van Jacobson, Michael J. Karels'}).waitFor();
       await page.getByText('Authors unavailable',{exact:true}).waitFor();
       for(const width of [1365,390])for(const dark of [false,true]){
         await page.setViewportSize({width,height:width===390?844:900});await page.evaluate(value=>document.documentElement.classList.toggle('dark',value),dark);

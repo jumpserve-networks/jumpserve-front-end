@@ -1,6 +1,6 @@
 import { validateQueue, type QueueJob, type ResearchQueue } from "@/lib/research-queue";
 import type { ResearchStudy } from "@/lib/research-workflow";
-import { RESEARCH_WORKFLOW_MODULE_PATH as PATH } from "@/lib/test-modules";
+import { ASSESSMENT_PATH } from "@/lib/test-modules";
 import { validateAutonomy, type AutonomousOverview } from "@/lib/research-autonomy";
 
 export type ExperimentQueue = {
@@ -15,14 +15,13 @@ export type GapPreview = { version: "research-gap-queue-v1"; study_id: string; g
 export type GapEnqueued = { version: "research-gap-queue-v1"; study_id: string; job_id: string; queued_job_ids: string[]; complete: boolean; workers_enabled: boolean; limitation: string };
 export const QUEUE_POLL_MS = 10000;
 export const isResearchId = (value: unknown): value is string => typeof value === "string" && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value);
-export function experimentQueuePath(studyId?: string, jobId?: string) {
+export function experimentQueuePath(studyId: string, jobId?: string) {
   const query = new URLSearchParams();
-  if (studyId) query.set("assessment", studyId);
   if (jobId) query.set("job", jobId);
-  return `${PATH}/experiment-queue${query.size ? `?${query}` : ""}`;
+  return `${ASSESSMENT_PATH}/${studyId}${query.size ? `?${query}` : ""}#${jobId ? `job-${jobId}` : "experiment-queue"}`;
 }
 export function gapExperimentPath(studyId: string, gapId: string) {
-  return `${PATH}/experiment-queue?${new URLSearchParams({ sourceAssessment: studyId, gap: gapId })}`;
+  return `${ASSESSMENT_PATH}/${studyId}?${new URLSearchParams({ gap: gapId })}`;
 }
 export function validateExperimentQueue(value: unknown): ExperimentQueue {
   const queue = value as ExperimentQueue;

@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { ResearchSelect } from "./select";
@@ -73,6 +74,12 @@ function GapExperimentPlanner({ studyId, gapId, onQueued }: { studyId: string; g
     {message ? <p role="status" className="text-sm">{message}</p> : null}
     {savedStudy ? <Link className="block text-sm underline" href={experimentQueuePath(savedStudy)}>View this follow-up in Experiment Queue</Link> : null}
   </section>;
+}
+
+export function AssessmentGapExperiments({ studyId, gapId, launchId }: { studyId: string; gapId: string; launchId?: string }) {
+  const router = useRouter();
+  function queued(id: string, job: string) { router.push(experimentQueuePath(id, job)); }
+  return launchId ? <section aria-label="Run requested experiment" className="space-y-3 rounded-lg border p-5"><h2 className="text-lg font-semibold">Run requested experiment</h2><RunGapExperiment studyId={studyId} gapId={gapId} launchId={launchId} onQueued={queued} /></section> : <GapExperimentPlanner studyId={studyId} gapId={gapId} onQueued={queued} />;
 }
 
 export function ExperimentQueueDashboard({ studyId, jobId, sourceAssessment, gapId, launchId }: { studyId?: string; jobId?: string; sourceAssessment?: string; gapId?: string; launchId?: string }) {

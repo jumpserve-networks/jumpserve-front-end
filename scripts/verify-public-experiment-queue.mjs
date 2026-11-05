@@ -9,7 +9,7 @@ import {chromium} from 'playwright';
 assert.equal(process.argv.length,2,'Fixed local public queue campaign only.');
 const origin='http://127.0.0.1:6103',study='11111111-1111-4111-8111-111111111111';
 const catalogueActors={a:'99999999-2222-4222-8222-222222222222',b:'88888888-2222-4222-8222-222222222222',empty:'77777777-2222-4222-8222-222222222222'};
-const target='/research-verification/experiment-queue?assessment='+study;
+const target='/research-verification/assessment/'+study;
 const paperTitle='Making Congestion Control Algorithms Insensitive to Underlying Propagation Delays';
 const directory='.test-artifacts/public-experiment-queue/'+new Date().toISOString().replaceAll(':','-');await mkdir(directory,{recursive:true});
 const report={protocol:'public-experiment-queue-v9',started_at:new Date().toISOString(),checks:[],requests:[],browser_errors:[],source_sha256:{},reviewer:{identity:'Primary Codex AI implementer',type:'AI',independent:false},conditional_gaps:['Production anonymous status and deployed private API denials','Actual Supabase reads and RLS; store fixture is synthetic','Actual authenticated owner session','Title extraction accuracy across arbitrary PDF layouts','Format-based diagnostic redaction is not a complete privacy review of arbitrary text'],new_model_calls:0,new_experiment_launches:0,measured_charges_usd:null};
@@ -66,8 +66,9 @@ try{
  });
  const page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',e=>report.browser_errors.push(e.message));await page.clock.install();
  await check('anonymous Next route reads actual API status without owner credentials or private controls',async()=>{
-  const response=await page.goto(origin+target);assert.equal(response.status(),200);assert.equal(new URL(page.url()).pathname,'/research-verification/experiment-queue');
-  await page.getByTestId('public-experiment-queue').getByText(paperTitle,{exact:true}).waitFor();
+  const response=await page.goto(origin+target);assert.equal(response.status(),200);assert.equal(new URL(page.url()).pathname,target);
+  await page.getByRole('heading',{name:paperTitle,exact:true}).waitFor();await page.getByRole('region',{name:'Experiment Queue',exact:true}).waitFor();
+  assert.equal(await page.getByTestId('public-experiment-queue').count(),1);assert.equal(report.requests.filter(r=>r.path?.startsWith('/research/studies/'+study+'/queue?')).length,1);
   assert.equal(await page.getByRole('button',{name:'View prompts and responses',exact:true}).count(),5);assert.equal(await page.getByText('Initial paper prompt',{exact:true}).count(),0);assert.equal(await page.getByRole('button',{name:'Run experiment now',exact:true}).count(),0);
   const body=await page.locator('main').innerText();for(const label of ['untested','inconclusive','reproduced','discrepant'])assert.ok(body.includes('finding: '+label));
   assert.ok(body.includes('Paper preparation · 0 AI turns'));assert.ok(body.includes('Recorded run status: partial'));assert.ok(body.includes('Recorded run status: unavailable'));assert.ok(!body.includes('PRIVATE-CANARY'));assert.ok(!body.includes('ProxyDelay_Nines_CameraReady'));
@@ -113,8 +114,8 @@ try{
   return {anonymous:true,turns_seen:12,paginated:true,initial_request:true,configurations_and_events:true,recorded_zero_and_missing_preserved:true,missing_turns_explicit:true,redacted_credentials:true,desktop_mobile_themes:true};
  });
  await check('serial polling updates actual recorded status and failed polls retain marked stale evidence',async()=>{
-  await fixtureMode('running');await page.clock.runFor(10100);await page.getByRole('article').filter({hasText:'bbbbbbbb-1111-4111-8111-111111111111'}).getByText('running',{exact:true}).waitFor();
-  await fixtureMode('unavailable');await page.clock.runFor(10100);await page.getByRole('alert').filter({hasText:'may be stale'}).waitFor();assert.equal(await page.locator('article[id^="job-"]').count(),2);await page.getByText(/retained claim states may be stale/).waitFor();
+  await fixtureMode('running');await page.clock.runFor(10100);await page.getByRole('region',{name:'Assessment claim progress',exact:true}).getByText('running',{exact:true}).first().waitFor();
+  await fixtureMode('unavailable');await page.clock.runFor(10100);await page.getByRole('alert').filter({hasText:'may be stale'}).first().waitFor();assert.equal(await page.locator('article[id^="job-"]').count(),2);await page.getByText(/retained claim states may be stale/).waitFor();
   return {poll_ms:10000,stale_jobs_retained:2,stale_claims_marked:true};
  });
  await fixtureMode('normal');await page.reload();await page.getByText(paperTitle,{exact:true}).waitFor();
@@ -135,27 +136,39 @@ try{
   await fixtureMode('invalid');await page.reload();await page.getByRole('alert').filter({hasText:'coverage is invalid or incomplete'}).waitFor();assert.equal(await page.locator('article[id^="job-"]').count(),0);
   await fixtureMode('unavailable');await page.reload();await page.getByRole('alert').filter({hasText:'Queue counts and current status are unknown'}).waitFor();
   await fixtureMode('normal');await page.goto(origin+'/research-verification/experiment-queue?assessment=00000000-0000-4000-8000-000000000001');await page.getByRole('alert').filter({hasText:'paper queue is unavailable'}).waitFor();
-  const before=report.requests.length;await page.goto(origin+'/research-verification/experiment-queue?assessment=invalid');await page.getByRole('alert').filter({hasText:'invalid assessment'}).waitFor();assert.equal(report.requests.length,before);
+  const before=report.requests.length;const invalid=await page.goto(origin+'/research-verification/experiment-queue?assessment=invalid');assert.equal(invalid.status(),404);assert.equal(report.requests.length,before);
   return {states:['empty','invalid response','unavailable','missing paper','invalid ID'],failed_counts_not_zero:true};
  });
  await check('legacy private-mode links redirect to shared details while writes and personal listings retain authentication',async()=>{
-  for(const path of ['/research-verification/experiment-queue','/research-verification/experiment-queue?sourceAssessment='+study+'&gap=22222222-2222-4222-8222-222222222222']){await page.goto(origin+path);assert.equal(new URL(page.url()).pathname,'/login');assert.equal(new URL(page.url()).searchParams.get('next'),path);}
-  await page.goto(origin+'/experiment-queue?assessment='+study);await page.getByText(paperTitle,{exact:true}).waitFor();assert.equal(new URL(page.url()).pathname,'/research-verification/experiment-queue');assert.equal(new URL(page.url()).searchParams.get('assessment'),study);
-  await page.goto(origin+target+'&view=private&tag=first&tag=second');await page.getByText(paperTitle,{exact:true}).waitFor();assert.equal(new URL(page.url()).pathname,'/research-verification/experiment-queue');assert.equal(new URL(page.url()).searchParams.has('view'),false);assert.deepEqual(new URL(page.url()).searchParams.getAll('tag'),['first','second']);assert.equal(await page.getByRole('link',{name:'Open owner’s private queue',exact:true}).count(),0);
+  await page.goto(origin+'/research-verification/experiment-queue');await page.getByRole('main').getByRole('link',{name:'Sign in',exact:true}).waitFor();assert.equal(new URL(page.url()).pathname,'/research-verification/assessments');assert.equal(new URL(page.url()).searchParams.get('mine'),'1');
+  const gap='22222222-2222-4222-8222-222222222222',next=target+'?gap='+gap;
+  await page.goto(origin+'/research-verification/experiment-queue?sourceAssessment='+study+'&gap='+gap);assert.equal(new URL(page.url()).pathname,'/login');assert.equal(new URL(page.url()).searchParams.get('next'),next);
+  await page.goto(origin+'/experiment-queue?assessment='+study);await page.getByText(paperTitle,{exact:true}).waitFor();assert.equal(new URL(page.url()).pathname,target);assert.equal(new URL(page.url()).searchParams.has('assessment'),false);
+  await page.goto(origin+'/research-verification/experiment-queue?assessment='+study+'&view=private&tag=first&tag=second');await page.getByText(paperTitle,{exact:true}).waitFor();assert.equal(new URL(page.url()).pathname,target);assert.equal(new URL(page.url()).searchParams.has('view'),false);assert.deepEqual(new URL(page.url()).searchParams.getAll('tag'),['first','second']);assert.equal(await page.getByRole('link',{name:'Open owner’s private queue',exact:true}).count(),0);
+  assert.equal(await page.locator('aside').getByRole('link',{name:'Experiment Queue',exact:true}).count(),0);
   for(const suffix of ['/autonomy','/queue']){const r=await fetch(fixtureOrigin+'/research/studies/'+study+suffix);assert.equal(r.status,401);}
   return {authenticated_action_and_index_paths:2,legacy_private_mode_redirects_to_public:true,unprojected_API_denials:2,shared_alias_public:true};
  });
- await check('assessments include submitted running stopped and published papers with queue links',async()=>{
+ await check('assessments include submitted running stopped and published papers with an inline experiment queue',async()=>{
   await page.goto(origin+'/');await page.getByRole('link',{name:'View assessments',exact:true}).click();await page.waitForURL(origin+'/research-verification/assessments');
   await page.getByRole('heading',{name:'Assessments',exact:true}).waitFor();await page.getByRole('link',{name:paperTitle,exact:true}).waitFor();
-  assert.equal(await page.locator('article[data-paper-id]').count(),10);assert.equal(await page.getByRole('link',{name:'View experiment queue',exact:true}).count(),0);
+  assert.equal(await page.locator('tr[data-paper-id]').count(),10);assert.equal(await page.getByRole('link',{name:'View experiment queue',exact:true}).count(),0);
   const body=await page.locator('main').innerText();for(const label of ['In progress','Cancelled','Spending limit reached','Finished with gaps','Time limit reached','Published assessment','Not published'])assert.ok(body.includes(label),label);
   assert.ok(!body.includes('PRIVATE-CANARY'));assert.ok(!body.includes('ProxyDelay_Nines_CameraReady'));
-  await page.locator(`article[data-paper-id="${study}"] [data-paper-authors]`).filter({hasText:'Cyrus Illick, Michael Roger'}).waitFor();
-  await page.locator(`article[data-paper-id="${study}"]`).getByText('Initiated by: Casey Researcher',{exact:true}).waitFor();
-  assert.ok(body.includes('Initiated by: Name unavailable'));
-  await page.locator(`article[data-paper-id="${study}"]`).getByRole('link',{name:paperTitle,exact:true}).click();await page.waitForURL(origin+'/research-verification/assessment/'+study);await page.locator('[data-assessment-stage]').filter({hasText:'Experiment planning'}).waitFor();await page.getByRole('button',{name:'View experiment queue',exact:true}).click();await page.waitForURL(origin+target);await page.getByText(paperTitle,{exact:true}).waitFor();
+  await page.locator(`tr[data-paper-id="${study}"] [data-paper-authors]`).filter({hasText:'Cyrus Illick, Michael Roger'}).waitFor();
+  await page.locator(`tr[data-paper-id="${study}"]`).getByText('Casey Researcher',{exact:true}).waitFor();
+  assert.ok(body.includes('Name unavailable'));
+  await page.locator(`tr[data-paper-id="${study}"]`).getByRole('link',{name:paperTitle,exact:true}).click();await page.waitForURL(origin+'/research-verification/assessment/'+study);await page.locator('[data-assessment-stage]').filter({hasText:'Experiment planning'}).waitFor();await page.getByRole('region',{name:'Experiment Queue',exact:true}).waitFor();await page.locator('article[id^="job-"]').first().waitFor();assert.equal(await page.getByRole('button',{name:'View experiment queue',exact:true}).count(),0);
   return {first_page:10,unpublished_papers_visible:true,published_link_retained:true,private_bytes:false,queue_link_works:true};
+ });
+ await check('assessment job links retain focus across reloads and malformed query identities make no reads',async()=>{
+  const job='44444444-4444-4444-8444-444444444444',path=target+'?job='+job+'#job-'+job;
+  const legacy=await fetch(origin+'/research-verification/experiment-queue?assessment='+study+'&job='+job,{redirect:'manual'});assert.equal(legacy.status,308);assert.equal(new URL(legacy.headers.get('location'),origin).pathname,target);assert.equal(new URL(legacy.headers.get('location'),origin).hash,'#job-'+job);
+  await page.goto(origin+path);const focused=page.locator('#job-'+job);await focused.waitFor();assert.ok((await focused.getAttribute('class')).includes('ring-primary'));assert.equal(await focused.getByRole('link',{name:'Link to this job',exact:true}).getAttribute('href'),path);
+  await page.reload();await focused.waitFor();assert.equal(new URL(page.url()).searchParams.get('job'),job);
+  await page.goto(origin+target+'?job=99999999-9999-4999-8999-999999999999');await page.getByText('The requested job was not returned for this paper. Its status is unknown.',{exact:true}).waitFor();assert.equal(await page.locator('article[id^="job-"].ring-primary').count(),0);
+  for(const query of ['?job=invalid','?job='+job+'&job='+job,'?gap=invalid','?run='+job]){const before=report.requests.length,response=await page.goto(origin+target+query);assert.equal(response.status(),404);assert.equal(report.requests.length,before);}
+  return {job_focus:true,reload_preserved:true,legacy_job_redirect:true,unknown_job_explicit:true,invalid_queries_without_reads:4};
  });
  await check('assessment overview shows recorded stages claims and metadata while remaining public',async()=>{
   await fixtureMode('normal');await page.goto(origin+'/research-verification/assessment/'+study);
@@ -169,7 +182,7 @@ try{
    await page.screenshot({path:directory+`/assessment-overview-${width}-${theme.split(' ')[0].toLowerCase()}.png`,fullPage:true});
   }
   const previousStage=await page.locator('[data-assessment-stage]').innerText();
-  await fixtureMode('unavailable');await page.clock.runFor(10100);await page.getByRole('alert').filter({hasText:'progress may be stale'}).waitFor();
+  await fixtureMode('unavailable');await page.clock.runFor(10100);await page.getByRole('alert').filter({hasText:'Previously retrieved status may be stale'}).waitFor();
   assert.equal(await page.locator('[data-assessment-stage]').innerText(),previousStage);
   await fixtureMode('normal');await page.goto(origin+'/research-verification/assessment/invalid');assert.equal(await page.getByTestId('assessment-detail').count(),0);
   await page.goto(origin+'/research-verification/assessment/00000000-0000-4000-8000-000000000001');await page.getByRole('alert').filter({hasText:'Assessment details are unavailable'}).waitFor();
@@ -192,16 +205,16 @@ try{
  });
  await check('a recorded initiator with blank profile names uses their Google display name',async()=>{
   await fixtureMode('catalog-google');await page.goto(origin+'/research-verification/assessments');
-  const card=page.locator(`article[data-paper-id="${study}"]`);await card.getByText('Initiated by: Casey Google',{exact:true}).waitFor();
+  const card=page.locator(`tr[data-paper-id="${study}"]`);await card.getByText('Casey Google',{exact:true}).waitFor();
   assert.ok(!(await card.innerText()).includes('PRIVATE-CANARY'));
-  await fixtureMode('normal');await page.reload();await card.getByText('Initiated by: Casey Researcher',{exact:true}).waitFor();
+  await fixtureMode('normal');await page.reload();await card.getByText('Casey Researcher',{exact:true}).waitFor();
   return {blank_profile_uses_google_name:true,saved_profile_takes_precedence:true,auth_fields_exposed:false};
  });
  await check('paper pagination reaches older submissions and legacy results routes preserve queries',async()=>{
-  await page.goto(origin+'/research-verification/assessments');await page.locator('article[data-paper-id]').first().waitFor();
-  const first=await page.locator('article[data-paper-id]').evaluateAll(nodes=>nodes.map(n=>n.dataset.paperId));
+  await page.goto(origin+'/research-verification/assessments');await page.locator('tr[data-paper-id]').first().waitFor();
+  const first=await page.locator('tr[data-paper-id]').evaluateAll(nodes=>nodes.map(n=>n.dataset.paperId));
   await page.getByRole('link',{name:'Older assessments',exact:true}).click();await page.getByRole('link',{name:'Newest assessments',exact:true}).waitFor();
-  assert.equal(await page.locator('article[data-paper-id]').count(),3);const older=await page.locator('article[data-paper-id]').evaluateAll(nodes=>nodes.map(n=>n.dataset.paperId));assert.ok(older.every(id=>!first.includes(id)));
+  assert.equal(await page.locator('tr[data-paper-id]').count(),3);const older=await page.locator('tr[data-paper-id]').evaluateAll(nodes=>nodes.map(n=>n.dataset.paperId));assert.ok(older.every(id=>!first.includes(id)));
   const before=new URL(page.url()).searchParams.get('before');assert.ok(before);
   for(const prefix of ['','/module','/modules'])for(const old of ['test-results','previous-assessments']){
     const r=await fetch(origin+prefix+'/research-verification/'+old+'?'+new URLSearchParams([['tag','a&b'],['tag','second'],['before',before]]),{redirect:'manual'});
@@ -213,7 +226,7 @@ try{
  });
  await check('assessments reuse the prepared TCP88 title without PDF extraction or private review data',async()=>{
   await fixtureMode('review-title');await page.goto(origin+'/research-verification/assessments');
-  const card=page.locator(`article[data-paper-id="${study}"]`);
+  const card=page.locator(`tr[data-paper-id="${study}"]`);
   await card.getByRole('link',{name:'Congestion Avoidance and Control',exact:true}).waitFor();
   assert.ok(!(await card.innerText()).includes('Paper title unavailable'));assert.ok(!(await card.innerText()).includes('TCP88.pdf'));
   await card.locator('[data-paper-authors]').filter({hasText:'Van Jacobson, Michael J. Karels'}).waitFor();
@@ -225,34 +238,37 @@ try{
   return {saved_review_title_used:true,original_filename_not_shown:true,pdf_text_artifacts_absent:true,public_title_endpoint_matches:true,private_review_fields_absent:true};
  });
  await check('assessments preserve missing title empty invalid and unavailable states',async()=>{
-  await fixtureMode('title-missing');await page.goto(origin+'/research-verification/assessments');await page.getByText('Paper title unavailable',{exact:true}).waitFor();assert.equal(await page.locator('article[data-paper-id]').count(),10);
+  await fixtureMode('title-missing');await page.goto(origin+'/research-verification/assessments');await page.getByText('Paper title unavailable',{exact:true}).waitFor();assert.equal(await page.locator('tr[data-paper-id]').count(),10);
   await fixtureMode('catalog-empty');await page.reload();await page.getByRole('heading',{name:'No paper assessments submitted yet',exact:true}).waitFor();
-  await fixtureMode('catalog-invalid');await page.reload();await page.getByRole('alert').filter({hasText:'invalid or incomplete'}).waitFor();assert.equal(await page.locator('article[data-paper-id]').count(),0);
+  await fixtureMode('catalog-invalid');await page.reload();await page.getByRole('alert').filter({hasText:'invalid or incomplete'}).waitFor();assert.equal(await page.locator('tr[data-paper-id]').count(),0);
   await fixtureMode('unavailable');await page.reload();await page.getByRole('alert').filter({hasText:'counts are unknown'}).waitFor();assert.equal(await page.getByRole('heading',{name:'No paper assessments submitted yet'}).count(),0);
   await fixtureMode('normal');await page.getByRole('button',{name:'Try again',exact:true}).click();await page.getByRole('link',{name:paperTitle,exact:true}).waitFor();
   return {missing_title_retains_assessment:true,empty:true,invalid_counts_unknown:true,failed_counts_not_zero:true,recovery:true};
  });
  await check('assessment Card/Table views and name filters preserve scope and search beyond the first page',async()=>{
   const path='/research-verification/assessments';await fixtureMode('normal');await page.setViewportSize({width:1365,height:900});await page.goto(origin+path);
-  await page.locator('article[data-paper-id]').first().waitFor();const first=await page.locator('article[data-paper-id]').evaluateAll(nodes=>nodes.map(n=>n.dataset.paperId));
-  const views=page.getByRole('navigation',{name:'Assessment view',exact:true});assert.equal(await views.getByRole('button',{name:'Card',exact:true}).getAttribute('aria-current'),'page');
-  await views.getByRole('button',{name:'Table',exact:true}).click();let table=page.getByRole('table',{name:'Assessments',exact:true});await table.waitFor();assert.deepEqual(await table.locator('tbody tr[data-paper-id]').evaluateAll(nodes=>nodes.map(n=>n.dataset.paperId)),first);
+  let table=page.getByRole('table',{name:'Assessments',exact:true});await table.locator('tbody tr[data-paper-id]').first().waitFor();const first=await table.locator('tbody tr[data-paper-id]').evaluateAll(nodes=>nodes.map(n=>n.dataset.paperId));
+  const views=page.getByRole('navigation',{name:'Assessment view',exact:true});assert.equal(await views.getByRole('button',{name:'Table',exact:true}).getAttribute('aria-current'),'page');
+  await views.getByRole('button',{name:'Card',exact:true}).click();await page.locator('article[data-paper-id]').first().waitFor();assert.equal(new URL(page.url()).searchParams.get('view'),'card');assert.deepEqual(await page.locator('article[data-paper-id]').evaluateAll(nodes=>nodes.map(n=>n.dataset.paperId)),first);
+  await views.getByRole('button',{name:'Table',exact:true}).click();await table.waitFor();assert.deepEqual(await table.locator('tbody tr[data-paper-id]').evaluateAll(nodes=>nodes.map(n=>n.dataset.paperId)),first);
   for(const name of ['Assessment','Status','Initiated by','Submitted'])assert.equal(await table.getByRole('columnheader',{name,exact:true}).count(),1);
   const cell=await table.locator('tbody tr').first().locator('td').nth(2).boundingBox();assert.ok(cell);await page.mouse.click(cell.x+cell.width/2,cell.y+cell.height/2);await page.waitForURL(url=>url.pathname==='/research-verification/assessment/'+first[0]);
   await page.goto(origin+path+'?view=table');await page.getByLabel('Filter by name',{exact:true}).fill('Submitted paper 11');await page.getByRole('button',{name:'Filter',exact:true}).click();
   table=page.getByRole('table',{name:'Assessments',exact:true});await table.getByRole('link',{name:'Submitted paper 11',exact:true}).waitFor();assert.equal(await table.locator('tbody tr').count(),1);assert.ok(!first.includes(await table.locator('tbody tr').getAttribute('data-paper-id')));
   assert.equal(new URL(page.url()).searchParams.has('before'),false);await views.getByRole('button',{name:'Card',exact:true}).click();await page.locator('article[data-paper-id]').waitFor();assert.equal(await page.locator('article[data-paper-id]').count(),1);assert.equal(new URL(page.url()).searchParams.get('name'),'Submitted paper 11');
+  await page.reload();await page.locator('article[data-paper-id]').waitFor();assert.equal(await views.getByRole('button',{name:'Card',exact:true}).getAttribute('aria-current'),'page');
   await page.getByRole('button',{name:'Clear',exact:true}).click();await page.waitForURL(url=>!url.searchParams.has('name'));await page.waitForFunction(()=>document.querySelectorAll('article[data-paper-id]').length===10);
   await page.getByLabel('Filter by name',{exact:true}).fill('Submitted paper');await page.getByRole('button',{name:'Filter',exact:true}).click();await page.getByRole('link',{name:'Older assessments',exact:true}).waitFor();
+  assert.equal(new URL(page.url()).searchParams.get('view'),'card');assert.equal(await page.locator('article[data-paper-id]').count(),10);
   await views.getByRole('button',{name:'Table',exact:true}).click();await page.getByRole('table',{name:'Assessments',exact:true}).waitFor();await page.getByRole('link',{name:'Older assessments',exact:true}).click();await page.getByRole('link',{name:'Newest assessments',exact:true}).waitFor();
-  table=page.getByRole('table',{name:'Assessments',exact:true});assert.equal(await table.locator('tbody tr').count(),1);let url=new URL(page.url());assert.equal(url.searchParams.get('view'),'table');assert.equal(url.searchParams.get('name'),'Submitted paper');assert.ok(url.searchParams.get('before'));
+  table=page.getByRole('table',{name:'Assessments',exact:true});assert.equal(await table.locator('tbody tr').count(),1);let url=new URL(page.url());assert.equal(url.searchParams.get('view'),null);assert.equal(url.searchParams.get('name'),'Submitted paper');assert.ok(url.searchParams.get('before'));
   await page.getByLabel('Filter by name',{exact:true}).fill('casey researcher');await page.getByRole('button',{name:'Filter',exact:true}).click();await table.getByText('Casey Researcher',{exact:true}).waitFor();assert.equal(await table.locator('tbody tr').count(),1);assert.equal(new URL(page.url()).searchParams.has('before'),false);
   await page.getByLabel('Filter by name',{exact:true}).fill('no such assessment name');await page.getByRole('button',{name:'Filter',exact:true}).click();await page.getByRole('heading',{name:'No assessments match this name',exact:true}).waitFor();assert.equal(await page.locator('tr[data-paper-id],article[data-paper-id]').count(),0);
   await fixtureMode('review-title');await page.goto(origin+path+'?view=table&name=JACOBSON');table=page.getByRole('table',{name:'Assessments',exact:true});await table.getByText('Van Jacobson, Michael J. Karels',{exact:true}).waitFor();assert.equal(await table.locator('tbody tr').count(),1);await page.screenshot({path:directory+'/assessments-table-filtered-desktop.png',fullPage:true});
   await fixtureMode('normal');await page.goto(origin+path+'?view=table');await table.locator('tbody tr').first().waitFor();await page.setViewportSize({width:390,height:844});
   for(const theme of ['Light Mode','Dark Mode']){await page.getByRole('button',{name:theme,exact:true}).click();await settledTheme(page,theme);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);await page.screenshot({path:directory+'/assessments-table-mobile-'+theme.split(' ')[0].toLowerCase()+'.png',fullPage:true});}
   assert.ok(await table.evaluate(node=>node.parentElement.scrollWidth>node.parentElement.clientWidth));await page.setViewportSize({width:1365,height:900});
-  return {card_default:true,table_metadata_matches_cards:true,row_opens_assessment:true,title_author_initiator_filters:true,searches_older_pages:true,matching_pagination_preserves_query_and_view:true,filter_resets_cursor:true,no_match_state:true,mobile_table_scroll_contained:true};
+  return {table_default:true,table_metadata_matches_cards:true,card_selection_survives_reload_and_filter:true,row_opens_assessment:true,title_author_initiator_filters:true,searches_older_pages:true,matching_pagination_preserves_query_and_view:true,filter_resets_cursor:true,no_match_state:true,mobile_table_scroll_contained:true};
  });
  await check('assessments desktop mobile themes and sidebar navigation use the new route',async()=>{
   for(const width of [1365,390])for(const theme of ['Light Mode','Dark Mode']){await page.setViewportSize({width,height:width===390?844:900});await page.getByRole('button',{name:theme,exact:true}).click();await settledTheme(page,theme);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(width===1365){const current=page.locator('aside a[aria-current="page"]');assert.equal(await current.getAttribute('href'),'/research-verification/assessments');}await page.screenshot({path:directory+'/assessments-'+width+'-'+theme.split(' ')[0].toLowerCase()+'.png',fullPage:true});}
@@ -282,11 +298,11 @@ try{
  });
  await check('queue query aliases preserve identities and reject duplicate or conflicting assessment selections',async()=>{
   const path='/research-verification/experiment-queue',tags='&tag=a%26b&tag=second';
-  for(const [old,canonical] of [['?study='+study,'?assessment='+study],['?sourceStudy='+study+'&gap=22222222-2222-4222-8222-222222222222','?sourceAssessment='+study+'&gap=22222222-2222-4222-8222-222222222222']]){
-   const r=await fetch(origin+path+old+tags,{redirect:'manual'});assert.equal(r.status,308);const location=new URL(r.headers.get('location'),origin);const expected=new URL(origin+path+canonical+tags);assert.deepEqual([...location.searchParams].sort(),[...expected.searchParams].sort());
-   await page.goto(origin+path+old+tags);if(old.startsWith('?study=')){assert.equal(new URL(page.url()).searchParams.get('assessment'),study);assert.equal(new URL(page.url()).searchParams.has('study'),false);await page.getByText(paperTitle,{exact:true}).waitFor();}else{assert.equal(new URL(page.url()).pathname,'/login');const next=new URL(new URL(page.url()).searchParams.get('next'),origin);assert.deepEqual([...next.searchParams].sort(),[...expected.searchParams].sort());}
+  for(const [old,canonical] of [['?study='+study,target+'?'],['?sourceStudy='+study+'&gap=22222222-2222-4222-8222-222222222222',target+'?gap=22222222-2222-4222-8222-222222222222']]){
+   const r=await fetch(origin+path+old+tags,{redirect:'manual'});assert.equal(r.status,308);const location=new URL(r.headers.get('location'),origin);const expected=new URL(origin+canonical+tags);assert.equal(location.pathname,expected.pathname);assert.deepEqual([...location.searchParams].sort(),[...expected.searchParams].sort());assert.equal(location.hash,'#experiment-queue');
+   await page.goto(origin+path+old+tags);if(old.startsWith('?study=')){assert.equal(new URL(page.url()).pathname,target);assert.equal(new URL(page.url()).searchParams.has('study'),false);await page.getByText(paperTitle,{exact:true}).waitFor();}else{assert.equal(new URL(page.url()).pathname,'/login');const next=new URL(new URL(page.url()).searchParams.get('next'),origin);assert.equal(next.pathname,expected.pathname);assert.deepEqual([...next.searchParams].sort(),[...expected.searchParams].sort());}
   }
-  for(const query of ['?study='+study+'&assessment='+study,'?sourceStudy='+study+'&sourceAssessment='+study+'&gap=22222222-2222-4222-8222-222222222222','?study='+study+'&study='+study,'?assessment='+study+'&assessment='+study]){await page.goto(origin+path+query);await page.getByRole('alert').filter({hasText:'invalid assessment'}).waitFor();assert.equal(await page.getByTestId('public-experiment-queue').count(),0);assert.equal(await page.getByTestId('experiment-queue-dashboard').count(),0);}
+  for(const query of ['?study='+study+'&assessment='+study,'?sourceStudy='+study+'&sourceAssessment='+study+'&gap=22222222-2222-4222-8222-222222222222','?study='+study+'&study='+study,'?assessment='+study+'&assessment='+study]){const before=report.requests.length,response=await page.goto(origin+path+query);assert.equal(response.status(),404);assert.equal(report.requests.length,before);assert.equal(await page.getByTestId('public-experiment-queue').count(),0);assert.equal(await page.getByTestId('experiment-queue-dashboard').count(),0);}
   await page.goto(origin+'/research-verification/methods');await page.getByText('Explore an illustrative claim queue',{exact:true}).click();assert.match(await page.getByTestId('claim-queue').innerText(),/active jobs in this assessment/);await page.getByRole('combobox',{name:'Queue example state',exact:true}).click();await page.getByRole('option',{name:'New assessment awaiting preparation',exact:true}).click();await page.getByRole('heading',{name:'Assessment preparation required',exact:true}).waitFor();
   return {saved_query_redirects:2,repeated_tags_preserved:true,owner_action_return_preserved:true,ambiguous_selections_rejected:4,assessment_terminology:true};
  });
@@ -327,7 +343,7 @@ try{
   assert.equal(await filter.getByRole('button',{name:'All Assessments',exact:true}).getAttribute('aria-current'),'page');
   const before=report.requests.filter(r=>r.path?.includes('mine=1')).length;
   await filter.getByRole('button',{name:'My Assessments',exact:true}).click();await page.waitForURL(origin+'/research-verification/assessments?mine=1');
-  await page.getByRole('main').getByRole('link',{name:'Sign in',exact:true}).waitFor();assert.equal(await page.locator('article[data-paper-id]').count(),0);
+  await page.getByRole('main').getByRole('link',{name:'Sign in',exact:true}).waitFor();assert.equal(await page.locator('tr[data-paper-id]').count(),0);
   const signIn=new URL(await page.getByRole('main').getByRole('link',{name:'Sign in',exact:true}).getAttribute('href'),origin);
   assert.equal(signIn.searchParams.get('next'),'/research-verification/assessments?mine=1');
   assert.equal(report.requests.filter(r=>r.path?.includes('mine=1')).length,before);
@@ -347,14 +363,14 @@ try{
   await fixtureMode(service);await selectAccount('a');await page.goto(origin+'/research-verification/assessments?before=invalid');
   await page.getByRole('navigation',{name:'Assessment filter',exact:true}).getByRole('button',{name:'My Assessments',exact:true}).click();
   await page.waitForURL(origin+'/research-verification/assessments?mine=1');await page.getByRole('link',{name:'Older assessments',exact:true}).waitFor();
-  assert.equal(await page.locator('article[data-paper-id]').count(),10);
-  const first=await page.locator('article[data-paper-id]').evaluateAll(items=>items.map(item=>item.dataset.paperId));
+  assert.equal(await page.locator('tr[data-paper-id]').count(),10);
+  const first=await page.locator('tr[data-paper-id]').evaluateAll(items=>items.map(item=>item.dataset.paperId));
   await page.getByRole('link',{name:'Older assessments',exact:true}).click();await page.getByRole('link',{name:'Newest assessments',exact:true}).waitFor();
-  assert.equal(new URL(page.url()).searchParams.get('mine'),'1');assert.equal(await page.locator('article[data-paper-id]').count(),1);
-  const last=await page.locator('article[data-paper-id]').getAttribute('data-paper-id');assert.ok(!first.includes(last));
-  await page.reload();await page.getByRole('link',{name:'Newest assessments',exact:true}).waitFor();assert.equal(await page.locator('article[data-paper-id]').getAttribute('data-paper-id'),last);
+  assert.equal(new URL(page.url()).searchParams.get('mine'),'1');assert.equal(await page.locator('tr[data-paper-id]').count(),1);
+  const last=await page.locator('tr[data-paper-id]').getAttribute('data-paper-id');assert.ok(!first.includes(last));
+  await page.reload();await page.getByRole('link',{name:'Newest assessments',exact:true}).waitFor();assert.equal(await page.locator('tr[data-paper-id]').getAttribute('data-paper-id'),last);
   await page.getByRole('navigation',{name:'Assessment filter',exact:true}).getByRole('button',{name:'All Assessments',exact:true}).click();await page.waitForURL(origin+'/research-verification/assessments');await page.getByRole('link',{name:'Older assessments',exact:true}).waitFor();
-  assert.equal(await page.locator('article[data-paper-id]').count(),10);
+  assert.equal(await page.locator('tr[data-paper-id]').count(),10);
   await page.goBack();await page.getByRole('link',{name:'Newest assessments',exact:true}).waitFor();assert.equal(new URL(page.url()).searchParams.get('mine'),'1');
   await page.getByRole('link',{name:'Newest assessments',exact:true}).click();await page.getByRole('link',{name:'Older assessments',exact:true}).waitFor();
   for(const width of [1365,390])for(const theme of ['Light Mode','Dark Mode']){
@@ -366,12 +382,12 @@ try{
   await page.goto(origin+'/research-verification/assessments?mine=1&view=table&name=casey');
   const personalTable=page.getByRole('table',{name:'Assessments',exact:true});await personalTable.getByText('Casey Researcher',{exact:true}).waitFor();assert.equal(await personalTable.locator('tbody tr').count(),1);assert.equal(await page.getByLabel('Filter by name',{exact:true}).inputValue(),'casey');
   await page.reload();await personalTable.getByText('Casey Researcher',{exact:true}).waitFor();
-  const allLink=new URL(await page.getByRole('navigation',{name:'Assessment filter',exact:true}).getByRole('button',{name:'All Assessments',exact:true}).getAttribute('href'),origin);assert.equal(allLink.searchParams.get('view'),'table');assert.equal(allLink.searchParams.get('name'),'casey');assert.equal(allLink.searchParams.has('before'),false);
+  const allLink=new URL(await page.getByRole('navigation',{name:'Assessment filter',exact:true}).getByRole('button',{name:'All Assessments',exact:true}).getAttribute('href'),origin);assert.equal(allLink.searchParams.get('view'),null);assert.equal(allLink.searchParams.get('name'),'casey');assert.equal(allLink.searchParams.has('before'),false);
   await selectAccount('b');await page.reload();await page.getByRole('heading',{name:'No assessments match this name',exact:true}).waitFor();assert.equal(await page.locator('tr[data-paper-id]').count(),0);
-  await page.goto(origin+'/research-verification/assessments?mine=1');await page.locator('article[data-paper-id]').first().waitFor();
-  const second=await page.locator('article[data-paper-id]').evaluateAll(items=>items.map(item=>item.dataset.paperId));assert.equal(second.length,2);assert.ok(second.every(id=>![...first,last].includes(id)));
-  await selectAccount('empty');await page.reload();await page.getByRole('heading',{name:'You have no assessments yet',exact:true}).waitFor();assert.equal(await page.locator('article[data-paper-id]').count(),0);
-  await context.clearCookies();await page.reload();await page.getByRole('main').getByRole('link',{name:'Sign in',exact:true}).waitFor();assert.equal(await page.locator('article[data-paper-id]').count(),0);
+  await page.goto(origin+'/research-verification/assessments?mine=1');await page.locator('tr[data-paper-id]').first().waitFor();
+  const second=await page.locator('tr[data-paper-id]').evaluateAll(items=>items.map(item=>item.dataset.paperId));assert.equal(second.length,2);assert.ok(second.every(id=>![...first,last].includes(id)));
+  await selectAccount('empty');await page.reload();await page.getByRole('heading',{name:'You have no assessments yet',exact:true}).waitFor();assert.equal(await page.locator('tr[data-paper-id]').count(),0);
+  await context.clearCookies();await page.reload();await page.getByRole('main').getByRole('link',{name:'Sign in',exact:true}).waitFor();assert.equal(await page.locator('tr[data-paper-id]').count(),0);
   }
   return {services:['modern-personal-catalogue','legacy-authenticated-owner-membership'],personal_count:11,second_account_count:2,empty_account_count:0,filtered_before_paging:true,selection_survives_reload_and_back:true,filter_switch_resets_cursor:true,desktop_mobile_themes:true,sign_out_clears_personal_list:true,synthetic_auth_only:true};
  });

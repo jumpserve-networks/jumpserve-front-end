@@ -10,9 +10,10 @@ const id='11111111-1111-4111-8111-111111111111';
 function fixture(){return {version:'research-paper-catalog-v1',access:'public-read-only',papers:[{id,title:null,created_at:'2026-10-22T00:00:00Z',workflow_status:'budget',published:false}],coverage:{papers:1},next_cursor:null};}
 
 test('assessment view, name and ownership filters survive page links and encode names safely',()=>{
- const path=assessmentListPath({mine:true,view:'table',name:'  A&B / ?  ',before:'abc'}),url=new URL(path,'https://example.org');
- assert.equal(url.pathname,'/research-verification/assessments');assert.equal(url.searchParams.get('mine'),'1');assert.equal(url.searchParams.get('view'),'table');assert.equal(url.searchParams.get('name'),'A&B / ?');assert.equal(url.searchParams.get('before'),'abc');
+ const path=assessmentListPath({mine:true,view:'card',name:'  A&B / ?  ',before:'abc'}),url=new URL(path,'https://example.org');
+ assert.equal(url.pathname,'/research-verification/assessments');assert.equal(url.searchParams.get('mine'),'1');assert.equal(url.searchParams.get('view'),'card');assert.equal(url.searchParams.get('name'),'A&B / ?');assert.equal(url.searchParams.get('before'),'abc');
  assert.equal(assessmentListPath(),'/research-verification/assessments');
+ assert.equal(assessmentListPath({view:'table'}),'/research-verification/assessments');
 });
 
 test('name filtering crosses catalogue pages without skipping matching lookahead or mixing owner scope',async()=>{

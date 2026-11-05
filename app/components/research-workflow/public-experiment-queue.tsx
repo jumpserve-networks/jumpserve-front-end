@@ -2,50 +2,36 @@
 import { LocalDateTime } from "@/app/components/user-preferences";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
-import { loadPublicStudyQueue, type PublicStudyQueue } from "@/lib/research-public-queue";
-import { experimentQueuePath, QUEUE_POLL_MS } from "@/lib/research-experiment-queue";
+import type { PublicStudyQueue } from "@/lib/research-public-queue";
+import { experimentQueuePath } from "@/lib/research-experiment-queue";
 import { QUEUE_STATUSES } from "@/lib/research-queue";
-import { AutonomousAssessments } from "./autonomous-assessments";
+import { AutonomousAssessments, AutonomousAssessmentStatus } from "./autonomous-assessments";
 import { ResearchSelect } from "./select";
-import { SharedAssessmentRecords } from "./shared-assessment-records";
 
 const words = (value: string) => value.replaceAll("-", " ");
 const recordedTime = (value: string) => <LocalDateTime value={value} />;
 
-export function PublicExperimentQueue({ studyId, jobId }: { studyId: string; jobId?: string }) {
-  const [data, setData] = useState<PublicStudyQueue | null>(null);
-  const [error, setError] = useState("");
+export function PublicExperimentQueue({ studyId, jobId, data, error }: { studyId: string; jobId?: string; data: PublicStudyQueue | null; error: string }) {
   const [status, setStatus] = useState(""); const [limit, setLimit] = useState(20);
-  const [recordsOpen, setRecordsOpen] = useState(false);
+  const scrolledJob = useRef("");
   useEffect(() => {
-    const controller = new AbortController(); let timer: ReturnType<typeof setTimeout> | undefined;
-    async function refresh() {
-      try {
-        const result = await loadPublicStudyQueue(studyId, controller.signal);
-        if (!controller.signal.aborted) { setData(result); setError(""); }
-      } catch (failure) {
-        if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : "Shared queue status is unavailable.");
-      } finally { if (!controller.signal.aborted) timer = setTimeout(refresh, QUEUE_POLL_MS); }
-    }
-    void refresh();
-    return () => { controller.abort(); clearTimeout(timer); };
-  }, [studyId]);
+    if (!jobId || !data || scrolledJob.current === jobId || window.location.hash !== `#job-${jobId}`) return;
+    const job = document.getElementById(`job-${jobId}`);
+    if (job) { job.scrollIntoView({ block: "start" }); scrolledJob.current = jobId; }
+  }, [jobId, data]);
   const jobs = data?.jobs ?? [];
   const visible = jobs.filter(j => !status || j.status === status).sort((a, b) => Number(b.id === jobId) - Number(a.id === jobId) || b.updated_at.localeCompare(a.updated_at) || a.id.localeCompare(b.id));
-  return <div className="space-y-6" data-testid="public-experiment-queue">
-    <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-      <p>Public status · refreshes every 10 seconds</p>
-    </div>
+  return <section id="experiment-queue" aria-label="Experiment Queue" className="scroll-mt-24 space-y-6" data-testid="public-experiment-queue">
+    <h2 className="text-lg font-semibold">Experiment Queue</h2>
     {error ? <p role="alert" className="rounded-lg border p-4 text-sm text-destructive">{error} {data ? "Previously retrieved status may be stale." : "Queue counts and current status are unknown."}</p> : null}
     {data ? <>
-      <AutonomousAssessments data={data.autonomy} studyId={studyId} titles={new Map([[data.study.id, data.study.title]])} stale={Boolean(error)} />
-      <Button variant="outline" aria-expanded={recordsOpen} onClick={() => setRecordsOpen(value => !value)}>{recordsOpen ? "Hide assessment records" : "View assessment records"}</Button>
-      {recordsOpen ? <SharedAssessmentRecords studyId={studyId} /> : null}
+      <AutonomousAssessmentStatus data={data.autonomy} stale={Boolean(error)} />
+      <AutonomousAssessments data={data.autonomy} studyId={studyId} titles={new Map([[data.study.id, data.study.title]])} embedded />
       <section aria-label="Assessment experiment status" className="space-y-4">
-        <h2 className="text-lg font-semibold">Experiment jobs</h2>
+        <h3 className="text-lg font-semibold">Experiment jobs</h3>
         {!data.workers_enabled ? <p className="rounded-lg border p-3 text-sm text-warning">Scheduled experiment workers are disabled; queued jobs await activation.</p> : null}
         <p className="text-sm">{data.coverage.jobs} recorded jobs for this paper.</p>
         {jobs.length ? <ResearchSelect label="Filter queue by status" value={status} onChange={value => { setStatus(value); setLimit(20); }} options={[{ value: "", label: "All statuses" }, ...QUEUE_STATUSES.map(s => ({ value: s, label: s === "manual" ? "Needs operator" : words(s) }))]} /> : null}
@@ -66,5 +52,5 @@ export function PublicExperimentQueue({ studyId, jobId }: { studyId: string; job
         </>}
       </section>
     </> : !error ? <p role="status">Loading shared experiment status…</p> : null}
-  </div>;
+  </section>;
 }

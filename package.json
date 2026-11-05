@@ -21,7 +21,8 @@
     "verify:paper-uploads": "node scripts/verify-paper-uploads.mjs",
     "verify:research:production": "node scripts/verify-research-production.mjs",
     "verify:research:ideas": "node scripts/verify-research-ideas.mjs",
-    "verify:research:autonomy": "node scripts/verify-research-autonomy.mjs"
+    "verify:research:autonomy": "node scripts/verify-research-autonomy.mjs",
+    "verify:research:assessments:production": "node scripts/verify-assessment-navigation-production.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
