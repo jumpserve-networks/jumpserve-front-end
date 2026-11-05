@@ -15,7 +15,7 @@ import { assessmentListPath, loadAssessmentList, type AssessmentListOptions, typ
 import { PaperAuthors, usePaperBibliography } from "./paper-bibliography";
 import { ResearchHeader } from "./header";
 
-export function Assessments({ before, mine = false, name = "", view = "card" }: AssessmentListOptions) {
+export function Assessments({ before, mine = false, name = "", view = "table" }: AssessmentListOptions) {
   const preferences = useUserPreferences();
   const userId = mine ? preferences?.userId : null;
   const returnPath = assessmentListPath({ mine, before, name, view });
@@ -32,7 +32,7 @@ export function Assessments({ before, mine = false, name = "", view = "card" }: 
     </div>
     <Form action={ASSESSMENTS_PATH} className="flex flex-wrap items-end gap-2">
       {mine ? <Input type="hidden" name="mine" value="1" readOnly /> : null}
-      {view === "table" ? <Input type="hidden" name="view" value="table" readOnly /> : null}
+      {view === "card" ? <Input type="hidden" name="view" value="card" readOnly /> : null}
       <label className="min-w-0 flex-1 space-y-1 text-sm sm:max-w-md"><span>Filter by name</span><Input name="name" type="search" defaultValue={name} maxLength={200} placeholder="Assessment, author or initiator" /></label>
       <Button type="submit" variant="outline">Filter</Button>
       {name ? <Button variant="ghost" nativeButton={false} render={<Link href={assessmentListPath({ mine, view })} />}>Clear</Button> : null}

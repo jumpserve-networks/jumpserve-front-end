@@ -9,16 +9,18 @@ import { LocalDateTime } from "@/app/components/user-preferences";
 import { loadPaperDetail, paperWorkflowLabel, type PaperDetail } from "@/lib/research-paper-catalog";
 import { loadPublicStudyQueue, type PublicStudyQueue } from "@/lib/research-public-queue";
 import { assessmentProgress, assessmentTaskStage } from "@/lib/research-assessment-progress";
-import { experimentQueuePath, QUEUE_POLL_MS } from "@/lib/research-experiment-queue";
+import { QUEUE_POLL_MS } from "@/lib/research-experiment-queue";
 import { researchPublishedPath } from "@/lib/research-pathways";
 import { ASSESSMENTS_PATH, NEW_ASSESSMENT_PATH } from "@/lib/test-modules";
 import { PaperAuthors } from "./paper-bibliography";
 import { ResearchHeader } from "./header";
 import { SharedAssessmentRecords } from "./shared-assessment-records";
+import { PublicExperimentQueue } from "./public-experiment-queue";
+import { AssessmentGapExperiments } from "./experiment-queue";
 
 const words = (value: string) => value.replaceAll("-", " ");
 
-export function AssessmentDetail({ assessmentId }: { assessmentId: string }) {
+export function AssessmentDetail({ assessmentId, jobId, gapId, launchId }: { assessmentId: string; jobId?: string; gapId?: string; launchId?: string }) {
   const [detail, setDetail] = useState<PaperDetail | null>(null);
   const [queue, setQueue] = useState<PublicStudyQueue | null>(null);
   const [detailError, setDetailError] = useState("");
@@ -61,7 +63,6 @@ export function AssessmentDetail({ assessmentId }: { assessmentId: string }) {
       <Badge variant="outline">{paper.published ? "Published assessment" : "Not published"}</Badge>
     </div> : null}
     {detailError ? <p role="alert" className="rounded-lg border p-4 text-sm text-destructive">Assessment details are unavailable. {detailError} {detail ? "Previously retrieved details may be stale." : ""}</p> : null}
-    {queueError ? <p role="alert" className="rounded-lg border p-4 text-sm text-destructive">{queueError} {queue ? "Previously retrieved progress may be stale." : "Current progress is unknown."}</p> : null}
     {detailError || queueError ? <Button variant="outline" onClick={() => setRevision(value => value + 1)}>Retry status</Button> : null}
     {detail || queue ? <>
       <section aria-label="Assessment status" className="space-y-4 rounded-lg border p-5">
@@ -72,7 +73,6 @@ export function AssessmentDetail({ assessmentId }: { assessmentId: string }) {
           <div className="space-y-1"><dt className="text-muted-foreground">Experiment jobs</dt><dd>{queue ? queue.coverage.jobs : "Unknown"}</dd></div>
           <div className="space-y-1"><dt className="text-muted-foreground">Last recorded update</dt><dd>{progress.lastUpdated ? <LocalDateTime value={progress.lastUpdated} /> : "Not recorded"}</dd></div>
         </dl>
-        {workflow?.reason ? <p className="whitespace-pre-wrap break-words text-sm">{workflow.reason}</p> : null}
         {detail?.preparation_status === "ready" ? <Button className="h-auto w-full whitespace-normal sm:w-auto" nativeButton={false} render={<Link href={`${NEW_ASSESSMENT_PATH}/${assessmentId}`} prefetch={false} />}>Choose central claims and testable findings</Button> : null}
       </section>
       {tasks.length ? <section aria-label="Claim progress" className="space-y-4">
@@ -83,11 +83,12 @@ export function AssessmentDetail({ assessmentId }: { assessmentId: string }) {
         {tasks.length > limit ? <Button variant="outline" onClick={() => setLimit(value => value + 20)}>Show more claims</Button> : null}
       </section> : null}
       <div className="flex flex-wrap gap-3">
-        <Button variant="outline" nativeButton={false} render={<Link href={experimentQueuePath(assessmentId)} />}>View experiment queue</Button>
         {paper?.published ? <Button variant="outline" nativeButton={false} render={<Link href={researchPublishedPath("paper", assessmentId)} />}>Read published assessment</Button> : null}
         <Button variant="outline" aria-expanded={recordsOpen} onClick={() => setRecordsOpen(value => !value)}>{recordsOpen ? "Hide assessment records" : "View assessment records"}</Button>
       </div>
       {recordsOpen ? <SharedAssessmentRecords studyId={assessmentId} /> : null}
     </> : !detailError && !queueError ? <p role="status">Loading assessment information…</p> : null}
+    {gapId ? <AssessmentGapExperiments studyId={assessmentId} gapId={gapId} launchId={launchId} /> : null}
+    <PublicExperimentQueue studyId={assessmentId} jobId={jobId} data={queue} error={queueError} />
   </main>;
 }

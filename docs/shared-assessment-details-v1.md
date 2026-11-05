@@ -1,15 +1,31 @@
 # Shared assessment details v1
 
 The user authorized making recorded paper-assessment content readable by everyone.
-There is one assessment queue at `/research-verification/experiment-queue?assessment=<id>`.
-Legacy `view=private` links permanently redirect to it, preserving other query
-values. This amendment replaces the earlier owner-only prompt/history view.
-The queue index remains the authenticated user's personal listing; previous
-assessments provide the public paper inventory. Research ideas are unaffected.
+Each `/research-verification/assessment/<id>` page includes its **Experiment Queue**
+section at `#experiment-queue`. The overview and queue share one serial status
+refresh every ten seconds. Saved `/experiment-queue` and module queue links with
+`assessment=<id>` or `study=<id>` permanently redirect to that page. `job=<id>`
+links preserve the focused job and its anchor; repeated unrelated query values
+are retained. Conflicting, repeated or malformed identities return 404 without
+reading assessment data. The standalone queue page and sidebar entry are retired;
+queue links without an assessment open `/research-verification/assessments?mine=1`.
+Legacy `view=private` links use the same shared view. This amendment replaces the
+earlier owner-only prompt/history view. Research ideas are unaffected.
 
-The inventory at `/research-verification/assessments` defaults to Card view;
-`view=table` shows the same records with assessment/authors, status, initiator
-and submission date. Both cards and table rows open the singular
+Gap experiment links use `/research-verification/assessment/<id>?gap=<gapId>`
+and retain `run=<requestId>` for a sign-in return. They still require Google
+authentication and backend owner checks. A pasted or prefetched URL cannot
+authorize a launch; the existing one-time same-tab intent is required to resume
+an action after sign-in.
+
+After an authorized deployment, run
+`npm run verify:research:assessments:production -- <merge-revision>` to check the
+exact production version, Table/Card views, inline queue, saved-link redirects,
+sign-in return paths and desktop/mobile themes using public reads only.
+
+The inventory at `/research-verification/assessments` defaults to Table view,
+showing assessment/authors, status, initiator and submission date. `view=card`
+shows the same records as cards. Both cards and table rows open the singular
 `/research-verification/assessment/<id>` overview. `name` filters recorded titles,
 authors and initiator display names, ignoring case, accents and repeated spaces.
 It searches successive catalogue pages rather than only the displayed page.

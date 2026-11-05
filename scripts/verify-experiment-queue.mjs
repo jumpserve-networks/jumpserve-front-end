@@ -62,7 +62,7 @@ window.queueFixture={calls,reads:()=>reads,legacyReads:()=>legacyReads,state:()=
 let server,browser;
 async function check(name,action){try{report.checks.push({name,passed:true,evidence:await action()});console.log('PASS '+name);}catch(error){report.errors.push({name,reason:error.message});throw error;}}
 try {
- const bundle=await build({stdin:{contents:`import React from 'react';import {createRoot} from 'react-dom/client';import {ExperimentQueueDashboard} from './app/components/research-workflow/experiment-queue';import {RunGapExperiment} from './app/components/research-workflow/run-gap-experiment';const root=createRoot(document.getElementById('root'));let fixtureRevision=0;window.renderFixture=mode=>root.render(React.createElement(ExperimentQueueDashboard,{key:mode+(++fixtureRevision),studyId:window.fixtureSelectedAssessment,jobId:window.fixtureFocusedJob,sourceAssessment:window.fixtureLegacyBackend?undefined:'${ids.source}',gapId:window.fixtureLegacyBackend?undefined:'${ids.gap}'}));window.renderRunFixture=launchId=>root.render(React.createElement(RunGapExperiment,{key:'run-'+(++fixtureRevision),studyId:'${ids.source}',gapId:'${ids.gap}',launchId}));window.renderFixture('normal');`,resolveDir:process.cwd(),sourcefile:'experiment-queue-browser-fixture.tsx',loader:'tsx'},bundle:true,write:false,format:'iife',platform:'browser',define:{'process.env.NODE_ENV':'"development"'},plugins:[{name:'fixed-component-transport',setup(plugin){plugin.onResolve({filter:/^@\/lib\/research-workflow-api$/},()=>({path:'transport',namespace:'fixture'}));plugin.onResolve({filter:/^next\/link$/},()=>({path:'link',namespace:'fixture'}));plugin.onResolve({filter:/^next\/navigation$/},()=>({path:'router',namespace:'fixture'}));plugin.onResolve({filter:/^@\/lib\/browser-auth$/},()=>({path:'auth',namespace:'fixture'}));plugin.onLoad({filter:/.*/,namespace:'fixture'},args=>({contents:args.path==='transport'?fixture:args.path==='router'?"export function useRouter(){return {push(path){window.fixtureNavigations=(window.fixtureNavigations??[]).concat(path)}};}":args.path==='auth'?"export async function requireAccessToken(message){if(window.fixtureSignedOut)throw new Error(message);return 'synthetic-component-token';}":"import React from 'react';export default function Link({prefetch:ignored,...props}){return React.createElement('a',props);}",loader:'js',resolveDir:process.cwd()}));}}]});
+ const bundle=await build({stdin:{contents:`import React from 'react';import {createRoot} from 'react-dom/client';import {ExperimentQueueDashboard,AssessmentGapExperiments} from './app/components/research-workflow/experiment-queue';import {RunGapExperiment} from './app/components/research-workflow/run-gap-experiment';const root=createRoot(document.getElementById('root'));let fixtureRevision=0;window.renderFixture=mode=>root.render(React.createElement(ExperimentQueueDashboard,{key:mode+(++fixtureRevision),studyId:window.fixtureSelectedAssessment,jobId:window.fixtureFocusedJob,sourceAssessment:window.fixtureLegacyBackend?undefined:'${ids.source}',gapId:window.fixtureLegacyBackend?undefined:'${ids.gap}'}));window.renderAssessmentGapFixture=launchId=>root.render(React.createElement(AssessmentGapExperiments,{key:'assessment-gap-'+(++fixtureRevision),studyId:'${ids.source}',gapId:'${ids.gap}',launchId}));window.renderRunFixture=launchId=>root.render(React.createElement(RunGapExperiment,{key:'run-'+(++fixtureRevision),studyId:'${ids.source}',gapId:'${ids.gap}',launchId}));window.renderFixture('normal');`,resolveDir:process.cwd(),sourcefile:'experiment-queue-browser-fixture.tsx',loader:'tsx'},bundle:true,write:false,format:'iife',platform:'browser',define:{'process.env.NODE_ENV':'"development"'},plugins:[{name:'fixed-component-transport',setup(plugin){plugin.onResolve({filter:/^@\/lib\/research-workflow-api$/},()=>({path:'transport',namespace:'fixture'}));plugin.onResolve({filter:/^next\/link$/},()=>({path:'link',namespace:'fixture'}));plugin.onResolve({filter:/^next\/navigation$/},()=>({path:'router',namespace:'fixture'}));plugin.onResolve({filter:/^@\/lib\/browser-auth$/},()=>({path:'auth',namespace:'fixture'}));plugin.onLoad({filter:/.*/,namespace:'fixture'},args=>({contents:args.path==='transport'?fixture:args.path==='router'?"export function useRouter(){return {push(path){window.fixtureNavigations=(window.fixtureNavigations??[]).concat(path)}};}":args.path==='auth'?"export async function requireAccessToken(message){if(window.fixtureSignedOut)throw new Error(message);return 'synthetic-component-token';}export async function readBrowserSession(auth){return(await auth.getSession()).data.session;}export function hasResolvedAuthState(event,session){return session!==null||event==='SIGNED_OUT';}":"import React from 'react';export default function Link({prefetch:ignored,...props}){return React.createElement('a',props);}",loader:'js',resolveDir:process.cwd()}));}}]});
  const cssNames=(await readdir('.next/static/chunks')).filter(n=>n.endsWith('.css'));
  assert.ok(cssNames.length,'Build before component verification.');
  const css=(await Promise.all(cssNames.map(n=>readFile('.next/static/chunks/'+n,'utf8')))).join('\n');
@@ -119,13 +119,13 @@ try {
   const data=await page.evaluate(()=>window.queueFixture.state());assert.equal(data.studies.length,3);assert.equal(await page.locator('[data-assessment-id]').count(),3);
   for(const assessment of data.studies){
    const group=page.locator(`[data-assessment-id="${assessment.id}"]`);const jobs=data.jobs.filter(job=>job.study_id===assessment.id);
-   assert.equal(await group.getByRole('heading',{level:3}).innerText(),assessment.title);assert.ok((await group.innerText()).includes('Assessment '+assessment.id));
+   assert.equal(await group.getByRole('heading',{level:3,name:assessment.title,exact:true}).innerText(),assessment.title);assert.ok((await group.innerText()).includes('Assessment '+assessment.id));
    const claim=data.autonomy.tasks.find(task=>task.study_id===assessment.id);assert.equal(await group.locator('article[id^="claim-task-"]').count(),1);assert.equal(await group.locator('article[id^="claim-task-"]').getAttribute('id'),'claim-task-'+claim.id);
    const visible=await group.locator('article[id^="job-"]').evaluateAll(nodes=>nodes.map(node=>node.id.slice(4)));assert.equal(visible.length,Math.min(20,jobs.length));assert.ok(visible.every(id=>jobs.some(job=>job.id===id)));
    const counts=await group.locator('[aria-label="Assessment job counts"] > div').evaluateAll(nodes=>nodes.map(node=>({label:node.querySelector('p').textContent,value:Number(node.querySelector('p:last-child').textContent)})));
    assert.equal(counts.reduce((sum,count)=>sum+count.value,0),jobs.length);assert.equal(counts.find(count=>count.label==='Cancelled').value,jobs.filter(job=>job.status==='cancelled').length);
   }
-  const preparation=page.locator(`[data-assessment-id="${ids.source}"]`);await preparation.getByText('Paper preparation and claim inventory',{exact:true}).waitFor();await preparation.getByRole('status').filter({hasText:'No experiment jobs have been recorded for this assessment yet'}).waitFor();
+  const preparation=page.locator(`[data-assessment-id="${ids.source}"]`);await preparation.getByText('Paper preparation and claim inventory',{exact:true}).waitFor();await preparation.getByRole('status').filter({hasText:'No experiment jobs recorded yet.'}).waitFor();
   assert.equal(await page.getByRole('heading',{level:3,name:'Repeated paper title',exact:true}).count(),2);
   for(const width of [1365,390])for(const dark of [false,true]){await page.setViewportSize({width,height:width===390?844:900});await page.evaluate(value=>document.documentElement.classList.toggle('dark',value),dark);await page.waitForFunction(()=>document.getAnimations().every(a=>!a.effect||!Number.isFinite(a.effect.getComputedTiming().endTime)||a.playState!=='running'));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:directory+`/assessment-groups-${width}-${dark?'dark':'light'}.png`});}
   await preparation.screenshot({path:directory+'/preparation-without-jobs.png'});
@@ -150,7 +150,7 @@ try {
  });
  await check('unsupported plans empty queues invalid coverage and unavailable status remain distinct',async()=>{
   await page.evaluate(()=>window.queueFixture.setMode('unknown'));await page.getByText('No retained plan matches this exact source version.',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Queue experiment',exact:true}).count(),0);
-  await page.evaluate(()=>window.queueFixture.setMode('empty'));await page.getByRole('status').filter({hasText:'No experiment jobs have been recorded for this assessment yet'}).first().waitFor();
+  await page.evaluate(()=>window.queueFixture.setMode('empty'));await page.getByRole('status').filter({hasText:'No experiment jobs recorded yet.'}).first().waitFor();
   await page.evaluate(()=>window.queueFixture.setMode('invalid'));await page.getByRole('alert').filter({hasText:'coverage is incomplete'}).waitFor();assert.equal(await page.locator('[aria-label="Assessment job counts"]').count(),0);
   await page.evaluate(()=>window.queueFixture.setMode('unavailable'));await page.getByRole('alert').filter({hasText:'counts and current status are unknown'}).waitFor();
   return {states:['unsupported plan','empty','invalid','unavailable'],invalid_counts_rendered:false};
@@ -158,7 +158,7 @@ try {
  await check('run action writes without another confirmation; sign-in resume requires a saved same-tab click',async()=>{
   await page.evaluate(()=>{window.queueFixture.setMode('normal');window.fixtureSingleChoice=true;window.renderRunFixture();});
   await page.getByRole('button',{name:'Run experiment now',exact:true}).click();
-  await page.waitForFunction(()=>window.fixtureNavigations?.some(p=>p.includes('experiment-queue?assessment=')));
+  await page.waitForFunction(()=>window.fixtureNavigations?.some(p=>p.includes('/assessment/')&&p.includes('#job-')));
   const before=await page.evaluate(()=>window.queueFixture.calls.length);
   await page.evaluate(id=>window.renderRunFixture(id),'77777777-7777-4777-8777-777777777777');
   await page.getByRole('button',{name:'Run experiment now',exact:true}).waitFor();
@@ -171,6 +171,15 @@ try {
   await page.evaluate(id=>{window.fixtureSignedOut=false;window.renderRunFixture(id);},launch);
   await page.waitForFunction(count=>window.queueFixture.calls.length===count+3,before);
   return {confirmation_clicks:1,run_requests_after_simulated_return:3,untrusted_get_caused_writes:false,google_authenticated:false};
+ });
+ await check('assessment follow-up planner previews without writes and opens the queued job on its assessment',async()=>{
+  await page.evaluate(()=>{window.fixtureNavigations=[];window.renderAssessmentGapFixture();});
+  await page.getByRole('button',{name:'Queue experiment',exact:true}).waitFor();const before=await page.evaluate(()=>window.queueFixture.calls.length);
+  assert.equal(await page.getByTestId('experiment-queue-dashboard').count(),0);
+  await page.getByRole('button',{name:'Queue experiment',exact:true}).click();await page.getByRole('button',{name:'Job recorded',exact:true}).waitFor();
+  await page.waitForFunction(()=>window.fixtureNavigations?.length===1);const path=await page.evaluate(()=>window.fixtureNavigations[0]);
+  assert.equal(path,'/research-verification/assessment/'+ids.study+'?job='+ids.job+'#job-'+ids.job);assert.equal(await page.evaluate(()=>window.queueFixture.calls.length),before+3);
+  return {planner_embedded_in_assessment:true,preview_without_write:true,queued_job_identity_preserved:true,overview_list_not_mounted:true};
  });
  await check('older deployed API loads recorded queues without probing missing routes; unsupported launches explain the backend requirement',async()=>{
   const before=await page.evaluate(()=>window.queueFixture.reads());
@@ -189,14 +198,14 @@ try {
  const local=await browser.newContext({viewport:{width:1365,height:900}});const app=await local.newPage();app.setDefaultTimeout(20000);app.on('pageerror',e=>report.browser_errors.push(e.message));
  await check('local Next sidebar gap actions and exact sign-in return paths',async()=>{
   await app.goto('http://localhost:6001/research-verification/assessments');
-  const menu=app.locator('[data-slot="module-sidebar"]');assert.equal(await menu.getByRole('link',{name:'Experiment Queue',exact:true}).getAttribute('href'),'/research-verification/experiment-queue');
+  const menu=app.locator('[data-slot="module-sidebar"]');assert.equal(await menu.getByRole('link',{name:'Experiment Queue',exact:true}).count(),0);
   await app.getByRole('link',{name:'Read assessment',exact:true}).first().click();
   const gapLink=app.getByRole('link',{name:'Evidence gaps & next experiments',exact:true}).first();await gapLink.click();
   await app.getByRole('heading',{name:'Evidence gaps and next experiments',exact:true}).waitFor();
   const action=app.getByRole('button',{name:'Run experiment now',exact:true}).first();await action.waitFor();const studyPath=new URL(app.url()).pathname;await action.click();
-  await app.waitForURL('**/login?**');const pending=new URL(new URL(app.url()).searchParams.get('next'),'https://example.org');assert.equal(pending.pathname,'/research-verification/experiment-queue');assert.equal(pending.searchParams.get('sourceAssessment'),studyPath.split('/').at(-1));assert.ok(pending.searchParams.get('gap'));assert.ok(pending.searchParams.get('run'));
-  const target='/research-verification/experiment-queue';await app.goto('http://localhost:6001'+target);assert.equal(new URL(app.url()).searchParams.get('next'),target);
-  await app.setViewportSize({width:390,height:844});await app.goto('http://localhost:6001/research-verification');await app.getByRole('button',{name:'Open module menu',exact:true}).click();assert.ok(await app.getByRole('dialog').getByRole('link',{name:'Experiment Queue',exact:true}).isVisible());
+  await app.waitForURL('**/login?**');const pending=new URL(new URL(app.url()).searchParams.get('next'),'https://example.org');assert.equal(pending.pathname,'/research-verification/assessment/'+studyPath.split('/').at(-1));assert.ok(pending.searchParams.get('gap'));assert.ok(pending.searchParams.get('run'));
+  await app.goto('http://localhost:6001/research-verification/experiment-queue');assert.equal(new URL(app.url()).pathname,'/research-verification/assessments');assert.equal(new URL(app.url()).searchParams.get('mine'),'1');
+  await app.setViewportSize({width:390,height:844});await app.goto('http://localhost:6001/research-verification');await app.getByRole('button',{name:'Open module menu',exact:true}).click();assert.equal(await app.getByRole('dialog').getByRole('link',{name:'Experiment Queue',exact:true}).count(),0);
   return {sidebar:true,mobile_menu:true,gap_identity_preserved:true,actual_login:false};
  });
  await local.close();

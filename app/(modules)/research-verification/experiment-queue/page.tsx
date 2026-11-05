@@ -1,22 +1,20 @@
-import { ResearchHeader } from "@/app/components/research-workflow/header";
-import { ExperimentQueueDashboard } from "@/app/components/research-workflow/experiment-queue";
-import { PublicExperimentQueue } from "@/app/components/research-workflow/public-experiment-queue";
-import { requireGoogleUser } from "@/lib/auth";
+import { notFound, permanentRedirect } from "next/navigation";
 import { isResearchId } from "@/lib/research-experiment-queue";
-import { researchSearchSuffix } from "@/lib/research-pathways";
-import { RESEARCH_WORKFLOW_MODULE_PATH as PATH } from "@/lib/test-modules";
-import { permanentRedirect } from "next/navigation";
-import { assessmentQueueQuery } from "@/lib/research-pathways";
+import { assessmentQueueQuery, researchAssessmentPath, researchSearchSuffix } from "@/lib/research-pathways";
+import { ASSESSMENTS_PATH } from "@/lib/test-modules";
 
 export const dynamic = "force-dynamic";
-export default async function QueuePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const { query, changed, conflicting } = assessmentQueueQuery(await searchParams);
-  const invalid = conflicting || ["assessment", "job", "sourceAssessment", "gap", "run"].some(key => query[key] !== undefined && !isResearchId(query[key])) || Boolean(query.sourceAssessment) !== Boolean(query.gap) || Boolean(query.run && !query.sourceAssessment) || query.view !== undefined;
-  if (changed && !invalid) permanentRedirect(`${PATH}/experiment-queue${researchSearchSuffix(query)}`);
-  const sharedAssessment = !invalid && isResearchId(query.assessment) && !query.sourceAssessment;
-  if (!invalid && !sharedAssessment) await requireGoogleUser(`${PATH}/experiment-queue${researchSearchSuffix(query)}`);
-  return <main className="mx-auto max-w-6xl space-y-6 px-4 py-6">
-    <ResearchHeader title="Experiment Queue" description="Track paper preparation, claim checks and recorded experiments." showModuleLabel={false} />
-    {invalid ? <p role="alert" className="rounded-lg border p-4 text-sm text-destructive">This queue link contains an invalid assessment, gap or job identity. Open Experiment Queue from the sidebar to view your jobs.</p> : sharedAssessment ? <PublicExperimentQueue key={query.assessment as string} studyId={query.assessment as string} jobId={query.job as string | undefined} /> : <ExperimentQueueDashboard key={researchSearchSuffix(query)} studyId={query.assessment as string | undefined} jobId={query.job as string | undefined} sourceAssessment={query.sourceAssessment as string | undefined} gapId={query.gap as string | undefined} launchId={query.run as string | undefined} />}
-  </main>;
+
+// Saved queue URLs resolve to the assessment that now owns the queue.
+export default async function Page({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const { query, conflicting } = assessmentQueueQuery(await searchParams);
+  const invalid = conflicting || ["assessment", "job", "sourceAssessment", "gap", "run"].some(key => query[key] !== undefined && !isResearchId(query[key])) || Boolean(query.sourceAssessment) !== Boolean(query.gap) || Boolean(query.run && !query.gap) || Boolean(query.assessment && query.sourceAssessment) || query.view !== undefined;
+  if (invalid) notFound();
+  const { assessment, sourceAssessment, ...remaining } = query;
+  const id = assessment ?? sourceAssessment;
+  if (!id) {
+    if (query.job) notFound();
+    permanentRedirect(`${ASSESSMENTS_PATH}${researchSearchSuffix({ ...remaining, mine: "1" })}`);
+  }
+  permanentRedirect(`${researchAssessmentPath(id as string)}${researchSearchSuffix(remaining)}#${query.job ? `job-${query.job}` : "experiment-queue"}`);
 }

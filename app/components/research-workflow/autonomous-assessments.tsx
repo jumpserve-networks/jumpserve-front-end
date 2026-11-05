@@ -6,7 +6,7 @@ import { Badge } from "@/app/components/ui/badge";
 import { researchRequest } from "@/lib/research-workflow-api";
 import { validateTurnHistory, validateBuilderEvidence, type AutonomousOverview, type AutonomousTask, type AutonomousTurn, type BuilderCall } from "@/lib/research-autonomy";
 import type { PublicAutonomousOverview, PublicAutonomousTask } from "@/lib/research-public-queue";
-import { loadSharedTurnHistory, loadSharedBuilderEvidence, publicStatusReason, type SharedProjection } from "@/lib/research-public-queue";
+import { assessmentStatusReason, loadSharedTurnHistory, loadSharedBuilderEvidence, publicStatusReason, type SharedProjection } from "@/lib/research-public-queue";
 
 const words = (text: string) => text.replaceAll("-", " ");
 const time = (value: string) => <LocalDateTime value={value} />;
@@ -66,12 +66,11 @@ function TurnHistory({ task, readOnly = false }: { task: AutonomousTask | Public
     {before !== null ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void older()}>Show older turns</Button> : null}
   </div>;
 }
-function Claim({ task, maxAttempts, readOnly = false, embedded = false }: { task: AutonomousTask | PublicAutonomousTask; maxAttempts: number | null; readOnly?: boolean; embedded?: boolean }) {
+function Claim({ task, maxAttempts, readOnly = false }: { task: AutonomousTask | PublicAutonomousTask; maxAttempts: number | null; readOnly?: boolean }) {
   const [open, setOpen] = useState(false);
   const privateTask = !readOnly && "required_inputs" in task ? task : null;
-  const Heading = embedded ? "h5" : "h4";
   return <article className="space-y-2 rounded-md border p-4 text-sm" id={`claim-task-${task.id}`}>
-    <div className="flex flex-wrap items-start justify-between gap-3"><Heading className="min-w-0 break-words font-medium">{task.claim_title ?? "Paper preparation and claim inventory"}</Heading><Badge variant={task.status === "blocked" ? "destructive" : "secondary"} className="h-auto py-1">{words(task.status)}</Badge></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><h4 className="min-w-0 break-words font-medium">{task.claim_title ?? "Paper preparation and claim inventory"}</h4><Badge variant={task.status === "blocked" ? "destructive" : "secondary"} className="h-auto py-1">{words(task.status)}</Badge></div>
     <p>{task.claim_id === null ? "Paper preparation" : words(task.stage)} · {task.attempts}{maxAttempts === null ? " AI turns" : ` / ${maxAttempts} model attempts`}{task.label ? ` · finding: ${task.label}` : null}</p>
     {task.repair_progress ? <div className="space-y-1 rounded-md border border-primary/40 p-3" data-repair-state={task.repair_progress.state}>
       <p className="font-medium">{repairLabels[task.repair_progress.state]}</p>
@@ -99,16 +98,17 @@ export function AutonomousAssessments({ data, studyId, titles, stale = false, em
     {!embedded ? <><h2 className="text-lg font-semibold">Autonomous paper assessments</h2><AutonomousAssessmentStatus data={data} stale={stale} /></> : null}
     {!workflows.length ? <p className="text-sm text-muted-foreground">{embedded ? "Autonomous claim progress is not recorded for this assessment." : "No autonomous assessments in this view."}</p> : null}
     {workflows.map(w => {
+      const statusReason = assessmentStatusReason(w.reason);
       const tasks = data.tasks.filter(t => t.study_id === w.study_id), claims = tasks.filter(t => t.claim_id !== null);
       const intake = tasks.find(t => t.claim_id === null);
       return <Container key={w.study_id} className={embedded ? "space-y-4" : "space-y-4 rounded-lg border border-primary/40 p-5"}>
-        <div className="flex flex-wrap justify-between gap-3">{embedded ? <h4 className="font-semibold">Claim progress</h4> : <h3 className="font-semibold">{titles.get(w.study_id) ?? "Paper assessment"}</h3>}<Badge variant="secondary">{words(w.status)}</Badge></div>
+        <div className="flex flex-wrap justify-between gap-3">{embedded ? <h3 className="font-semibold">Claim progress</h3> : <h3 className="font-semibold">{titles.get(w.study_id) ?? "Paper assessment"}</h3>}<Badge variant="secondary">{words(w.status)}</Badge></div>
         <p className="text-sm">${(w.committed_cents / 100).toFixed(2)} committed{w.max_spend_cents === null ? " · Unlimited budget" : ` of $${(w.max_spend_cents / 100).toFixed(2)}`} · deadline {time(w.deadline_at)}{w.max_attempts !== null ? ` · ${w.max_attempts} attempts per claim` : null}</p>
         <p className="text-xs text-muted-foreground">Commitments are reservations; actual charges may be unavailable.</p>
-        <p className="whitespace-pre-wrap break-words text-sm">{w.reason}</p>
+        {statusReason ? <p className="whitespace-pre-wrap break-words text-sm">{statusReason}</p> : null}
         <p className="text-sm">{claims.length} recorded candidate claims · {claims.filter(t => t.status === "resolved").length} resolved under tested conditions · {claims.filter(t => ["blocked", "attempt-limit", "budget", "deadline", "cancelled"].includes(t.status)).length} paused or stopped. {intake?.status !== "finished" ? "Claim inventory coverage is still incomplete." : "Inventory scope and omissions remain in the preparation record."}</p>
         {!readOnly && "initial_prompt" in w && typeof w.initial_prompt === "string" && "initial_sha256" in w && typeof w.initial_sha256 === "string" ? <details className="text-sm"><summary className="cursor-pointer">Initial paper prompt</summary><pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-all bg-muted p-3 text-xs">{w.initial_prompt}</pre><p className="mt-2 break-all text-xs">SHA256 {w.initial_sha256}</p></details> : null}
-        <div className="space-y-3">{tasks.map(task => <Claim key={task.id} task={task} maxAttempts={w.max_attempts} readOnly={readOnly} embedded={embedded} />)}</div>
+        <div className="space-y-3">{tasks.map(task => <Claim key={task.id} task={task} maxAttempts={w.max_attempts} readOnly={readOnly} />)}</div>
       </Container>;
     })}
   </section>;

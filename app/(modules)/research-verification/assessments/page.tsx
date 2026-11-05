@@ -6,5 +6,5 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ b
   const { before, mine, name, view } = await searchParams;
   const cursor = Array.isArray(before) ? "invalid" : before;
   const filter = typeof name === "string" ? name.trim() : "";
-  return <Assessments key={`${mine === "1" ? "mine" : "all"}:${cursor ?? "newest"}:${filter}`} before={cursor} mine={mine === "1"} name={filter} view={view === "table" ? "table" : "card"} />;
+  return <Assessments key={`${mine === "1" ? "mine" : "all"}:${cursor ?? "newest"}:${filter}`} before={cursor} mine={mine === "1"} name={filter} view={view === "card" ? "card" : "table"} />;
 }

@@ -4,10 +4,10 @@ import { loadMyPaperCatalog, loadPaperCatalog, loadPaperMetadata, validPaperAuth
 export type AssessmentView = "card" | "table";
 export type AssessmentListOptions = { before?: string; mine?: boolean; name?: string; view?: AssessmentView };
 
-export function assessmentListPath({ before, mine = false, name = "", view = "card" }: AssessmentListOptions = {}) {
+export function assessmentListPath({ before, mine = false, name = "", view = "table" }: AssessmentListOptions = {}) {
   const query = new URLSearchParams();
   if (mine) query.set("mine", "1");
-  if (view === "table") query.set("view", "table");
+  if (view === "card") query.set("view", "card");
   if (name.trim()) query.set("name", name.trim());
   if (before) query.set("before", before);
   return `${ASSESSMENTS_PATH}${query.size ? `?${query}` : ""}`;

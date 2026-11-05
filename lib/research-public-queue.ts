@@ -103,6 +103,10 @@ export function publicStatusReason(reason: string) {
     : reason;
 }
 
+export function assessmentStatusReason(reason: string | null | undefined) {
+  return reason === "Owner confirmed paper information; selected claims are ready for assessment." ? null : reason;
+}
+
 /** Fixed read-only transport; exported readers construct and validate every path. */
 async function sharedRead(path: string, signal?: AbortSignal, fetcher: typeof fetch = fetch): Promise<unknown> {
   const base = researchApiBase(process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL ?? process.env.NEXT_PUBLIC_BENCHMARK_API_URL);
