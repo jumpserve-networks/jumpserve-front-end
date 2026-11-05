@@ -12,5 +12,5 @@ export default async function Evidence({ params, searchParams }: { params: Promi
   if (!/^[a-f0-9-]{36}$/i.test(studyId)) notFound();
   const view = studyView(query.view);
   await requireGoogleUser(`${PATH}/workspace/${studyId}${query.view ? `?view=${view}` : ""}`);
-  return <main className="mx-auto max-w-6xl space-y-6 px-4 py-6"><ResearchHeader kind="idea" title="Experiment evidence workspace" description="Preserve your idea’s protocols, measurements, claim assessments and evidence gaps. Planning and AI reviews remain separate from experimental evidence." /><StudyWorkspace key={studyId} studyId={studyId} view={view} kind="idea" /></main>;
+  return <main className="mx-auto max-w-6xl space-y-6 px-4 py-6"><ResearchHeader kind="idea" title="Experiment evidence workspace" /><StudyWorkspace key={studyId} studyId={studyId} view={view} kind="idea" /></main>;
 }

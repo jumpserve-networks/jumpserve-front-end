@@ -188,7 +188,7 @@ try {
  if(!componentsOnly){
  const local=await browser.newContext({viewport:{width:1365,height:900}});const app=await local.newPage();app.setDefaultTimeout(20000);app.on('pageerror',e=>report.browser_errors.push(e.message));
  await check('local Next sidebar gap actions and exact sign-in return paths',async()=>{
-  await app.goto('http://localhost:6001/research-verification/previous-assessments');
+  await app.goto('http://localhost:6001/research-verification/assessments');
   const menu=app.locator('[data-slot="module-sidebar"]');assert.equal(await menu.getByRole('link',{name:'Experiment Queue',exact:true}).getAttribute('href'),'/research-verification/experiment-queue');
   await app.getByRole('link',{name:'Read assessment',exact:true}).first().click();
   const gapLink=app.getByRole('link',{name:'Evidence gaps & next experiments',exact:true}).first();await gapLink.click();

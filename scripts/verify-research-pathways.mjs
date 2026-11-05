@@ -125,7 +125,7 @@ try {
       const menuColors = await pathwayColors(page, testModule.base, theme, width < 1024);
       const links = await navigation.locator("a").evaluateAll(elements => elements.map(element => element.getAttribute("href")));
       assert.ok(links.length >= 4 && links.every(href => href === testModule.base || href.startsWith(testModule.base + "/")));
-      if (testModule.base === paper) assert.deepEqual(await navigation.locator("a").allTextContents(), ["Overview", "Assess a Paper", "Previous Assessments", "My Assessments", "Experiment Queue", "Verification Methods"]);
+      if (testModule.base === paper) assert.deepEqual(await navigation.locator("a").allTextContents(), ["Overview", "Assess a Paper", "Assessments", "Experiment Queue", "Verification Methods"]);
       assert.equal(await navigation.locator('[aria-current="page"]').getAttribute("href"), testModule.base);
       assert.equal(await menu.getByRole("combobox", { name: "Theme", exact: true }).count(), 0);
       await navigation.getByRole("link", { name: testModule.methods, exact: true }).click();

@@ -4,10 +4,11 @@ import { EMULATED_MODULE_PATH, REAL_WORLD_MODULE_PATH, isModuleSectionActive, ty
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { ChartNoAxesCombined, FileChartColumn, FlaskConical, Globe2, LayoutDashboard, Menu, MessageSquare, Search, type LucideIcon } from "lucide-react";
+import { ChartNoAxesCombined, FileChartColumn, FlaskConical, Globe2, LayoutDashboard, Menu, MessageSquare, Search, Wrench, type LucideIcon } from "lucide-react";
 import { Button, buttonVariants } from "@/app/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/app/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { PLATFORM_UPDATES_PATH } from "@/lib/platform-updates";
 
 const sectionIcons: Record<string, LucideIcon> = {
   [`${EMULATED_MODULE_PATH}/test-lookup`]: Search,
@@ -19,25 +20,28 @@ const sectionIcons: Record<string, LucideIcon> = {
   [`${REAL_WORLD_MODULE_PATH}/chat`]: MessageSquare,
 };
 
-type NavigationProps = { testModule: TestModule; pathname: string; onNavigate?: () => void };
+type NavigationProps = { testModule?: TestModule; pathname: string; onNavigate?: () => void };
 const subscribeToHydration = () => () => {};
 const getHydratedSnapshot = () => true;
 const getServerHydratedSnapshot = () => false;
 
 export function ModuleNavigation({ testModule, pathname, onNavigate }: NavigationProps) {
+  const name = testModule?.name ?? "JumpServe";
+  const overview = testModule?.href ?? "/";
   const links = [
-    { href: testModule.href, label: "Overview", active: pathname === testModule.href, Icon: LayoutDashboard },
-    ...testModule.sections.map((section) => ({ ...section, active: isModuleSectionActive(section, pathname), Icon: sectionIcons[section.href] ?? LayoutDashboard })),
+    { href: overview, label: "Overview", active: pathname === overview, Icon: LayoutDashboard },
+    ...(testModule?.sections ?? []).map((section) => ({ ...section, active: isModuleSectionActive(section, pathname), Icon: sectionIcons[section.href] ?? LayoutDashboard })),
+    { href: PLATFORM_UPDATES_PATH, label: "Platform Updates", active: pathname === PLATFORM_UPDATES_PATH || pathname.startsWith(`${PLATFORM_UPDATES_PATH}/`), Icon: Wrench },
   ];
 
   return <div className="flex min-h-full flex-col gap-6 p-4">
     <div className="px-2 pt-2">
-      {testModule.id !== "research-verification" ? <p className="text-xs text-muted-foreground">Test module</p> : null}
-      <p className="mt-2 text-sm font-semibold leading-6">{testModule.name}</p>
+      {testModule && testModule.id !== "research-verification" ? <p className="text-xs text-muted-foreground">Test module</p> : null}
+      <p className="mt-2 text-sm font-semibold leading-6">{name}</p>
     </div>
-    <nav aria-label={`${testModule.name} navigation`}>
+    <nav aria-label={`${name} navigation`}>
       <ul className="space-y-1">
-        {links.map(({ href, label, active, Icon }) => <li key={href}>
+        {links.map(({ href, label, active, Icon }) => <li key={href} className={href === PLATFORM_UPDATES_PATH ? "mt-4 border-t border-sidebar-border pt-4" : undefined}>
           <Link href={href} onNavigate={onNavigate} aria-current={active ? "page" : undefined}
             className={cn(buttonVariants({ variant: "ghost" }), "h-auto min-h-10 w-full justify-start gap-3 whitespace-normal px-3 py-2 text-sm",
               active ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground hover:bg-sidebar-accent dark:shadow-[inset_2px_0_0_var(--info)]" : "text-muted-foreground hover:text-sidebar-foreground")}>
@@ -61,13 +65,13 @@ export function MobileModuleNavigation({ testModule, pathname }: NavigationProps
   }, []);
 
   return <Sheet open={open} onOpenChange={setOpen}>
-    <SheetTrigger disabled={!hydrated} render={<Button type="button" variant="outline" size="icon-sm" className="lg:hidden" aria-label="Open module menu" />}>
+    <SheetTrigger disabled={!hydrated} render={<Button type="button" variant="outline" size="icon-sm" className="lg:hidden" aria-label={testModule ? "Open module menu" : "Open navigation menu"} />}>
       <Menu aria-hidden="true" />
     </SheetTrigger>
     <SheetContent side="left" className="max-w-[calc(100%-3rem)] gap-0 overflow-y-auto bg-sidebar text-sidebar-foreground data-[side=left]:w-72">
       <SheetHeader className="sr-only">
-        <SheetTitle>{testModule.name}</SheetTitle>
-        <SheetDescription>Navigate between this module’s sections.</SheetDescription>
+        <SheetTitle>{testModule?.name ?? "JumpServe"}</SheetTitle>
+        <SheetDescription>{testModule ? "Navigate between this module’s sections and platform updates." : "Navigate JumpServe."}</SheetDescription>
       </SheetHeader>
       <ModuleNavigation testModule={testModule} pathname={pathname} onNavigate={() => setOpen(false)} />
     </SheetContent>

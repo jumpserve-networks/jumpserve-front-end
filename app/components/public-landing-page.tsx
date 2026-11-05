@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/app/components/ui/card";
 import { getSafeNextPath } from "@/lib/auth-redirect";
-import { getTestModuleForPath, NEW_ASSESSMENT_PATH, PREVIOUS_ASSESSMENTS_PATH, RESEARCH_IDEAS_MODULE_PATH } from "@/lib/test-modules";
+import { getTestModuleForPath, NEW_ASSESSMENT_PATH, ASSESSMENTS_PATH, RESEARCH_IDEAS_MODULE_PATH } from "@/lib/test-modules";
 import { cn } from "@/lib/utils";
 
 const PATHWAYS = [
@@ -14,7 +14,7 @@ const PATHWAYS = [
     description: "Start with an academic paper. Identify its claims, plan checks and compare the results with the published evidence.",
     href: NEW_ASSESSMENT_PATH,
     action: "Start verification",
-    previousHref: PREVIOUS_ASSESSMENTS_PATH,
+    assessmentsHref: ASSESSMENTS_PATH,
   },
   {
     title: "Develop a New Idea",
@@ -69,12 +69,12 @@ export function PublicLandingPage({ nextPath }: { nextPath?: string } = {}) {
                 <p className="text-sm leading-6 text-muted-foreground">{pathway.description}</p>
               </CardContent>
               <CardFooter className="flex-wrap gap-x-4 gap-y-3">
-                <Button size="lg" className={cn("group/action h-12 text-base duration-200 active:scale-[0.98]", pathway.buttonAccent, !pathway.previousHref && "w-full sm:w-auto")} nativeButton={false} render={<Link href={pathway.href} />}>
+                <Button size="lg" className={cn("group/action h-12 text-base duration-200 active:scale-[0.98]", pathway.buttonAccent, !pathway.assessmentsHref && "w-full sm:w-auto")} nativeButton={false} render={<Link href={pathway.href} />}>
                   {pathway.action}<ArrowRight aria-hidden="true" className="transition-transform duration-200 group-hover/action:translate-x-1 group-focus-visible/action:translate-x-1" />
                 </Button>
-                {pathway.previousHref ? (
-                  <Link href={pathway.previousHref} className="text-sm font-medium whitespace-nowrap text-home-paper underline underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-home-paper dark:text-muted-foreground">
-                    View previous
+                {pathway.assessmentsHref ? (
+                  <Link href={pathway.assessmentsHref} className="text-sm font-medium whitespace-nowrap text-home-paper underline underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-home-paper dark:text-muted-foreground">
+                    View assessments
                   </Link>
                 ) : null}
               </CardFooter>

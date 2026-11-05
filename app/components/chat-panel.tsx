@@ -446,7 +446,7 @@ export function ChatPanel({
             <div className="flex h-full items-center justify-center">
               <div className="text-center">
                 <p className="text-lg font-medium text-muted-foreground">
-                  {ipv6Study ? "Discuss archived IPv6 DNS percentages, matched configurations, source coverage and limits." : reliableStudy ? "Ask about ReliableSketch evidence" : http2Study ? "Ask about HTTP/2 evidence" : leoStudy ? "Ask about the LEO failover study" : realWorld ? "Ask about real-world test results" : "Ask me anything about your benchmarks"}
+                  {ipv6Study ? "Ask about IPv6 DNS evidence" : reliableStudy ? "Ask about ReliableSketch evidence" : http2Study ? "Ask about HTTP/2 evidence" : leoStudy ? "Ask about the LEO failover study" : realWorld ? "Ask about real-world test results" : "Ask me anything about your benchmarks"}
                 </p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
                   {(ipv6Study ? [

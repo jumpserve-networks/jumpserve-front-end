@@ -125,7 +125,7 @@ export function RealWorldReports() {
       </div>
     </CardContent></Card>
     <Card><CardHeader><CardTitle>Compare recorded configurations</CardTitle></CardHeader><CardContent className="space-y-4">
-      <p className="text-sm text-muted-foreground">Select up to {MAX_REPORT_SELECTION} tests. The analysis separates configurations, reports replication counts, and withholds confidence intervals when repetitions are insufficient.</p>
+      <p className="text-sm text-muted-foreground">Up to {MAX_REPORT_SELECTION} tests per comparison.</p>
       <div className="grid gap-4 sm:grid-cols-3">
         <Choice label="Baseline algorithm" value={baseline} onChange={value => query({ baseline: value })} items={REAL_WORLD_CCAS.map(value => ({ value, label: value.toUpperCase() }))} />
         <Choice label="Comparison algorithm" value={comparison} onChange={value => query({ comparison: value })} items={REAL_WORLD_CCAS.map(value => ({ value, label: value.toUpperCase() }))} />
@@ -137,7 +137,7 @@ export function RealWorldReports() {
       {building && <p role="status" className="text-sm text-muted-foreground">Checking saved measurements and provenance: {displayNumber(progress, 0)} tests read.</p>}
       {analysis && !active && <p className="text-sm text-muted-foreground">The selection changed. Build the comparison again to use these tests.</p>}
     </CardContent></Card>
-    {active && active.errors.length > 0 && <Card><CardHeader><CardTitle>Some selected test results could not be read</CardTitle></CardHeader><CardContent><p className="mb-3 text-sm">Retry the comparison before interpreting results; unread test results have not been silently excluded.</p><ul role="alert" className="list-disc space-y-1 pl-5 text-sm text-destructive">{active.errors.map(e => <li key={e}>{e}</li>)}</ul></CardContent></Card>}
+    {active && active.errors.length > 0 && <Card><CardHeader><CardTitle>Some selected test results could not be read</CardTitle></CardHeader><CardContent><p className="mb-3 text-sm">Comparison incomplete: some results could not be loaded.</p><ul role="alert" className="list-disc space-y-1 pl-5 text-sm text-destructive">{active.errors.map(e => <li key={e}>{e}</li>)}</ul></CardContent></Card>}
     {active && !active.errors.length && <RealWorldReportComparison reports={active.reports} baseline={baseline} comparison={comparison} metric={metric} />}
   </div>;
 }

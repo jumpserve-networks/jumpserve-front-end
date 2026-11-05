@@ -132,7 +132,7 @@ regressions, not live scientific experiments or a production release.
 
 ## Paper authors
 
-My Assessments and Previous Assessments show authors beneath the paper title,
+Both filters in Assessments show authors beneath the paper title,
 preserving source order. Authors are bibliographic metadata, never inferred from
 the uploader's Google account. Preparation stores a `paper-authors-v1` record
 with names, first-page location and derivation method inside the existing private
@@ -167,7 +167,7 @@ frontend/backend pair has not been deployed or validated on a live assessment.
 
 ## Assessment initiators
 
-Previous Assessments adds **Initiated by** from the immutable `intake` audit
+Assessments adds **Initiated by** from the immutable `intake` audit
 record's actor and that account's current first/last name in `profiles`. This
 identifies the assessment initiator separately from paper authors and the
 current viewer. It is a current display name, not a reconstructed historical

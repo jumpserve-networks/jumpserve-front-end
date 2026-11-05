@@ -9,9 +9,9 @@ const {GET}=await import('../app/auth/callback/route.ts');
 hook.deregister();
 const user={id:'11111111-1111-4111-8111-111111111111',app_metadata:{provider:'google'},user_metadata:{sub:'google-fixture-subject',full_name:'Fixture Person'}};
 function client({profile=null,profileError=null,exchangeError=null}={}){
- const writes=[];
- const builder={select(){return builder;},eq(){return builder;},async maybeSingle(){return{data:profile,error:profileError};},async upsert(value,options){writes.push({value,options});return{error:null};}};
- return{writes,auth:{async exchangeCodeForSession(code){assert.equal(code,'explicit-fixture-code');return{data:{user,session:{provider_token:'explicit-fixture-provider-token'}},error:exchangeError};}},from(table){assert.equal(table,'profiles');return builder;}};
+ const writes=[],updates=[];let updating=null;
+ const builder={select(){return builder;},eq(key,value){if(updating)updating.filters.push([key,value]);return builder;},async maybeSingle(){return{data:profile,error:profileError};},async upsert(value,options){writes.push({value,options});return{error:null};},update(value){updating={value,filters:[]};updates.push(updating);return builder;},then(resolve,reject){return Promise.resolve({error:null}).then(resolve,reject);}};
+ return{writes,updates,auth:{async exchangeCodeForSession(code){assert.equal(code,'explicit-fixture-code');return{data:{user,session:{provider_token:'explicit-fixture-provider-token'}},error:exchangeError};}},from(table){assert.equal(table,'profiles');return builder;}};
 }
 const request=()=>new Request('http://localhost:6001/auth/callback?code=explicit-fixture-code&next='+encodeURIComponent('/research-verification/new-assessment?resume=1'));
 
@@ -32,6 +32,16 @@ test('a profile outage preserves successful sign-in and logs no provider token o
  const response=await GET(request());
  assert.equal(new URL(response.headers.get('location')).pathname,'/research-verification/new-assessment');
  assert.deepEqual(warn.mock.calls.map(c=>c.arguments),[['Google profile initialization unavailable after sign-in.']]);
+});
+
+test('Google callback backfills existing blank names with verified UserInfo and preserves the timezone',async t=>{
+ const c=client({profile:{id:user.id,first_name:'',last_name:'',timezone:'Asia/Tokyo'}});globalThis[key]=c;
+ t.mock.method(globalThis,'fetch',async()=>Response.json({sub:'google-fixture-subject',given_name:'María José',family_name:'de la Cruz'}));
+ const response=await GET(request());assert.equal(new URL(response.headers.get('location')).pathname,'/research-verification/new-assessment');
+ assert.deepEqual(c.writes,[]);assert.deepEqual(c.updates,[
+  {value:{first_name:'María José'},filters:[['id',user.id],['first_name','']]},
+  {value:{last_name:'de la Cruz'},filters:[['id',user.id],['last_name','']]},
+ ]);
 });
 
 test('a failed code exchange never initializes a profile',async()=>{

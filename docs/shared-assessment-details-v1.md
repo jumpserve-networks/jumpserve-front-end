@@ -7,6 +7,31 @@ values. This amendment replaces the earlier owner-only prompt/history view.
 The queue index remains the authenticated user's personal listing; previous
 assessments provide the public paper inventory. Research ideas are unaffected.
 
+The inventory at `/research-verification/assessments` defaults to Card view;
+`view=table` shows the same records with assessment/authors, status, initiator
+and submission date. Both cards and table rows open the singular
+`/research-verification/assessment/<id>` overview. `name` filters recorded titles,
+authors and initiator display names, ignoring case, accents and repeated spaces.
+It searches successive catalogue pages rather than only the displayed page.
+`mine=1` retains the existing authenticated owner membership checks. View/name
+choices survive pagination and scope changes; changing the name or scope resets
+the cursor. These query parameters are shareable and survive reload/back.
+
+Filtered pages retain ten matches and use the last displayed match as their
+keyset boundary; lookahead cannot skip matches on the same underlying page.
+Missing bibliography uses the existing bounded metadata endpoint with two
+concurrent reads. Filtering is bounded to 100 catalogue pages and 30 seconds;
+failed or incomplete reads show an error, never an incomplete "no matches" result.
+This adds no database grants, model calls, assessment changes or write endpoints.
+
+The assessment overview shows **Choose central claims and testable findings**
+when the saved paper preparation status is `ready`. It opens the existing
+`/research-verification/new-assessment/<id>` review for that assessment. Preparing,
+failed, confirmed and unknown preparation states do not show this action; polling
+removes it once scope is confirmed. The destination retains Google sign-in and
+owner checks, and sign-in preserves the exact review URL. The link does not
+select claims, confirm scope or start experiments automatically.
+
 Signed-out readers can inspect task prompts, responses, evidence, usage and failed
 calls through **View prompts and responses**. **View assessment records** exposes
 the initial paper request, task context, sources, protocols, configurations,

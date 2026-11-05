@@ -354,7 +354,7 @@ const AGGREGATE_GRAPH_VIEWS: Array<{
     label: "Box Plot",
     title: "FCT Distribution by Delay",
     subtitle:
-      "Inspect one configuration at a time, with repetition counts and median confidence intervals.",
+      "Per-configuration distributions and median confidence intervals.",
   },
   {
     id: "ecdf",
@@ -390,7 +390,7 @@ const EXPLORER_MODES: Array<{
     label: "Explore",
     title: "Filtered Run Explorer",
     subtitle:
-      "Use filters to narrow the visible parent runs, then switch chart views.",
+      "Parent runs matching the current filters.",
   },
   {
     id: "compare",
@@ -404,7 +404,7 @@ const EXPLORER_MODES: Array<{
     label: "Facet Grid",
     title: "Workload x Queue",
     subtitle:
-      "Scan compact FCT patterns by workload rows and queue-size columns.",
+      "FCT by workload and queue size.",
   },
 ];
 
@@ -2955,7 +2955,7 @@ function BoxPlot({ points, series }: { points: AggregateDelayGraphPoint[]; serie
   const min = Math.min(...counts), max = Math.max(...counts);
   const label = (group: typeof selected) => `Client ${group.clientNumber} · ${group.configuration.clients.map(c => c.cca).join(" / ")} · ${configurationLabel(group.configuration, group.clientNumber)}`;
   return <div className="min-w-0 space-y-4">
-    <p className="text-sm leading-6 text-muted-foreground">Each view holds the recorded workload, competing clients, link, queue, and launch settings fixed while varying one client’s delay. Select a configuration to inspect its sweep. Boxes describe FCT spread; their widths do not encode sample size.</p>
+    <p className="text-sm leading-6 text-muted-foreground">Matched workload, clients, link, queue and launch settings; only client delay varies. Box widths do not encode sample size.</p>
     <FilterDropdown label="Sweep configuration" summary={label(selected)}>
       {groups.map(group => <Button key={group.key} variant="ghost" aria-pressed={group.key === selected.key} onClick={() => setSelectedKey(group.key)} className="h-auto w-full justify-start whitespace-normal text-left">{label(group)}</Button>)}
     </FilterDropdown>
@@ -5046,10 +5046,7 @@ export function AggregateGraphsPanel({
                 >
                   Select Available Tests
                 </DialogTitle>
-                <DialogDescription className="mt-2 text-sm text-muted-foreground">
-                  Choose prepared test groups, then inspect or adjust the matched
-                  parent runs.
-                </DialogDescription>
+                <DialogDescription className="sr-only">Available test groups and parent runs.</DialogDescription>
               </div>
               <Button
                 variant="ghost"

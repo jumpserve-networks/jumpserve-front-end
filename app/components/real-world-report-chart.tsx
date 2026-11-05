@@ -46,7 +46,7 @@ export function RealWorldReportChart({ title, unit, clock, description, series, 
       {!points.length ? <p className="flex h-48 items-center justify-center text-sm text-muted-foreground">No recorded samples for the selected series.</p> : <>
         <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-labelledby={`${id}-title ${id}-description`} className="block w-full overflow-visible"
           onPointerMove={event => { const rect = event.currentTarget.getBoundingClientRect(); const position = (event.clientX - rect.left) / rect.width * WIDTH; setCursor(Math.round(Math.max(0, Math.min(1, (position - LEFT) / (WIDTH - LEFT - RIGHT))) * 1000)); }}>
-          <title id={`${id}-title`}>{title} ({unit})</title><desc id={`${id}-description`}>{description} Horizontal axis: {clock}. Values can be inspected with the time slider or downloaded as CSV.</desc>
+          <title id={`${id}-title`}>{title} ({unit})</title><desc id={`${id}-description`}>{description} Horizontal axis: {clock}.</desc>
           {Array.from({ length: 5 }, (_, i) => <g key={i}>
             <line x1={LEFT} x2={WIDTH - RIGHT} y1={y(maxY * i / 4)} y2={y(maxY * i / 4)} stroke="var(--border)" />
             <text x={LEFT - 9} y={y(maxY * i / 4) + 4} textAnchor="end" fill="var(--muted-foreground)" fontSize="11">{displayNumber(maxY * i / 4, maxY < 2 ? 2 : 1)}</text>

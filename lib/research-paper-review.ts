@@ -2,6 +2,13 @@ import { PAPER_REVIEW_VERSION } from "./research-paper-upload";
 import { isAssessmentBudgetCents, validAssessmentBudgetPolicy, type AssessmentBudgetPolicy } from "./research-autonomy";
 
 export const PAPER_SELECTION_VERSION = "paper-review-selection-v1";
+export const PAPER_AUTHORS_VERSION = "paper-review-authors-v1";
+const validAuthors = (value: unknown): value is string[] => Array.isArray(value) && value.length <= 100 && value.every(name => typeof name === "string" && name.trim().length > 0 && [...name].length <= 200 && !/[\p{Cc}<>@]|https?:\/\/|www\.|\.pdf\b/iu.test(name));
+export function parseReviewAuthors(text: string): string[] {
+  const names = text.split(/\r?\n/).map(name => name.trim()).filter(Boolean);
+  if (!validAuthors(names)) throw new Error("Use up to 100 author names, one per line, with at most 200 characters each. Names cannot contain contact details or URLs.");
+  return names;
+}
 export type ReviewGroup = "central_claims" | "testable_findings";
 export type ReviewSelection = Record<ReviewGroup, string[]>;
 export type ReviewOrganization = { version: typeof PAPER_SELECTION_VERSION; status: "unorganized" | "preparing" | "ready"; central_claims: { claim_id: string; label: string }[]; testable_findings: { claim_id: string; label: string }[]; candidate_count: number; cursor: number; rationale?: string };
@@ -9,15 +16,17 @@ export type ReviewOrganization = { version: typeof PAPER_SELECTION_VERSION; stat
 export type PaperReview = {
   version: string; id: string; status: "preparing" | "ready" | "failed" | "confirmed"; revision: number;
   title: string | null; domain: string | null; reason: string | null; progress: string; can_start: boolean;
+  authors?: string[] | null; authors_version?: typeof PAPER_AUTHORS_VERSION;
   claims: { id: string; description: string; claim_type: string; location: string; source_id: string }[];
   coverage: Record<string, unknown>;
   organization?: ReviewOrganization;
-  confirmation: { title: string; domain: string; claim_ids: string[]; selection?: ReviewSelection } | null;
+  confirmation: { title: string; domain: string; authors?: string[] | null; claim_ids: string[]; selection?: ReviewSelection } | null;
   limits: { max_spend_cents: number | null; committed_cents: number; deadline_at: string; budget_policy?: AssessmentBudgetPolicy };
 };
 export function validatePaperReview(value: PaperReview, id: string) {
   if (!value || value.version !== PAPER_REVIEW_VERSION || value.id !== id || !["preparing", "ready", "failed", "confirmed"].includes(value.status) || !Number.isSafeInteger(value.revision) || value.revision < 1 || typeof value.can_start !== "boolean" || !Array.isArray(value.claims) || value.claims.length > 200 || new Set(value.claims.map(c => c.id)).size !== value.claims.length || !value.claims.every(c => typeof c.id === "string" && typeof c.description === "string" && typeof c.location === "string" && typeof c.claim_type === "string") || ![value.title, value.domain, value.reason].every(v => v === null || typeof v === "string") || value.limits?.budget_policy !== undefined && !validAssessmentBudgetPolicy(value.limits.budget_policy) || !isAssessmentBudgetCents(value.limits?.max_spend_cents,value.limits?.budget_policy) || !Number.isFinite(Date.parse(value.limits.deadline_at))) throw new Error("Paper review identity or coverage could not be verified. Reload before confirming.");
   if (typeof value.progress !== "string" || !Number.isSafeInteger(value.limits.committed_cents) || value.limits.committed_cents < 0 || value.limits.committed_cents > (validAssessmentBudgetPolicy(value.limits.budget_policy) ? 2147483647 : value.limits.max_spend_cents ?? 2147483647) || value.status === "confirmed" && (!value.confirmation || typeof value.confirmation.title !== "string" || typeof value.confirmation.domain !== "string" || !Array.isArray(value.confirmation.claim_ids) || !value.confirmation.claim_ids.every(c => value.claims.some(claim => claim.id === c))) || value.can_start && value.status !== "ready") throw new Error("Paper review status or authorization could not be verified. Reload before confirming.");
+  if (value.authors_version !== undefined && (value.authors_version !== PAPER_AUTHORS_VERSION || value.authors === undefined) || value.authors != null && !validAuthors(value.authors) || value.confirmation?.authors != null && !validAuthors(value.confirmation.authors)) throw new Error("Paper author information could not be verified.");
   if (value.organization !== undefined) {
     const o = value.organization;
     if (!o || o.version !== PAPER_SELECTION_VERSION || !["unorganized", "preparing", "ready"].includes(o.status) || o.candidate_count !== value.claims.length || !Number.isSafeInteger(o.cursor) || o.cursor < 0 || o.cursor > o.candidate_count || o.status === "ready" && o.cursor !== o.candidate_count) throw new Error("Review group coverage could not be verified.");
@@ -51,9 +60,4 @@ export function reviewRoles(review: PaperReview): Record<string, ReviewGroup> {
     for (const id of review.confirmation?.selection?.[group] ?? []) roles[id] = group;
   }
   return roles;
-}
-
-export function paperReviewBudgetTerms(limits: PaperReview["limits"]): string {
-  const funding = limits.max_spend_cents === null ? "No aggregate spending cap applies to this assessment." : `This assessment has a ${new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(limits.max_spend_cents / 100)} aggregate spending cap.`;
-  return `Preparation and assessment share the recorded deadline. ${funding}`;
 }

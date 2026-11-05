@@ -23,7 +23,7 @@ const report = { protocol: 'paper-background-upload-development-v1', started_at:
 let browser, bundle, css = '', origin, failureMode = false, legacyStatusMode = false;
 const queueFailures = new Set();
 const pdf = name => ({ name, mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\nExplicit browser software fixture.\n%%EOF') });
-function review(row) { return { version: 'research-paper-review-v1', id: row.id, status: row.paper_review_status,
+function review(row) { return { version: 'research-paper-review-v1', authors_version:'paper-review-authors-v1', authors:row.confirmation?.authors ?? ['Extracted Author'], id: row.id, status: row.paper_review_status,
   revision: 1, title: row.title, domain: 'Software verification', progress: 'Explicit fixture extraction', reason: null,
   can_start: row.paper_review_status === 'ready', claims: [{ id: claim, description: 'Explicit fixture: latency is 10 ms.', claim_type: 'numerical', location: 'PDF page 1', source_id: source }],
   organization: { version: 'paper-review-selection-v1', status: 'ready', central_claims: [], testable_findings: [{ claim_id: claim, label: 'Latency under fixed conditions' }], candidate_count: 1, cursor: 1 },
@@ -67,7 +67,11 @@ const server = createServer(async (req, res) => {
         tasks, coverage: { workflows: summary ? 1 : 0, tasks: tasks.length },
       } });
     }
-    if (url.pathname === '/research/papers') return json({version:'research-paper-catalog-v1',access:'public-read-only',papers:[...records.values()].filter(r=>r.paper_review_status).slice(0,10).map(r=>({id:r.id,title:r.title,authors:r.authors??null,created_at:'2026-10-25T18:00:00Z',workflow_status:r.assessment_status?.status??null,published:false})),coverage:{papers:[...records.values()].filter(r=>r.paper_review_status).length},next_cursor:null});
+    if (url.pathname === '/research/papers') {
+      const mine=url.searchParams.get('mine')==='1';if(mine&&!owner)return json({error:'Sign in to view your assessments.'},401);
+      const papers=[...records.values()].filter(r=>r.paper_review_status&&(!mine||r.owner===owner)).slice(0,10).map(r=>({id:r.id,title:r.title,authors:r.authors??null,created_at:'2026-10-25T18:00:00Z',workflow_status:r.assessment_status?.status??null,published:false}));
+      return json({version:'research-paper-catalog-v1',access:mine?'owner-read-only':'public-read-only',papers,coverage:{papers:papers.length},next_cursor:null});
+    }
     if (/^\/research\/papers\/[a-f0-9-]+\/title$/.test(url.pathname)) {
       const row=records.get(url.pathname.split('/')[3]);
       return row?json({version:'research-paper-catalog-v1',access:'public-read-only',id:row.id,title:row.title,authors:row.authors??null}):json({error:'Paper not found'},404);
@@ -83,7 +87,7 @@ const server = createServer(async (req, res) => {
       if (body.action === 'prepare') { assert.ok(row.bytes_verified); row.paper_review_status ??= 'preparing'; return json({ id, review_version: 'research-paper-review-v1', status: row.paper_review_status }); }
       if (body.action === 'review') return json(review(row));
       if (body.action === 'confirm') {
-        assert.equal(row.paper_review_status, 'ready'); assert.deepEqual(body.selection, { central_claims: [], testable_findings: [claim] }); row.paper_review_status = 'confirmed'; row.confirmation = { title: body.title, domain: body.domain, claim_ids: body.claim_ids, selection: body.selection };
+        assert.equal(row.paper_review_status, 'ready'); assert.deepEqual(body.selection, { central_claims: [], testable_findings: [claim] }); row.paper_review_status = 'confirmed'; row.confirmation = { title: body.title, domain: body.domain, authors:body.authors, claim_ids: body.claim_ids, selection: body.selection };
         row.assessment_status = { status: 'running', updated_at: new Date().toISOString(), counts: { total: body.claim_ids.length, finished: 0, reproduced: 0, discrepant: 0, blocked: 0, running: 1, queued: 0, waiting: 0 } };
         return json(review(row));
       }
@@ -108,8 +112,8 @@ async function check(name, run) {
 try {
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
   origin = `http://127.0.0.1:${server.address().port}`;
-  const bundled = await build({ stdin: { contents: `import React,{useEffect,useState} from 'react';import {createRoot} from 'react-dom/client';import Link from 'next/link';import {UserPreferencesProvider} from './app/components/user-preferences';import {PaperUploadsProvider} from './app/components/research-workflow/paper-uploads-provider';import {PaperIntake,OwnerStudies} from './app/components/research-workflow/workspace';import {PreviousAssessments} from './app/components/research-workflow/previous-assessments';import {PaperReviewPanel} from './app/components/research-workflow/paper-review';function App(){const [path,setPath]=useState(location.pathname);useEffect(()=>{const changed=()=>setPath(location.pathname);addEventListener('popstate',changed);return()=>removeEventListener('popstate',changed)},[]);return <><nav><Link href='/research-verification/new-assessment'>Upload papers</Link><Link href='/'>Browse home</Link><Link href='/research-ideas'>Browse ideas</Link><Link href='/research-verification/my-assessments'>My assessments</Link><Link href='/research-verification/previous-assessments'>Previous assessments</Link></nav><main>{path==='/research-verification/my-assessments'?<OwnerStudies/>:path==='/research-verification/previous-assessments'?<PreviousAssessments/>:path==='/research-verification/new-assessment'?<PaperIntake/>:path.startsWith('/research-verification/new-assessment/')?<PaperReviewPanel assessmentId={path.split('/').pop()}/>:<h1>Browsing JumpServe</h1>}</main></>;}createRoot(document.getElementById('root')).render(<React.StrictMode><UserPreferencesProvider><PaperUploadsProvider><App/></PaperUploadsProvider></UserPreferencesProvider></React.StrictMode>);`, resolveDir: process.cwd(), sourcefile: 'paper-uploads-browser.tsx', loader: 'tsx' },
-    bundle: true, write: false, platform: 'browser', format: 'iife', define: { 'process.env.NODE_ENV': '"development"', 'process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL': JSON.stringify(origin) },
+  const bundled = await build({ stdin: { contents: `import React,{useEffect,useState} from 'react';import {createRoot} from 'react-dom/client';import Link from 'next/link';import {UserPreferencesProvider} from './app/components/user-preferences';import {PaperUploadsProvider} from './app/components/research-workflow/paper-uploads-provider';import {PaperIntake} from './app/components/research-workflow/workspace';import {Assessments} from './app/components/research-workflow/assessments';import {PaperReviewPanel} from './app/components/research-workflow/paper-review';function App(){const [path,setPath]=useState(location.pathname+location.search);useEffect(()=>{const changed=()=>setPath(location.pathname+location.search);addEventListener('popstate',changed);return()=>removeEventListener('popstate',changed)},[]);return <><nav><Link href='/research-verification/new-assessment'>Upload papers</Link><Link href='/'>Browse home</Link><Link href='/research-ideas'>Browse ideas</Link><Link href='/research-verification/assessments?mine=1'>My assessments</Link><Link href='/research-verification/assessments'>Assessments</Link></nav><main>{path.split('?')[0]==='/research-verification/assessments'?<Assessments key={path} mine={new URLSearchParams(location.search).get('mine')==='1'}/>:path==='/research-verification/new-assessment'?<PaperIntake/>:path.startsWith('/research-verification/new-assessment/')?<PaperReviewPanel assessmentId={path.split('/').pop()}/>:<h1>Browsing JumpServe</h1>}</main></>;}createRoot(document.getElementById('root')).render(<React.StrictMode><UserPreferencesProvider><PaperUploadsProvider><App/></PaperUploadsProvider></UserPreferencesProvider></React.StrictMode>);`, resolveDir: process.cwd(), sourcefile: 'paper-uploads-browser.tsx', loader: 'tsx' },
+    bundle: true, write: false, platform: 'browser', format: 'iife', define: { 'process.env.NODE_ENV': '"development"', 'process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL': JSON.stringify(origin),'process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL':JSON.stringify(origin) },
     plugins: [{ name: 'synthetic-auth-storage-and-next-navigation', setup(p) {
       p.onResolve({ filter: /^(@\/lib\/supabase\/client|next\/(link|navigation))$/ }, a => ({ path: a.path, namespace: 'fixture' }));
       p.onLoad({ filter: /.*/, namespace: 'fixture' }, a => ({ loader: 'js', resolveDir: process.cwd(), contents: a.path === 'next/link'
@@ -278,12 +282,16 @@ try {
     await page.route(origin + '/research/paper-uploads', async route => {
       const body = route.request().postDataJSON();
       if (body.request_id !== paper) return route.continue();
-      if (body.action === 'confirm') { saved = body; value = { ...value, status: 'confirmed', can_start: false, confirmation: { title: body.title, domain: body.domain, claim_ids: body.claim_ids, selection: body.selection } }; }
+      if (body.action === 'confirm') { saved = body; value = { ...value, authors:body.authors, status: 'confirmed', can_start: false, confirmation: { title: body.title, domain: body.domain, authors:body.authors, claim_ids: body.claim_ids, selection: body.selection } }; }
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(value) });
     });
     await page.goto(origin + '/research-verification/new-assessment/' + paper);
     const central = page.getByRole('group', { name: 'Central Claims', exact: true }), findings = page.getByRole('group', { name: 'Testable Findings', exact: true });
     await central.waitFor(); assert.equal(await central.getByRole('checkbox').count(), 3); assert.equal(await findings.getByRole('checkbox').count(), 12);
+    const authors=page.getByRole('textbox',{name:'Authors',exact:true});assert.equal(await authors.inputValue(),'Extracted Author');
+    const titleBox=await page.getByLabel('Title',{exact:true}).boundingBox(),authorBox=await authors.boundingBox(),domainBox=await page.getByLabel('Research Domain',{exact:true}).boundingBox();
+    assert.ok(authorBox.y>titleBox.y+titleBox.height && authorBox.y<domainBox.y);
+    await authors.fill('Doe, Jane\nMaría José de la Cruz');
     assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 0); assert.equal(await page.getByRole('button', { name: 'Confirm and start assessment' }).isDisabled(), true);
     await central.getByRole('checkbox').first().check(); await findings.getByRole('checkbox').first().check();
     await page.getByText('Other extracted statements (169)', { exact: true }).click();
@@ -306,21 +314,23 @@ try {
     await page.waitForURL(/experiment-queue\?assessment=/);
     assert.deepEqual(new Set(saved.selection.central_claims), new Set([claims[0].id, claims[3].id]));
     assert.deepEqual(saved.selection.testable_findings, [claims[183].id]); assert.equal(saved.claim_ids.length, 3);
+    assert.deepEqual(saved.authors,['Doe, Jane','María José de la Cruz']);
     await page.goto(origin + '/research-verification/new-assessment/' + paper);
     await page.getByRole('form', { name: 'Confirm paper information' }).waitFor();
+    assert.equal(await authors.inputValue(),'Doe, Jane\nMaría José de la Cruz');assert.equal(await authors.isDisabled(),true);
     assert.equal(await central.getByRole('checkbox', { checked: true }).count(), 2); assert.equal(await findings.getByRole('checkbox', { checked: true }).count(), 1);
     value = { ...value, status: 'ready', can_start: true, confirmation: null, organization: { ...organization, central_claims: [], testable_findings: [] } };
     await page.reload(); await central.waitFor(); assert.equal(await page.getByRole('checkbox').count(), 0);
-    assert.equal(await page.getByText('No statements were suggested for this section.', { exact: false }).count(), 2);
+    assert.equal(await page.getByText('No suggested statements.', { exact: false }).count(), 2);
     await page.getByText('184 source-linked statements extracted.', { exact: false }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Confirm and start assessment' }).isDisabled(), true);
     delete value.organization; await page.reload(); await page.getByText('The connected service needs the review-grouping update before a new grouped selection can be saved.', { exact: true }).waitFor();
     await page.getByRole('heading', { name: 'Central claims and findings have not been organized', exact: true }).waitFor();
-    assert.equal(await page.getByText('Category suggestions are not available yet.', { exact: false }).count(), 2);
-    assert.equal(await page.getByText('No statements were suggested for this section.', { exact: false }).count(), 0);
-    assert.equal(await page.getByText('0 selected of 0 suggested or user-assigned items.', { exact: true }).count(), 0);
+    assert.equal(await page.getByText('Suggestions pending.', { exact: false }).count(), 2);
+    assert.equal(await page.getByText('No suggested statements.', { exact: false }).count(), 0);
+    assert.equal(await page.getByText('0 selected of 0 statements.', { exact: true }).count(), 0);
     await page.getByText('Extracted statements (184)', { exact: true }).click();
-    await page.getByText('Organization has not finished.', { exact: false }).waitFor();
+    await page.getByRole('textbox', { name: 'Find extracted statements', exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Add to central claims', exact: true }).count(), 0);
     assert.equal(await page.getByRole('checkbox').count(), 0);
     assert.equal(await page.getByRole('button', { name: 'Confirm and start assessment' }).isDisabled(), true);
@@ -331,13 +341,13 @@ try {
     value.organization = { ...organization, status: 'unorganized', central_claims: [], testable_findings: [], cursor: 0, rationale: 'Grouping has not run over this retained inventory.' };
     await page.reload(); await page.getByRole('button', { name: 'Organize extracted statements', exact: true }).waitFor();
     await page.getByText(value.organization.rationale, { exact: true }).waitFor();
-    assert.equal(await page.getByText('No statements were suggested for this section.', { exact: false }).count(), 0);
+    assert.equal(await page.getByText('No suggested statements.', { exact: false }).count(), 0);
     await page.unroute(origin + '/research/paper-uploads');
     return { candidate_count: 184, suggested_central: 3, suggested_findings: 12, retained_other: 169, selected_for_assessment: 3, original_units_and_locations_retained: true, empty_and_legacy_states_explicit: true, unrun_grouping_not_reported_as_zero_suggestions: true, unavailable_grouping_cannot_accept_unsaveable_assignments: true, semantic_model_quality_evaluated: false };
   });
-  await check('both assessment lists show source-ordered authors and explicit missing metadata',async()=>{
+  await check('both assessment filters show source-ordered authors and explicit missing metadata',async()=>{
     a.title='Congestion Avoidance and Control';a.authors=['Van Jacobson','Michael J. Karels'];b.authors=null;
-    for(const route of ['/research-verification/my-assessments','/research-verification/previous-assessments']){
+    for(const route of ['/research-verification/assessments?mine=1','/research-verification/assessments']){
       await page.goto(origin+route);
       const article=page.getByRole('link',{name:a.title,exact:true}).locator('xpath=ancestor::article');
       await article.locator('[data-paper-authors]').filter({hasText:'Van Jacobson, Michael J. Karels'}).waitFor();
@@ -345,10 +355,10 @@ try {
       for(const width of [1365,390])for(const dark of [false,true]){
         await page.setViewportSize({width,height:width===390?844:900});await page.evaluate(value=>document.documentElement.classList.toggle('dark',value),dark);
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
-        await page.screenshot({path:`${directory}/authors-${route.split('/').pop()}-${width}-${dark?'dark':'light'}.png`,fullPage:true});
+        await page.screenshot({path:`${directory}/authors-${route.includes('mine=1')?'mine':'all'}-${width}-${dark?'dark':'light'}.png`,fullPage:true});
       }
     }
-    return {routes:['assessments','previous-assessments'],same_source_order:true,missing_authors_explicit:true,widths:[1365,390],themes:['light','dark']};
+    return {filters:['mine','all'],same_source_order:true,missing_authors_explicit:true,widths:[1365,390],themes:['light','dark']};
   });
   await check('account change and sign-out hide previous-owner notices without changing their dismissals', async () => {
     await page.evaluate(id => window.fixtureSwitchOwner(id), ownerB);

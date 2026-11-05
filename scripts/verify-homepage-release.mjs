@@ -94,10 +94,10 @@ try {
         await primary.click(); await page.waitForURL(/\/login\?/);
         assert.equal(new URL(page.url()).searchParams.get("next"), path + "/new-assessment");
         await page.goto(origin, { waitUntil: "domcontentloaded" });
-        await page.getByRole("link", { name: "View previous", exact: true }).click();
-        await page.waitForURL(origin + path + "/previous-assessments");
+        await page.getByRole("link", { name: "View assessments", exact: true }).click();
+        await page.waitForURL(origin + path + "/assessments");
         const ids = ["a0c13133-7f02-5aae-93d0-43fb1332e0ad", "8672163c-c3c1-51bb-9115-c6fa94875071", "10f01fe6-ebe3-5d1f-8789-915581de9c0a", "83ae477c-3bc1-5d87-8a6d-90e1a018be14", "99689ce0-e872-52ec-a8e5-a08e217019c0"];
-        for (const id of ids) await page.locator(`a[href="${path}/assessments/${id}"]`).waitFor();
+        for (const id of ids) await page.locator(`a[href="${path}/assessment/${id}"]`).waitFor();
         await page.screenshot({ path: directory + "/published-catalogue.png", fullPage: true });
       }
       return { pathways: ["Verify Existing Claims", "Develop a New Idea"], header_width_px: headerBounds.width, viewport_width_px: viewportWidth, text_contrast: contrast };
