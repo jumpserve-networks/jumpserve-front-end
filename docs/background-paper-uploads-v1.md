@@ -76,8 +76,8 @@ use the new provider and review notification before confirmation.
 The same root-layout provider now shows progress during preparation and after
 confirmation, following Funnybone's caption progress/completion pattern. Cards
 show the paper title, recorded claim counts, queued/running states and a direct
-link to that assessment's Experiment Queue. They remain across navigation and
-reloads. Closing a card or opening its queue hides only that card; it sends no
+link to that assessment's overview through **View Assessment**. They remain across navigation and
+reloads. Closing a card or opening its assessment hides only that card; it sends no
 cancellation request. A later completion creates a separate notification even
 when progress was dismissed. Completed assessments with gaps, spending/time
 limits and cancellation have distinct headings; none imply every claim was
