@@ -21,7 +21,7 @@ function Stage({ stage }: { stage: string }) {
   const Icon = done ? CheckCircle2 : warning ? AlertCircle : stage === "queued" ? Clock3 : Circle;
   return <Badge variant="outline" className={cn("gap-1.5 capitalize", done && "border-emerald-600/30 text-emerald-700 dark:text-lime-300", warning && "border-amber-500/40 text-amber-800 dark:text-amber-300")}><Icon className="size-3" />{stage.replaceAll("-", " ")}</Badge>;
 }
-function mergeEvents(previous: PlatformEvent[], incoming: PlatformEvent[]) { return [...new Map([...previous, ...incoming].map(event => [String(event.sequence), event])).values()].sort((a, b) => BigInt(a.sequence) > BigInt(b.sequence) ? -1 : BigInt(a.sequence) < BigInt(b.sequence) ? 1 : 0); }
+function mergeEvents(previous: PlatformEvent[], incoming: PlatformEvent[]) { return [...new Map([...previous, ...incoming].map(event => [String(event.sequence), event])).values()].sort((a, b) => Number(BigInt(b.sequence) - BigInt(a.sequence))); }
 function mergeTasks(previous: PlatformTask[], incoming: PlatformTask[]) { return [...new Map([...previous, ...incoming].map(task => [task.id, task])).values()].sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id)); }
 
 export function PlatformUpdates({ initial, taskId }: { initial: PlatformRead; taskId?: string }) {

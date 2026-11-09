@@ -88,22 +88,24 @@ export function IdeaGuide({ state, studyId, dirty, advancedDirty, active, campai
 
   async function persist(request: SaveRequest) {
     setBusy(true); setMessage(""); setSaveRequest(request);
+    let confirmed: IdeaPacket | null = null;
     try {
       const saved = await researchRequest<IdeaPacket>(`/studies/${studyId}/idea`, { method: "POST", body: JSON.stringify(request) });
       if (saved.id !== request.request_id || saved.study_id !== studyId || saved.supersedes_id !== request.supersedes_id) throw new Error("Saved answer identity was not confirmed. Refresh retained status before continuing.");
       await reload(saved.id); setSaveRequest(null); setSelected(null); setCompiled(null); setConfigure(false); setApproved(false); setRationale(""); onDiscard();
       setMessage(`Answer saved in plan version ${saved.version}. Earlier answers and reviews are preserved.`);
-      return saved;
-    } catch (failure) { if (failure instanceof ResearchRequestError && failure.status >= 400 && failure.status < 500) setSaveRequest(null); setMessage(errorText(failure)); return null; }
+      confirmed = saved;
+    } catch (failure) { if (failure instanceof ResearchRequestError && failure.status >= 400 && failure.status < 500) setSaveRequest(null); setMessage(errorText(failure)); }
     finally { setBusy(false); }
+    return confirmed;
   }
-  async function save(document: IdeaDocument, reason: string) {
+  async function save(document: IdeaDocument, reason: string, question?: GuideQuestion) {
     if (busy || advancedDirty) return;
     if (JSON.stringify(document) === JSON.stringify(plan)) { setSelected(null); onDiscard(); if (conversation) await converse("This answer is unchanged. Ask the next useful question, clarifying it if needed."); else setMessage("This answer is already saved. Continue with the next unresolved question."); return; }
     if (new TextEncoder().encode(JSON.stringify(document)).length > 24000) { setMessage("This answer would exceed the plan's 24 KB storage limit. Shorten the plan or use private experiment inputs for large files."); return; }
     const saved = await persist({ action: "save", request_id: crypto.randomUUID(), supersedes_id: state.current_packet_id, document, reason });
-    if (saved && conversation && reason.startsWith("Guided answer: ") && GUIDE_QUESTIONS.some(question => !answered(document, question))) {
-      await converse(`I saved my answer about ${activeQuestion?.label ?? "the plan"}: ${activeQuestion ? guideAnswer(document, activeQuestion).slice(0, 2400) : "See the current packet."}
+    if (saved && conversation && question && GUIDE_QUESTIONS.some(question => !answered(document, question))) {
+      await converse(`I saved my answer about ${question.label}: ${guideAnswer(document, question).slice(0, 2400)}
 Acknowledge it and ask the most useful next question, or clarify this answer if it is ambiguous.`, saved.id);
     }
   }
@@ -184,7 +186,7 @@ Acknowledge it and ask the most useful next question, or clarify this answer if 
         {conversation && needsQuestion && !activeQuestion ? <div className="space-y-3 rounded-lg bg-muted p-4" aria-label="Start tailored planning"><h3 className="font-semibold">{chosenQuestion ? `Let’s discuss ${chosenQuestion.label.toLowerCase()}` : "Let’s find the next useful question for your idea"}</h3><Button disabled={disabled || dirty || !packet} onClick={() => void converse(undefined, state.current_packet_id, chosenQuestion?.id)}>{turns.length ? "Continue conversation" : "Start conversation"}</Button>{chosenQuestion ? <Button variant="ghost" disabled={disabled || dirty} onClick={() => setSelected(null)}>Return to the next step</Button> : null}</div> : null}
         {plan && activeQuestion ? <>
           <article className="space-y-2 rounded-lg bg-muted p-4" aria-label="Current guide question"><p className="text-xs font-medium text-muted-foreground">Research guide · {activeQuestion.section === "idea" ? "Describe the idea" : "Design the test"}</p><h3 id="current-guide-question" className="text-base font-semibold">{conversation ? tailored?.text : activeQuestion.question}</h3><p id="current-guide-help" className="text-sm">{conversation ? activeQuestion.label : activeQuestion.help}</p></article>
-          <AnswerComposer key={`${packet?.id}:${activeQuestion.id}`} plan={plan} question={activeQuestion} disabled={disabled} helpDisabled={!packet || !!unconfirmedModel} onSave={save} onHelp={help} onDirty={onDirty} onDiscard={onDiscard} conversational={conversation} />
+          <AnswerComposer key={`${packet?.id}:${activeQuestion.id}`} plan={plan} question={activeQuestion} disabled={disabled} helpDisabled={!packet || !!unconfirmedModel} onSave={(document, reason) => save(document, reason, activeQuestion)} onHelp={help} onDirty={onDirty} onDiscard={onDiscard} conversational={conversation} />
           {chosenQuestion ? <Button type="button" variant="outline" size="sm" disabled={disabled || dirty} onClick={() => setSelected(null)}>Return to the next step</Button> : null}
         </> : !needsQuestion ? <>
           <article className="space-y-2 rounded-lg bg-muted p-4" aria-label="Current guide question"><p className="text-xs font-medium text-muted-foreground">Research guide · {PHASES[phase]}</p><h3 className="text-base font-semibold">{phase === 2 ? "How should JumpServe execute this experiment?" : phase === 4 ? "Your reviewed plan is ready to prepare an experiment." : "Let’s check for gaps before running anything."}</h3><p className="text-sm">{phase === 2 ? "Configure the experiment below." : phase === 4 ? "The reviewed plan is ready to freeze and queue." : "The plan is ready for review."}</p></article>

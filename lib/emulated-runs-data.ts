@@ -264,45 +264,6 @@ async function fetchAllEmulatedPerSecondStats(
   return stats;
 }
 
-export async function fetchLatestParentRunId() {
-  const supabase = await createClient();
-
-  const { data: parentRunsData, error: parentRunsError } = await supabase
-    .from("emulated_parent_runs")
-    .select("id")
-    .order("created_at", { ascending: false })
-    .limit(1);
-
-  if (parentRunsError) {
-    throw new Error(
-      `Failed to load emulated_parent_runs: ${parentRunsError.message}`,
-    );
-  }
-
-  const latestParentRunId = parentRunsData?.[0]?.id;
-  if (typeof latestParentRunId === "number") {
-    return latestParentRunId;
-  }
-
-  const { data: runsData, error: runsError } = await supabase
-    .from("emulated_runs")
-    .select("emulated_parent_run_id")
-    .not("emulated_parent_run_id", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(1);
-
-  if (runsError) {
-    throw new Error(`Failed to load emulated_runs: ${runsError.message}`);
-  }
-
-  const fallbackParentRunId = runsData?.[0]?.emulated_parent_run_id;
-  if (typeof fallbackParentRunId === "number") {
-    return fallbackParentRunId;
-  }
-
-  return null;
-}
-
 type RawParentRunForIndex = {
   id: number;
   created_at: string;
@@ -964,7 +925,7 @@ async function fetchParentRunsForIndexPageWithClient(
   const matchingRows = parentRows.filter((row) => {
     const record = recordsByParentRunId.get(row.id);
 
-    return record ? parentRunMatchesIndexFilters(record, filters) : false;
+    return parentRunMatchesIndexFilters(record!, filters);
   });
   const totalCount = matchingRows.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / safePageSize));
@@ -999,11 +960,6 @@ export async function fetchParentRunsForIndexPage({
     pageSize,
     filters,
   });
-}
-
-export async function fetchParentRunsForIndex(): Promise<ParentRunIndexItem[]> {
-  const { parentRuns } = await fetchParentRunsForIndexPage();
-  return parentRuns;
 }
 
 export async function fetchParentRunSummary(
@@ -1179,22 +1135,17 @@ export async function fetchParentRunSummary(
 
 async function fetchEmulatedRunsDashboardDataWithClient(
   supabase: SupabaseClient,
-  selectedParentRunId?: number,
+  selectedParentRunId: number,
 ): Promise<{
   parentRuns: EmulatedParentRun[];
   runs: EmulatedRun[];
   stats: EmulatedPerSecondStat[];
 }> {
-  let parentRunsQuery = supabase
+  const parentRunsQuery = supabase
     .from("emulated_parent_runs")
     .select("id, created_at, snapshot_length_ms, bottleneck_rate_megabit")
-    .order("created_at", { ascending: false });
-
-  if (typeof selectedParentRunId === "number") {
-    parentRunsQuery = parentRunsQuery.eq("id", selectedParentRunId);
-  } else {
-    parentRunsQuery = parentRunsQuery.limit(100);
-  }
+    .order("created_at", { ascending: false })
+    .eq("id", selectedParentRunId);
 
   const { data: parentRunsData, error: parentRunsError } = await parentRunsQuery;
 
@@ -1219,23 +1170,15 @@ async function fetchEmulatedRunsDashboardDataWithClient(
       bottleneckRateMegabit: toNumber(parentRun.bottleneck_rate_megabit),
     }));
 
-  let runsQuery = supabase
+  const runsQuery = supabase
     .from("emulated_runs")
     .select(
       "id, created_at, emulated_parent_run_id, client_number, delay_added, client_start_delay_ms, client_file_size_megabytes, congestion_control_algorithm_id, congestion_control_algorithms(name)",
     )
     .not("emulated_parent_run_id", "is", null)
     .order("created_at", { ascending: false })
-    .limit(400);
-
-  if (typeof selectedParentRunId === "number") {
-    runsQuery = runsQuery.eq("emulated_parent_run_id", selectedParentRunId);
-  } else if (parentRuns.length > 0) {
-    runsQuery = runsQuery.in(
-      "emulated_parent_run_id",
-      parentRuns.map((parentRun) => parentRun.id),
-    );
-  }
+    .limit(400)
+    .eq("emulated_parent_run_id", selectedParentRunId);
 
   const { data: runsData, error: runsError } = await runsQuery;
 
@@ -1280,38 +1223,14 @@ async function fetchEmulatedRunsDashboardDataWithClient(
     };
   });
 
-  const parentRunLookup = new Map<number, EmulatedParentRun>();
-
-  for (const parentRun of parentRuns) {
-    parentRunLookup.set(parentRun.id, parentRun);
-  }
-
-  for (const run of runs) {
-    if (
-      run.parentRunId !== null &&
-      !parentRunLookup.has(run.parentRunId)
-    ) {
-      parentRunLookup.set(run.parentRunId, {
-        id: run.parentRunId,
-        createdAt: null,
-        snapshotLengthSeconds: null,
-        bottleneckRateMegabit: null,
-      });
-    }
-  }
-
-  const mergedParentRuns = Array.from(parentRunLookup.values()).sort((a, b) => {
-    if (a.createdAt && b.createdAt) {
-      return Date.parse(b.createdAt) - Date.parse(a.createdAt);
-    }
-    if (a.createdAt) {
-      return -1;
-    }
-    if (b.createdAt) {
-      return 1;
-    }
-    return b.id - a.id;
-  });
+  // Both reads are restricted to one parent. Older measurements may outlive
+  // its metadata row; retain that identity without inventing configuration.
+  const selectedParents: EmulatedParentRun[] = parentRuns.length > 0 ? parentRuns : runs.length > 0 ? [{
+    id: selectedParentRunId,
+    createdAt: null,
+    snapshotLengthSeconds: null,
+    bottleneckRateMegabit: null,
+  }] : [];
 
   const runIds = runs.map((run) => run.id);
 
@@ -1322,111 +1241,10 @@ async function fetchEmulatedRunsDashboardDataWithClient(
   }
 
   return {
-    parentRuns: mergedParentRuns,
+    parentRuns: selectedParents,
     runs,
     stats,
   };
-}
-
-export async function fetchEmulatedRunsDashboardData(
-  selectedParentRunId?: number,
-): Promise<{
-  parentRuns: EmulatedParentRun[];
-  runs: EmulatedRun[];
-  stats: EmulatedPerSecondStat[];
-}> {
-  const supabase = await createClient();
-  return fetchEmulatedRunsDashboardDataWithClient(supabase, selectedParentRunId);
-}
-
-export async function fetchParentRunShellData(parentRunId: number): Promise<{
-  parentRun: EmulatedParentRun | null;
-  runs: EmulatedRun[];
-}> {
-  const supabase = await createClient();
-
-  const { data: parentRunData, error: parentRunError } = await supabase
-    .from("emulated_parent_runs")
-    .select("id, created_at, snapshot_length_ms, bottleneck_rate_megabit")
-    .eq("id", parentRunId)
-    .maybeSingle();
-
-  if (parentRunError) {
-    throw new Error(
-      `Failed to load emulated_parent_runs: ${parentRunError.message}`,
-    );
-  }
-
-  type RawParentRun = {
-    id: number;
-    created_at: string;
-    snapshot_length_ms: NumericLike;
-    bottleneck_rate_megabit: NumericLike;
-  };
-
-  const parentRun = parentRunData
-      ? {
-        id: (parentRunData as RawParentRun).id,
-        createdAt: (parentRunData as RawParentRun).created_at,
-        snapshotLengthSeconds: millisecondsToSeconds(
-          (parentRunData as RawParentRun).snapshot_length_ms,
-        ),
-        bottleneckRateMegabit: toNumber(
-          (parentRunData as RawParentRun).bottleneck_rate_megabit,
-        ),
-      }
-    : null;
-
-  const { data: runsData, error: runsError } = await supabase
-    .from("emulated_runs")
-    .select(
-      "id, created_at, emulated_parent_run_id, client_number, delay_added, client_start_delay_ms, client_file_size_megabytes, congestion_control_algorithm_id, congestion_control_algorithms(name)",
-    )
-    .eq("emulated_parent_run_id", parentRunId)
-    .order("created_at", { ascending: false });
-
-  if (runsError) {
-    throw new Error(`Failed to load emulated_runs: ${runsError.message}`);
-  }
-
-  type RawRun = {
-    id: number;
-    created_at: string;
-    emulated_parent_run_id: number | null;
-    client_number: number | null;
-    delay_added: number | null;
-    client_start_delay_ms: number | null;
-    client_file_size_megabytes: number | null;
-    congestion_control_algorithm_id: number | null;
-    congestion_control_algorithms:
-      | { name: string | null }
-      | Array<{ name: string | null }>
-      | null;
-  };
-
-  const runs: EmulatedRun[] = ((runsData ?? []) as RawRun[]).map((run) => {
-    let congestionControlAlgorithmName: string | null = null;
-    if (Array.isArray(run.congestion_control_algorithms)) {
-      congestionControlAlgorithmName =
-        run.congestion_control_algorithms[0]?.name ?? null;
-    } else if (run.congestion_control_algorithms) {
-      congestionControlAlgorithmName = run.congestion_control_algorithms.name;
-    }
-
-    return {
-      id: run.id,
-      createdAt: run.created_at,
-      parentRunId: run.emulated_parent_run_id,
-      clientNumber: run.client_number,
-      delayAddedMs: run.delay_added,
-      clientStartDelayMs: run.client_start_delay_ms,
-      clientFileSizeMegabytes: run.client_file_size_megabytes,
-      congestionControlAlgorithmId: run.congestion_control_algorithm_id,
-      congestionControlAlgorithmName,
-    };
-  });
-
-  return { parentRun, runs };
 }
 
 const getCachedParentRunDashboardData = unstable_cache(

@@ -49,10 +49,10 @@ export function RealWorldTests() {
       router.push(`${REAL_WORLD_MODULE_PATH}/run-a-test/${job.job_id}`);
     } catch (e) { setError(e instanceof Error ? e.message : "Launch failed."); setSubmitting(false); }
   }
-  async function more() {
+  async function more(cursor: string) {
     setHistoryError("");
     try {
-      const data = await realWorldRequest<{ tests: RealWorldJob[]; cursor: string | null }>(`/tests?${new URLSearchParams({ cursor: cursor ?? "" })}`);
+      const data = await realWorldRequest<{ tests: RealWorldJob[]; cursor: string | null }>(`/tests?${new URLSearchParams({ cursor })}`);
       setTests((old) => [...old, ...data.tests.filter((job) => !old.some((item) => item.job_id === job.job_id))]); setCursor(data.cursor);
     } catch (e) { setHistoryError(e instanceof Error ? e.message : "Could not load tests."); }
   }
@@ -94,7 +94,7 @@ export function RealWorldTests() {
       {!loading && !tests.length && !historyError ? <p className="text-sm text-muted-foreground">No real-world tests yet.</p> : <Table><TableHeader><TableRow><TableHead>Created</TableHead><TableHead>CCA</TableHead><TableHead>Receivers</TableHead><TableHead>Status</TableHead><TableHead>Results</TableHead></TableRow></TableHeader><TableBody>
         {tests.map((job) => <TableRow key={job.job_id}><TableCell><LocalDateTime value={job.created_at * 1000} /></TableCell><TableCell>{job.config.cca.toUpperCase()}</TableCell><TableCell>{job.config.receivers.length}</TableCell><TableCell>{REAL_WORLD_STAGES[job.status] ?? job.status}</TableCell><TableCell><Link className="text-primary underline underline-offset-4" href={`${REAL_WORLD_MODULE_PATH}/run-a-test/${job.job_id}`}>Open test</Link></TableCell></TableRow>)}
       </TableBody></Table>}
-      {cursor && <Button className="mt-4" variant="outline" size="sm" onClick={() => void more()}>Load older tests</Button>}
+      {cursor && <Button className="mt-4" variant="outline" size="sm" onClick={() => void more(cursor)}>Load older tests</Button>}
     </CardContent></Card>
   </div>;
 }

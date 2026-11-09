@@ -7,6 +7,10 @@ hook.deregister();
 const id='11111111-1111-4111-8111-111111111111';
 function fixture(){const document={hypothesis:'The exact recorded claim',protocol:null};return {version:'research-ideas-v1',design_version:CLAIM_DESIGN_VERSION,packets:[{id:'packet',study_id:id,version:1,document,raw_document:JSON.stringify(document),sha256:'a'.repeat(64)}],runs:[],decisions:[],campaigns:[],ready:false,missing:['design'],current_packet_id:'packet',claim_design:{study_id:id,sha256:'b'.repeat(64),raw_document:JSON.stringify({claim:{description:document.hypothesis}}),document:{claim:{description:document.hypothesis}}}};}
 test('paper design identity stays in the paper module and rejects invalid routes',()=>{assert.equal(claimDesignPath(id),'/research-verification/experiment-design/'+id);assert.throws(()=>claimDesignPath('../other'));});
+test('a correctly encoded packet still cannot substitute a different hypothesis for the retained claim',()=>{
+ const value=fixture();value.packets[0].document.hypothesis='A changed scientific claim';value.packets[0].raw_document=JSON.stringify(value.packets[0].document);
+ assert.throws(()=>validateClaimDesign(value,id),/Saved hypothesis differs/);
+});
 test('a paper proposal retains the exact claim and cannot silently weaken it',()=>{assert.equal(validateClaimDesign(fixture(),id).ready,false);for(const change of [s=>s.claim_design.study_id='other',s=>s.claim_design.sha256=null,s=>s.claim_design.document.claim.description='Changed claim',s=>s.design_version='unknown']){const state=fixture();change(state);assert.throws(()=>validateClaimDesign(state,id));}});
 test('a design URL cannot invoke AI without a recent consumed click intent',()=>{
  const map=new Map([[`claim-design-start-v1:${id}`,'1000']]);const storage={getItem:k=>map.get(k)??null,removeItem:k=>map.delete(k)};

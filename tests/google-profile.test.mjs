@@ -31,6 +31,7 @@ test('complete metadata, absent credentials, unknown subject and non-Google user
  assert.deepEqual(await readGoogleAccountNames(user),empty);
  assert.deepEqual(await readGoogleAccountNames({...user,identities:[],user_metadata:{}},'unused'),empty);
  assert.deepEqual(await readGoogleAccountNames({...user,identities:[],app_metadata:{provider:'email'}},'unused'),empty);
+ assert.deepEqual(await readGoogleAccountNames({...user,identities:[],app_metadata:{provider:'email',providers:['google']}},'unused'),empty);
  assert.equal(fetch.mock.callCount(),0);
 });
 

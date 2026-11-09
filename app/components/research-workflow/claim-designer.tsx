@@ -81,11 +81,10 @@ export function ClaimDesigner({ studyId }: { studyId: string }) {
     } catch (failure) { setError(errorText(failure)); }
     finally { inFlight.current = false; setBusy(false); }
   }
-  async function download() {
-    if (!state) return;
+  async function download(savedState: ClaimDesignState) {
     try {
-      await verifiedState(state, studyId);
-      const url = URL.createObjectURL(new Blob([JSON.stringify(state, null, 2)], { type: "application/json" }));
+      await verifiedState(savedState, studyId);
+      const url = URL.createObjectURL(new Blob([JSON.stringify(savedState, null, 2)], { type: "application/json" }));
       const link = document.createElement("a"); link.href = url; link.download = `claim-experiment-design-${studyId}.json`; link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (failure) { setError(errorText(failure)); }
@@ -101,7 +100,7 @@ export function ClaimDesigner({ studyId }: { studyId: string }) {
       <p className="text-sm text-muted-foreground">Proposals use the recorded claim and source metadata.</p>
       <p className="text-sm text-muted-foreground">Descriptive pilots only. Inferential conclusions require a separately reviewed analysis design.</p>
       <div className="flex flex-wrap gap-4 text-sm"><Link className="underline" href={`${ASSESSMENTS_PATH}/${origin.study.id}?view=gaps`}>Original assessment</Link><Link className="underline" href={experimentQueuePath(studyId)}>Experiment Queue</Link><Link className="underline" href={`${PATH}/workspace/${studyId}`}>Evidence workspace</Link></div>
-      <Button size="sm" variant="outline" onClick={() => void download()}>Download experiment design</Button>
+      <Button size="sm" variant="outline" onClick={() => void download(state)}>Download experiment design</Button>
     </section>
     {error ? <p role="alert" className="rounded-md border p-3 text-sm text-destructive">{error}</p> : null}
     {message ? <p role="status" className="rounded-md border p-3 text-sm">{message}</p> : null}

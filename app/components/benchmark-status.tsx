@@ -82,7 +82,7 @@ function configSummary(config: BenchmarkJob["config"]) {
   return `${config.num_clients} clients | ${ccas} | ${delays}ms | ${rate} Mbit`;
 }
 
-function ProgressBar({ status }: { status: string }) {
+export function ProgressBar({ status }: { status: string }) {
   const currentIdx = PHASE_ORDER.indexOf(status);
   if (currentIdx < 0) return null;
 

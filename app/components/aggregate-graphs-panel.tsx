@@ -1,5 +1,6 @@
 "use client";
 
+import { formatAxisValue, formatFlowCompletionTimeLabel, clamp, addAxisHeadroom, buildLinearTicks, buildLinearTicksForDomain, quantile } from "@/lib/aggregate-chart-values";
 import { ResearchComparisonPanel } from "@/app/components/research-comparison-panel";
 import { buildSweepGroups, configurationLabel, formatSeconds, medianInterval, MIN_MEDIAN_REPEATS } from "@/lib/research-comparison";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/app/components/ui/table";
@@ -22,6 +23,7 @@ import Link from "next/link";
 import { EMULATED_TESTS_MODULE } from "@/lib/test-modules";
 import { useId, useMemo, useState } from "react";
 import type { AggregateDelayGraphPoint } from "@/lib/emulated-runs-data";
+import { updateFilterSelection } from "@/lib/filter-selection";
 
 const CHART_WIDTH = 1120;
 const CHART_HEIGHT = 440;
@@ -182,12 +184,6 @@ type AggregateGraphViewId =
 
 type PercentileKey = "p50" | "p90" | "max";
 
-type FacetCell = {
-  rowValue: number;
-  columnValue: number;
-  points: FlowPoint[];
-};
-
 type AvailableTestGroupOption = {
   label: string;
   client1Cca: string;
@@ -219,7 +215,7 @@ const GROUP_NETEM_NINES_QUEUE_BUFFER_SIZE_KILOBYTES = 125;
 const GROUP_NETEM_NINES_WORKLOAD_MEGABYTES = 50;
 const GROUP_WORKLOAD_MEGABYTES = 100;
 const GROUP_CLIENT_START_DELAY_MS = 0;
-const AVAILABLE_TEST_GROUP_OPTIONS: AvailableTestGroupOption[] = [
+const AVAILABLE_TEST_GROUP_OPTIONS: (AvailableTestGroupOption & { workloadMegabytes: number })[] = [
   {
     label: "netem-nines-delay-10ms-vs-11-19ms-bbr.yaml",
     client1Cca: "bbr",
@@ -502,83 +498,13 @@ const MODE_DESCRIPTOR_ITEMS = [
   },
 ];
 
-function roundToHundredth(value: number) {
-  return Number(value.toFixed(2));
-}
 
-function trimTrailingZeros(value: string) {
-  if (!value.includes(".")) {
-    return value;
-  }
 
-  return value.replace(/\.?0+$/, "");
-}
 
-function formatAxisValue(value: number) {
-  const absolute = Math.abs(value);
-  if (absolute >= 100) {
-    return trimTrailingZeros(value.toFixed(0));
-  }
-  if (absolute >= 10) {
-    return trimTrailingZeros(value.toFixed(1));
-  }
-  if (absolute >= 1) {
-    return trimTrailingZeros(value.toFixed(2));
-  }
 
-  return trimTrailingZeros(value.toFixed(3));
-}
 
-function formatFlowCompletionTimeLabel(value: number) {
-  if (!Number.isFinite(value)) {
-    return "n/a";
-  }
 
-  if (Math.abs(value) >= 1000) {
-    return `${formatAxisValue(value / 1000)} s`;
-  }
 
-  return `${formatAxisValue(value)} ms`;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
-function addAxisHeadroom(maxValue: number) {
-  if (!Number.isFinite(maxValue) || maxValue <= 0) {
-    return 1;
-  }
-
-  return maxValue * 1.1;
-}
-
-function buildLinearTicks(maxValue: number, tickCount = 6) {
-  const safeMax = Math.max(maxValue, 1);
-  return Array.from({ length: tickCount }, (_, index) => {
-    const fraction = index / Math.max(tickCount - 1, 1);
-    return roundToHundredth(safeMax * fraction);
-  });
-}
-
-function buildLinearTicksForDomain(
-  minValue: number,
-  maxValue: number,
-  tickCount = 6,
-) {
-  const safeMin = Number.isFinite(minValue) ? minValue : 0;
-  const safeMax = Number.isFinite(maxValue) ? maxValue : 1;
-  const range = safeMax - safeMin;
-
-  if (Math.abs(range) < 0.000001) {
-    return [roundToHundredth(safeMin)];
-  }
-
-  return Array.from({ length: tickCount }, (_, index) => {
-    const fraction = index / Math.max(tickCount - 1, 1);
-    return roundToHundredth(safeMin + range * fraction);
-  });
-}
 
 function getChartInnerWidth() {
   return CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right;
@@ -675,27 +601,6 @@ function clampChartPlotY(value: number) {
   return clamp(value, CHART_PADDING.top, CHART_HEIGHT - CHART_PADDING.bottom);
 }
 
-function quantile(sortedValues: number[], fraction: number) {
-  if (sortedValues.length === 0) {
-    return 0;
-  }
-
-  if (sortedValues.length === 1) {
-    return sortedValues[0];
-  }
-
-  const position = (sortedValues.length - 1) * fraction;
-  const lowerIndex = Math.floor(position);
-  const upperIndex = Math.ceil(position);
-  const lower = sortedValues[lowerIndex];
-  const upper = sortedValues[upperIndex];
-
-  if (lowerIndex === upperIndex) {
-    return lower;
-  }
-
-  return lower + (upper - lower) * (position - lowerIndex);
-}
 
 function buildScatterTooltipPosition(point: { x: number; y: number }) {
   const x = clamp(
@@ -752,7 +657,7 @@ function renderYAxisTicks(maxValue: number, formatLabel: (value: number) => stri
   });
 }
 
-function renderYAxisTicksForDomain(
+export function renderYAxisTicksForDomain(
   minValue: number,
   maxValue: number,
   formatLabel: (value: number) => string,
@@ -836,7 +741,7 @@ function renderXAxisTicks(
   });
 }
 
-function renderXAxisTicksForDomain(
+export function renderXAxisTicksForDomain(
   minValue: number,
   maxValue: number,
   formatLabel: (value: number) => string,
@@ -1038,7 +943,7 @@ function ModeDescriptorPanel({
     (item) =>
       item.title.toLowerCase() ===
       EXPLORER_MODES.find((option) => option.id === selectedMode)?.label.toLowerCase(),
-  );
+  )!;
   const view =
     selectedMode === "explore"
       ? CHART_DESCRIPTOR_ITEMS.find(
@@ -1052,7 +957,6 @@ function ModeDescriptorPanel({
   return (
     <div className="rounded-lg border border-border bg-card p-3">
       <div className="grid gap-3 md:grid-cols-2">
-        {mode ? (
           <div>
             <p className="text-[11px] font-semibold tracking-normal text-muted-foreground">
               Current Section
@@ -1064,7 +968,6 @@ function ModeDescriptorPanel({
               {`: ${mode.text}`}
             </p>
           </div>
-        ) : null}
         {view ? (
           <div>
             <p className="text-[11px] font-semibold tracking-normal text-muted-foreground">
@@ -1226,7 +1129,7 @@ function TextFilterControl({
   );
 }
 
-function StringFilterChips({
+export function StringFilterChips({
   label,
   options,
   selectedValues,
@@ -1523,7 +1426,7 @@ function clientHasDelayInRange(
   );
 }
 
-function aggregateTestMatchesGroup(
+export function aggregateTestMatchesGroup(
   test: AvailableAggregateTest,
   group: AvailableTestGroupOption,
 ) {
@@ -1584,6 +1487,8 @@ function getOtherClientDelayPlotPointCount(points: FlowPoint[]) {
     );
 
     return (
+      runPoints.length === 2 &&
+      runPoints.every((point) => point.numberOfClients === 2) &&
       clientNumbers.length === 2 &&
       runPoints.some(
         (point) =>
@@ -1605,7 +1510,7 @@ function getTestClientDetail(test: AvailableAggregateTest, clientNumber: number)
   );
 }
 
-function formatGroupCriteria(group: AvailableTestGroupOption) {
+export function formatGroupCriteria(group: AvailableTestGroupOption) {
   const workloadMegabytes = group.workloadMegabytes ?? GROUP_WORKLOAD_MEGABYTES;
   const client2DelayRange =
     group.client2DelayRange ?? GROUP_CLIENT_2_DELAY_RANGE;
@@ -1637,7 +1542,7 @@ function formatGroupFileLabel(label: string) {
   return label.replace(/\.ya?ml$/, "");
 }
 
-function formatClientActualParameters(
+export function formatClientActualParameters(
   test: AvailableAggregateTest,
   clientNumber: number,
   delayValues: number[],
@@ -1669,7 +1574,7 @@ function formatClientActualParameters(
   ].join(", ");
 }
 
-function formatGroupMatchedTestParameters(test: AvailableAggregateTest) {
+export function formatGroupMatchedTestParameters(test: AvailableAggregateTest) {
   const client1 = getTestClientDetail(test, 1);
   const client2 = getTestClientDetail(test, 2);
   const client1DelayValues = client1
@@ -1698,14 +1603,14 @@ function formatGroupMatchedTestParameters(test: AvailableAggregateTest) {
   ].join(" | ");
 }
 
-function formatMultiSelectSummary(
+export function formatMultiSelectSummary(
   values: string[],
   emptyLabel = "",
 ) {
   return values.length > 0 ? values.join(", ") : emptyLabel;
 }
 
-function formatCommaSeparatedValues(
+export function formatCommaSeparatedValues(
   values: number[],
   formatter: (value: number) => string,
   emptyLabel = "n/a",
@@ -1743,7 +1648,7 @@ function buildFlowSummary(points: FlowPoint[]) {
   };
 }
 
-function FlowSummaryStrip({ points }: { points: FlowPoint[] }) {
+export function FlowSummaryStrip({ points }: { points: FlowPoint[] }) {
   const summary = buildFlowSummary(points);
 
   if (!summary) {
@@ -1799,7 +1704,7 @@ function FlowSummaryStrip({ points }: { points: FlowPoint[] }) {
   );
 }
 
-function FacetGrid({
+export function FacetGrid({
   points,
   rowValues,
   columnValues,
@@ -1815,18 +1720,6 @@ function FacetGrid({
   if (rowValues.length === 0 || columnValues.length === 0) {
     return <EmptyChartState text="Need workload and queue values for the facet grid." />;
   }
-
-  const cells: FacetCell[] = rowValues.flatMap((rowValue) =>
-    columnValues.map((columnValue) => ({
-      rowValue,
-      columnValue,
-      points: points.filter(
-        (point) =>
-          point.clientFileSizeMegabytes === rowValue &&
-          point.queueBufferSizeKilobyte === columnValue,
-      ),
-    })),
-  );
 
   return (
     <div className="overflow-x-auto">
@@ -1853,16 +1746,15 @@ function FacetGrid({
             {`${formatAxisValue(rowValue)} MB`}
           </div>,
           ...columnValues.map((columnValue) => {
-            const cell = cells.find(
-              (candidate) =>
-                candidate.rowValue === rowValue &&
-                candidate.columnValue === columnValue,
+            const cellPoints = points.filter(
+              point => point.clientFileSizeMegabytes === rowValue &&
+                point.queueBufferSizeKilobyte === columnValue,
             );
 
             return (
               <FacetCellChart
                 key={`${rowValue}-${columnValue}`}
-                points={cell?.points ?? []}
+                points={cellPoints}
               />
             );
           }),
@@ -1984,7 +1876,7 @@ function FacetCellChart({ points }: { points: FlowPoint[] }) {
   );
 }
 
-function ScatterPlot({
+export function ScatterPlot({
   points,
   series,
 }: {
@@ -2159,7 +2051,7 @@ function ScatterPlot({
   );
 }
 
-function ParentRunConnectionChart({
+export function ParentRunConnectionChart({
   points,
 }: {
   points: FlowPoint[];
@@ -2255,6 +2147,7 @@ function ParentRunConnectionChart({
     const bounds = currentTarget.getBoundingClientRect();
     const rawX = ((clientX - bounds.left) / bounds.width) * CHART_WIDTH;
     const rawY = ((clientY - bounds.top) / bounds.height) * CHART_HEIGHT;
+    if (!Number.isFinite(rawX) || !Number.isFinite(rawY)) return null;
     const isInsidePlot =
       rawX >= CHART_PADDING.left &&
       rawX <= CHART_WIDTH - CHART_PADDING.right &&
@@ -2329,10 +2222,6 @@ function ParentRunConnectionChart({
   }
 
   function handleZoomOut() {
-    if (!isZoomed) {
-      return;
-    }
-
     const currentXSpan = activeDomain.xMax - activeDomain.xMin;
     const currentYSpan = activeDomain.yMax - activeDomain.yMin;
     const nextXSpan = Math.min(
@@ -2362,11 +2251,12 @@ function ParentRunConnectionChart({
       yMax: nextYMin + nextYSpan,
     };
 
+    // Subtracting a panned domain can leave a rounding remainder after zooming
+    // back out. Snap full spans to the original domain so zoom can finish.
+    const roundingTolerance = Number.EPSILON * 8;
     if (
-      nextDomain.xMin === baseDomain.xMin &&
-      nextDomain.xMax === baseDomain.xMax &&
-      nextDomain.yMin === baseDomain.yMin &&
-      nextDomain.yMax === baseDomain.yMax
+      nextXSpan >= baseDomain.xMax * (1 - roundingTolerance) &&
+      nextYSpan >= baseDomain.yMax * (1 - roundingTolerance)
     ) {
       setZoomDomain(null);
       setHoveredPoint(null);
@@ -2710,7 +2600,7 @@ function ParentRunConnectionChart({
   );
 }
 
-function OtherClientDelayFlowChart({
+export function OtherClientDelayFlowChart({
   points,
 }: {
   points: FlowPoint[];
@@ -2736,7 +2626,11 @@ function OtherClientDelayFlowChart({
         new Set(runPoints.map((point) => point.clientNumber)),
       );
 
-      if (clientNumbers.length !== 2) {
+      if (
+        runPoints.length !== 2 ||
+        runPoints.some((point) => point.numberOfClients !== 2) ||
+        clientNumbers.length !== 2
+      ) {
         return [];
       }
 
@@ -2746,14 +2640,10 @@ function OtherClientDelayFlowChart({
             point.clientNumber === OTHER_CLIENT_DELAY_PRIMARY_CLIENT_NUMBER,
         )
         .map((point) => {
-          const otherPoint =
-            runPoints.find(
-              (candidate) => candidate.clientNumber !== point.clientNumber,
-            ) ?? null;
-
-          if (!otherPoint) {
-            return null;
-          }
+          // The group contains exactly two distinct clients.
+          const otherPoint = runPoints[0].clientNumber === point.clientNumber
+            ? runPoints[1]
+            : runPoints[0];
 
           return {
             ...point,
@@ -2761,16 +2651,7 @@ function OtherClientDelayFlowChart({
             otherClientDelayMs: otherPoint.delayAddedMs,
             color: colorForOtherClientDelay(otherPoint.delayAddedMs),
           };
-        })
-        .filter(
-          (
-            point,
-          ): point is FlowPoint & {
-            otherClientNumber: number;
-            otherClientDelayMs: number;
-            color: string;
-          } => point !== null,
-        );
+        });
     },
   );
 
@@ -2973,7 +2854,7 @@ function BoxPlot({ points, series }: { points: AggregateDelayGraphPoint[]; serie
   </div>;
 }
 
-function RawBoxPlot({
+export function RawBoxPlot({
   points,
   series,
 }: {
@@ -3033,9 +2914,7 @@ function RawBoxPlot({
     const offset =
       (seriesIndex - (series.length - 1) / 2) * (boxWidth + 6);
     const centerX = groupCenter + offset;
-    const color =
-      series.find((entry) => entry.clientNumber === stat.clientNumber)?.color ??
-      SERIES_COLORS[0];
+    const color = series[seriesIndex].color;
 
     return {
       ...stat,
@@ -3240,7 +3119,7 @@ function RawBoxPlot({
   );
 }
 
-function buildEcdfPath(points: Array<{ x: number; y: number }>) {
+export function buildEcdfPath(points: Array<{ x: number; y: number }>) {
   if (points.length === 0) {
     return null;
   }
@@ -3259,7 +3138,7 @@ function buildEcdfPath(points: Array<{ x: number; y: number }>) {
   return commands.join(" ");
 }
 
-function EcdfChart({
+export function EcdfChart({
   points,
   series,
 }: {
@@ -3324,15 +3203,13 @@ function EcdfChart({
       })}
       {ecdfSeries.map((entry) => (
         <g key={entry.clientNumber}>
-          {entry.path ? (
             <path
-              d={entry.path}
+              d={entry.path!}
               fill="none"
               stroke={entry.color}
               strokeWidth={3}
               strokeLinecap="round"
             />
-          ) : null}
           {entry.plottedPoints.map((point) => (
             <g key={`${point.parentRunId}-${point.clientNumber}`}>
               <circle
@@ -3448,36 +3325,6 @@ function EcdfChart({
   );
 }
 
-function buildHistogram(
-  values: number[],
-  {
-    binCount,
-    maxValue,
-  }: {
-    binCount: number;
-    maxValue: number;
-  },
-) {
-  const safeMax = Math.max(maxValue, 1);
-  const bins = Array.from({ length: binCount }, (_, index) => ({
-    start: (safeMax / binCount) * index,
-    end: (safeMax / binCount) * (index + 1),
-    count: 0,
-  }));
-
-  for (const value of values) {
-    const normalized = clamp(value / safeMax, 0, 0.999999);
-    const index = Math.floor(normalized * binCount);
-    bins[index].count += 1;
-  }
-
-  return bins.map((bin, index) => ({
-    ...bin,
-    index,
-    mid: (bin.start + bin.end) / 2,
-  }));
-}
-
 function interpolateColor(start: [number, number, number], end: [number, number, number], factor: number) {
   const clampedFactor = clamp(factor, 0, 1);
   const mix = (left: number, right: number) =>
@@ -3492,8 +3339,7 @@ function interpolateColor(start: [number, number, number], end: [number, number,
 function colorForOtherClientDelay(delayMs: number) {
   const range =
     GROUP_CLIENT_2_DELAY_RANGE.max - GROUP_CLIENT_2_DELAY_RANGE.min;
-  const factor =
-    range <= 0 ? 1 : (delayMs - GROUP_CLIENT_2_DELAY_RANGE.min) / range;
+  const factor = (delayMs - GROUP_CLIENT_2_DELAY_RANGE.min) / range;
 
   return interpolateColor(
     OTHER_CLIENT_DELAY_LIGHT_COLOR,
@@ -3522,565 +3368,7 @@ function formatPercentileLabel(percentileKey: "p50" | "p90" | "max") {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function RidgelinePlot({
-  points,
-  series,
-}: {
-  points: FlowPoint[];
-  series: ClientSeries[];
-}) {
-  const delays = Array.from(
-    new Set(points.map((point) => point.delayAddedMs)),
-  ).sort((a, b) => a - b);
-
-  if (points.length === 0 || delays.length === 0 || series.length === 0) {
-    return <EmptyChartState text="No run-level data available for the ridgeline plot." />;
-  }
-
-  const ridgeRows = delays.flatMap((delayAddedMs) =>
-    series
-      .map((entry) => {
-        const values = points
-          .filter(
-            (point) =>
-              point.delayAddedMs === delayAddedMs &&
-              point.clientNumber === entry.clientNumber,
-          )
-          .map((point) => point.flowCompletionTimeMs);
-
-        if (values.length === 0) {
-          return null;
-        }
-
-        return {
-          delayAddedMs,
-          clientNumber: entry.clientNumber,
-          color: entry.color,
-          values,
-        };
-      })
-      .filter(
-        (
-          ridge,
-        ): ridge is {
-          delayAddedMs: number;
-          clientNumber: number;
-          color: string;
-          values: number[];
-        } => ridge !== null,
-      ),
-  );
-
-  if (ridgeRows.length === 0) {
-    return <EmptyChartState text="No client-separated ridgeline data is available." />;
-  }
-
-  const chartHeight = Math.max(420, ridgeRows.length * 38 + 108);
-  const ridgePadding = { top: 28, right: 28, bottom: 52, left: 78 };
-  const innerWidth = CHART_WIDTH - ridgePadding.left - ridgePadding.right;
-  const maxFlowCompletion = Math.max(
-    ...points.map((point) => point.flowCompletionTimeMs),
-    1,
-  );
-  const spacing = ridgeRows.length > 1
-    ? (chartHeight - ridgePadding.top - ridgePadding.bottom) / (ridgeRows.length - 1)
-    : 0;
-
-  const ridges = ridgeRows.map((ridgeRow, index) => {
-    const histogram = buildHistogram(ridgeRow.values, {
-      binCount: 18,
-      maxValue: maxFlowCompletion,
-    });
-    const maxCount = Math.max(...histogram.map((bin) => bin.count), 1);
-    const baselineY = ridgePadding.top + spacing * index;
-    const amplitude = Math.min(16, spacing > 0 ? spacing * 0.6 : 16);
-
-    const topPoints = histogram.map((bin) => ({
-      x:
-        ridgePadding.left +
-        (bin.mid / Math.max(maxFlowCompletion, 1)) * innerWidth,
-      y: baselineY - (bin.count / maxCount) * amplitude,
-    }));
-    const path = [
-      `M${ridgePadding.left} ${baselineY}`,
-      ...topPoints.map((point) => `L${point.x} ${point.y}`),
-      `L${ridgePadding.left + innerWidth} ${baselineY}`,
-      "Z",
-    ].join(" ");
-
-    return {
-      delayAddedMs: ridgeRow.delayAddedMs,
-      clientNumber: ridgeRow.clientNumber,
-      baselineY,
-      color: ridgeRow.color,
-      path,
-    };
-  });
-
-  const xTicks = buildLinearTicks(maxFlowCompletion, 7);
-
-  return (
-    <svg
-      viewBox={`0 0 ${CHART_WIDTH} ${chartHeight}`}
-      className="w-full overflow-visible rounded-lg bg-card text-muted-foreground"
-      role="img"
-        aria-label="Ridgeline plot of flow completion distributions by added delay and client"
-    >
-      <line
-        x1={ridgePadding.left}
-        x2={ridgePadding.left}
-        y1={ridgePadding.top}
-        y2={chartHeight - ridgePadding.bottom}
-        stroke="currentColor"
-        strokeWidth={1.15}
-      />
-      <line
-        x1={ridgePadding.left}
-        x2={CHART_WIDTH - ridgePadding.right}
-        y1={chartHeight - ridgePadding.bottom}
-        y2={chartHeight - ridgePadding.bottom}
-        stroke="currentColor"
-        strokeWidth={1.15}
-      />
-      {ridges.map((ridge) => (
-        <g key={`${ridge.delayAddedMs}-${ridge.clientNumber}`}>
-          <line
-            x1={ridgePadding.left}
-            x2={CHART_WIDTH - ridgePadding.right}
-            y1={ridge.baselineY}
-            y2={ridge.baselineY}
-            stroke="currentColor"
-            strokeDasharray="4 6"
-            strokeWidth={1}
-            opacity={0.28}
-          />
-          <path d={ridge.path} fill={ridge.color} opacity={0.45} />
-          <text
-            x={ridgePadding.left - 10}
-            y={ridge.baselineY + 3}
-            textAnchor="end"
-            className="fill-slate-500 text-[11px] dark:fill-slate-400"
-          >
-            {`${formatAxisValue(ridge.delayAddedMs)} | C${ridge.clientNumber}`}
-          </text>
-        </g>
-      ))}
-      {xTicks.map((tick) => {
-        const x =
-          ridgePadding.left +
-          (tick / Math.max(maxFlowCompletion, 1)) * innerWidth;
-
-        return (
-          <g key={`ridge-x-${tick}`}>
-            <line
-              x1={x}
-              x2={x}
-              y1={chartHeight - ridgePadding.bottom}
-              y2={chartHeight - ridgePadding.bottom + 5}
-              stroke="currentColor"
-              strokeWidth={1}
-            />
-            <text
-              x={x}
-              y={chartHeight - ridgePadding.bottom + 21}
-              textAnchor="middle"
-              className="fill-slate-500 text-[11px] dark:fill-slate-400"
-            >
-              {formatFlowCompletionTimeLabel(tick)}
-            </text>
-          </g>
-        );
-      })}
-      <text
-        x={ridgePadding.left + innerWidth / 2}
-        y={chartHeight - 14}
-        textAnchor="middle"
-        className="fill-slate-500 text-[12px] dark:fill-slate-400"
-      >
-        Flow Completion Time
-      </text>
-      <text
-        x={22}
-        y={ridgePadding.top + (chartHeight - ridgePadding.top - ridgePadding.bottom) / 2}
-        transform={`rotate(-90 22 ${ridgePadding.top + (chartHeight - ridgePadding.top - ridgePadding.bottom) / 2})`}
-        textAnchor="middle"
-        className="fill-slate-500 text-[12px] dark:fill-slate-400"
-      >
-        Delay / Client
-      </text>
-    </svg>
-  );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function ViolinPlot({
-  points,
-  series,
-}: {
-  points: FlowPoint[];
-  series: ClientSeries[];
-}) {
-  const delays = Array.from(
-    new Set(points.map((point) => point.delayAddedMs)),
-  ).sort((a, b) => a - b);
-
-  if (points.length === 0 || delays.length === 0 || series.length === 0) {
-    return <EmptyChartState text="No grouped data available for the violin plot." />;
-  }
-
-  const maxFlowCompletion = Math.max(
-    ...points.map((point) => point.flowCompletionTimeMs),
-    1,
-  );
-  const groupWidth = getChartInnerWidth() / Math.max(delays.length, 1);
-  const violinMaxWidth = Math.min(20, groupWidth / Math.max(series.length + 1, 2));
-  const violins = delays.flatMap((delayAddedMs, delayIndex) =>
-    series.map((entry, seriesIndex) => {
-      const values = points
-        .filter(
-          (point) =>
-            point.delayAddedMs === delayAddedMs &&
-            point.clientNumber === entry.clientNumber,
-        )
-        .map((point) => point.flowCompletionTimeMs);
-
-      if (values.length === 0) {
-        return null;
-      }
-
-      const histogram = buildHistogram(values, {
-        binCount: 16,
-        maxValue: maxFlowCompletion,
-      });
-      const maxCount = Math.max(...histogram.map((bin) => bin.count), 1);
-      const centerX =
-        CHART_PADDING.left +
-        groupWidth * delayIndex +
-        groupWidth / 2 +
-        (seriesIndex - (series.length - 1) / 2) * (violinMaxWidth * 2 + 6);
-      const leftSide = histogram.map((bin) => {
-        const width = (bin.count / maxCount) * violinMaxWidth;
-        const y = scaleChartY(bin.mid, maxFlowCompletion);
-
-        return { x: centerX - width, y };
-      });
-      const rightSide = histogram
-        .slice()
-        .reverse()
-        .map((bin) => {
-          const width = (bin.count / maxCount) * violinMaxWidth;
-          const y = scaleChartY(bin.mid, maxFlowCompletion);
-
-          return { x: centerX + width, y };
-        });
-      const path = [
-        `M${leftSide[0].x} ${leftSide[0].y}`,
-        ...leftSide.slice(1).map((point) => `L${point.x} ${point.y}`),
-        ...rightSide.map((point) => `L${point.x} ${point.y}`),
-        "Z",
-      ].join(" ");
-      const median = quantile(values.slice().sort((a, b) => a - b), 0.5);
-
-      return {
-        key: `${delayAddedMs}-${entry.clientNumber}`,
-        path,
-        centerX,
-        color: entry.color,
-        medianY: scaleChartY(median, maxFlowCompletion),
-      };
-    }).filter((violin): violin is NonNullable<typeof violin> => violin !== null),
-  );
-
-  return (
-    <svg
-      viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-lg bg-card text-muted-foreground"
-      role="img"
-      aria-label="Violin plot of flow completion time by delay and client"
-    >
-      {renderChartAxes({
-        xAxisLabel: "Added Delay (ms)",
-        yAxisLabel: "Flow Completion Time",
-        xTicks: delays.map((delayAddedMs, index) => {
-          const x =
-            CHART_PADDING.left +
-            (getChartInnerWidth() / Math.max(delays.length, 1)) * index +
-            (getChartInnerWidth() / Math.max(delays.length, 1)) / 2;
-
-          return (
-            <g key={`violin-${delayAddedMs}`}>
-              <line
-                x1={x}
-                x2={x}
-                y1={CHART_HEIGHT - CHART_PADDING.bottom}
-                y2={CHART_HEIGHT - CHART_PADDING.bottom + 5}
-                stroke="currentColor"
-                strokeWidth={1}
-              />
-              <text
-                x={x}
-                y={CHART_HEIGHT - CHART_PADDING.bottom + 21}
-                textAnchor="middle"
-                className="fill-slate-500 text-[11px] dark:fill-slate-400"
-              >
-                {formatAxisValue(delayAddedMs)}
-              </text>
-            </g>
-          );
-        }),
-        yTicks: renderYAxisTicks(maxFlowCompletion, (value) =>
-          formatFlowCompletionTimeLabel(value),
-        ),
-      })}
-      {violins.map((violin) => (
-        <g key={violin.key}>
-          <path d={violin.path} fill={violin.color} opacity={0.22} stroke={violin.color} strokeWidth={1.5} />
-          <line
-            x1={violin.centerX - 10}
-            x2={violin.centerX + 10}
-            y1={violin.medianY}
-            y2={violin.medianY}
-            stroke={violin.color}
-            strokeWidth={2.2}
-          />
-        </g>
-      ))}
-    </svg>
-  );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function DensityGridChart({
-  points,
-  series,
-}: {
-  points: FlowPoint[];
-  series: ClientSeries[];
-}) {
-  const delays = Array.from(
-    new Set(points.map((point) => point.delayAddedMs)),
-  ).sort((a, b) => a - b);
-
-  if (points.length === 0 || delays.length === 0 || series.length === 0) {
-    return <EmptyChartState text="No run-level data available for the density grid." />;
-  }
-
-  const maxFlowCompletion = Math.max(
-    ...points.map((point) => point.flowCompletionTimeMs),
-    1,
-  );
-  const rowCount = 14;
-  const groupWidth = getChartInnerWidth() / Math.max(delays.length, 1);
-  const clientStripWidth = groupWidth / Math.max(series.length, 1);
-  const rowHeight = getChartInnerHeight() / rowCount;
-  const counts = new Map<string, number>();
-  let maxCount = 1;
-
-  for (const point of points) {
-    const rowIndex = Math.min(
-      rowCount - 1,
-      Math.floor((point.flowCompletionTimeMs / Math.max(maxFlowCompletion, 1)) * rowCount),
-    );
-    const key = `${point.delayAddedMs}:${point.clientNumber}:${rowIndex}`;
-    const nextCount = (counts.get(key) ?? 0) + 1;
-    counts.set(key, nextCount);
-    maxCount = Math.max(maxCount, nextCount);
-  }
-
-  return (
-    <svg
-      viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-lg bg-card text-muted-foreground"
-      role="img"
-        aria-label="Density grid of flow completion time by added delay and client"
-    >
-      {renderChartAxes({
-        xAxisLabel: "Added Delay (ms)",
-        yAxisLabel: "Flow Completion Time",
-        xTicks: delays.map((delayAddedMs, index) => {
-          const x = CHART_PADDING.left + groupWidth * index + groupWidth / 2;
-
-          return (
-            <g key={`density-x-${delayAddedMs}`}>
-              <line
-                x1={x}
-                x2={x}
-                y1={CHART_HEIGHT - CHART_PADDING.bottom}
-                y2={CHART_HEIGHT - CHART_PADDING.bottom + 5}
-                stroke="currentColor"
-                strokeWidth={1}
-              />
-              <text
-                x={x}
-                y={CHART_HEIGHT - CHART_PADDING.bottom + 21}
-                textAnchor="middle"
-                className="fill-slate-500 text-[11px] dark:fill-slate-400"
-              >
-                {formatAxisValue(delayAddedMs)}
-              </text>
-            </g>
-          );
-        }),
-        yTicks: renderYAxisTicks(maxFlowCompletion, (value) =>
-          formatFlowCompletionTimeLabel(value),
-        ),
-      })}
-      {delays.flatMap((delayAddedMs, delayIndex) =>
-        series.flatMap((entry, seriesIndex) =>
-          Array.from({ length: rowCount }, (_, rowIndex) => {
-            const count =
-              counts.get(`${delayAddedMs}:${entry.clientNumber}:${rowIndex}`) ?? 0;
-            const intensity = count / maxCount;
-
-            return (
-              <rect
-                key={`${delayAddedMs}-${entry.clientNumber}-${rowIndex}`}
-                x={
-                  CHART_PADDING.left +
-                  groupWidth * delayIndex +
-                  clientStripWidth * seriesIndex +
-                  2
-                }
-                y={CHART_PADDING.top + rowHeight * (rowCount - rowIndex - 1) + 2}
-                width={Math.max(clientStripWidth - 4, 1)}
-                height={Math.max(rowHeight - 4, 1)}
-                rx={4}
-                fill={entry.color}
-                opacity={count === 0 ? 0.08 : 0.18 + intensity * 0.74}
-              />
-            );
-          }),
-        ),
-      )}
-    </svg>
-  );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function MedianSlopeChart({
-  points,
-  series,
-  fromDelay,
-  toDelay,
-}: {
-  points: FlowPoint[];
-  series: ClientSeries[];
-  fromDelay: number;
-  toDelay: number;
-}) {
-  const slopeData = series
-    .map((entry) => {
-      const fromValues = points
-        .filter(
-          (point) =>
-            point.clientNumber === entry.clientNumber &&
-            point.delayAddedMs === fromDelay,
-        )
-        .map((point) => point.flowCompletionTimeMs)
-        .sort((a, b) => a - b);
-      const toValues = points
-        .filter(
-          (point) =>
-            point.clientNumber === entry.clientNumber &&
-            point.delayAddedMs === toDelay,
-        )
-        .map((point) => point.flowCompletionTimeMs)
-        .sort((a, b) => a - b);
-
-      if (fromValues.length === 0 || toValues.length === 0) {
-        return null;
-      }
-
-      return {
-        ...entry,
-        fromMedian: quantile(fromValues, 0.5),
-        toMedian: quantile(toValues, 0.5),
-      };
-    })
-    .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
-
-  if (slopeData.length === 0) {
-    return <EmptyChartState text="No paired delay buckets available for the slope chart." />;
-  }
-
-  const maxFlowCompletion = Math.max(
-    ...slopeData.flatMap((entry) => [entry.fromMedian, entry.toMedian]),
-    1,
-  );
-  const leftX = CHART_PADDING.left + getChartInnerWidth() * 0.22;
-  const rightX = CHART_PADDING.left + getChartInnerWidth() * 0.78;
-
-  return (
-    <svg
-      viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[48vh] min-h-[340px] w-full overflow-visible rounded-lg bg-card text-muted-foreground"
-      role="img"
-      aria-label="Slope chart comparing median flow completion time between two delay levels"
-    >
-      {renderChartAxes({
-        xAxisLabel: "Selected Delay Buckets",
-        yAxisLabel: "Median Flow Completion Time",
-        xTicks: (
-          <>
-            {[{ label: formatAxisValue(fromDelay), x: leftX }, { label: formatAxisValue(toDelay), x: rightX }].map((tick) => (
-              <g key={tick.label}>
-                <line
-                  x1={tick.x}
-                  x2={tick.x}
-                  y1={CHART_HEIGHT - CHART_PADDING.bottom}
-                  y2={CHART_HEIGHT - CHART_PADDING.bottom + 5}
-                  stroke="currentColor"
-                  strokeWidth={1}
-                />
-                <text
-                  x={tick.x}
-                  y={CHART_HEIGHT - CHART_PADDING.bottom + 21}
-                  textAnchor="middle"
-                  className="fill-slate-500 text-[11px] dark:fill-slate-400"
-                >
-                  {tick.label}
-                </text>
-              </g>
-            ))}
-          </>
-        ),
-        yTicks: renderYAxisTicks(maxFlowCompletion, (value) =>
-          formatFlowCompletionTimeLabel(value),
-        ),
-      })}
-      {slopeData.map((entry) => {
-        const fromY = scaleChartY(entry.fromMedian, maxFlowCompletion);
-        const toY = scaleChartY(entry.toMedian, maxFlowCompletion);
-
-        return (
-          <g key={entry.clientNumber}>
-            <line
-              x1={leftX}
-              x2={rightX}
-              y1={fromY}
-              y2={toY}
-              stroke={entry.color}
-              strokeWidth={3}
-              opacity={0.9}
-            />
-            <circle cx={leftX} cy={fromY} r={6} fill={entry.color} />
-            <circle cx={rightX} cy={toY} r={6} fill={entry.color} />
-            <text
-              x={rightX + 10}
-              y={toY + 4}
-              className="fill-slate-600 text-xs dark:fill-slate-300"
-            >
-              {entry.label}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-function PercentileHeatmap({
+export function PercentileHeatmap({
   points,
   series,
   percentileKey,
@@ -4519,9 +3807,9 @@ export function AggregateGraphsPanel({
   );
   const clientSeries = useMemo<ClientSeries[]>(
     () =>
-      visibleClientNumbers.map((clientNumber, index) => ({
+      visibleClientNumbers.map((clientNumber) => ({
         clientNumber,
-        color: colorForClientPoint(clientNumber) ?? SERIES_COLORS[index % SERIES_COLORS.length],
+        color: colorForClientPoint(clientNumber),
         label: `Client ${clientNumber}`,
       })),
     [visibleClientNumbers],
@@ -4537,45 +3825,6 @@ export function AggregateGraphsPanel({
     filteredAvailableTestIds.length > 0 &&
     filteredAvailableTestIds.every((testId) => visibleSelectedTestIds.includes(testId));
 
-  const ccaOptionCounts = useMemo(
-    () =>
-      new Map(
-        AVAILABLE_CCA_FILTERS.map((cca) => [
-          cca,
-          filterAggregateTests(availableTests, {
-            ...filterState,
-            selectedCcas: [cca],
-          }).length,
-        ]),
-      ),
-    [availableTests, filterState],
-  );
-  const workloadOptionCounts = useMemo(
-    () =>
-      new Map(
-        AVAILABLE_WORKLOAD_FILTERS.map((workload) => [
-          workload,
-          filterAggregateTests(availableTests, {
-            ...filterState,
-            selectedWorkloads: [workload],
-          }).length,
-        ]),
-      ),
-    [availableTests, filterState],
-  );
-  const queueBufferOptionCounts = useMemo(
-    () =>
-      new Map(
-        AVAILABLE_QUEUE_BUFFER_FILTERS.map((queueBufferSize) => [
-          queueBufferSize,
-          filterAggregateTests(availableTests, {
-            ...filterState,
-            selectedQueueBufferSizes: [queueBufferSize],
-          }).length,
-        ]),
-      ),
-    [availableTests, filterState],
-  );
   const testGroupMatchesByLabel = useMemo(
     () =>
       new Map(
@@ -4659,14 +3908,6 @@ export function AggregateGraphsPanel({
     [clientFilteredFlowPoints],
   );
 
-  function toggleTestSelection(parentRunId: number) {
-    setSelectedTestIds((current) =>
-      current.includes(parentRunId)
-        ? current.filter((id) => id !== parentRunId)
-        : [...current, parentRunId].sort((left, right) => right - left),
-    );
-  }
-
   function toggleAllTests() {
     setSelectedTestIds((current) => {
       if (allTestsSelected) {
@@ -4681,17 +3922,13 @@ export function AggregateGraphsPanel({
 
   function handleTestGroupSelection(groupLabel: string, checked: boolean) {
     setSelectedTestGroups((current) => {
-      const nextSelectedGroups = checked
-        ? current.includes(groupLabel)
-          ? current
-          : [...current, groupLabel]
-        : current.filter((value) => value !== groupLabel);
+      const nextSelectedGroups = updateFilterSelection(current, groupLabel, checked);
 
       setSelectedTestIds(
         Array.from(
           new Set(
             nextSelectedGroups.flatMap((selectedGroupLabel) =>
-              (testGroupMatchesByLabel.get(selectedGroupLabel) ?? []).map(
+              testGroupMatchesByLabel.get(selectedGroupLabel)!.map(
                 (test) => test.parentRunId,
               ),
             ),
@@ -4714,12 +3951,11 @@ export function AggregateGraphsPanel({
   }
 
   const selectedGraphView =
-    AGGREGATE_GRAPH_VIEWS.find((view) => view.id === selectedGraphViewId) ??
-    AGGREGATE_GRAPH_VIEWS[0];
+    AGGREGATE_GRAPH_VIEWS.find((view) => view.id === selectedGraphViewId)!;
   const selectedExplorerModeConfig =
-    EXPLORER_MODES.find((mode) => mode.id === selectedExplorerMode) ??
-    EXPLORER_MODES[0];
-  const isOtherClientDelayGraph = selectedGraphViewId === "other-client-delay";
+    EXPLORER_MODES.find((mode) => mode.id === selectedExplorerMode)!;
+  const isOtherClientDelayGraph =
+    selectedExplorerMode === "explore" && selectedGraphViewId === "other-client-delay";
   const displayedFlowPoints = isOtherClientDelayGraph
     ? filteredFlowPoints
     : clientFilteredFlowPoints;
@@ -4727,12 +3963,13 @@ export function AggregateGraphsPanel({
     selectedExplorerMode === "compare"
       ? clientFilteredComparisonFlowPoints
       : displayedFlowPoints;
-  const displayedParentRunCount = new Set(
+  const pairedParentRunCount = isOtherClientDelayGraph
+    ? getOtherClientDelayPlotPointCount(filteredFlowPoints)
+    : null;
+  const displayedParentRunCount = pairedParentRunCount ?? new Set(
     displayedModePoints.map((point) => point.parentRunId),
   ).size;
-  const displayedPlottedPointCount = isOtherClientDelayGraph
-    ? getOtherClientDelayPlotPointCount(filteredFlowPoints)
-    : displayedModePoints.length;
+  const displayedPlottedPointCount = pairedParentRunCount ?? displayedModePoints.length;
 
   return (
     <main className="bg-background relative min-h-[var(--page-height)] overflow-hidden p-5 sm:p-10">
@@ -4965,12 +4202,6 @@ export function AggregateGraphsPanel({
                         );
                       }
 
-                      if (!isOtherClientDelayGraph && displayedFlowPoints.length === 0) {
-                        return (
-                          <EmptyChartState text="No selected clients have flow completion data in the selected tests." />
-                        );
-                      }
-
                       switch (selectedGraphViewId) {
                         case "connected-runs":
                           return (
@@ -5085,10 +4316,10 @@ export function AggregateGraphsPanel({
               <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto p-4 lg:grid-cols-2">
                 {AVAILABLE_TEST_GROUP_OPTIONS.map((group) => {
                   const matchedTests =
-                    testGroupMatchesByLabel.get(group.label) ?? [];
+                    testGroupMatchesByLabel.get(group.label)!;
                   const isSelected = selectedTestGroups.includes(group.label);
                   const workloadMegabytes =
-                    group.workloadMegabytes ?? GROUP_WORKLOAD_MEGABYTES;
+                    group.workloadMegabytes;
 
                   return (
                     <div
@@ -5172,248 +4403,6 @@ export function AggregateGraphsPanel({
                 })}
               </div>
             </section>
-
-            <div className="mt-5 hidden min-h-0 flex-1 gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
-              <aside className="min-h-0 overflow-y-auto rounded-lg border border-border bg-card p-4">
-                <div>
-                  <FilterDropdown
-                    label="CCA"
-                    summary={
-                      <span className="min-h-4 flex-1 pr-2">
-                        <span className="block text-xs font-semibold tracking-normal text-muted-foreground">
-                          CCA
-                        </span>
-                        <span className="mt-1 block truncate">
-                          {formatMultiSelectSummary(
-                            selectedCcas.map((cca) => cca.toUpperCase()),
-                          )}
-                        </span>
-                      </span>
-                    }
-                  >
-                    <div className="space-y-1">
-                      {AVAILABLE_CCA_FILTERS.map((cca) => (
-                        <Label
-                          key={cca}
-                          className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-foreground transition hover:bg-accent"
-                        >
-                          <span className="flex min-w-0 items-center gap-2">
-                            <Checkbox
-                              checked={selectedCcas.includes(cca)}
-                              onCheckedChange={(checked) =>
-                                setSelectedCcas((current) =>
-                                  checked
-                                    ? current.includes(cca)
-                                      ? current
-                                      : [...current, cca]
-                                    : current.filter((value) => value !== cca),
-                                )
-                              }
-                              className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
-                            />
-                            <span className="truncate uppercase">{cca}</span>
-                          </span>
-                          <span className="rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
-                            {ccaOptionCounts.get(cca) ?? 0}
-                          </span>
-                        </Label>
-                      ))}
-                    </div>
-                  </FilterDropdown>
-                </div>
-
-                <div className="mt-4">
-                  <FilterDropdown
-                    label="Workload"
-                    summary={
-                      <span className="min-h-4 flex-1 pr-2">
-                        <span className="block text-xs font-semibold tracking-normal text-muted-foreground">
-                          Workload
-                        </span>
-                        <span className="mt-1 block truncate">
-                          {formatMultiSelectSummary(
-                            selectedWorkloads.map((workload) => `${workload}MB`),
-                          )}
-                        </span>
-                      </span>
-                    }
-                  >
-                    <div className="space-y-1">
-                      {AVAILABLE_WORKLOAD_FILTERS.map((workload) => (
-                        <Label
-                          key={workload}
-                          className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-foreground transition hover:bg-accent"
-                        >
-                          <span className="flex min-w-0 items-center gap-2">
-                            <Checkbox
-                              checked={selectedWorkloads.includes(workload)}
-                              onCheckedChange={(checked) =>
-                                setSelectedWorkloads((current) =>
-                                  checked
-                                    ? current.includes(workload)
-                                      ? current
-                                      : [...current, workload].sort(
-                                          (a, b) => a - b,
-                                        )
-                                    : current.filter((value) => value !== workload),
-                                )
-                              }
-                              className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
-                            />
-                            <span className="truncate">{`${workload}MB`}</span>
-                          </span>
-                          <span className="rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
-                            {workloadOptionCounts.get(workload) ?? 0}
-                          </span>
-                        </Label>
-                      ))}
-                    </div>
-                  </FilterDropdown>
-                </div>
-
-                <div className="mt-4">
-                  <FilterDropdown
-                    label="Queue Buffer Size"
-                    summary={
-                      <span className="min-h-4 flex-1 pr-2">
-                        <span className="block text-xs font-semibold tracking-normal text-muted-foreground">
-                          Queue Buffer Size
-                        </span>
-                        <span className="mt-1 block truncate">
-                          {formatMultiSelectSummary(
-                            selectedQueueBufferSizes.map(
-                              (queueBufferSize) => `${queueBufferSize}KB`,
-                            ),
-                          )}
-                        </span>
-                      </span>
-                    }
-                  >
-                    <div className="space-y-1">
-                      {AVAILABLE_QUEUE_BUFFER_FILTERS.map((queueBufferSize) => (
-                        <Label
-                          key={queueBufferSize}
-                          className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs text-foreground transition hover:bg-accent"
-                        >
-                          <span className="flex min-w-0 items-center gap-2">
-                            <Checkbox
-                              checked={selectedQueueBufferSizes.includes(
-                                queueBufferSize,
-                              )}
-                              onCheckedChange={(checked) =>
-                                setSelectedQueueBufferSizes((current) =>
-                                  checked
-                                    ? current.includes(queueBufferSize)
-                                      ? current
-                                      : [...current, queueBufferSize].sort(
-                                          (a, b) => a - b,
-                                        )
-                                    : current.filter(
-                                        (value) => value !== queueBufferSize,
-                                      ),
-                                )
-                              }
-                              className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
-                            />
-                            <span className="truncate">{`${queueBufferSize}KB`}</span>
-                          </span>
-                          <span className="rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
-                            {queueBufferOptionCounts.get(queueBufferSize) ?? 0}
-                          </span>
-                        </Label>
-                      ))}
-                    </div>
-                  </FilterDropdown>
-                </div>
-              </aside>
-
-              <div className="min-h-0 overflow-y-auto rounded-lg border border-border bg-card">
-                <div className="border-b border-border px-4 py-3 text-xs font-semibold tracking-normal text-muted-foreground">
-                  Parent Run
-                </div>
-                {filteredAvailableTests.length > 0 ? (
-                  filteredAvailableTests.map((test, index) => {
-                    const isSelected = visibleSelectedTestIds.includes(
-                      test.parentRunId,
-                    );
-                    const previousSelected =
-                      index > 0 &&
-                      visibleSelectedTestIds.includes(
-                        filteredAvailableTests[index - 1].parentRunId,
-                      );
-                    const nextSelected =
-                      index < filteredAvailableTests.length - 1 &&
-                      visibleSelectedTestIds.includes(
-                        filteredAvailableTests[index + 1].parentRunId,
-                      );
-
-                    return (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        key={test.parentRunId}
-                        type="button"
-                        onClick={() => toggleTestSelection(test.parentRunId)}
-                        className={`h-auto whitespace-normal block w-full cursor-pointer px-4 py-3 text-left text-sm transition ${
-                          isSelected
-                            ? `border-x border-border bg-accent text-foreground dark:bg-card ${
-                                previousSelected
-                                  ? "border-t-0"
-                                  : "rounded-t-xl border-t"
-                              } ${
-                                nextSelected
-                                  ? "border-b-0"
-                                  : "rounded-b-xl border-b"
-                              }`
-                            : "border-b border-border bg-card text-foreground hover:bg-accent"
-                        }`}
-                      >
-                        <span className="block min-w-0">
-                          <span className="block font-semibold">
-                            {`${test.parentRunId} | Queue buffer: ${
-                              test.queueBufferSizeKilobyte === null
-                                ? "n/a"
-                                : `${formatAxisValue(test.queueBufferSizeKilobyte)}KB`
-                            } | Bottleneck rate: ${
-                              test.bottleneckRateMegabit === null
-                                ? "n/a"
-                                : `${formatAxisValue(test.bottleneckRateMegabit)} mbit`
-                            }`}
-                          </span>
-                          <span className="mt-1 block text-xs text-muted-foreground">
-                            {test.clientDetails.length > 0
-                              ? test.clientDetails
-                                  .map(
-                                    (clientDetail) =>
-                                      `${
-                                        clientDetail.ccaLabels.length > 0
-                                          ? clientDetail.ccaLabels
-                                              .map((cca) => cca.toUpperCase())
-                                              .join(", ")
-                                          : "n/a"
-                                      }, ${formatCommaSeparatedValues(
-                                        clientDetail.delayValues,
-                                        (delayValue) =>
-                                          `${formatAxisValue(delayValue)} ms`,
-                                      )}, ${formatCommaSeparatedValues(
-                                        clientDetail.workloadMegabytesValues,
-                                        (workload) => `${workload}MB`,
-                                      )}`,
-                                  )
-                                  .join(" | ")
-                              : "No client configuration available"}
-                          </span>
-                        </span>
-                      </Button>
-                    );
-                  })
-                ) : (
-                  <div className="flex h-40 items-center justify-center px-6 text-sm text-muted-foreground">
-                    No tests match the current filters.
-                  </div>
-                )}
-              </div>
-            </div>
 
             <div className="mt-5 flex shrink-0 flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">

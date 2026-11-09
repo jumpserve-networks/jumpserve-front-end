@@ -26,7 +26,7 @@ export function SharedAssessmentRecords({ studyId }: { studyId: string }) {
       <p>{data.coverage.returned} records on this page. {data.next_after ? "More records are available." : "End of this record collection."}</p>
       <p className="text-xs text-muted-foreground">{data.projection.note} {data.projection.redacted} values redacted · {data.projection.truncated} text values omitted or shortened by size limits.</p>
       {data.records.length ? <pre className="max-h-[36rem] overflow-auto whitespace-pre-wrap break-all rounded-md bg-muted p-3 text-xs">{JSON.stringify(data.records, null, 2)}</pre> : <p>No records of this kind were returned on this page.</p>}
-      <div className="flex flex-wrap gap-3"><Button size="sm" variant="outline" disabled={!selection.previous.length} onClick={() => setSelection(value => ({ ...value, after: value.previous.at(-1), previous: value.previous.slice(0,-1) }))}>Previous records</Button><Button size="sm" variant="outline" disabled={!data.next_after} onClick={() => setSelection(value => ({ ...value, after: data.next_after ?? undefined, previous: [...value.previous, value.after] }))}>Next records</Button></div>
+      <div className="flex flex-wrap gap-3"><Button size="sm" variant="outline" disabled={!selection.previous.length} onClick={() => setSelection(value => ({ ...value, after: value.previous.at(-1), previous: value.previous.slice(0,-1) }))}>Previous records</Button><Button size="sm" variant="outline" disabled={!data.next_after} onClick={data.next_after ? () => setSelection(value => ({ ...value, after: data.next_after!, previous: [...value.previous, value.after] })) : undefined}>Next records</Button></div>
     </> : <p role="status">Loading assessment records…</p>}
   </section>;
 }

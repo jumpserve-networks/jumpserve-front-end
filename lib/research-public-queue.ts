@@ -70,7 +70,7 @@ export function validatePublicStudyQueue(value: unknown, studyId: string): Publi
         !date(t.created_at) || !date(t.updated_at) ||
         (t.claim_id === null ? t.label !== null || t.claim_title !== null || t.stage !== "intake" :
           !isResearchId(t.claim_id) || typeof t.claim_title !== "string" || !["untested", "inconclusive", "reproduced", "discrepant"].includes(t.label ?? "")) ||
-        (t.claim_id !== null && t.status === "resolved" && !["reproduced", "discrepant"].includes(t.label ?? ""))) fail();
+        (t.claim_id !== null && t.status === "resolved" && !["reproduced", "discrepant"].includes(t.label!))) fail();
     const p = t.evidence_progress;
     if (t.repair_progress != null && !validRepairProgress(t.repair_progress)) fail();
     if (p != null && (!fields(p, ["required_checks", "completed_checks", "scope"]) || !whole(p.required_checks, 1000) || !whole(p.completed_checks, p.required_checks) || typeof p.scope !== "string")) fail();
