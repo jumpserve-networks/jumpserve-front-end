@@ -1,0 +1,62 @@
+{
+  "version": "historical-tools-archive-v1",
+  "repository": "jumpserve-front-end",
+  "source_revision": "a4197ea3ecaa2352afea343db8e44e92d9e7d4c8",
+  "retirement_basis": "Reviewed programs without references from current checked-in application/runtime, automated test/workflow entrypoints, package commands or declared maintained manual tools. Historical-only dependencies are retained in the archives across all three repositories.",
+  "reproduction": "Use source_revision and original_path in isolated checkouts of the repositories for historical execution. Programs are preserved byte-for-byte and retain their original relative-root and sibling-repository assumptions; this archive is not a current command entrypoint.",
+  "preserved": [
+    "Original source bytes and executable modes",
+    "Existing protocols, measurements, reports, literature, data and evidence manifests",
+    "Current automated tests, runtime code, package commands and supported manual tooling",
+    "Explicitly retained CDN protocols and local runtime/credential directories"
+  ],
+  "files": [
+    {
+      "original_path": "scripts/verify-autonomy-release.mjs",
+      "archived_path": "archive/historical-tools/scripts/verify-autonomy-release.mjs",
+      "sha256": "4cd4bb0b49dfe979cf0b53bc2cccd76b87678c8f21d7f989813ab3a3605ce4dd",
+      "bytes": 6338,
+      "lines": 56,
+      "mode": 420,
+      "previous_references": [
+        "jumpserve-infra:bin/autonomy-followup-release.py"
+      ]
+    },
+    {
+      "original_path": "scripts/verify-claim-design-production.mjs",
+      "archived_path": "archive/historical-tools/scripts/verify-claim-design-production.mjs",
+      "sha256": "632efe5d18eac274334ce5e0b5e868d5fd02b18d6c793fe7f28958e098f7ee56",
+      "bytes": 7612,
+      "lines": 100,
+      "mode": 420,
+      "previous_references": []
+    },
+    {
+      "original_path": "scripts/verify-claim-design.mjs",
+      "archived_path": "archive/historical-tools/scripts/verify-claim-design.mjs",
+      "sha256": "caa2404e18870932f22db47145c511672ffc542036a1160156c3f0d85f378a4e",
+      "bytes": 16628,
+      "lines": 84,
+      "mode": 420,
+      "previous_references": []
+    },
+    {
+      "original_path": "scripts/verify-homepage-release.mjs",
+      "archived_path": "archive/historical-tools/scripts/verify-homepage-release.mjs",
+      "sha256": "0167e2e3a9cdeeacbb76d1f7b4e9b4ab28fb2334baee7b38d33b1bd3e16d56f9",
+      "bytes": 10463,
+      "lines": 145,
+      "mode": 420,
+      "previous_references": []
+    },
+    {
+      "original_path": "scripts/verify-research-pathways.mjs",
+      "archived_path": "archive/historical-tools/scripts/verify-research-pathways.mjs",
+      "sha256": "f3ca7e724c67608058f4dd4a39f65d8a14d073f48d76c11f31233b06e53d32a8",
+      "bytes": 21546,
+      "lines": 266,
+      "mode": 420,
+      "previous_references": []
+    }
+  ]
+}

@@ -69,6 +69,20 @@ run `npm run test:coverage:report -- --all-sources`; that includes verification
 scripts and writes a separate report under `coverage/all-sources/`. Unit tests
 do not execute those scripts against production.
 
+## Maintained and historical tools
+
+`package.json` and `tests/` define the current automated checks and supported
+package commands. `maintained-tools.json` lists additional supported manual tools.
+Completed one-off browser/release campaigns live under `archive/historical-tools/`;
+its manifest preserves original paths, source revisions, sizes and SHA-256 hashes.
+Archive integrity and the presence of supported manual tools are checked by
+`npm test`. Historical source is excluded from normal linting and runtime coverage.
+
+For historical reproduction, use the recorded source revisions and original paths
+in isolated checkouts, with the original protocol and evidence. Archived programs
+retain their original path assumptions. Add recurring checks to the automated
+suite; archive completed one-off campaigns with their provenance.
+
 ## Test modules
 
 When logged out, `/` is a public landing page explaining JumpServe, the experiment

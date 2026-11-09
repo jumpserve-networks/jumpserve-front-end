@@ -31,6 +31,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     ".test-artifacts/**",
     "coverage/**",
+    "archive/**",
   ]),
 ]);
 
