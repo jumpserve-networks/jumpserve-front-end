@@ -15,9 +15,9 @@ test('profile edits validate names and IANA time zones without accepting caller 
  assert.throws(()=>parseProfile({...input,id:'someone-else'},user.id),/signed-in user/);
 });
 
-function client({row=null,error=null}={}){
+function client({row=null,error=null,writeError=error}={}){
  const calls=[];
- const builder={select(value){calls.push(['select',value]);return builder;},eq(key,value){calls.push(['eq',key,value]);return builder;},maybeSingle:async()=>({data:row,error}),single:async()=>({data:row,error}),upsert(value,options){calls.push(['upsert',value,options]);return builder;},update(value){calls.push(['update',value]);return builder;},then(resolve,reject){return Promise.resolve({data:row,error}).then(resolve,reject);}};
+ const builder={select(value){calls.push(['select',value]);return builder;},eq(key,value){calls.push(['eq',key,value]);return builder;},maybeSingle:async()=>({data:row,error}),single:async()=>({data:row,error}),upsert(value,options){calls.push(['upsert',value,options]);return builder;},update(value){calls.push(['update',value]);return builder;},then(resolve,reject){return Promise.resolve({data:row,error:writeError}).then(resolve,reject);}};
  return {calls,from(table){calls.push(['from',table]);return builder;}};
 }
 test('a missing profile uses explicit Google name fields and does not write on a read',async()=>{
@@ -35,6 +35,11 @@ test('later Google logins preserve saved names and timezone',async()=>{
  const row={id:user.id,first_name:'Grace',last_name:'Hopper',timezone:'Asia/Tokyo'};
  const c=client({row});await initializeGoogleProfile(c,user,'unused-token');
  assert.ok(!c.calls.some(x=>['upsert','update'].includes(x[0])));assert.deepEqual(await readOwnProfile(c,user),row);
+});
+test('profile initialization reports failed inserts and conditional updates without exposing database details',async()=>{
+ for(const row of [null,{id:user.id,first_name:'',last_name:'Saved',timezone:null}]){
+  await assert.rejects(()=>initializeGoogleProfile(client({row,writeError:{message:'Private database detail'}}),user),{message:'Google profile initialization could not save the profile.'});
+ }
 });
 test('Google logins fill only blank name components with conditional owner-scoped updates',async()=>{
  for(const row of [{id:user.id,first_name:'',last_name:'',timezone:'Asia/Tokyo'},{id:user.id,first_name:'Chosen',last_name:'',timezone:null},{id:user.id,first_name:'  ',last_name:'Saved',timezone:'UTC'}]){

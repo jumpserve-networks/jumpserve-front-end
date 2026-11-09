@@ -39,11 +39,10 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
-    if (!canvas.current) return;
     const observer = new ResizeObserver(([entry]) => {
       if (entry.contentRect.width && entry.contentRect.height) setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
     });
-    observer.observe(canvas.current);
+    observer.observe(canvas.current!);
     return () => observer.disconnect();
   }, []);
 

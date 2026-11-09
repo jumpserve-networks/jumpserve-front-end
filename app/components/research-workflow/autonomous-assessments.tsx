@@ -40,10 +40,10 @@ function TurnHistory({ task, readOnly = false }: { task: AutonomousTask | Public
     }).catch(failure => { if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : "Prompt history unavailable."); });
     return () => controller.abort();
   }, [task.id, task.study_id, task.attempts, task.updated_at, readOnly]);
-  async function older() {
-    if (before === null || busy) return; setBusy(true);
+  async function older(cursor: number) {
+    if (busy) return; setBusy(true);
     try {
-      const value = readOnly ? await loadSharedTurnHistory(task.study_id, task.id, before) : validateTurnHistory(await researchRequest(`/studies/${task.study_id}/autonomy?${new URLSearchParams({ task: task.id, before: String(before) })}`), task.study_id, task.id);
+      const value = readOnly ? await loadSharedTurnHistory(task.study_id, task.id, cursor) : validateTurnHistory(await researchRequest(`/studies/${task.study_id}/autonomy?${new URLSearchParams({ task: task.id, before: String(cursor) })}`), task.study_id, task.id);
       setTurns(previous => [...previous, ...value.turns.filter(t => !previous.some(p => p.id === t.id))]); setBefore(value.next_before); setError("");
       setBuilderCalls(previous=>[...previous,...(value.builder_calls??[]).filter(c=>!previous.some(p=>p.id===c.id))]);
       if ("projection" in value) setProjection(value.projection);
@@ -63,7 +63,7 @@ function TurnHistory({ task, readOnly = false }: { task: AutonomousTask | Public
       <details><summary className="cursor-pointer">Response, evidence and usage</summary><pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap break-all bg-muted p-3">{JSON.stringify({ raw_response: turn.raw_response, response_sha256: turn.response_sha256, parsed: turn.output, usage: turn.usage }, null, 2)}</pre></details>
     </article>)}
     {builderCalls.length?<div className="space-y-3"><h6 className="font-medium">Native experiment builder calls</h6><p className="text-xs text-muted-foreground">Original prompts, tool history and responses.</p>{builderCalls.map(call=><article key={call.id} className="space-y-2 rounded-md border p-3 text-xs"><p className="font-medium">AI call {call.number} · {words(call.status)}</p><p>{time(call.created_at)} · {call.model_id} · additional reservation ${(call.reserved_cents/100).toFixed(2)}</p>{call.reserved_cents===0?<p>The containing builder turn reserved this call’s allowance. Measured charge is unknown.</p>:<p>Measured charge is unknown.</p>}{call.reason?<p>{call.reason}</p>:null}<p className="break-all">Original request SHA256 {call.request_sha256}</p><NativeEvidence key={`${call.id}-request`} call={call} kind="request" readOnly={readOnly}/><NativeEvidence key={`${call.id}-response-${call.status}`} call={call} kind="response" readOnly={readOnly}/></article>)}</div>:null}
-    {before !== null ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void older()}>Show older turns</Button> : null}
+    {before !== null ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void older(before)}>Show older turns</Button> : null}
   </div>;
 }
 function Claim({ task, maxAttempts, readOnly = false }: { task: AutonomousTask | PublicAutonomousTask; maxAttempts: number | null; readOnly?: boolean }) {

@@ -45,6 +45,30 @@ localhost cookies across ports, and accumulated cookies can exceed Node's defaul
 16 KiB limit and cause HTTP 431 before Next.js handles the request. If 431 persists,
 remove the saved cookies for localhost in your browser and sign in again as needed.
 
+## Unit-test coverage
+
+Run `npm test` for the local unit suite and `npm run test:coverage:report` for
+coverage reports. `npm run test:coverage` enforces 100% lines, branches,
+functions and statements in every measured file. Test failures exit 1; a valid
+report below the coverage target exits 2.
+
+The owner-selected target is application/runtime code. The denominator includes
+unloaded TypeScript/TSX files in `app/` and `lib/`, `proxy.ts`, and root executable
+configuration files. Browser verification scripts in `scripts/` are outside this
+unit target. Generated declarations, dependencies, build
+output, test fixtures and test harnesses are excluded. A separate filesystem
+inventory must match the report exactly, and raw counters must agree; a rounded
+100% or a missing source file cannot pass the gate.
+
+Reports are generated in `coverage/unit/` (`index.html`, `lcov.info`,
+`coverage-final.json`, and `gate.json`) and are not committed. The JSX-only test
+loader retains native Node TypeScript and the existing module mocks. Component
+tests use jsdom and React Testing Library, with external network and navigation
+boundaries replaced by synthetic fixtures. For the broader diagnostic inventory,
+run `npm run test:coverage:report -- --all-sources`; that includes verification
+scripts and writes a separate report under `coverage/all-sources/`. Unit tests
+do not execute those scripts against production.
+
 ## Test modules
 
 When logged out, `/` is a public landing page explaining JumpServe, the experiment
@@ -300,6 +324,18 @@ Use the existing research API origin and `NEXT_PUBLIC_AGENT_URL`; the browser
 checks capabilities before creating an idea or requesting a model call. Deploy
 the additive idea/prompt migrations and evaluated prompt before enabling the
 module-aware APIs and this frontend. Local changes are not a production release.
+
+`npm run verify:research:queue` (also available as
+`npm run verify:research:public-queue`) checks the current public Experiment Queue
+through the local Next.js app and actual backend handlers with synthetic data.
+Reports and screenshots are retained under `.test-artifacts/public-experiment-queue/`.
+The retired private queue dashboard is no longer part of browser verification.
+
+`npm run verify:research:autonomy` uses the current assessment detail and public
+queue UI with the isolated PostgreSQL fixture on loopback 4104. Use
+`npm run verify:research:autonomy -- --bundle-only` to compile its browser bundle
+without that fixture; this mode does not run browser, API, database or controller
+checks and records that limitation in its report.
 
 `npm run verify:research:ideas` checks actual components and browser API adapters
 against `jumpserve-infra/test/serve_research_ideas_fixture.py` on loopback 4103.

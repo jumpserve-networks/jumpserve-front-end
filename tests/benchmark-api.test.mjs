@@ -16,6 +16,11 @@ const operations = [
   ["logs", () => getBenchmarkLogs("job-123")],
 ];
 
+test('unstructured API failures retain their HTTP status without exposing response values',async t=>{
+ let body;t.mock.method(globalThis,'fetch',async()=>Response.json(body,{status:503}));
+ for(body of [null,[],42,{}, {error:1},{message:' '}])await assert.rejects(()=>getBenchmarkLogs('job'),/Benchmark request failed with status 503/);
+});
+
 const multiConfig = {
   ...defaultConfig(), script: 'netem_multi_bottleneck.py', topology: 'dumbbell',
   bottleneck_rates_mbit: [100, 50], bottleneck_buffers_kbytes: [125, 64], client_groups: [1, 1],

@@ -7,6 +7,10 @@ const raw='%PDF-1.4\nExplicit software input, not an academic paper.\n%%EOF';
 const file=()=>new File([raw],'previous-paper.pdf',{type:'application/pdf'});
 const result={id,review_version:'research-paper-review-v1',status:'preparing'};
 const capabilities={autonomy:{version:'research-autonomy-v3',enabled:true},paper_uploads:{version:'research-paper-upload-v2',maximum_bytes:PAPER_UPLOAD_MAX_BYTES,review_version:'research-paper-review-v1',confirmation_required:true}};
+test('disabled autonomy cannot admit an upload and untyped storage failures remain explicitly unconfirmed',async()=>{
+ await assert.rejects(()=>prepareUploadedPaper(async()=>({...capabilities,autonomy:{version:'research-autonomy-v3',enabled:false}}),id,file(),async()=>assert.fail('No upload permitted')),/No paper was uploaded/);
+ const s=service(value=>value,async()=>{throw null;});await assert.rejects(()=>prepareUploadedPaper(s.request,id,file(),async()=>{throw new Error('Original upload transport failure');}),/same file and request.*Storage is unavailable/);
+});
 function service(mutateTicket=x=>x,finalize=async()=>result){const calls=[];return {calls,request:async(path,options)=>{calls.push({path,options});if(path==='/capabilities')return capabilities;const body=JSON.parse(options.body);if(body.action==='prepare')return finalize();return mutateTicket({version:'research-paper-upload-v2',id,status:'pending',bucket:'research-paper-uploads',path:id+'/'+body.sha256,token:'explicit-test-upload-permission',sha256:body.sha256,byte_count:body.byte_count,maximum_bytes:PAPER_UPLOAD_MAX_BYTES});}};}
 test('PDF identity uses exact original bytes and the filename without requiring a title or URL',async()=>{
  const metadata=await paperUploadMetadata(file());assert.equal(metadata.sha256,createHash('sha256').update(raw).digest('hex'));assert.equal(metadata.byte_count,Buffer.byteLength(raw));assert.equal(metadata.filename,'previous-paper.pdf');

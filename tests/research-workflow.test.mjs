@@ -3,6 +3,14 @@ import test from 'node:test';
 import {RECORD_KINDS,claimCounts,latestByClaim,measurementsCsv,preparationSteps,researchApiBase,safeSourceUrl,validateSnapshot,valueLabel} from '../lib/research-workflow.ts';
 import {getTestModuleForPath,RESEARCH_WORKFLOW_MODULE_PATH as PATH} from '../lib/test-modules.ts';
 function snapshot(){const records=Object.fromEntries(RECORD_KINDS.map(k=>[k,[]]));return {study:{id:'study'},access:'published-snapshot',records,coverage:Object.fromEntries(RECORD_KINDS.map(k=>[k,0]))};}
+test('unknown research values and malformed snapshots never imply a completed check',()=>{
+ assert.equal(valueLabel(Infinity),'invalid');assert.equal(valueLabel('1e999'),'invalid');
+ assert.equal(safeSourceUrl('not a URL'),null);
+ for(const value of [null,false,'snapshot'])assert.throws(()=>validateSnapshot(value),/response is missing/);
+ const s=snapshot();s.study.study_kind='idea';assert.match(preparationSteps(s)[0].description,/unpublished proposal/);
+ const rows=[{id:'a',claim_id:'c',created_at:'2026-10-07'},{id:'b',claim_id:'c',created_at:'2026-10-07'},{id:'ignored',claim_id:null}];assert.equal(latestByClaim(rows).get('c').id,'b');
+ s.records.claims=[{id:'c'}];s.records.assessments=[{...rows[0],label:'unsupported'}];assert.throws(()=>claimCounts(s),/Invalid claim assessment/);
+});
 test('API target rejects embedded credentials and non-loopback cleartext',()=>{assert.equal(researchApiBase(undefined),undefined);assert.equal(researchApiBase('http://127.0.0.1:4102/'),'http://127.0.0.1:4102');for(const value of ['http://example.org','https://user:secret@example.org','https://example.org?token=secret'])assert.throws(()=>researchApiBase(value));});
 test('assessment times compare actual instants across timezone offsets',()=>{const rows=[{id:'old',claim_id:'c',created_at:'2026-10-07T12:00:00+03:00'},{id:'new',claim_id:'c',created_at:'2026-10-07T10:00:00Z'}];assert.equal(latestByClaim(rows).get('c').id,'new');assert.throws(()=>latestByClaim([{id:'bad',claim_id:'c',created_at:'unknown'}]));});
 test('zero, missing, invalid and tiny scientific values stay distinct',()=>{assert.equal(valueLabel(0),'0');assert.equal(valueLabel(null),'missing');assert.equal(valueLabel(''),'invalid');assert.equal(valueLabel('NaN'),'invalid');assert.equal(valueLabel(false),'invalid');assert.equal(valueLabel('0.00001'),'0.00001');});

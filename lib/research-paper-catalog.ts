@@ -111,13 +111,6 @@ export async function loadMyPaperCatalog(userId: string, before?: string, signal
   return result;
 }
 
-export async function loadPaperTitle(id: string, signal?: AbortSignal, fetcher: typeof fetch = fetch): Promise<string> {
-  if (!isResearchId(id)) throw new Error("The paper identity is invalid.");
-  const result = await read(`/papers/${id}/title`, signal, fetcher);
-  if (!fields(result, ["version", "access", "id", "title"]) || result.version !== "research-paper-catalog-v1" || result.access !== "public-read-only" || result.id !== id || !title(result.title)) return fail();
-  return result.title;
-}
-
 export async function loadPaperDetail(id: string, signal?: AbortSignal, fetcher: typeof fetch = fetch): Promise<PaperDetail> {
   if (!isResearchId(id)) throw new Error("The assessment identity is invalid.");
   const result = await read(`/papers/${id}`, signal, fetcher) as PaperDetail;

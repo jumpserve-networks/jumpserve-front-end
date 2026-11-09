@@ -49,3 +49,14 @@ test('a failed code exchange never initializes a profile',async()=>{
  const response=await GET(request());const redirect=new URL(response.headers.get('location'));
  assert.equal(redirect.pathname,'/login');assert.equal(redirect.searchParams.get('error'),'Expired sign-in code');assert.deepEqual(c.writes,[]);
 });
+
+test('callback origins use explicit configuration and retain the production fallback behind internal hosts',async t=>{
+ const environment={...process.env};t.after(()=>{for(const key of Object.keys(process.env))if(!(key in environment))delete process.env[key];Object.assign(process.env,environment);});
+ const c=client();c.auth.exchangeCodeForSession=async()=>({data:{user:null,session:null},error:null});globalThis[key]=c;
+ for(const [site,mode,origin,expected]of [[' https://configured.example.test/path ','production','http://localhost:3000','https://configured.example.test'],[undefined,'production','http://localhost:3000','https://jumpserve.quaint-lab.org'],['invalid URL','production','http://127.0.0.1:3000','https://jumpserve.quaint-lab.org'],['','production','http://[::1]:3000','https://jumpserve.quaint-lab.org'],['','production','https://public.example.test','https://public.example.test'],['','development','http://localhost:6001','http://localhost:6001']]){
+  if(site===undefined)delete process.env.NEXT_PUBLIC_SITE_URL;else process.env.NEXT_PUBLIC_SITE_URL=site;process.env.NODE_ENV=mode;
+  let response=await GET(new Request(origin+'/auth/callback?code=synthetic&next='+encodeURIComponent('/congestion-control-emulated/benchmarks')));assert.equal(response.headers.get('location'),expected+'/congestion-control-emulated/benchmarks');
+  for(const error of [undefined,'Original provider rejection']){response=await GET(new Request(origin+'/auth/callback?next=%2Fprofile'+(error?'&error_description='+encodeURIComponent(error):'')));const redirect=new URL(response.headers.get('location'));assert.equal(redirect.origin,expected);assert.equal(redirect.pathname,'/login');assert.equal(redirect.searchParams.get('next'),'/profile');assert.equal(redirect.searchParams.get('error'),error??'Google sign-in did not return an authorization code.');}
+ }
+ assert.deepEqual(c.writes,[]);
+});

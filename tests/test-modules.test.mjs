@@ -34,7 +34,7 @@ test("re-authenticating from a pending module choice preserves the original dest
 
 test("untrusted redirect targets cannot leave the site or select a module", () => {
   for (const target of [
-    "https://example.com/benchmarks", "//example.com/benchmarks", "javascript:alert(1)",
+    "https://example.com/benchmarks", "//example.com/benchmarks", "//[", "javascript:alert(1)",
     "\\\\example.com/benchmarks", "/\\example.com/benchmarks", "benchmarks",
   ]) {
     assert.equal(getSafeNextPath(target), "/");

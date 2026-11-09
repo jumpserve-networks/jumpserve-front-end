@@ -73,13 +73,6 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (!isAuthenticated && requiresAuthentication) {
-    if (pathname.startsWith("/api/")) {
-      return copyCookies(
-        response,
-        NextResponse.json({ error: "Authentication required." }, { status: 401 }),
-      );
-    }
-
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.search = "";

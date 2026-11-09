@@ -1,4 +1,3 @@
-export const AUTONOMY_DEFAULTS = { maximum_spend_usd: null, elapsed_days: 7, attempts_per_claim: null } as const;
 export type AssessmentBudgetPolicy = { version: "autonomy-category-budgets-v1"; category: "research_assessment"; revision: number; max_spend_cents: number; max_model_calls: number };
 export function validAssessmentBudgetPolicy(value: unknown): value is AssessmentBudgetPolicy {
  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
@@ -26,19 +25,6 @@ export function validRepairProgress(value: unknown): value is RepairProgress {
  const p=value as RepairProgress;
  return Object.keys(p).length===6 && Object.keys(p).every(k=>["version","id","state","category","revision","updated_at"].includes(k)) && p.version==="autonomous-repair-v1" && uuid(p.id) && ["diagnosing","repairing","validating","resuming","waiting","resolved","blocked","budget","deadline","cancelled"].includes(p.state) && ["runtime","reference","implementation"].includes(p.category) && whole(p.revision) && date(p.updated_at);
 }
-export function validateAutonomy(value: unknown): AutonomousOverview {
-  const data = value as AutonomousOverview;
-  const expectedAttempts = data?.version === "research-autonomy-v3" ? null : 25;
-  if (!data || !supportedVersion(data.version) || typeof data.enabled !== "boolean" || !data.defaults || data.defaults.budget_policy !== undefined && !validAssessmentBudgetPolicy(data.defaults.budget_policy) || !isAssessmentDefaultBudget(data.defaults.maximum_spend_usd, data.version, data.defaults.budget_policy) || data.defaults.elapsed_days !== 7 || data.defaults.attempts_per_claim !== expectedAttempts || !Array.isArray(data.workflows) || !Array.isArray(data.tasks) || data.coverage?.workflows !== data.workflows.length || data.coverage?.tasks !== data.tasks.length) throw new Error("Autonomous assessment coverage is incomplete; current progress is unknown.");
-  const studies = new Set(data.workflows.map(w => w.study_id));
-  if(data.runtime&&(!["bedrock","openclaw-production-v1"].includes(data.runtime.runtime)||typeof data.runtime.model_id!=="string"||!["configured","ready","auth-required","paused-quota","unavailable"].includes(data.runtime.status)))throw new Error("AI worker status is invalid; current availability is unknown.");
-  if (data.tasks.some(t => !Array.isArray(t.required_inputs) || t.required_inputs.some(value => typeof value !== "string"))) throw new Error("Required-input coverage is missing; blocker details are unknown.");
-  if (data.tasks.some(t => t.evidence_progress != null && (!whole(t.evidence_progress.required_checks, 1000) || !whole(t.evidence_progress.completed_checks, t.evidence_progress.required_checks) || typeof t.evidence_progress.scope !== "string"))) throw new Error("Recorded check coverage is invalid; scientific coverage cannot be inferred.");
-  if (data.tasks.some(t => t.repair_progress != null && !validRepairProgress(t.repair_progress))) throw new Error("Operational repair progress is invalid; current recovery is unknown.");
-  if (studies.size !== data.workflows.length || data.workflows.some(w => !uuid(w.study_id) || !isAssessmentBudgetCents(w.max_spend_cents,data.defaults.budget_policy) || w.max_attempts !== expectedAttempts || !whole(w.committed_cents, validAssessmentBudgetPolicy(data.defaults.budget_policy) ? 2147483647 : w.max_spend_cents ?? 2147483647) || !date(w.created_at) || !date(w.deadline_at) || !date(w.updated_at) || typeof w.initial_prompt !== "string" || !/^[a-f0-9]{64}$/.test(w.initial_sha256) || typeof w.reason !== "string" || !["running", "completed", "completed-with-blockers", "budget", "deadline", "cancelled"].includes(w.status))) throw new Error("Autonomous paper limits or identities are invalid.");
-  if (new Set(data.tasks.map(t => t.id)).size !== data.tasks.length || data.tasks.some(t => !uuid(t.id) || !studies.has(t.study_id) || (t.claim_id !== null && !uuid(t.claim_id)) || !whole(t.attempts) || typeof t.reason !== "string" || !date(t.updated_at) || !["intake", "planning", "building", "comprehension", "critic", "execution", "assessment"].includes(t.stage) || !["queued", "running", "waiting", "resolved", "finished", "blocked", "attempt-limit", "budget", "deadline", "cancelled"].includes(t.status) || (t.claim_id === null ? t.label !== null : !["reproduced", "discrepant", "inconclusive", "untested"].includes(t.label ?? "")) || (t.status === "resolved" && !["reproduced", "discrepant"].includes(t.label ?? "")))) throw new Error("Autonomous claim progress is invalid; no conclusive finding can be inferred.");
-  return data;
-}
 export function validateTurnHistory(value: unknown, studyId: string, taskId: string): TurnHistory {
   const data = value as TurnHistory;
   if (!data || !supportedVersion(data.version) || data.access !== "owner-private" || data.study_id !== studyId || data.task_id !== taskId || !Array.isArray(data.turns) || data.turns.length > 10 || data.coverage?.returned !== data.turns.length || !whole(data.coverage.total) || data.coverage.total < data.turns.length || (data.next_before !== null && (!whole(data.next_before, data.coverage.total) || data.next_before === 0))) throw new Error("Turn history is incomplete or belongs to another claim.");
@@ -50,13 +36,4 @@ export function validateBuilderEvidence(value:unknown,studyId:string,taskId:stri
  const data=value as BuilderEvidence;
  if(!data||data.version!=="builder-evidence-v1"||data.study_id!==studyId||data.task_id!==taskId||data.call_id!==callId||data.kind!==kind||typeof data.reason!=="string"||!['recorded','missing'].includes(data.status)||data.status==='recorded'&&(typeof data.fragment!=="string"||data.fragment.length>1500||data.cursor!==cursor||!/^[a-f0-9]{64}$/.test(data.original_sha256??'')||data.next_cursor!==null&&(!whole(data.next_cursor)||data.next_cursor<=cursor))||data.status==='missing'&&(data.fragment!==null||data.next_cursor!==null))throw new Error("Native evidence fragment is invalid or belongs to another call.");
  return data;
-}
-type Request = <T = unknown>(path: string, options?: RequestInit) => Promise<T>;
-export async function startAutonomousPaper(request: Request, id: string, paper: Record<string, unknown>) {
-  const capabilities = await request<{ autonomy?: { version: string } }>("/capabilities");
-  if (capabilities.autonomy?.version !== "research-autonomy-v3") throw new Error("The connected service needs the autonomous assessment update. No paper was submitted.");
-  const result = await request<{ id: string; autonomy?: AutonomousWorkflow }>("/studies", { method: "POST", body: JSON.stringify({ request_id: id, paper, autonomous: true }) });
-  const policy = result.autonomy?.budget_policy;
-  if (result.id !== id || result.autonomy?.study_id !== id || policy !== undefined && !validAssessmentBudgetPolicy(policy) || (validAssessmentBudgetPolicy(policy) ? result.autonomy.max_spend_cents !== (policy.max_spend_cents === -1 ? null : policy.max_spend_cents) : result.autonomy.max_spend_cents !== null && result.autonomy.max_spend_cents !== 10000) || result.autonomy.max_attempts !== null) throw new Error("Autonomous intake was not confirmed. Preserve this request ID and inspect the queue before submitting a replacement.");
-  return result;
 }

@@ -120,11 +120,6 @@ export function AuthButton({ placement = "floating" }: AuthButtonProps) {
     setErrorMessage(null);
     setIsSubmitting(true);
 
-    if (typeof window === "undefined") {
-      setIsSubmitting(false);
-      return;
-    }
-
     const currentUrl = new URL(window.location.href);
     if (currentUrl.pathname !== "/login") {
       const nextPath = `${currentUrl.pathname}${currentUrl.search}`;

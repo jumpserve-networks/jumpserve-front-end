@@ -7,6 +7,10 @@ const {readPlatform,controlPlatform}=await import('../lib/platform-updates-store
 const id='11111111-1111-4111-8111-111111111111';
 const enqueue={action:'enqueue',request_id:id,task_id:id,payload:{title:'Repair status',objective:'Preserve exact revision status.',repositories:['jumpserve-networks/jumpserve-front-end'],max_reserved_cents:100,elapsed_seconds:300}};
 const snapshot={version:'platform-supervisor-v1',operator_id:id,operator_role:'owner',settings:{paused:true,automatic_releases:true,worker_status:'not-configured'},tasks:[],events:[],changes:[],releases:[],runs:[],artifacts:[],has_more_events:false,has_more_tasks:false};
+
+test('an incomplete platform snapshot remains unavailable while earlier history stays retained',async()=>{
+ const result=await readPlatform({rpc:async()=>({data:{version:'unsupported'},error:null})});assert.equal(result.status,'unavailable');assert.match(result.reason,/incomplete status records.*history is retained/);
+});
 test('category budgets distinguish unlimited from zero and reject missing or invalid limits',()=>{
  const categories=['research_assessment','platform_manual','platform_maintenance','platform_repair'].map(category=>({category,label:category,scope:category==='research_assessment'?'assessment':'platform-task',max_spend_cents:-1,max_model_calls:-1,revision:1}));
  const value={...snapshot,budget_categories:categories,tasks:[{id,status:'investigating',committed_cents:25000,max_reserved_cents:-1}]};
@@ -28,6 +32,12 @@ test('snapshot retains zero, missing amounts and exact bigint event cursors',()=
 test('only exact JumpServe PR links can become external links',()=>{
  assert.equal(platformPullRequest('https://github.com/jumpserve-networks/jumpserve-front-end/pull/7'),'https://github.com/jumpserve-networks/jumpserve-front-end/pull/7');
  for(const value of ['javascript:alert(1)','https://github.com.evil.invalid/jumpserve-networks/jumpserve-front-end/pull/7','https://github.com/other/repo/pull/1','https://github.com/jumpserve-networks/jumpserve-front-end/pull/7?x=1'])assert.equal(platformPullRequest(value),undefined);
+ for(const value of [null,'','not a URL'])assert.equal(platformPullRequest(value),undefined);
+});
+test('unsupported controls incomplete histories and legacy budget overruns fail explicitly',()=>{
+ for(const value of [{...enqueue,action:'unknown'},{...enqueue,payload:{...enqueue.payload,unknown:true}},{action:'cancel',request_id:id,task_id:null,payload:{}}])assert.throws(()=>parsePlatformControl(value));
+ assert.throws(()=>parsePlatformSnapshot({...snapshot,artifacts:null}),/Incomplete platform records/);
+ assert.throws(()=>parsePlatformSnapshot({...snapshot,tasks:[{id,status:'investigating',committed_cents:101,max_reserved_cents:100}]}),/Invalid platform task status/);
 });
 test('owner read denial and missing migrations disclose no SQL detail',async()=>{
  for(const [code,status] of [['42501','forbidden'],['PGRST202','unavailable']]){const result=await readPlatform({rpc:async()=>({data:null,error:{code,message:'private SQL and account details'}})});assert.equal(result.status,status);assert.ok(!result.reason.includes('private SQL'));}
@@ -36,4 +46,5 @@ test('control RPC retries preserve the caller request identity without accepting
  const calls=[];const client={rpc:async(name,payload)=>{calls.push({name,payload});return {data:{recorded:true},error:null};}};
  await controlPlatform(client,enqueue);await controlPlatform(client,enqueue);assert.deepEqual(calls[0],calls[1]);assert.equal(calls[0].payload.p_request,id);
  await assert.rejects(()=>controlPlatform({rpc:async()=>({data:null,error:{message:'private DB error'}})},enqueue),/same request identity/);
+ await assert.rejects(()=>controlPlatform({rpc:async()=>({data:null,error:{code:'42501',message:'private DB error'}})},enqueue),/owner access/);
 });

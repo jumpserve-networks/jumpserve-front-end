@@ -4,10 +4,48 @@ import {registerHooks} from 'node:module';
 const auth='data:text/javascript,'+encodeURIComponent('export async function requireAccessToken(message,userId){globalThis.catalogAuthCalls.push({message,userId});return "synthetic-test-token";}');
 globalThis.catalogAuthCalls=[];
 const hook=registerHooks({resolve(s,c,next){return next(s==='@/lib/browser-auth'?auth:s.startsWith('@/lib/')?new URL('../lib/'+s.slice(6)+'.ts',import.meta.url).href:s,c);}});
-const {validatePaperCatalog,loadPaperCatalog,loadMyPaperCatalog,loadPaperTitle,loadPaperMetadata,loadPaperDetail,paperWorkflowLabel}=await import('../lib/research-paper-catalog.ts');
+const {validatePaperCatalog,loadPaperCatalog,loadMyPaperCatalog,loadPaperMetadata,loadPaperDetail,paperWorkflowLabel}=await import('../lib/research-paper-catalog.ts');
 const {assessmentListPath,loadAssessmentList}=await import('../lib/research-assessment-list.ts');hook.deregister();
 const id='11111111-1111-4111-8111-111111111111';
 function fixture(){return {version:'research-paper-catalog-v1',access:'public-read-only',papers:[{id,title:null,created_at:'2026-10-22T00:00:00Z',workflow_status:'budget',published:false}],coverage:{papers:1},next_cursor:null};}
+
+test('duplicate paper identities remain invalid even when the declared coverage count matches',()=>{
+ const value=fixture();value.papers.push({...value.papers[0]});value.coverage.papers=2;assert.throws(()=>validatePaperCatalog(value),/invalid or incomplete/);
+ for(const status of ['running','completed','completed-with-blockers','budget','deadline','cancelled',null])assert.ok(paperWorkflowLabel(status).length>0);
+});
+
+test('unconfigured and missing catalogue endpoints retain explicit diagnostics across configured API fallbacks',async t=>{
+ const names=['NEXT_PUBLIC_RESEARCH_CATALOG_API_URL','NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL','NEXT_PUBLIC_BENCHMARK_API_URL'];const originals=names.map(name=>process.env[name]);t.after(()=>names.forEach((name,index)=>{if(originals[index]===undefined)delete process.env[name];else process.env[name]=originals[index];}));for(const name of names)delete process.env[name];
+ await assert.rejects(()=>loadPaperCatalog(undefined,undefined,()=>assert.fail('No request permitted')),/not configured/);
+ process.env.NEXT_PUBLIC_BENCHMARK_API_URL='https://fallback.example.test';
+ await assert.rejects(()=>loadPaperCatalog(undefined,undefined,async()=>new Response('',{status:404})),/has not been released/);
+ await assert.rejects(()=>loadPaperMetadata('invalid',undefined,()=>assert.fail('No request permitted')),/identity is invalid/);
+});
+
+test('personal lists reject repeated cross-page papers and a nonadvancing owner cursor',async t=>{
+ const original=process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL;t.after(()=>{if(original===undefined)delete process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL;else process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL=original;});process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL='https://catalog.example.test';
+ const papers=Array.from({length:10},(_,index)=>({...fixture().papers[0],id:'40000000-0000-4000-8000-'+String(index).padStart(12,'0')}));
+ const full={...fixture(),papers,coverage:{papers:10},next_cursor:'same'};
+ await assert.rejects(()=>loadMyPaperCatalog(id,'same',undefined,async()=>Response.json({...full,access:'owner-read-only'})),/invalid or incomplete/);
+ await assert.rejects(()=>loadMyPaperCatalog(id,undefined,undefined,async url=>new URL(url).pathname.endsWith('/studies')?Response.json({access:'owner-drafts',studies:[{id,study_kind:'paper'}]}):Response.json(full)),/invalid or incomplete/);
+ const controller=new AbortController();await assert.rejects(()=>loadMyPaperCatalog(id,undefined,controller.signal,async()=>{controller.abort(new Error('Original personal-list cancellation'));return Response.json(full);}),/Original personal-list cancellation/);
+});
+test('legacy personal catalogues reject a repeated paper even when the public cursor keeps advancing',async t=>{
+ const original=process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL;t.after(()=>{if(original===undefined)delete process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL;else process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL=original;});process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL='https://catalog.example.test';let pages=0;const missing='60000000-0000-4000-8000-000000000001';await assert.rejects(loadMyPaperCatalog(id,undefined,undefined,async url=>new URL(url).pathname.endsWith('/studies')?Response.json({access:'owner-drafts',studies:[{id:missing,study_kind:'paper'}]}):Response.json({...fixture(),papers:Array.from({length:10},(_,index)=>({...fixture().papers[0],id:'80000000-0000-4000-8000-'+String(index).padStart(12,'0')})),coverage:{papers:10},next_cursor:'page-'+(++pages)})),/invalid or incomplete/);assert.equal(pages,2);
+});
+
+test('name search rejects repeated inventories and cursor cycles and relays in-flight cancellation',async t=>{
+ const original=process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL;t.after(()=>{if(original===undefined)delete process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL;else process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL=original;});process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL='https://catalog.example.test';
+ let page=0;const catalogue=fresh=>{page++;return {...fixture(),papers:Array.from({length:10},(_,index)=>({...fixture().papers[0],id:'50000000-0000-4000-8000-'+String(index+(fresh?page*10:0)).padStart(12,'0'),title:'Other paper',authors:['Known Author']})),coverage:{papers:10},next_cursor:'cursor-'+(fresh?page%2:page)};};
+ for(const fresh of [false,true]){page=0;await assert.rejects(()=>loadAssessmentList({name:'unmatched'},undefined,async()=>Response.json(catalogue(fresh))),/repeated a page/);assert.equal(page,fresh?3:2);}
+ page=0;await assert.rejects(()=>loadAssessmentList({name:'unmatched'},undefined,async()=>{const result=catalogue(true);result.next_cursor='page-'+page;return Response.json(result);}),/lookup limit/);assert.equal(page,100);
+ assert.equal((await loadAssessmentList({name:'   '},undefined,async()=>Response.json(fixture()))).papers.length,1);
+ const controller=new AbortController();await assert.rejects(()=>loadAssessmentList({name:'unmatched'},controller.signal,async(_url,options)=>{controller.abort(new Error('Original name-filter cancellation'));assert.equal(options.signal.aborted,true);throw options.signal.reason;}),/Original name-filter cancellation/);
+});
+
+test('legacy personal catalog scanning stops at its complete-page bound without claiming an empty owner list',async t=>{
+ const previous=process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL;t.after(()=>{if(previous===undefined)delete process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL;else process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL=previous;});process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL='https://example.test';let pages=0;const fetcher=async url=>{if(new URL(url).pathname.endsWith('/studies'))return Response.json({access:'owner-drafts',studies:[{id,study_kind:'paper'}]});pages++;const papers=Array.from({length:10},(_,index)=>({...fixture().papers[0],id:'30000000-0000-4000-8000-'+String(pages*10+index).padStart(12,'0'),created_at:new Date(Date.UTC(2026,10,1)-(pages*10+index)*1000).toISOString()}));const paper=papers.at(-1);return Response.json({...fixture(),papers,coverage:{papers:10},next_cursor:Buffer.from(JSON.stringify({created_at:paper.created_at,id:paper.id})).toString('base64url')});};await assert.rejects(loadMyPaperCatalog(id,undefined,undefined,fetcher),/No partial list is shown/);assert.equal(pages,101);
+});
 
 test('assessment view, name and ownership filters survive page links and encode names safely',()=>{
  const path=assessmentListPath({mine:true,view:'card',name:'  A&B / ?  ',before:'abc'}),url=new URL(path,'https://example.org');
@@ -58,13 +96,12 @@ test('private fields, duplicate identities, invalid states and incorrect coverag
   const q=fixture();change(q);assert.throws(()=>validatePaperCatalog(q),/invalid or incomplete/);
  }
 });
-test('public reads never send credentials and title responses must match the requested paper',async()=>{
+test('public catalogue reads never send credentials',async()=>{
  const old=process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL;process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL='https://api.example.org';
  try{
-  const seen=[];const fetcher=async(url,options)=>{seen.push(url);assert.equal(options.method,'GET');assert.equal(options.credentials,'omit');assert.equal(options.cache,'no-store');assert.equal(options.headers.Authorization,undefined);return new Response(JSON.stringify(url.includes('/title')?{version:'research-paper-catalog-v1',access:'public-read-only',id,title:'Actual Paper Title'}:fixture()));};
-  await loadPaperCatalog(undefined,undefined,fetcher);assert.equal(await loadPaperTitle(id,undefined,fetcher),'Actual Paper Title');
-  assert.deepEqual(seen,['https://api.example.org/research/papers?bibliography=1&initiator=1',`https://api.example.org/research/papers/${id}/title`]);
-  await assert.rejects(()=>loadPaperTitle(id,undefined,async()=>new Response(JSON.stringify({version:'research-paper-catalog-v1',access:'public-read-only',id:'other',title:'Wrong Paper'}))),/invalid or incomplete/);
+  const seen=[];const fetcher=async(url,options)=>{seen.push(url);assert.equal(options.method,'GET');assert.equal(options.credentials,'omit');assert.equal(options.cache,'no-store');assert.equal(options.headers.Authorization,undefined);return Response.json(fixture());};
+  await loadPaperCatalog(undefined,undefined,fetcher);
+  assert.deepEqual(seen,['https://api.example.org/research/papers?bibliography=1&initiator=1']);
  }finally{if(old===undefined)delete process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL;else process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL=old;}
 });
 
@@ -89,7 +126,7 @@ test('initiator attribution accepts only a display name and keeps legacy or abse
 test('invalid page and paper identities and aborted requests do not initiate reads',async()=>{
  const fetcher=()=>assert.fail('No request expected');
  await assert.rejects(()=>loadPaperCatalog('bad,cursor',undefined,fetcher),/invalid/);
- await assert.rejects(()=>loadPaperTitle('bad-id',undefined,fetcher),/invalid/);
+ await assert.rejects(()=>loadPaperMetadata('bad-id',undefined,fetcher),/invalid/);
  const old=process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL;process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL='https://api.example.org';
  try{const c=new AbortController();c.abort(new Error('Cancelled'));await assert.rejects(()=>loadPaperCatalog(undefined,c.signal,fetcher),/Cancelled/);}finally{if(old===undefined)delete process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL;else process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL=old;}
 });

@@ -76,3 +76,21 @@ test("CSV escapes quotes and spreadsheet formulas, preserving numeric negatives 
   assert.match(csv, /scheduled_start/);
   assert.match(csv, /"0","","","","",""/);
 });
+
+test("incomplete comparison evidence and an identical algorithm contrast retain explicit exclusions", () => {
+  const incomplete = report(1, "cubic", 0); incomplete.comparison.key = null;
+  assert.equal(compare([incomplete]).excluded[0].reason, "Comparison evidence is incomplete");
+  const identical = compareRealWorldReports([report(2, "cubic", 0)], "cubic", "cubic", "combined_mean_mbit_per_second");
+  assert.deepEqual(identical.blocks, []); assert.equal(identical.excluded[0].reason, "Choose two different algorithms");
+});
+
+test("optional undefined configuration metadata is normalized consistently with explicit null", () => {
+  const a = report(1, "cubic", 0), b = report(2, "bbr", 1);
+  a.comparison.configuration.optional_metadata = undefined; b.comparison.configuration.optional_metadata = null;
+  const result = compare([a, b]); assert.equal(result.matchedBlocks, 1); assert.equal(result.blocks[0].delta, 1);
+});
+
+test("missing trace collections export only the header without manufacturing zero-valued samples", () => {
+  const data = report(1, "cubic", 0); data.receivers = [{name: "receiver-1"}]; delete data.queue;
+  const csv = tracesCsv(data); assert.equal(csv.trim().split("\r\n").length, 1); assert.ok(csv.startsWith('"test_id","machine","clock"')); assert.equal(csv.includes("receiver-1"), false);
+});

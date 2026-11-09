@@ -14,6 +14,7 @@ export async function ideaModelRequest(body: Record<string, unknown>, signal?: A
   try { token = await requireAccessToken("Sign in before requesting AI help."); }
   catch (error) { throw new IdeaRequestError(error instanceof Error ? error.message : "Sign in before requesting AI help.", false); }
   let invocationStarted = false;
+  let confirmed: { run: IdeaRun };
   const controller = new AbortController();
   const relay = () => controller.abort(signal?.reason);
   if (signal?.aborted) relay(); else signal?.addEventListener("abort", relay, { once: true });
@@ -33,7 +34,12 @@ export async function ideaModelRequest(body: Record<string, unknown>, signal?: A
     invocationStarted = true;
     const result = await request({ ...body, action: "idea" });
     if (!result.run || result.run.id !== body.request_id || result.run.study_id !== body.study_id || result.run.packet_id !== body.packet_id || result.run.task !== body.task) throw new Error("AI attempt identity was not confirmed. Refresh retained history before continuing.");
-    return result;
-  } catch (error) { throw error instanceof IdeaRequestError ? error : new IdeaRequestError(error instanceof Error ? error.message : "AI response is unconfirmed; refresh retained status.", invocationStarted); }
-  finally { clearTimeout(timeout); signal?.removeEventListener("abort", relay); }
+    confirmed = result;
+  } catch (error) {
+    throw error instanceof IdeaRequestError ? error : new IdeaRequestError(error instanceof Error ? error.message : "AI response is unconfirmed; refresh retained status.", invocationStarted);
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", relay);
+  }
+  return confirmed;
 }

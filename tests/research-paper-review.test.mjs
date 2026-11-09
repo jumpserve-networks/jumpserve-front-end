@@ -14,6 +14,12 @@ test('review preserves explicit unlimited funding and rejects missing limits and
  assert.equal(validatePaperReview(value,id).limits.committed_cents,150000);
  for(const cap of [undefined,0,100000])assert.throws(()=>validatePaperReview({...value,limits:{...value.limits,max_spend_cents:cap}},id));
 });
+test('versioned category limits retain historical commitments after an owner lowers the current cap',()=>{
+ const policy={version:'autonomy-category-budgets-v1',category:'research_assessment',revision:2,max_spend_cents:0,max_model_calls:0};
+ const value={...base,limits:{...base.limits,budget_policy:policy,max_spend_cents:0,committed_cents:500}};
+ assert.equal(validatePaperReview(value,id).limits.committed_cents,500);
+ assert.throws(()=>validatePaperReview({...value,limits:{...value.limits,budget_policy:{...policy,revision:0}}},id),/could not be verified/);
+});
 test('confirmed reviews require retained selection and complete confirmation fields',()=>{assert.throws(()=>validatePaperReview({...base,status:'confirmed',can_start:false},id),/could not be verified/);assert.throws(()=>validatePaperReview({...base,status:'confirmed',can_start:false,confirmation:{title:'Paper',domain:'Networking',claim_ids:['foreign-claim']}},id),/could not be verified/);assert.equal(validatePaperReview({...base,status:'confirmed',can_start:false,confirmation:{title:'Paper',domain:'Networking',claim_ids:['claim']}},id).status,'confirmed');});
 
 const organization={version:'paper-review-selection-v1',status:'ready',central_claims:[],testable_findings:[{claim_id:'claim',label:'Latency under fixed conditions'}],candidate_count:1,cursor:1};

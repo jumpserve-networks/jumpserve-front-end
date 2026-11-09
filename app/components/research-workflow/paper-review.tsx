@@ -53,17 +53,17 @@ export function PaperReviewPanel({ assessmentId }: { assessmentId: string }) {
     try {
       const value = validatePaperReview(await researchRequest<PaperReview>("/paper-uploads", { method: "POST", body: JSON.stringify({ action: "confirm", request_id: assessmentId, revision: review.revision, title, domain, ...(review.authors_version === PAPER_AUTHORS_VERSION ? { authors: parseReviewAuthors(authors) } : {}), claim_ids: selected, selection: { central_claims: selected.filter(id => roles[id] === "central_claims"), testable_findings: selected.filter(id => roles[id] === "testable_findings") } }) }), assessmentId);
       if (value.status !== "confirmed") throw new Error("Assessment start is unconfirmed. Retry using this same review.");
-      setReview(value); trackAssessment(assessmentId, value.confirmation?.title ?? title); router.push(experimentQueuePath(assessmentId));
+      setReview(value); trackAssessment(assessmentId, value.confirmation!.title); router.push(experimentQueuePath(assessmentId));
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Confirmation could not be saved. Retry this same review."); }
     finally { inFlight.current = false; setBusy(false); }
   }
   async function organize() {
-    if (busy) return; setBusy(true); setError("");
+    if (inFlight.current) return; inFlight.current = true; setBusy(true); setError("");
     try {
       const value = validatePaperReview(await researchRequest<PaperReview>("/paper-uploads", { method: "POST", body: JSON.stringify({ action: "organize", request_id: assessmentId }) }), assessmentId);
       initialized.current = false; setReview(value); setSelected([]); setRoles({}); setRetry(n => n + 1);
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Paper organization could not be requested."); }
-    finally { setBusy(false); }
+    finally { inFlight.current = false; setBusy(false); }
   }
   const preparing = review?.status === "preparing";
   const groupingReady = review?.organization?.status === "ready";

@@ -137,8 +137,13 @@ test("structured API errors remain useful and unknown failures show a status", a
   for (body of [{ error: "message is required" }, { message: "Too many requests" }]) {
     await assert.rejects(send, { message: body.error ?? body.message });
   }
-  body = {};
-  await assert.rejects(send, /AI chat request failed \(HTTP 429\)/);
+  for(body of [{},null,[],42])await assert.rejects(send, /AI chat request failed \(HTTP 429\)/);
+});
+
+test('optional answer provenance never invents missing renderer or evidence metadata',async t=>{
+ t.mock.method(globalThis,'fetch',async()=>Response.json({...response,prompt_version:'v1',prompt_version_id:'prompt',prompt_content_sha256:'hash',analysis_version:'analysis',answer_provenance:{}}));
+ const result=await send();
+ assert.equal(result.provenance.evidence_sha256,undefined);assert.equal(result.provenance.renderer_version,undefined);assert.equal(result.provenance.read_events,undefined);
 });
 
 test('ReliableSketch capability and answer evidence provenance survive the browser API adapter',async(t)=>{

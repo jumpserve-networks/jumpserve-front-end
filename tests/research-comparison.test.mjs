@@ -2,6 +2,13 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { compareConfigurations, buildSweepGroups, configurationIssue, configurationKey, formatSeconds, medianInterval } from "../lib/research-comparison.ts";
 import { loadAggregateResearchData } from "../lib/aggregate-research-data.ts";
+test('incomplete independently supplied client identities and missing job metadata remain explicit',()=>{
+ const config=experiment(1,'bbr',1000)[0].configuration;const invalid=structuredClone(config);invalid.clients[0].clientNumber=null;invalid.clients[1].clientNumber=null;
+ assert.match(configurationIssue(invalid),/Incomplete or duplicate/);assert.equal(typeof configurationKey({...invalid,jobConfig:null}),'string');assert.equal(typeof configurationKey({...config,jobConfig:null}),'string');assert.equal(formatSeconds(Infinity),'Unavailable');
+});
+test('invalid link and sample parameters exclude the full parent configuration',()=>{
+ for(const field of ['rateMbps','bufferKib','snapshotMs']){const config=structuredClone(experiment(1,'bbr',1000)[0].configuration);config[field]=null;assert.equal(configurationIssue(config),'Missing or invalid link / sampling configuration');}
+});
 
 function experiment(id, cca, fct, workload = 50, delay = 10) {
   const configuration = {
@@ -12,6 +19,10 @@ function experiment(id, cca, fct, workload = 50, delay = 10) {
   };
   return [1, 2].map(clientNumber => ({ parentRunId: id, clientNumber, flowCompletionTimeMs: fct, configuration }));
 }
+
+test('configuration sweep matching removes only the selected client delay and preserves the other client settings',()=>{
+ const config=experiment(1,'bbr',1000)[0].configuration;config.jobConfig.client_delays_ms=[10,60];const changed=structuredClone(config);changed.jobConfig.client_delays_ms[0]=20;changed.clients[0].delayMs=20;assert.notEqual(configurationKey(config),configurationKey(changed));assert.equal(configurationKey(config,1),configurationKey(changed,1));changed.jobConfig.client_delays_ms[1]=70;assert.notEqual(configurationKey(config,1),configurationKey(changed,1));
+});
 
 test("signed effects always use seconds, including negative and sub-second values", () => {
   assert.equal(formatSeconds(4930, true), "+4.930 s");

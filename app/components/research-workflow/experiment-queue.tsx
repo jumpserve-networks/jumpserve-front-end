@@ -6,12 +6,9 @@ import { Button } from "@/app/components/ui/button";
 import { ResearchSelect } from "./select";
 import { RunGapExperiment } from "./run-gap-experiment";
 import { researchRequest } from "@/lib/research-workflow-api";
-import { loadExperimentQueue, requireGapQueueApi } from "@/lib/research-queue-api";
-import { QUEUE_STATUSES } from "@/lib/research-queue";
-import { experimentQueuePath, isResearchId, QUEUE_POLL_MS, validateGapEnqueued, validateGapPreview, type ExperimentQueue, type GapPreview } from "@/lib/research-experiment-queue";
+import { requireGapQueueApi } from "@/lib/research-queue-api";
+import { experimentQueuePath, isResearchId, validateGapEnqueued, validateGapPreview, type GapPreview } from "@/lib/research-experiment-queue";
 import { ASSESSMENTS_PATH, NEW_ASSESSMENT_PATH } from "@/lib/test-modules";
-import { AutonomousAssessmentStatus } from "./autonomous-assessments";
-import { AssessmentExperimentQueue } from "./assessment-experiment-queue";
 
 const failureText = (error: unknown) => error instanceof Error ? error.message : "Queue status is unavailable.";
 const display = (value: string) => value.replaceAll("-", " ");
@@ -80,45 +77,4 @@ export function AssessmentGapExperiments({ studyId, gapId, launchId }: { studyId
   const router = useRouter();
   function queued(id: string, job: string) { router.push(experimentQueuePath(id, job)); }
   return launchId ? <section aria-label="Run requested experiment" className="space-y-3 rounded-lg border p-5"><h2 className="text-lg font-semibold">Run requested experiment</h2><RunGapExperiment studyId={studyId} gapId={gapId} launchId={launchId} onQueued={queued} /></section> : <GapExperimentPlanner studyId={studyId} gapId={gapId} onQueued={queued} />;
-}
-
-export function ExperimentQueueDashboard({ studyId, jobId, sourceAssessment, gapId, launchId }: { studyId?: string; jobId?: string; sourceAssessment?: string; gapId?: string; launchId?: string }) {
-  const [data, setData] = useState<ExperimentQueue | null>(null); const [error, setError] = useState("");
-  const [revision, setRevision] = useState(0);
-  const [study, setStudy] = useState(studyId ?? ""); const [status, setStatus] = useState("");
-  const [focusedJob, setFocusedJob] = useState(jobId ?? "");
-  useEffect(() => {
-    const controller = new AbortController(); let timer: ReturnType<typeof setTimeout> | undefined;
-    async function refresh() {
-      try {
-        const result = await loadExperimentQueue(researchRequest, controller.signal, study || undefined);
-        if (!controller.signal.aborted) { setData(result); setError(""); }
-      } catch (error) { if (!controller.signal.aborted) setError(failureText(error)); }
-      finally { if (!controller.signal.aborted) timer = setTimeout(refresh, QUEUE_POLL_MS); }
-    }
-    void refresh();
-    return () => { controller.abort(); clearTimeout(timer); };
-  }, [revision, study]);
-  function queued(id: string, job: string) { setStudy(id); setFocusedJob(job); setStatus(""); setRevision(r => r + 1); window.history.replaceState(null, "", experimentQueuePath(id, job)); }
-  const jobs = data?.jobs ?? [];
-  const assessments = data?.studies.filter(assessment => !study || assessment.id === study) ?? [];
-  const names = new Map(data?.studies.map(s => [s.id, s.title]));
-  const titleCounts = new Map<string, number>();
-  for (const assessment of data?.studies ?? []) titleCounts.set(assessment.title, (titleCounts.get(assessment.title) ?? 0) + 1);
-  return <div className="space-y-6" data-testid="experiment-queue-dashboard">
-    {sourceAssessment && gapId ? launchId ? <section aria-label="Run requested experiment" className="space-y-3 rounded-lg border p-5"><h2 className="text-lg font-semibold">Run requested experiment</h2><RunGapExperiment studyId={sourceAssessment} gapId={gapId} launchId={launchId} onQueued={queued} /></section> : <GapExperimentPlanner studyId={sourceAssessment} gapId={gapId} onQueued={queued} /> : null}
-    <section className="space-y-4" aria-label="Your experiment status">
-      <h2 className="text-lg font-semibold">Your experiment status</h2>
-      {error ? <p role="alert" className="rounded-lg border p-4 text-sm text-destructive">{error} {data ? "Previously retrieved status is shown and may be stale." : "Queue counts and current status are unknown."}</p> : null}
-      {data ? <>
-        {!data.workers_enabled ? <p className="rounded-lg border p-3 text-sm text-warning">Scheduled workers are disabled. Automatic jobs can be recorded but will not start until workers are activated.</p> : null}
-        {data.autonomy ? <AutonomousAssessmentStatus data={data.autonomy} stale={Boolean(error)} /> : null}
-        <p className="text-xs text-muted-foreground">{data.coverage.jobs} recorded jobs across {data.coverage.studies} paper assessments · global execution limit {data.limits.global_jobs} · per-assessment limit {data.limits.study_jobs}. Job counts within each assessment include all statuses, including cancelled jobs.</p>
-        <div className="grid gap-3 sm:grid-cols-2"><ResearchSelect label="Filter queue by assessment" value={study} onChange={setStudy} options={[{ value: "", label: "All paper assessments" }, ...data.studies.map(s => ({ value: s.id, label: (titleCounts.get(s.title) ?? 0) > 1 ? `${s.title} · ${s.id}` : s.title })), ...(study && !names.has(study) ? [{ value: study, label: "Requested assessment unavailable" }] : [])]} /><ResearchSelect label="Filter queue by status" value={status} onChange={setStatus} options={[{ value: "", label: "All statuses" }, { value: "blocked", label: "Blocked" }, ...QUEUE_STATUSES.map(s => ({ value: s, label: s === "manual" ? "Needs operator" : display(s) }))]} /></div>
-        {focusedJob && !jobs.some(j => j.id === focusedJob && (!study || j.study_id === study)) ? <p role="status" className="rounded-lg border p-4 text-sm">The requested job is unavailable for this assessment and account.</p> : null}
-        {study && !names.has(study) ? <p role="status" className="text-sm">This assessment is unavailable in your paper queue.</p> : !assessments.length ? <p role="status" className="rounded-lg border p-5 text-sm">No paper assessments are available in your queue.</p> : <div className="space-y-6">{assessments.map(assessment => <AssessmentExperimentQueue key={assessment.id} assessment={assessment} data={data} status={status} focusedJob={focusedJob} stale={Boolean(error)} />)}</div>}
-        <p className="text-xs text-muted-foreground">{data.limitations}</p>
-      </> : !error ? <p role="status">Loading your experiment queue…</p> : null}
-    </section>
-  </div>;
 }

@@ -30,13 +30,12 @@ export function AwsRegionMap({ label, regions, value, onChange, disabled = false
   const inspection = markers.find((region) => region.region === inspected);
 
   useEffect(() => {
-    if (!canvas.current) return;
     const observer = new ResizeObserver(([entry]) => {
       if (entry.contentRect.width && entry.contentRect.height) {
         setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
       }
     });
-    observer.observe(canvas.current);
+    observer.observe(canvas.current!);
     return () => observer.disconnect();
   }, []);
 

@@ -40,8 +40,7 @@ function parseNumberArray(value: string): number[] {
     .split(",")
     .map((s) => s.trim())
     .filter((s) => s !== "")
-    .map(Number)
-    .filter((n) => !isNaN(n));
+    .map(Number);
 }
 
 export function BenchmarkForm() {
@@ -152,6 +151,11 @@ export function BenchmarkForm() {
     const fileSizes = parseNumberArray(fileSizesText);
     const startDelays = parseNumberArray(startDelaysText);
     const numClients = config.num_clients;
+
+    if ([...delays, ...fileSizes, ...startDelays].some((value) => !Number.isFinite(value))) {
+      setMessage({ type: "error", text: "Enter finite numeric delay, file size, and start delay values." });
+      return null;
+    }
 
     if (delays.length !== numClients) {
       setMessage({
@@ -497,7 +501,9 @@ export function BenchmarkForm() {
                 onChange={(e) =>
                   setConfig({
                     ...config,
-                    bottleneck_buffer_kbytes: parseFloat(e.target.value) || 125,
+                    bottleneck_buffer_kbytes: Number.isFinite(e.target.valueAsNumber)
+                      ? e.target.valueAsNumber
+                      : 125,
                   })
                 }
               />

@@ -9,12 +9,14 @@
     "build": "next build",
     "start": "next start --port \"${PORT:-6001}\"",
     "lint": "eslint",
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --import ./tests/support/tsx-loader.mjs --test tests/*.test.mjs",
+    "test:coverage:report": "node tests/run-coverage.mjs",
+    "test:coverage": "node tests/run-coverage.mjs --check",
     "verify:http2": "node scripts/verify-http2-study.mjs",
     "ui:add": "shadcn add",
     "verify:research": "node scripts/verify-research-workflow.mjs",
     "verify:research:preparation": "node scripts/verify-research-preparation.mjs",
-    "verify:research:queue": "node scripts/verify-experiment-queue.mjs",
+    "verify:research:queue": "node scripts/verify-public-experiment-queue.mjs",
     "verify:research:public-queue": "node scripts/verify-public-experiment-queue.mjs",
     "verify:profile": "node scripts/verify-profile.mjs",
     "verify:auth": "node scripts/verify-browser-auth.mjs",
@@ -41,14 +43,25 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@testing-library/react": "16.3.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "c8": "12.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
+    "jsdom": "26.1.0",
     "playwright": "1.62.1",
     "shadcn": "^4.21.0",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "c8": {
+      "test-exclude": {
+        "glob": "14.0.2",
+        "minimatch": "11.0.1"
+      }
+    }
   }
 }

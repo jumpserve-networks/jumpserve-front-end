@@ -2,17 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { registerHooks } from 'node:module';
 const hook = registerHooks({ resolve(specifier, context, nextResolve) { return nextResolve(specifier.startsWith('@/lib/') ? new URL('../lib/' + specifier.slice(6) + '.ts', import.meta.url).href : specifier, context); } });
-const { validateExperimentQueue, validateGapPreview, validateGapEnqueued, gapExperimentPath, experimentQueuePath } = await import('../lib/research-experiment-queue.ts');
+const { validateGapPreview, validateGapEnqueued, gapExperimentPath, experimentQueuePath } = await import('../lib/research-experiment-queue.ts');
 const { RESEARCH_VERIFICATION_MODULE, RESEARCH_IDEAS_MODULE } = await import('../lib/test-modules.ts');
 const { consumeGapRunIntent, saveGapRunIntent, runGapExperiments } = await import('../lib/research-gap-run.ts');
 hook.deregister();
 const study='11111111-1111-4111-8111-111111111111', campaign='22222222-2222-4222-8222-222222222222', job='33333333-3333-4333-8333-333333333333';
-function queue(){ return {version:'research-queue-overview-v1',access:'owner-private',studies:[{id:study,title:'Paper',study_kind:'paper'}],jobs:[{id:job,study_id:study,campaign_id:campaign,campaign_title:'Check',status:'failed',readiness:'failed',execution_mode:'automatic',priority:3,reason:'Recorded failure',blockers:[],dependencies:[],exclusive_resources:[],created_at:'2026-10-17T00:00:00Z',updated_at:'2026-10-17T00:00:00Z',run_status:null}],workers_enabled:false,limits:{global_jobs:4,study_jobs:2,invocation_jobs:2,lease_seconds:600,automatic_retries:0},coverage:{studies:1,jobs:1},limitations:'Execution and review remain separate.'}; }
-test('overview preserves failures and distinguishes explicit empty from invalid or incomplete',()=>{
- assert.equal(validateExperimentQueue(queue()).jobs[0].status,'failed');
- const empty=queue();empty.studies=[];empty.jobs=[];empty.coverage={studies:0,jobs:0};assert.equal(validateExperimentQueue(empty).jobs.length,0);
- for(const mutate of [q=>q.coverage.jobs=0,q=>q.coverage.studies=0,q=>q.studies[0].study_kind='idea',q=>q.jobs[0].study_id=campaign,q=>q.jobs[0].status='complete',q=>q.jobs[0].dependencies=[{job_id:campaign,requirement:'complete-run'}],q=>q.jobs[0].status='running',q=>q.jobs.push(q.jobs[0])]) {const q=queue();mutate(q);assert.throws(()=>validateExperimentQueue(q));}
-});
 test('gap previews cannot queue stale identities, missing plan hashes or unavailable inputs',()=>{
  const p={version:'research-gap-queue-v1',study_id:study,gap_id:campaign,gap_sha256:'a'.repeat(64),plan_sha256:'b'.repeat(64),choices:[{key:'check',title:'Check',execution_mode:'manual',coverage_limits:'Operator preparation only',dependencies:[]}],limitation:'No measurement collected',unavailable_reason:null};
  assert.equal(validateGapPreview(p,study,campaign).choices[0].execution_mode,'manual');
@@ -44,4 +38,6 @@ test('one run action prepares once and queues all retained claim checks; partial
  const result=await runGapExperiments(preview,job,request,()=>{});assert.deepEqual(calls.map(c=>c.action),['create-followup','prepare','enqueue','enqueue']);assert.deepEqual(result.jobIds,[job,campaign]);assert.equal(result.complete,true);
  const partial=await runGapExperiments(preview,job,async(path,options)=>JSON.parse(options.body).action==='enqueue'?{version:'research-gap-queue-v1',study_id:study,job_id:job,queued_job_ids:[],complete:false,workers_enabled:false,limitation:'Partial'}:request(path,options),()=>{});assert.equal(partial.complete,false);assert.deepEqual(partial.jobIds,[]);
  await assert.rejects(()=>runGapExperiments({...preview,choices:[],unavailable_reason:'Inputs missing'},job,request,()=>{}),/Inputs missing/);
+ await assert.rejects(()=>runGapExperiments(preview,job,async()=>({version:'research-gap-queue-v1',study_id:'invalid'}),()=>{}),/follow-up identity/);
+ await assert.rejects(()=>runGapExperiments(preview,job,async(path,options)=>JSON.parse(options.body).action==='enqueue'?{version:'research-gap-queue-v1',study_id:campaign,job_id:job,queued_job_ids:[job],complete:true,workers_enabled:true,limitation:'Different study'}:request(path,options),()=>{}),/another follow-up/);
 });

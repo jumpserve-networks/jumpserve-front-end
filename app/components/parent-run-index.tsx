@@ -2,6 +2,7 @@
 import { LocalDateTime } from "@/app/components/user-preferences";
 
 import { EMULATED_MODULE_PATH, EMULATED_TESTS_MODULE } from "@/lib/test-modules";
+import { updateFilterSelection } from "@/lib/filter-selection";
 
 import { Label } from "@/app/components/ui/label";
 import { Input } from "@/app/components/ui/input";
@@ -305,6 +306,7 @@ export function ParentRunIndex({
   const [pageJumpValue, setPageJumpValue] = useState(String(initialPage.page));
   const [runSearchQuery, setRunSearchQuery] = useState("");
   const hasMountedFilterEffect = useRef(false);
+  const pageRequest = useRef<AbortController | null>(null);
   const [areExtraFiltersVisible, setAreExtraFiltersVisible] = useState(false);
   const [parentRunView, setParentRunView] = useState<"list" | "grid">("list");
   const [parentRunSortColumn, setParentRunSortColumn] =
@@ -435,27 +437,7 @@ export function ParentRunIndex({
     setParentRunSortDirection(column === "run" ? "desc" : "asc");
   };
 
-  const clientCountOptionCounts = useMemo(
-    () =>
-      new Map(
-        filterOptions.clientCounts.map((option) => [
-          option.value,
-          option.count,
-        ]),
-      ),
-    [filterOptions.clientCounts],
-  );
 
-  const ccaOptionCounts = useMemo(
-    () =>
-      new Map(
-        filterOptions.ccaLabels.map((option) => [
-          option.value,
-          option.count,
-        ]),
-      ),
-    [filterOptions.ccaLabels],
-  );
   const clientOneCcaOptions = useMemo(
     () => filterOptions.ccaLabelsByClientNumber[1] ?? [],
     [filterOptions.ccaLabelsByClientNumber],
@@ -464,85 +446,17 @@ export function ParentRunIndex({
     () => filterOptions.ccaLabelsByClientNumber[2] ?? [],
     [filterOptions.ccaLabelsByClientNumber],
   );
-  const clientOneCcaOptionCounts = useMemo(
-    () =>
-      new Map(
-        clientOneCcaOptions.map((option) => [
-          option.value,
-          option.count,
-        ]),
-      ),
-    [clientOneCcaOptions],
-  );
-  const clientTwoCcaOptionCounts = useMemo(
-    () =>
-      new Map(
-        clientTwoCcaOptions.map((option) => [
-          option.value,
-          option.count,
-        ]),
-      ),
-    [clientTwoCcaOptions],
-  );
 
-  const addedDelayOptionCounts = useMemo(
-    () =>
-      new Map(
-        filterOptions.addedDelaysMs.map((option) => [
-          option.value,
-          option.count,
-        ]),
-      ),
-    [filterOptions.addedDelaysMs],
-  );
 
-  const clientStartDelayOptionCounts = useMemo(
-    () =>
-      new Map(
-        filterOptions.clientStartDelaysMs.map((option) => [
-          option.value,
-          option.count,
-        ]),
-      ),
-    [filterOptions.clientStartDelaysMs],
-  );
 
-  const clientFileSizeOptionCounts = useMemo(
-    () =>
-      new Map(
-        filterOptions.clientFileSizesMegabytes.map((option) => [
-          option.value,
-          option.count,
-        ]),
-      ),
-    [filterOptions.clientFileSizesMegabytes],
-  );
 
-  const bottleneckRateOptionCounts = useMemo(
-    () =>
-      new Map(
-        filterOptions.bottleneckRatesMegabit.map((option) => [
-          option.value,
-          option.count,
-        ]),
-      ),
-    [filterOptions.bottleneckRatesMegabit],
-  );
 
-  const queueBufferSizeOptionCounts = useMemo(
-    () =>
-      new Map(
-        filterOptions.queueBufferSizesKilobyte.map((option) => [
-          option.value,
-          option.count,
-        ]),
-      ),
-    [filterOptions.queueBufferSizesKilobyte],
-  );
 
   useEffect(() => {
     setPageJumpValue(String(currentPage));
   }, [currentPage]);
+
+  useEffect(() => () => pageRequest.current?.abort(), []);
 
   const loadPage = async (
     pageNumber: number,
@@ -556,6 +470,9 @@ export function ParentRunIndex({
 
     setIsLoadingPage(true);
     setPageLoadError(null);
+    pageRequest.current?.abort();
+    const controller = new AbortController();
+    pageRequest.current = controller;
 
     try {
       const searchParams = buildParentRunPageSearchParams(
@@ -564,6 +481,7 @@ export function ParentRunIndex({
       );
       const response = await fetch(`${EMULATED_MODULE_PATH}/api/parent-runs?${searchParams.toString()}`, {
         cache: "no-store",
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -571,13 +489,13 @@ export function ParentRunIndex({
       }
 
       const payload = (await response.json()) as ParentRunIndexPage;
-      setPageData(payload);
+      if (!controller.signal.aborted) setPageData(payload);
     } catch (error) {
-      setPageLoadError(
+      if (!controller.signal.aborted) setPageLoadError(
         error instanceof Error ? error.message : "Failed to load parent run page.",
       );
     } finally {
-      setIsLoadingPage(false);
+      if (!controller.signal.aborted) setIsLoadingPage(false);
     }
   };
 
@@ -588,6 +506,9 @@ export function ParentRunIndex({
     }
 
     const searchParams = buildParentRunPageSearchParams(1, baseFilterState);
+    pageRequest.current?.abort();
+    const controller = new AbortController();
+    pageRequest.current = controller;
 
     async function loadFirstFilteredPage() {
       setIsLoadingPage(true);
@@ -598,6 +519,7 @@ export function ParentRunIndex({
           `${EMULATED_MODULE_PATH}/api/parent-runs?${searchParams.toString()}`,
           {
             cache: "no-store",
+            signal: controller.signal,
           },
         );
 
@@ -606,19 +528,20 @@ export function ParentRunIndex({
         }
 
         const payload = (await response.json()) as ParentRunIndexPage;
-        setPageData(payload);
+        if (!controller.signal.aborted) setPageData(payload);
       } catch (error) {
-        setPageLoadError(
+        if (!controller.signal.aborted) setPageLoadError(
           error instanceof Error
             ? error.message
             : "Failed to load parent run page.",
         );
       } finally {
-        setIsLoadingPage(false);
+        if (!controller.signal.aborted) setIsLoadingPage(false);
       }
     }
 
     void loadFirstFilteredPage();
+    return () => controller.abort();
   }, [baseFilterState]);
 
   const visiblePageNumbers = useMemo(
@@ -688,24 +611,14 @@ export function ParentRunIndex({
                       <Checkbox
                         checked={selectedClientCounts.includes(clientCount)}
                         onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedClientCounts((current) =>
-                              current.includes(clientCount)
-                                ? current
-                                : [...current, clientCount],
-                            );
-                            return;
-                          }
-                          setSelectedClientCounts((current) =>
-                            current.filter((value) => value !== clientCount),
-                          );
-                        }}
+                            setSelectedClientCounts((current) => updateFilterSelection(current, clientCount, checked));
+                          }}
                         className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                       />
                       <span>{clientCount} clients</span>
                     </span>
                     <span className="rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
-                      {clientCountOptionCounts.get(clientCount) ?? 0}
+                      {option.count}
                     </span>
                   </Label>
                   );
@@ -759,24 +672,14 @@ export function ParentRunIndex({
                         <Checkbox
                           checked={selectedCcaLabels.includes(ccaLabel)}
                           onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedCcaLabels((current) =>
-                                current.includes(ccaLabel)
-                                  ? current
-                                  : [...current, ccaLabel],
-                              );
-                              return;
-                            }
-                            setSelectedCcaLabels((current) =>
-                              current.filter((value) => value !== ccaLabel),
-                            );
+                            setSelectedCcaLabels((current) => updateFilterSelection(current, ccaLabel, checked));
                           }}
                           className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                         />
                         <span className="truncate">{ccaLabel}</span>
                       </span>
                       <span className="shrink-0 rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
-                        {ccaOptionCounts.get(ccaLabel) ?? 0}
+                        {option.count}
                       </span>
                     </Label>
                       );
@@ -831,28 +734,14 @@ export function ParentRunIndex({
                                           ccaLabel,
                                         )}
                                         onCheckedChange={(checked) => {
-                                          if (checked) {
-                                            setSelectedClientOneCcaLabels(
-                                              (current) =>
-                                                current.includes(ccaLabel)
-                                                  ? current
-                                                  : [...current, ccaLabel],
-                                            );
-                                            return;
-                                          }
-                                          setSelectedClientOneCcaLabels(
-                                            (current) =>
-                                              current.filter(
-                                                (value) => value !== ccaLabel,
-                                              ),
-                                          );
-                                        }}
+                            setSelectedClientOneCcaLabels((current) => updateFilterSelection(current, ccaLabel, checked));
+                          }}
                                         className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                                       />
                                       <span className="truncate">{ccaLabel}</span>
                                     </span>
                                     <span className="shrink-0 rounded-full border border-border bg-card px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:border-primary/40">
-                                      {clientOneCcaOptionCounts.get(ccaLabel) ?? 0}
+                                      {option.count}
                                     </span>
                                   </Label>
                                 );
@@ -884,28 +773,14 @@ export function ParentRunIndex({
                                           ccaLabel,
                                         )}
                                         onCheckedChange={(checked) => {
-                                          if (checked) {
-                                            setSelectedClientTwoCcaLabels(
-                                              (current) =>
-                                                current.includes(ccaLabel)
-                                                  ? current
-                                                  : [...current, ccaLabel],
-                                            );
-                                            return;
-                                          }
-                                          setSelectedClientTwoCcaLabels(
-                                            (current) =>
-                                              current.filter(
-                                                (value) => value !== ccaLabel,
-                                              ),
-                                          );
-                                        }}
+                            setSelectedClientTwoCcaLabels((current) => updateFilterSelection(current, ccaLabel, checked));
+                          }}
                                         className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                                       />
                                       <span className="truncate">{ccaLabel}</span>
                                     </span>
                                     <span className="shrink-0 rounded-full border border-border bg-card px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:border-primary/40">
-                                      {clientTwoCcaOptionCounts.get(ccaLabel) ?? 0}
+                                      {option.count}
                                     </span>
                                   </Label>
                                 );
@@ -961,24 +836,14 @@ export function ParentRunIndex({
                         <Checkbox
                           checked={selectedAddedDelayValues.includes(value)}
                           onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedAddedDelayValues((current) =>
-                                current.includes(value)
-                                  ? current
-                                  : [...current, value],
-                              );
-                              return;
-                            }
-                            setSelectedAddedDelayValues((current) =>
-                              current.filter((currentValue) => currentValue !== value),
-                            );
+                            setSelectedAddedDelayValues((current) => updateFilterSelection(current, value, checked));
                           }}
                           className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                         />
                         <span className="truncate">{formatNumber(value)} ms</span>
                       </span>
                       <span className="shrink-0 rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
-                        {addedDelayOptionCounts.get(value) ?? 0}
+                        {option.count}
                       </span>
                     </Label>
                       );
@@ -1039,18 +904,8 @@ export function ParentRunIndex({
                       <Checkbox
                         checked={selectedClientFileSizeValues.includes(value)}
                         onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedClientFileSizeValues((current) =>
-                              current.includes(value)
-                                ? current
-                                : [...current, value],
-                            );
-                            return;
-                          }
-                          setSelectedClientFileSizeValues((current) =>
-                            current.filter((currentValue) => currentValue !== value),
-                          );
-                        }}
+                            setSelectedClientFileSizeValues((current) => updateFilterSelection(current, value, checked));
+                          }}
                         className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                       />
                       <span className="truncate">
@@ -1058,7 +913,7 @@ export function ParentRunIndex({
                       </span>
                     </span>
                     <span className="shrink-0 rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
-                      {clientFileSizeOptionCounts.get(value) ?? 0}
+                      {option.count}
                     </span>
                   </Label>
                   );
@@ -1128,26 +983,14 @@ export function ParentRunIndex({
                           <Checkbox
                             checked={selectedClientStartDelayValues.includes(value)}
                             onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedClientStartDelayValues((current) =>
-                                  current.includes(value)
-                                    ? current
-                                    : [...current, value],
-                                );
-                                return;
-                              }
-                              setSelectedClientStartDelayValues((current) =>
-                                current.filter(
-                                  (currentValue) => currentValue !== value,
-                                ),
-                              );
-                            }}
+                            setSelectedClientStartDelayValues((current) => updateFilterSelection(current, value, checked));
+                          }}
                             className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                           />
                           <span className="truncate">{formatNumber(value)} ms</span>
                         </span>
                         <span className="shrink-0 rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
-                          {clientStartDelayOptionCounts.get(value) ?? 0}
+                          {option.count}
                         </span>
                       </Label>
                       );
@@ -1206,20 +1049,8 @@ export function ParentRunIndex({
                           <Checkbox
                             checked={selectedQueueBufferSizeValues.includes(value)}
                             onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedQueueBufferSizeValues((current) =>
-                                  current.includes(value)
-                                    ? current
-                                    : [...current, value],
-                                );
-                                return;
-                              }
-                              setSelectedQueueBufferSizeValues((current) =>
-                                current.filter(
-                                  (currentValue) => currentValue !== value,
-                                ),
-                              );
-                            }}
+                            setSelectedQueueBufferSizeValues((current) => updateFilterSelection(current, value, checked));
+                          }}
                             className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                           />
                           <span className="truncate">
@@ -1227,7 +1058,7 @@ export function ParentRunIndex({
                           </span>
                         </span>
                         <span className="shrink-0 rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
-                          {queueBufferSizeOptionCounts.get(value) ?? 0}
+                          {option.count}
                         </span>
                       </Label>
                       );
@@ -1286,26 +1117,14 @@ export function ParentRunIndex({
                           <Checkbox
                             checked={selectedBottleneckRateValues.includes(value)}
                             onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedBottleneckRateValues((current) =>
-                                  current.includes(value)
-                                    ? current
-                                    : [...current, value],
-                                );
-                                return;
-                              }
-                              setSelectedBottleneckRateValues((current) =>
-                                current.filter(
-                                  (currentValue) => currentValue !== value,
-                                ),
-                              );
-                            }}
+                            setSelectedBottleneckRateValues((current) => updateFilterSelection(current, value, checked));
+                          }}
                             className="h-3.5 w-3.5 rounded border-primary/40 focus:ring-ring/30 dark:border-border"
                           />
                           <span className="truncate">{formatNumber(value)} mbit</span>
                         </span>
                         <span className="shrink-0 rounded-full border border-border bg-accent px-2 py-0.5 text-[11px] font-semibold tracking-normal text-primary dark:bg-card dark:text-foreground">
-                          {bottleneckRateOptionCounts.get(value) ?? 0}
+                          {option.count}
                         </span>
                       </Label>
                       );

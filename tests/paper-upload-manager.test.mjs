@@ -12,6 +12,26 @@ const owner = '10000000-0000-4000-8000-000000000001';
 const first = '20000000-0000-4000-8000-000000000001', second = '20000000-0000-4000-8000-000000000002';
 const pdf = name => new File(['%PDF-1.4\nExplicit unit fixture.\n%%EOF'], name, { type: 'application/pdf' });
 const storage = () => { const data = new Map(); return { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) }; };
+
+test('upload store snapshots stay stable for SSR and subscribers stop receiving changes after unsubscribe',()=>{
+ const manager=new PaperUploadManager(null,async()=>assert.fail('Anonymous stores cannot request records'),async()=>{});const server=manager.getServerSnapshot();assert.equal(manager.getServerSnapshot(),server);let updates=0;const unsubscribe=manager.subscribe(()=>updates++);manager.start();manager.dismiss(first,'ready');assert.ok(updates>0);const before=updates;assert.notEqual(manager.getSnapshot(),server);assert.equal(manager.getServerSnapshot(),server);unsubscribe();manager.dismiss(second,'ready');assert.equal(updates,before);manager.stop();
+});
+
+test('notification storage failures are recoverable and preserve the current upload store',async t=>{
+ const anonymous=new PaperUploadManager(owner,async()=>({access:'owner-drafts',studies:[]}),async()=>{});t.after(()=>anonymous.stop());anonymous.start();assert.match(anonymous.getSnapshot().persistenceError,/storage is unavailable/);
+ const unreadable=fixture(t,{storage:{getItem(){throw new Error('Synthetic browser storage unavailable');},setItem(){}}});assert.match(unreadable.manager.getSnapshot().persistenceError,/could not be restored/);unreadable.manager.syncPreferences();assert.match(unreadable.manager.getSnapshot().persistenceError,/preferences are unavailable/);
+ const unwritable=fixture(t,{storage:{getItem:()=>null,setItem(){throw new Error('Synthetic browser storage full');}}});unwritable.manager.dismiss(first,'ready');assert.match(unwritable.manager.getSnapshot().persistenceError,/could not be saved/);
+ assert.deepEqual(parsePaperNoticePreferences(JSON.stringify({version:1,seen:[],dismissed:[]})).activity,{tracked:[],dismissed:[]});assert.throws(()=>parsePaperNoticePreferences(JSON.stringify({version:1,seen:[],dismissed:[],activity:{tracked:[],dismissed:['invalid']}})));
+});
+
+test('untyped status and upload failures remain visibly unconfirmed',async t=>{
+ const failed=fixture(t,{list:async()=>{throw null;}});await until(()=>Boolean(failed.manager.getSnapshot().error));assert.match(failed.manager.getSnapshot().error,/Paper status is unavailable/);
+ const upload=fixture(t,{prepare:async()=>{throw null;}});upload.manager.enqueue([pdf('original.pdf')]);await until(()=>upload.manager.getSnapshot().uploads[0]?.retryable);assert.equal(upload.manager.getSnapshot().uploads[0].message,'The upload could not be confirmed.');
+});
+
+test('upload fanout refuses more than the bounded browser session before another file transfer starts',t=>{
+ const f=fixture(t,{upload:()=>new Promise(()=>{})});for(let batch=0;batch<5;batch++)f.manager.enqueue(Array.from({length:20},(_,index)=>pdf('original-'+batch+'-'+index+'.pdf')));assert.equal(f.manager.getSnapshot().uploads.length,100);assert.throws(()=>f.manager.enqueue([pdf('over-limit.pdf')]),/at most 100/);f.manager.trackAssessment('invalid','Invalid identity');assert.deepEqual(f.manager.getSnapshot().activity,[]);
+});
 function queueStatus(id, status = 'running') {
   const stamp = '2026-10-25T18:00:00Z';
   const workflow = { study_id: id, max_spend_cents: 10000, max_attempts: null, committed_cents: 0, status, reason: 'Recorded fixture status', created_at: stamp, updated_at: stamp, deadline_at: stamp };
@@ -258,4 +278,25 @@ test('modern summaries and unknown versions never fall back, while completed leg
   const legacy = fixture(t, { list: () => ({ access: 'owner-drafts', studies: [row] }), readQueue });
   await until(() => reads === 1); await legacy.manager.refresh(); await legacy.manager.refresh(); assert.equal(reads, 1);
   legacy.manager.trackAssessment(first, row.title); await until(() => reads === 2);
+});
+
+test('legacy failures without previous activity retain an explicit status error and ignore late owner-bound rejections',async t=>{
+ const local=storage();local.setItem(`jumpserve.paper-notices.v1.${owner}`,JSON.stringify({version:1,seen:[],dismissed:[],activity:{tracked:[first],dismissed:[]}}));
+ const failed=fixture(t,{storage:local,list:()=>({access:'owner-drafts',studies:[{id:first,title:'Original paper',paper_review_status:'confirmed'}]}),readQueue:async()=>{throw null;}});
+ await until(()=>failed.manager.getSnapshot().activity.length===1);assert.match(failed.manager.getSnapshot().activity[0].statusError,/Queue status could not be retrieved/);assert.equal(failed.manager.getSnapshot().activity[0].counts,null);
+ let reject;const late=fixture(t,{list:()=>({access:'owner-drafts',studies:[{id:first,title:'Original paper',paper_review_status:'confirmed'}]}),readQueue:()=>new Promise((_,fail)=>{reject=fail;})});await until(()=>reject);late.manager.stop();reject(new Error('Obsolete owner-bound failure'));await delay(0);assert.deepEqual(late.manager.getSnapshot().activity,[]);await late.manager.refresh();
+});
+
+test('modern status-only records survive missing preparation fields and completed caches are pruned after removal',async t=>{
+ const summary={status:'running',counts:{total:3,finished:1,reproduced:1,discrepant:0,blocked:0,running:1,queued:1,waiting:0},updated_at:'2026-10-25T18:00:00Z'};
+ // Use the independently validated public projection rather than a hand-built
+ // count response for the legacy status adapter.
+ const {assessmentSummaryFromPublicQueue}=await import('../lib/research-public-queue.ts');const recorded=assessmentSummaryFromPublicQueue(queueStatus(first),first);assert.equal(recorded.status,summary.status);
+ const modern=fixture(t,{list:()=>({access:'owner-drafts',assessment_status_version:'research-assessment-status-v1',studies:[{id:first,title:'Status-only original',assessment_status:recorded}]})});await until(()=>modern.manager.getSnapshot().activity.length===1);assert.equal(modern.manager.getSnapshot().activity[0].title,'Status-only original');
+ let rows=[{id:first,title:'Original completed paper',paper_review_status:'confirmed'}],reads=0;const cached=fixture(t,{list:()=>({access:'owner-drafts',studies:rows}),readQueue:async id=>{reads++;return queueStatus(id,'completed');}});await until(()=>reads===1&&cached.manager.pollingGeneration===null);await cached.manager.refresh();rows=[{id:second,title:'Different retained paper',paper_review_status:'confirmed'}];await cached.manager.refresh();rows=[{id:first,title:'Original completed paper',paper_review_status:'confirmed'}];await cached.manager.refresh();assert.equal(reads,3);
+ let listed=[{id:second,title:'Retained ready title',paper_review_status:'ready'}];const notices=fixture(t,{list:()=>({access:'owner-drafts',studies:listed})});await until(()=>notices.manager.getSnapshot().notices.length===1);listed=[];await notices.manager.refresh();assert.equal(notices.manager.getSnapshot().notices[0].title,'Retained ready title');
+});
+
+test('active nonretryable transfers and completed preparation responses cannot cross a stopped owner generation',async t=>{
+ let complete;const f=fixture(t,{prepare:()=>new Promise(resolve=>{complete=resolve;})});f.manager.enqueue([pdf('Original owner paper.pdf')]);await until(()=>complete);const id=f.manager.getSnapshot().uploads[0].id;const requests=f.calls.length;f.manager.retry(id);assert.equal(f.calls.length,requests);f.manager.stop();complete();await delay(0);assert.equal(f.manager.getSnapshot().uploads[0].phase,'uploading');assert.deepEqual(f.manager.getSnapshot().notices,[]);
 });
