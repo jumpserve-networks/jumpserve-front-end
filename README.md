@@ -71,6 +71,12 @@ do not execute those scripts against production.
 
 ## Maintained and historical tools
 
+The completed five-study import browser verifier has been retired from the
+working tree. `retired-workflows.json` records its original path, Git revision
+and SHA-256 hash. Recover it with `git show <source_revision>:<path>` in an
+isolated checkout alongside the corresponding backend and infrastructure
+revisions. Published assessments, exports and their evidence remain available.
+
 `package.json` and `tests/` define the current automated checks and supported
 package commands. `maintained-tools.json` lists additional supported manual tools.
 Completed one-off browser/release campaigns live under `archive/historical-tools/`;
