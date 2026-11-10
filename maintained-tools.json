@@ -1,10 +1,7 @@
 {
   "version": "maintained-manual-tools-v1",
-  "purpose": "Current read-only study release verification outside the package-command list.",
+  "purpose": "Current manual commands are package scripts; no standalone historical verification commands.",
   "automated_entrypoints": "Existing package scripts, workflow files and fixed test-suite configuration remain authoritative. This registry reads as documentation and never executes commands.",
-  "manual_programs": [
-    "scripts/verify-reliable-study.mjs"
-  ],
-  "protected_protocol_directories": [],
-  "historical_archive": "archive/historical-tools/manifest.json"
+  "manual_programs": [],
+  "protected_protocol_directories": []
 }

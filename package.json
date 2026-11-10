@@ -21,7 +21,6 @@
     "verify:profile": "node scripts/verify-profile.mjs",
     "verify:auth": "node scripts/verify-browser-auth.mjs",
     "verify:paper-uploads": "node scripts/verify-paper-uploads.mjs",
-    "verify:research:production": "node scripts/verify-research-production.mjs",
     "verify:research:ideas": "node scripts/verify-research-ideas.mjs",
     "verify:research:autonomy": "node scripts/verify-research-autonomy.mjs",
     "verify:research:assessments:production": "node scripts/verify-assessment-navigation-production.mjs"
