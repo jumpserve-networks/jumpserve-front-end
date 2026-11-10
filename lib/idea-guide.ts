@@ -2,7 +2,7 @@ import { IDEA_FIELDS, ideaReview, type IdeaDocument, type IdeaState } from "./re
 
 type PlanField = typeof IDEA_FIELDS[number];
 export type GuideQuestion = { id: string; section: "idea" | "methods"; label: string; question: string; help: string; example?: string; format?: "lines" | "applicability" | "origin" | "integer" };
-export const IDEA_QUESTIONS: GuideQuestion[] = [
+const IDEA_QUESTIONS: GuideQuestion[] = [
   { id: "question", section: "idea", label: "Research question", question: "What do you want to find out?", help: "Ask one question an experiment could answer. Name the behavior or comparison you care about.", example: "Does a recent request change an object's response timing at a CDN?" },
   { id: "problem", section: "idea", label: "Problem and motivation", question: "Why does this question matter?", help: "Describe the problem, who it affects, and what learning the answer would help you do." },
   { id: "hypothesis", section: "idea", label: "Proposed hypothesis", question: "What do you predict will happen?", help: "State a prediction that could turn out to be wrong. Include the conditions under which you expect it." },
@@ -16,7 +16,7 @@ export const IDEA_QUESTIONS: GuideQuestion[] = [
   { id: "alternatives", section: "idea", label: "Alternative explanations and designs", question: "What else could explain the result you expect?", help: "Consider confounds, different mechanisms, and a control or alternative design that could distinguish them." },
   { id: "limitations", section: "idea", label: "Scope and limitations", question: "What will this experiment leave unanswered?", help: "State limits on causal conclusions, generalization, practical effectiveness and unavailable conditions." },
 ];
-export const METHOD_QUESTIONS: GuideQuestion[] = [
+const METHOD_QUESTIONS: GuideQuestion[] = [
   { id: "dates_or_epochs", section: "methods", label: "Collection dates or epochs", question: "When will the measurements be collected?", help: "Specify dates, epochs or a declared collection window. Mark exploratory work separately from the main campaign." },
   { id: "algorithms", section: "methods", label: "Algorithms and software versions", question: "Which algorithms and software versions will you use?", help: "List revisions, versions and parameters, one declaration per line. Explain inapplicability rather than inventing an algorithm.", format: "lines" },
   { id: "seeds", section: "methods", label: "Randomization and seeds", question: "Will you randomize anything?", help: "If applicable, specify the assignment algorithm and exact seeds. Otherwise explain why randomization is inapplicable.", format: "applicability" },

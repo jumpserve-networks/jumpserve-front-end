@@ -2,7 +2,7 @@ import { isResearchId } from "@/lib/research-experiment-queue";
 import { researchApiBase } from "@/lib/research-workflow";
 import { requireAccessToken } from "@/lib/browser-auth";
 
-export const PAPER_WORKFLOW_STATUSES = ["running", "completed", "completed-with-blockers", "deadline", "budget", "cancelled"] as const;
+const PAPER_WORKFLOW_STATUSES = ["running", "completed", "completed-with-blockers", "deadline", "budget", "cancelled"] as const;
 export type PaperWorkflowStatus = typeof PAPER_WORKFLOW_STATUSES[number];
 export type PaperAssessment = { id: string; title: string | null; authors?: string[] | null; initiated_by?: string | null; created_at: string; workflow_status: PaperWorkflowStatus | null; published: boolean };
 export type PaperMetadata = { title: string; authors: string[] | null };

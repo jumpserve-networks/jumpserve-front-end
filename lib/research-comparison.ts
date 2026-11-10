@@ -30,7 +30,7 @@ export type ResearchPoint = {
 
 export const BOOTSTRAP_SAMPLES = 2000;
 export const MIN_MEDIAN_REPEATS = 5;
-export const MIN_P90_REPEATS = 10;
+const MIN_P90_REPEATS = 10;
 const RUNNERS = new Set(["netem_nines.py", "netem_cubic_benchmark_nines.py", "netem_cubic_benchmark_hotnets.py"]);
 const METADATA = new Set(["notes", "tags", "experiment_name", "client_ccas"]);
 

@@ -1,5 +1,5 @@
 export const PAPER_UPLOAD_MAX_BYTES = 10_000_000;
-export const PAPER_UPLOAD_VERSION = "research-paper-upload-v2";
+const PAPER_UPLOAD_VERSION = "research-paper-upload-v2";
 export const PAPER_REVIEW_VERSION = "research-paper-review-v1";
 export type PaperUploadTicket = { version: typeof PAPER_UPLOAD_VERSION; id: string; status: "pending"; bucket: "research-paper-uploads"; path: string; token: string; sha256: string; byte_count: number; maximum_bytes: number };
 type Request = <T = unknown>(path: string, options?: RequestInit) => Promise<T>;

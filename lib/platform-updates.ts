@@ -1,6 +1,6 @@
 export const PLATFORM_UPDATES_PATH = "/platform-updates";
 export const PLATFORM_REPOSITORIES = ["jumpserve-networks/jumpserve-front-end", "jumpserve-networks/jumpserve-back-end", "jumpserve-networks/jumpserve-infra"] as const;
-export const PLATFORM_STAGES = ["queued", "investigating", "implementing", "testing", "publishing", "merging", "deploying", "verifying", "reconciling", "completed", "rolled-back", "blocked", "cancelled", "deadline", "budget"] as const;
+const PLATFORM_STAGES = ["queued", "investigating", "implementing", "testing", "publishing", "merging", "deploying", "verifying", "reconciling", "completed", "rolled-back", "blocked", "cancelled", "deadline", "budget"] as const;
 export type PlatformStage = typeof PLATFORM_STAGES[number];
 export type PlatformTask = {
   id: string; title: string; objective: string; repositories: string[]; status: PlatformStage; reason: string;
@@ -59,6 +59,6 @@ export function platformPullRequest(value: string | null): string | undefined {
   if (!value) return undefined;
   try { const u = new URL(value); if (u.protocol === "https:" && u.hostname === "github.com" && PLATFORM_REPOSITORIES.some(repo => new RegExp(`^/${repo}/pull/[1-9][0-9]*$`).test(u.pathname)) && !u.username && !u.password && !u.search && !u.hash) return u.href; } catch { /* Untrusted links are rendered as text only. */ }
 }
-export function budgetLimit(value: unknown): value is number { return typeof value === "number" && Number.isSafeInteger(value) && value >= -1 && value <= 2147483647; }
+function budgetLimit(value: unknown): value is number { return typeof value === "number" && Number.isSafeInteger(value) && value >= -1 && value <= 2147483647; }
 export function platformMoney(cents: number) { if (!budgetLimit(cents)) throw new Error("Invalid monetary value."); return cents === -1 ? "Unlimited" : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100); }
 export function platformTime(value: string | null) { if (!value) return "Not recorded"; const time = new Date(value); return Number.isFinite(time.valueOf()) ? new Intl.DateTimeFormat("en-US", { timeZone: "UTC", dateStyle: "medium", timeStyle: "medium" }).format(time) + " UTC" : "Unavailable"; }

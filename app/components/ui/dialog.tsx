@@ -101,7 +101,5 @@ export {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogOverlay,
-  DialogPortal,
   DialogTitle,
 }

@@ -2,7 +2,7 @@ import type { PaperDetail } from "./research-paper-catalog";
 import { paperWorkflowLabel } from "./research-paper-catalog";
 import { assessmentSummaryFromPublicQueue, type PublicAutonomousTask, type PublicStudyQueue } from "./research-public-queue";
 
-export const ASSESSMENT_STAGE_LABELS: Record<string, string> = {
+const ASSESSMENT_STAGE_LABELS: Record<string, string> = {
   intake: "Paper preparation", comprehension: "Claim analysis", planning: "Experiment planning",
   building: "Experiment implementation", critic: "Plan validation", execution: "Experiment execution", assessment: "Results assessment",
 };

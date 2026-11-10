@@ -37,7 +37,7 @@ export const REPORT_METRICS: Record<ReportMetric, { label: string; unit: string 
 export function displayNumber(value: number | null | undefined, digits = 3): string {
   return typeof value === "number" && Number.isFinite(value) ? value.toLocaleString("en-US", { maximumFractionDigits: digits, minimumFractionDigits: digits }) : "Unavailable";
 }
-export function dateUtc(epoch: number): string {
+function dateUtc(epoch: number): string {
   return new Date(epoch * 1000).toISOString().replace("T", " ").slice(0, 19) + " UTC";
 }
 export function parseReportSelection(value: string | null): string[] {
