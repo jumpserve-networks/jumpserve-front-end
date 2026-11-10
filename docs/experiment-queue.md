@@ -62,7 +62,7 @@ Commands:
 npm test
 npm run lint
 npm run build
-npm run verify:research:queue
+npm run verify:research:public-queue
 # Backend
 python3 -B -m unittest discover -s research_workflow/tests -p 'test_*.py'
 # Infrastructure, with the isolated local PostgreSQL cluster on 54477

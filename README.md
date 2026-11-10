@@ -333,8 +333,7 @@ checks capabilities before creating an idea or requesting a model call. Deploy
 the additive idea/prompt migrations and evaluated prompt before enabling the
 module-aware APIs and this frontend. Local changes are not a production release.
 
-`npm run verify:research:queue` (also available as
-`npm run verify:research:public-queue`) checks the current public Experiment Queue
+`npm run verify:research:public-queue` checks the current public Experiment Queue
 through the local Next.js app and actual backend handlers with synthetic data.
 Reports and screenshots are retained under `.test-artifacts/public-experiment-queue/`.
 The retired private queue dashboard is no longer part of browser verification.
