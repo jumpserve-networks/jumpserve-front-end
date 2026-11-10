@@ -45,9 +45,6 @@ Public catalogues currently read the existing bounded list before filtering by
 pathway. When the API reports more studies, both the result count limit and its
 effect on an empty filtered list remain explicit.
 
-Local verification uses `npm test`, `npm run lint`, `npm run build`,
-`node scripts/verify-homepage-release.mjs` and
-`node scripts/verify-research-pathways.mjs`. Browser checks cover separate menus,
-active sections, public catalogues, desktop/mobile themes, legacy redirects,
-exports and unauthenticated sign-in return paths. They do not establish a real
-Google session, a new experiment run or an authenticated model call.
+Local verification uses `npm test`, `npm run lint` and `npm run build`. The
+research pathway tests cover module navigation, legacy redirects, catalogue
+filtering, export paths and sign-in return paths.

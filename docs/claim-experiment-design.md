@@ -35,18 +35,10 @@ Reproduce local software verification:
 npm run lint
 npm test
 npm run build
-
-# In another terminal, jumpserve-infra, with the isolated PostgreSQL fixture running
-python3 -B test/serve_research_ideas_fixture.py --claim-design
-
-# jumpserve-front-end; fixed loopback fixture, synthetic auth/AI/cloud dispatch
-node scripts/verify-claim-design.mjs
 ```
 
-The browser fixture checks the real components, API adapters, backend, agent and
-SQL. It verifies queue persistence, rather than launching cloud experiments.
-Actual Next.js routes are separately checked for unauthenticated sign-in returns.
-A legitimate authenticated production flow and cloud execution are not verified.
+The frontend tests cover source binding, planning responses and sign-in return
+paths. Authenticated production use and cloud execution require separate checks.
 
 The thirteen migrations live in `jumpserve-infra/database/2026101700*`. Six prompt
 candidates and all failed evaluations remain archived. Only v6's exact reviewed
