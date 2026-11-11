@@ -72,7 +72,7 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
       </div>
     </CardHeader>
     <CardContent className="space-y-4">
-      <div className="overflow-hidden rounded-md border">
+      <div className="content-panel overflow-hidden rounded-md border">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 p-2">
           <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Traffic map controls">
             <Button type="button" variant="outline" size="icon-sm" aria-label="Zoom in" title="Zoom in" disabled={viewport.zoom >= MAX_MAP_ZOOM} onClick={() => zoom(2)}><Plus /></Button>
@@ -166,7 +166,7 @@ export function RealWorldTrafficMap({ job, receivedAt, interrupted }: {
             <SelectContent>{items.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
           </Select>
         </div>
-        <div aria-live="polite" className="min-w-0 rounded-md border p-3 text-sm">
+        <div aria-live="polite" className="content-panel min-w-0 rounded-md border p-3 text-sm">
           {machine ? <>
             <p className="font-medium">{machineLabel(machine.name)} · {REGION_LOCATIONS[machine.region]?.name ?? machine.region}</p>
             <p className="mt-1 break-words text-xs text-muted-foreground">{machine.region} / {machine.zone_id} · {machine.instance_type}</p>

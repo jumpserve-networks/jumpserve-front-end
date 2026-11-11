@@ -8,6 +8,6 @@ export const dynamic = "force-dynamic";
 export default async function StudyResultsPage() {
   const data = await getStudyData();
   return <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6"><StudyHeader title="Propagation delay study" description="Partial reproduction of the paper’s delay-equalization mechanism." />
-    {data ? <StudyDashboard data={data} /> : <p className="rounded-md border p-6 text-sm">The study has not been registered in this database yet. No experimental results are available.</p>}
+    {data ? <StudyDashboard data={data} /> : <p className="content-panel rounded-md border p-6 text-sm">The study has not been registered in this database yet. No experimental results are available.</p>}
   </main>;
 }

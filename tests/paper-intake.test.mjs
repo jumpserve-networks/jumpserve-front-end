@@ -4,16 +4,17 @@ import {paperModelRequest,validatePaperExtraction,extractionBreakdown,PAPER_INTA
 import {refreshPaperIntake,cancelPaperIntake} from '../lib/paper-intake-runner.ts';
 import {validatePaperBreakdown} from '../lib/research-paper-breakdown.ts';
 import {validatePaperIntake} from '../lib/paper-intake.ts';
+import {paperSources} from '../lib/paper-source-references.ts';
 
 const text='An Explicit Test Paper\nTest Author\nTwo Linux hosts measured latency in milliseconds. We compared the baseline.';
 const paper={totalPages:2,pages:[{page:1,text},{page:2,text:''}]};
 const extraction=()=>({title:{text:'An Explicit Test Paper',quote:'An Explicit Test Paper',page:1},domain:{text:'Networking',quote:'Two Linux hosts',page:1},authors:[{name:'Test Author',quote:'Test Author',page:1}],sections:Object.fromEntries(['access','experiment','data','validate'].map(id=>[id,[{description:'An explicit software fixture.',quote:'Two Linux hosts',page:1}]]))});
-const row=()=>({study_id:'10000000-0000-4000-8000-000000000001',owner_id:'owner',status:'processing',source_id:'20000000-0000-4000-8000-000000000001',text_artifact_id:'30000000-0000-4000-8000-000000000001',submit_token:'token',provider_response_id:'resp_original',paper_text:paper,updated_at:new Date().toISOString(),deadline_at:new Date(Date.now()+86400000).toISOString()});
+const row=()=>({study_id:'10000000-0000-4000-8000-000000000001',owner_id:'owner',status:'processing',source_id:'20000000-0000-4000-8000-000000000001',text_artifact_id:'30000000-0000-4000-8000-000000000001',submit_token:'token',provider_response_id:'resp_original',paper_text:paper,request:paperModelRequest(paper),updated_at:new Date().toISOString(),deadline_at:new Date(Date.now()+86400000).toISOString()});
 const response=(value=extraction())=>({id:'resp_original',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(value)}]}]});
 function operations(result=response()){const calls=[];return{calls,retrieve:async id=>{calls.push(['retrieve',id]);return result;},cancel:async id=>{calls.push(['cancel',id]);return{...result,status:'cancelled'};},save:async(op,current,payload)=>{calls.push([op,payload]);return{...current,status:op==='finish'?'ready':op,...payload};}};}
 
 test('one background request reads complete ordered text without tools or truncated pages',()=>{
- const request=paperModelRequest(paper);assert.equal(request.model,PAPER_INTAKE_MODEL);assert.equal(request.background,true);assert.equal(request.text.format.strict,true);assert.deepEqual(JSON.parse(request.input).pages,paper.pages);assert.equal(request.tools,undefined);
+ const request=paperModelRequest(paper);assert.equal(request.model,PAPER_INTAKE_MODEL);assert.equal(request.background,true);assert.equal(request.text.format.strict,true);assert.deepEqual(JSON.parse(request.input).pages,paper.pages.map(p=>({...p,text:p.text?`[p${p.page}s1]\n${p.text}`:p.text})));assert.equal(request.tools,undefined);assert.deepEqual(request.text.format.schema.$defs.source_reference.enum,paperSources(paper).map(source=>source.ref));
  for(const value of [{...paper,totalPages:201},{totalPages:1,pages:[{page:1,text:''}]},{totalPages:1,pages:[{page:1,text:'x'.repeat(200001)}]},{totalPages:2,pages:[paper.pages[1],paper.pages[0]]}])assert.throws(()=>paperModelRequest(value));
 });
 test('all four sections and metadata must have exact quotes on retained readable pages',()=>{

@@ -12,11 +12,11 @@ export async function PublishedStudies({ kind }: { kind: ResearchStudyKind }) {
   const studies = result.status === "available" ? studiesForPathway(result.data.studies, kind) : [];
   return <main className="mx-auto max-w-6xl space-y-6 px-4 py-6">
     <ResearchHeader kind={kind} showModuleLabel={kind !== "paper"} title={kind === "idea" ? "Published idea experiments" : "Published research assessments"} />
-    {result.status !== "available" ? <p role="status" className="rounded-lg border p-4 text-sm">{result.reason}</p> : <>
-      {studies.length === 0 ? <section className="space-y-2 rounded-lg border p-5">
+    {result.status !== "available" ? <p role="status" className="content-panel rounded-lg border p-4 text-sm">{result.reason}</p> : <>
+      {studies.length === 0 ? <section className="content-panel space-y-2 rounded-lg border p-5">
         <h2 className="font-semibold">{result.data.has_more ? "No matching assessments in the available list" : kind === "idea" ? "No published idea experiments yet" : "No published assessments yet"}</h2>
         <Link className="text-sm underline" href={kind === "idea" ? `${base}/new-idea` : NEW_ASSESSMENT_PATH}>{kind === "idea" ? "Develop an idea" : "Assess a paper"}</Link>
-      </section> : <div className="grid gap-4 md:grid-cols-2">{studies.map(study => <article key={study.id} className="space-y-3 rounded-lg border p-5">
+      </section> : <div className="grid gap-4 md:grid-cols-2">{studies.map(study => <article key={study.id} className="content-panel space-y-3 rounded-lg border p-5">
         <p className="text-xs text-muted-foreground">{study.domain}</p>
         <h2 className="font-semibold"><Link className="underline" href={researchPublishedPath(kind, study.id)}>{study.title}</Link></h2>
         <p className="text-sm text-muted-foreground">{study.scope}</p>
@@ -43,6 +43,6 @@ export async function PublishedStudy({ kind, params, searchParams }: PublishedSt
     {result.status === "available" ? <>
       <div className="flex flex-wrap gap-4 text-sm"><Link className="underline" href={researchExportPath(kind, studyId)}>Download complete published JSON</Link><Link className="underline" href={`${researchExportPath(kind, studyId)}?format=csv`}>Download measurements CSV</Link></div>
       <StudyPanel snapshot={result.data} view={studyView(typeof query.view === "string" ? query.view : undefined)} basePath={researchPublishedPath(kind, studyId)} />
-    </> : <p role="status" className="rounded-lg border p-4 text-sm">{result.reason}</p>}
+    </> : <p role="status" className="content-panel rounded-lg border p-4 text-sm">{result.reason}</p>}
   </main>;
 }

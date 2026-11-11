@@ -1,6 +1,7 @@
 import {readPaperExtraction} from '../../lib/paper-intake-runner.ts';
 import {extractionBreakdown} from '../../lib/paper-intake-model.ts';
 import {validatePaperBreakdown} from '../../lib/research-paper-breakdown.ts';
+import {PAPER_SOURCE_FORMAT,resolvePaperSources} from '../../lib/paper-source-references.ts';
 
 export const CORPUS_VERSION='paper-intake-evaluation-v1';
 const grounded=(text,quote,page)=>({text,quote,page});
@@ -32,9 +33,9 @@ export const PAPER_CASES=[{
  reference:{title:grounded('A Bounded Networking Procedure','A Bounded Networking Procedure',1),domain:null,authors:[{name:'Amina Rao',quote:'Amina Rao',page:1}],sections:Object.fromEntries(Object.entries(methods).map(([id,quote])=>[id,[entry(quote,quote,1)]]))},
 }];
 
-export function gradePaperCase(testCase,response){
+export function gradePaperCase(testCase,response,instructions){
  const extraction=readPaperExtraction(response,testCase.paper);
- const breakdown=validatePaperBreakdown(extractionBreakdown(extraction,testCase.paper,'evaluation-source','evaluation-text'));
+ const breakdown=validatePaperBreakdown(extractionBreakdown(extraction,testCase.paper,'evaluation-source','evaluation-text',instructions));
  const checks=[{name:'schema, exact quotes and PDF pages',passed:true}];
  const expected=testCase.expected;
  if(expected){
@@ -50,6 +51,7 @@ export const referenceResponse=value=>({id:'offline-reference',status:'completed
 
 export function quoteDiagnostics(response,paper){
  let output;try{output=JSON.parse(response.output.filter(item=>item.type==='message').flatMap(item=>item.content).filter(part=>part.type==='output_text').map(part=>part.text).join(''));}catch{return [];}
+ if(response.text?.format?.name===PAPER_SOURCE_FORMAT){try{output=resolvePaperSources(output,paper);}catch(error){return [{field:'source references',page:null,quote:null,error:error.message}];}}
  const fields=[];for(const key of ['title','domain'])if(output?.[key])fields.push([key,output[key]]);
  if(Array.isArray(output?.authors))output.authors.forEach((entry,index)=>fields.push([`authors[${index}]`,entry]));
  for(const key of ['access','experiment','data','validate'])if(Array.isArray(output?.sections?.[key]))output.sections[key].forEach((entry,index)=>fields.push([`sections.${key}[${index}]`,entry]));

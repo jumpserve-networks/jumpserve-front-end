@@ -622,7 +622,7 @@ export function BenchmarkForm() {
       {/* Message */}
       {message && (
         <div
-          className={`rounded-lg px-4 py-3 text-sm ${
+          className={`content-panel rounded-lg px-4 py-3 text-sm ${
             message.type === "success"
               ? "border border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200"
               : "border border-red-200 bg-red-50 text-red-800 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200"

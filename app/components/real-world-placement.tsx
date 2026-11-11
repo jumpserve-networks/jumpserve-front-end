@@ -51,7 +51,7 @@ export function RealWorldPlacement({ label, value, regions, onChange, disabled =
     if (disabled) return;
     onChange((latest) => placementInRegion(latest, region, regions));
   }
-  return <fieldset disabled={disabled} className="min-w-0 space-y-3 rounded-md border p-4">
+  return <fieldset disabled={disabled} className="content-panel min-w-0 space-y-3 rounded-md border p-4">
     <legend className="px-1 text-sm font-semibold">{label}</legend>
     <div className="grid gap-4 md:grid-cols-3">
       <Choice label={`${label} Region`} value={value.region} items={regions.map((r) => ({ value: r.region,

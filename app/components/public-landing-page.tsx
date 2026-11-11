@@ -53,7 +53,7 @@ export function PublicLandingPage({ nextPath }: { nextPath?: string } = {}) {
         </section>
 
         {requestedModule ? (
-          <aside aria-label="Requested page" className="flex flex-col items-start gap-3 rounded-md border border-border bg-accent px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <aside aria-label="Requested page" className="content-panel flex flex-col items-start gap-3 rounded-md border border-border bg-accent px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-accent-foreground">Your requested page is in {requestedModule.name}.</p>
             <Button variant="outline" nativeButton={false} render={<Link href={safeNextPath} />}>
               Continue to requested page<ArrowRight aria-hidden="true" />

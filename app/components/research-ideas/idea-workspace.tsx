@@ -51,19 +51,19 @@ export function IdeaIntake() {
     } catch (failure) { setError(errorText(failure)); }
     finally { setBusy(false); }
   }
-  return <form onSubmit={submit} className="space-y-5 rounded-lg border p-5" aria-label="New unpublished research idea">
+  return <form onSubmit={submit} className="content-panel space-y-5 rounded-lg border p-5" aria-label="New unpublished research idea">
     <p className="text-sm text-muted-foreground">Your draft is private.</p>
     {[["Idea title", title, setTitle], ["Research domain", domain, setDomain]].map(([label, value, setter]) => <label key={label as string} className="block space-y-1 text-sm"><span className="font-medium">{label as string}</span><Input required maxLength={300} disabled={busy || Boolean(savedStudy)} value={value as string} onChange={event => { (setter as (value: string) => void)(event.target.value); changed(); }} /></label>)}
     <label className="block space-y-1 text-sm"><span className="font-medium">Research question</span><Textarea className="text-foreground" required maxLength={5000} disabled={busy || Boolean(savedStudy)} value={question} onChange={event => { setQuestion(event.target.value); changed(); }} /></label>
     <label className="block space-y-1 text-sm"><span className="font-medium">Proposed hypothesis, if you have one</span><Textarea className="text-foreground" maxLength={5000} disabled={busy || Boolean(savedStudy)} value={hypothesis} onChange={event => { setHypothesis(event.target.value); changed(); }} /></label>
-    {error ? <p role="alert" className="rounded-md border p-3 text-sm text-destructive">{error}</p> : null}
+    {error ? <p role="alert" className="content-panel rounded-md border p-3 text-sm text-destructive">{error}</p> : null}
     <Button type="submit" disabled={busy}>{busy ? "Preserving your idea…" : "Create private idea workspace"}</Button>
     {savedStudy ? <p className="text-sm">Your study draft is preserved. <Link className="underline" href={`${PATH}/ideas/${savedStudy}`}>Resume this workspace</Link> if the initial plan save was interrupted.</p> : null}
   </form>;
 }
 
 function ModelAttempt({ run, packet }: { run: IdeaRun; packet?: IdeaPacket }) {
-  return <article className="space-y-3 rounded-md border p-4 text-sm">
+  return <article className="content-panel space-y-3 rounded-md border p-4 text-sm">
     <p className="font-medium capitalize">{run.task} · {run.status}{run.output ? ` · ${run.output.verdict === "ready" ? "Plan recommendation: ready" : "Clarification needed"}` : ""}</p>
     {run.reason ? <p className="text-destructive">{run.reason}</p> : null}
     {run.output ? <><p className="whitespace-pre-wrap">{run.output.summary}</p>
@@ -93,7 +93,7 @@ export function PacketEditor({ packet, studyId, onSaved, onDirty, planningEndpoi
   return <form onSubmit={save} className="space-y-4" aria-label={planningEndpoint === "claim-design" ? "Versioned assessment plan" : "Versioned idea plan"}>
     <p className="text-sm text-muted-foreground">Unknown fields can be left empty in a draft.</p>
     <div className="grid gap-4 md:grid-cols-2">{IDEA_FIELDS.map(field => <label key={field} className="block space-y-1 text-sm"><span className="font-medium">{planningEndpoint === "claim-design" && field === "falsification" ? "Descriptive decision policy (set by JumpServe)" : LABELS[field]}</span><Textarea aria-label={LABELS[field]} readOnly={planningEndpoint === "claim-design" && (field === "hypothesis" || field === "falsification")} className="text-foreground" maxLength={5000} disabled={busy} value={document[field]} onChange={event => { setDocument(prior => ({ ...prior, [field]: event.target.value })); request.current = ""; onDirty(); }} /></label>)}</div>
-    <details className="rounded-md border p-4"><summary className="cursor-pointer text-sm font-medium">Candidate scientific protocol</summary>
+    <details className="content-panel rounded-md border p-4"><summary className="cursor-pointer text-sm font-medium">Candidate scientific protocol</summary>
       <p className="mt-3 text-sm text-muted-foreground">Draft fields can use null. A complete protocol is required for review.</p>
       <label className="mt-3 block space-y-1 text-sm"><span>Candidate protocol JSON</span><Textarea aria-label="Candidate protocol JSON" className="min-h-64 font-mono text-xs text-foreground" disabled={busy} value={protocol} onChange={event => { setProtocol(event.target.value); request.current = ""; onDirty(); }} /></label>
     </details>
@@ -135,7 +135,7 @@ export function IdeaActions({ state, studyId, reload, dirty, planningEndpoint = 
     } catch (failure) { setMessage(errorText(failure)); }
     finally { setBusy(false); }
   }
-  return <section className="space-y-5 rounded-lg border p-5" aria-labelledby="idea-reviews-title">
+  return <section className="content-panel space-y-5 rounded-lg border p-5" aria-labelledby="idea-reviews-title">
     <h2 id="idea-reviews-title" className="text-lg font-semibold">Discuss the plan and challenge it</h2>
     <p className="text-sm text-muted-foreground">Reviews use the saved plan without the planning conversation or earlier verdicts.</p>
     {planningEndpoint === "idea" ? <form onSubmit={event => { event.preventDefault(); void review("planning"); }} className="space-y-3">
@@ -150,7 +150,7 @@ export function IdeaActions({ state, studyId, reload, dirty, planningEndpoint = 
       <Button type="submit" disabled={busy || dirty || !comprehension || !critic || state.missing.length > 0}>Accept current plan readiness</Button>
       {state.missing.length ? <p className="text-xs text-muted-foreground">Still required: {state.missing.join("; ")}</p> : null}
     </form>}
-    {message ? <p role="status" className="rounded-md border p-3 text-sm">{message}</p> : null}
+    {message ? <p role="status" className="content-panel rounded-md border p-3 text-sm">{message}</p> : null}
     <div className="space-y-3">{state.runs.length ? [...state.runs].reverse().map(run => <ModelAttempt key={run.id} run={run} packet={state.packets.find(row => row.id === run.packet_id)} />) : <p className="text-sm text-muted-foreground">No AI attempts recorded.</p>}</div>
   </section>;
 }
@@ -204,7 +204,7 @@ export function IdeaCampaign({ state, studyId, reload, dirty, onEditing, plannin
     } catch (failure) { setMessage(errorText(failure)); }
     finally { setBusy(false); }
   }
-  return <section className="space-y-4 rounded-lg border p-5" aria-labelledby="idea-campaign-title"><h2 id="idea-campaign-title" className="text-lg font-semibold">Preregister an experimental campaign</h2>
+  return <section className="content-panel space-y-4 rounded-lg border p-5" aria-labelledby="idea-campaign-title"><h2 id="idea-campaign-title" className="text-lg font-semibold">Preregister an experimental campaign</h2>
     <p className="text-sm text-muted-foreground">The reviewed protocol is frozen. Registered runners execute networking jobs; other methods require an implementation.</p>
     <form onSubmit={prepare} className="space-y-4">
       <label className="block space-y-1 text-sm"><span className="font-medium">Campaign title</span><Input required disabled={busy || !state.ready} value={title} onChange={event => { setTitle(event.target.value); changed(); }} /></label>
@@ -212,9 +212,9 @@ export function IdeaCampaign({ state, studyId, reload, dirty, onEditing, plannin
       <Button type="submit" disabled={busy || dirty || !state.ready}>{busy ? "Preserving campaign…" : "Freeze reviewed protocol and prepare campaign"}</Button>
     </form>
     {queue ? <Button type="button" variant="outline" disabled={busy || dirty || !!executionBlocked} onClick={() => void enqueue()}>{queue.every(request => request.execution_mode === "automatic") ? `Queue ${queue.length} networking experiment jobs` : "Queue domain experiment task"}</Button> : null}
-    {executionBlocked ? <div role="status" className="space-y-2 rounded-md border p-3 text-sm"><p>{executionError || (!executionStatus ? "Checking whether this environment can execute the saved experiment…" : executionStatus.queue?.workers_enabled !== true ? "Experiment workers are not enabled in this environment. Your plan and prepared campaign are saved; execution is blocked until workers are enabled." : "This experiment runner is not enabled in the connected environment. Your plan and campaign are saved; execution is blocked until the runner is available.")}</p><Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => setAvailabilityRevision(value => value + 1)}>Check execution availability again</Button></div> : null}
+    {executionBlocked ? <div role="status" className="content-panel space-y-2 rounded-md border p-3 text-sm"><p>{executionError || (!executionStatus ? "Checking whether this environment can execute the saved experiment…" : executionStatus.queue?.workers_enabled !== true ? "Experiment workers are not enabled in this environment. Your plan and prepared campaign are saved; execution is blocked until workers are enabled." : "This experiment runner is not enabled in the connected environment. Your plan and campaign are saved; execution is blocked until the runner is available.")}</p><Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => setAvailabilityRevision(value => value + 1)}>Check execution availability again</Button></div> : null}
     {state.campaigns.length ? <div className="space-y-2 text-sm"><p className="font-medium">Preserved campaign preparations</p>{state.campaigns.map(link => <div key={link.id} className="flex flex-wrap items-center gap-3"><span className="break-all text-xs">Campaign {link.campaign_id}</span><Button type="button" size="sm" variant="outline" disabled={busy || dirty} onClick={() => void resume(link.id)}>Resume queueing this campaign</Button></div>)}</div> : null}
-    {message ? <p role="status" className="rounded-md border p-3 text-sm">{message}</p> : null}
+    {message ? <p role="status" className="content-panel rounded-md border p-3 text-sm">{message}</p> : null}
     <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => { setTitle(""); setStage(String(planningEndpoint === "claim-design" ? candidate?.stage ?? "pilot" : "pilot")); setClaimType("association"); setExperimentType(String(planningEndpoint === "claim-design" ? candidate?.experiment_type ?? "new-measurement" : "new-measurement")); setUnits(Number(state.packets.find(row => row.id === state.current_packet_id)?.document.protocol?.planned_units ?? 1)); request.current = ""; setQueue(null); onEditing?.(false); setMessage("Unsaved campaign details discarded. Preserved campaigns remain available to resume."); }}>Discard unsaved campaign details</Button>
   </section>;
 }
@@ -254,10 +254,10 @@ export function IdeaWorkspace({ studyId }: { studyId: string }) {
       const anchor = document.createElement("a"); anchor.href = url; anchor.download = `research-idea-${studyId}.json`; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (failure) { setError(errorText(failure)); }
   }
-  if (error && (!state || !snapshot)) return <section className="space-y-3 rounded-md border p-4"><p role="alert" className="text-sm text-destructive">{error}</p><Button type="button" variant="outline" onClick={() => void reload().catch(failure => setError(errorText(failure)))}>Retry loading retained idea</Button></section>;
+  if (error && (!state || !snapshot)) return <section className="content-panel space-y-3 rounded-md border p-4"><p role="alert" className="text-sm text-destructive">{error}</p><Button type="button" variant="outline" onClick={() => void reload().catch(failure => setError(errorText(failure)))}>Retry loading retained idea</Button></section>;
   if (!state || !snapshot) return <p role="status">Loading your private research idea…</p>;
   const packet = state.packets.find(row => row.id === state.current_packet_id);
-  return <div className="space-y-6"><section className="space-y-3 rounded-lg border p-5"><h2 className="text-xl font-semibold">{snapshot.study.title}</h2>
+  return <div className="space-y-6"><section className="content-panel space-y-3 rounded-lg border p-5"><h2 className="text-xl font-semibold">{snapshot.study.title}</h2>
     {error ? <p role="alert" className="text-sm text-destructive">{error} Previously retrieved status is shown; your open answer is preserved. Refresh before relying on current readiness.</p> : null}
     {versionConflict ? <Button type="button" variant="outline" size="sm" onClick={() => void reload(undefined, true).catch(failure => setError(errorText(failure)))}>Discard this draft and load the newer plan</Button> : null}
     <p className="text-sm">Unpublished research idea · {packet ? `packet version ${packet.version}` : "first plan not yet saved"} · {state.ready ? "Plan readiness accepted" : "Draft / review pending"}</p>
@@ -265,7 +265,7 @@ export function IdeaWorkspace({ studyId }: { studyId: string }) {
     <div className="flex flex-wrap gap-2" aria-label="Planning interface"><Button type="button" size="sm" variant={mode === "guided" ? "default" : "outline"} aria-pressed={mode === "guided"} disabled={(dirty || campaignEditing) && mode !== "guided"} onClick={() => setMode("guided")}>Guided conversation</Button><Button type="button" size="sm" variant={mode === "advanced" ? "default" : "outline"} aria-pressed={mode === "advanced"} disabled={(dirty || campaignEditing) && mode !== "advanced"} onClick={() => setMode("advanced")}>Detailed editor and history</Button></div>
     <details open={mode === "advanced" || undefined} className="text-sm"><summary className="cursor-pointer"><span>History and results</span><span className="text-muted-foreground"> · {snapshot.records.runs.length} recorded runs</span></summary><div className="mt-3 space-y-3"><p className="text-muted-foreground">{snapshot.records.runs.length} scientific runs recorded.</p><div className="flex flex-wrap gap-3"><Button type="button" variant="outline" size="sm" onClick={() => void download(state)}>Download planning history</Button><Button type="button" variant="outline" size="sm" onClick={() => void reload().catch(failure => setError(errorText(failure)))}>Refresh retained status</Button><Link className="text-sm underline" href={`${PATH}/workspace/${studyId}`}>Scientific evidence workspace</Link></div><details><summary className="cursor-pointer text-xs">Retained packet versions</summary><ul className="mt-2 space-y-1 text-xs">{state.packets.map(row => <li key={row.id} className="break-all">Version {row.version} · {row.reason} · SHA256 {row.sha256}</li>)}</ul></details></div></details>
   </section><div hidden={mode !== "guided"}><IdeaGuide key={guideRevision} state={state} studyId={studyId} dirty={dirty} advancedDirty={draftSource === "advanced" && dirty} active={mode === "guided"} campaignEditing={campaignEditing} onDirty={() => { setDirty(true); setDraftSource("guided"); }} onDiscard={() => { setDirty(false); setDraftSource(null); }} reload={reload}><IdeaCampaign key={`guided-campaign-${packet?.id}`} state={state} studyId={studyId} reload={reload} dirty={dirty} onEditing={setCampaignEditing} /></IdeaGuide></div>
-    {mode === "advanced" ? <div className="space-y-6"><section className="space-y-4 rounded-lg border p-5"><h2 className="text-lg font-semibold">Self-contained research plan</h2><PacketEditor key={packet?.id ?? "initial"} packet={packet ?? null} studyId={studyId} onSaved={reload} onDirty={() => { setDirty(true); setDraftSource("advanced"); }} /></section><IdeaActions key={packet?.id ?? "initial"} state={state} studyId={studyId} reload={reload} dirty={dirty} /><IdeaCampaign key={`campaign-${packet?.id}`} state={state} studyId={studyId} reload={reload} dirty={dirty} onEditing={setCampaignEditing} /></div> : null}
+    {mode === "advanced" ? <div className="space-y-6"><section className="content-panel space-y-4 rounded-lg border p-5"><h2 className="text-lg font-semibold">Self-contained research plan</h2><PacketEditor key={packet?.id ?? "initial"} packet={packet ?? null} studyId={studyId} onSaved={reload} onDirty={() => { setDirty(true); setDraftSource("advanced"); }} /></section><IdeaActions key={packet?.id ?? "initial"} state={state} studyId={studyId} reload={reload} dirty={dirty} /><IdeaCampaign key={`campaign-${packet?.id}`} state={state} studyId={studyId} reload={reload} dirty={dirty} onEditing={setCampaignEditing} /></div> : null}
     {state.campaigns.length || snapshot.records.runs.length ? <ClaimQueue snapshot={snapshot} onEvidenceChanged={reload} /> : null}
   </div>;
 }

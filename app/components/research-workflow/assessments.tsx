@@ -38,7 +38,7 @@ export function Assessments({ before, mine = false, name = "", view = "table" }:
       <Button type="submit" variant="outline">Filter</Button>
       {name ? <Button variant="ghost" nativeButton={false} render={<Link href={assessmentListPath({ mine, view })} />}>Clear</Button> : null}
     </Form>
-    {mine && !userId ? preferences?.loading ? <p role="status">Checking sign-in…</p> : preferences?.error ? <div role="alert" className="space-y-3 rounded-lg border p-4 text-sm"><p>{preferences.error}</p><Button variant="outline" onClick={() => preferences.refresh()}>Retry sign-in check</Button></div> : <p className="rounded-lg border p-4 text-sm"><Link className="underline" href={`/login?${new URLSearchParams({ next: returnPath })}`}>Sign in</Link> to view your assessments.</p> : <AssessmentList key={`${userId ?? "all"}:${before ?? "newest"}:${name}`} before={before} userId={userId ?? undefined} name={name} view={view} />}
+    {mine && !userId ? preferences?.loading ? <p role="status">Checking sign-in…</p> : preferences?.error ? <div role="alert" className="content-panel space-y-3 rounded-lg border p-4 text-sm"><p>{preferences.error}</p><Button variant="outline" onClick={() => preferences.refresh()}>Retry sign-in check</Button></div> : <p className="content-panel rounded-lg border p-4 text-sm"><Link className="underline" href={`/login?${new URLSearchParams({ next: returnPath })}`}>Sign in</Link> to view your assessments.</p> : <AssessmentList key={`${userId ?? "all"}:${before ?? "newest"}:${name}`} before={before} userId={userId ?? undefined} name={name} view={view} />}
   </main>;
 }
 
@@ -75,8 +75,8 @@ function AssessmentList({ before, userId, name, view }: { before?: string; userI
   }, [before, userId, name, revision]);
   return <>
     {deleted ? <p role="status" className="text-sm">Assessment deleted.</p> : null}
-    {error ? <div role="alert" className="space-y-3 rounded-lg border p-4 text-sm"><p>{error}</p><Button variant="outline" onClick={() => { setData(null); setError(""); setRevision(value => value + 1); }}>Try again</Button></div> : !data ? <p role="status">{name ? "Filtering assessments…" : "Loading paper assessments…"}</p> : <>
-      {!data.papers.length ? <section className="space-y-3 rounded-lg border p-5"><h2 className="font-semibold">{name ? "No assessments match this name" : before ? "No assessments on this page" : userId ? "You have no assessments yet" : "No paper assessments submitted yet"}</h2>{name ? <Link className="text-sm underline" href={assessmentListPath({ ...options, name: "" })}>Clear name filter</Link> : <Link className="text-sm underline" href={NEW_ASSESSMENT_PATH}>Assess a paper</Link>}</section> : view === "table" ? <div className="rounded-lg border"><Table className="min-w-[48rem]">
+    {error ? <div role="alert" className="content-panel space-y-3 rounded-lg border p-4 text-sm"><p>{error}</p><Button variant="outline" onClick={() => { setData(null); setError(""); setRevision(value => value + 1); }}>Try again</Button></div> : !data ? <p role="status">{name ? "Filtering assessments…" : "Loading paper assessments…"}</p> : <>
+      {!data.papers.length ? <section className="content-panel space-y-3 rounded-lg border p-5"><h2 className="font-semibold">{name ? "No assessments match this name" : before ? "No assessments on this page" : userId ? "You have no assessments yet" : "No paper assessments submitted yet"}</h2>{name ? <Link className="text-sm underline" href={assessmentListPath({ ...options, name: "" })}>Clear name filter</Link> : <Link className="text-sm underline" href={NEW_ASSESSMENT_PATH}>Assess a paper</Link>}</section> : view === "table" ? <div className="content-panel rounded-lg border"><Table className="min-w-[48rem]">
         <TableCaption className="sr-only">Assessments</TableCaption>
         <TableHeader><TableRow><TableHead scope="col">Assessment</TableHead><TableHead scope="col">Status</TableHead><TableHead scope="col">Initiated by</TableHead><TableHead scope="col">Submitted</TableHead>{userId ? <TableHead scope="col">Actions</TableHead> : null}</TableRow></TableHeader>
         <TableBody>{papers?.map(paper => <TableRow key={paper.id} data-paper-id={paper.id} className="relative focus-within:bg-muted/50">
@@ -88,7 +88,7 @@ function AssessmentList({ before, userId, name, view }: { before?: string; userI
         </TableRow>)}</TableBody>
       </Table></div> : <div className="grid gap-4 md:grid-cols-2">{papers?.map(paper => {
           const assessment = researchAssessmentPath(paper.id);
-          return <article key={paper.id} data-paper-id={paper.id} className="relative space-y-3 rounded-lg border p-5 focus-within:ring-2 focus-within:ring-ring">
+          return <article key={paper.id} data-paper-id={paper.id} className="content-panel relative space-y-3 rounded-lg border p-5 focus-within:ring-2 focus-within:ring-ring">
             <h2 className="break-words font-semibold"><Link className="underline after:absolute after:inset-0 after:rounded-lg" href={assessment}>{paper.displayTitle}</Link></h2>
             <PaperAuthors authors={paper.authors} loading={paper.authorsLoading} />
             <AssessmentBadges paper={paper} />

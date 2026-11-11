@@ -54,7 +54,7 @@ function TurnHistory({ task, readOnly = false }: { task: AutonomousTask | Public
     {error ? <p role="alert" className="text-destructive">{error}</p> : null}
     {projection ? <p className="text-xs text-muted-foreground">{projection.note} {projection.redacted} values redacted · {projection.truncated} text values omitted or shortened on the latest page.</p> : null}
     {!turns.length && !builderCalls.length && !error ? <p role="status">{!loaded && task.attempts ? "Loading recorded turns…" : task.attempts ? "No turn records were returned. The attempt counter remains recorded; missing responses are unknown." : "No model turn has started. The initial paper request remains recorded."}</p> : null}
-    {turns.map(turn => <article key={turn.id} className="space-y-2 rounded-md border p-3 text-xs">
+    {turns.map(turn => <article key={turn.id} className="content-panel space-y-2 rounded-md border p-3 text-xs">
       <p className="font-medium">Turn {turn.number} · {words(turn.stage)} · {words(turn.status)}</p>
       <p>{time(turn.created_at)} · {turn.model_id}</p>
       {turn.reason ? <p>{turn.reason}</p> : null}
@@ -62,17 +62,17 @@ function TurnHistory({ task, readOnly = false }: { task: AutonomousTask | Public
       <details><summary className="cursor-pointer">{readOnly ? "Prompt and configuration (shared copy)" : "Exact prompt and configuration"}</summary><pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap break-all bg-muted p-3">{JSON.stringify(turn.request, null, 2)}</pre><p className="mt-2 break-all">Prompt version {turn.prompt_version_id} · original request SHA256 {turn.request_sha256}</p></details>
       <details><summary className="cursor-pointer">Response, evidence and usage</summary><pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap break-all bg-muted p-3">{JSON.stringify({ raw_response: turn.raw_response, response_sha256: turn.response_sha256, parsed: turn.output, usage: turn.usage }, null, 2)}</pre></details>
     </article>)}
-    {builderCalls.length?<div className="space-y-3"><h6 className="font-medium">Native experiment builder calls</h6><p className="text-xs text-muted-foreground">Original prompts, tool history and responses.</p>{builderCalls.map(call=><article key={call.id} className="space-y-2 rounded-md border p-3 text-xs"><p className="font-medium">AI call {call.number} · {words(call.status)}</p><p>{time(call.created_at)} · {call.model_id} · additional reservation ${(call.reserved_cents/100).toFixed(2)}</p>{call.reserved_cents===0?<p>The containing builder turn reserved this call’s allowance. Measured charge is unknown.</p>:<p>Measured charge is unknown.</p>}{call.reason?<p>{call.reason}</p>:null}<p className="break-all">Original request SHA256 {call.request_sha256}</p><NativeEvidence key={`${call.id}-request`} call={call} kind="request" readOnly={readOnly}/><NativeEvidence key={`${call.id}-response-${call.status}`} call={call} kind="response" readOnly={readOnly}/></article>)}</div>:null}
+    {builderCalls.length?<div className="space-y-3"><h6 className="font-medium">Native experiment builder calls</h6><p className="text-xs text-muted-foreground">Original prompts, tool history and responses.</p>{builderCalls.map(call=><article key={call.id} className="content-panel space-y-2 rounded-md border p-3 text-xs"><p className="font-medium">AI call {call.number} · {words(call.status)}</p><p>{time(call.created_at)} · {call.model_id} · additional reservation ${(call.reserved_cents/100).toFixed(2)}</p>{call.reserved_cents===0?<p>The containing builder turn reserved this call’s allowance. Measured charge is unknown.</p>:<p>Measured charge is unknown.</p>}{call.reason?<p>{call.reason}</p>:null}<p className="break-all">Original request SHA256 {call.request_sha256}</p><NativeEvidence key={`${call.id}-request`} call={call} kind="request" readOnly={readOnly}/><NativeEvidence key={`${call.id}-response-${call.status}`} call={call} kind="response" readOnly={readOnly}/></article>)}</div>:null}
     {before !== null ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void older(before)}>Show older turns</Button> : null}
   </div>;
 }
 function Claim({ task, maxAttempts, readOnly = false }: { task: AutonomousTask | PublicAutonomousTask; maxAttempts: number | null; readOnly?: boolean }) {
   const [open, setOpen] = useState(false);
   const privateTask = !readOnly && "required_inputs" in task ? task : null;
-  return <article className="space-y-2 rounded-md border p-4 text-sm" id={`claim-task-${task.id}`}>
+  return <article className="content-panel space-y-2 rounded-md border p-4 text-sm" id={`claim-task-${task.id}`}>
     <div className="flex flex-wrap items-start justify-between gap-3"><h4 className="min-w-0 break-words font-medium">{task.claim_title ?? "Paper preparation and claim inventory"}</h4><Badge variant={task.status === "blocked" ? "destructive" : "secondary"} className="h-auto py-1">{words(task.status)}</Badge></div>
     <p>{task.claim_id === null ? "Paper preparation" : words(task.stage)} · {task.attempts}{maxAttempts === null ? " AI turns" : ` / ${maxAttempts} model attempts`}{task.label ? ` · finding: ${task.label}` : null}</p>
-    {task.repair_progress ? <div className="space-y-1 rounded-md border border-primary/40 p-3" data-repair-state={task.repair_progress.state}>
+    {task.repair_progress ? <div className="content-panel space-y-1 rounded-md border border-primary/40 p-3" data-repair-state={task.repair_progress.state}>
       <p className="font-medium">{repairLabels[task.repair_progress.state]}</p>
       <p className="text-xs text-muted-foreground">{words(task.repair_progress.category)} recovery · recorded update {time(task.repair_progress.updated_at)}. Repair progress does not establish a scientific finding.</p>
     </div> : null}
@@ -85,8 +85,8 @@ function Claim({ task, maxAttempts, readOnly = false }: { task: AutonomousTask |
 }
 export function AutonomousAssessmentStatus({ data, stale = false }: { data: AutonomousOverview | PublicAutonomousOverview; stale?: boolean }) {
   return <>
-    {stale ? <p role="status" className="rounded-lg border p-3 text-sm text-warning">The latest status retrieval failed. These retained claim states may be stale; current progress is unknown.</p> : null}
-    {!data.enabled ? <p role="status" className="rounded-lg border p-3 text-sm">The autonomous controller is not enabled in this environment. Saved requests remain queued.</p> : null}
+    {stale ? <p role="status" className="content-panel rounded-lg border p-3 text-sm text-warning">The latest status retrieval failed. These retained claim states may be stale; current progress is unknown.</p> : null}
+    {!data.enabled ? <p role="status" className="content-panel rounded-lg border p-3 text-sm">The autonomous controller is not enabled in this environment. Saved requests remain queued.</p> : null}
   </>;
 }
 
@@ -102,7 +102,7 @@ export function AutonomousAssessments({ data, studyId, titles, stale = false, em
       const tasks = data.tasks.filter(t => t.study_id === w.study_id), claims = tasks.filter(t => t.claim_id !== null);
       const intake = tasks.filter(t => t.claim_id === null);
       const inventoryFinished = intake.length > 0 && intake.every(t => t.status === "finished");
-      return <Container key={w.study_id} className={embedded ? "space-y-4" : "space-y-4 rounded-lg border border-primary/40 p-5"}>
+      return <Container key={w.study_id} className={embedded ? "space-y-4" : "content-panel space-y-4 rounded-lg border border-primary/40 p-5"}>
         <div className="flex flex-wrap justify-between gap-3">{embedded ? <h3 className="font-semibold">Claim progress</h3> : <h3 className="font-semibold">{titles.get(w.study_id) ?? "Paper assessment"}</h3>}<Badge variant="secondary">{words(w.status)}</Badge></div>
         <p className="text-sm">${(w.committed_cents / 100).toFixed(2)} committed{w.max_spend_cents === null ? " · Unlimited budget" : ` of $${(w.max_spend_cents / 100).toFixed(2)}`} · deadline {time(w.deadline_at)}{w.max_attempts !== null ? ` · ${w.max_attempts} attempts per claim` : null}</p>
         {statusReason ? <p className="whitespace-pre-wrap break-words text-sm">{statusReason}</p> : null}

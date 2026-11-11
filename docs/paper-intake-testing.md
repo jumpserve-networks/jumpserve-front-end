@@ -34,6 +34,11 @@ The CLI uses the application's pinned model, complete-input limits, structured
 schema, response parser, source-quote validator and breakdown builder. A candidate
 file replaces only the request instructions. Candidate files in `evals/` are
 experiments; they are not automatically promoted to the application's prompt.
+New runs use source-reference citations: the model selects passage IDs and the
+server copies original quote text and PDF page numbers. Historical runs retain
+their original schemas and raw responses. See
+[`paper-source-citations-v2.md`](paper-source-citations-v2.md) for the protocol and
+the rejected prompt-only comparison.
 
 The report includes per-case checks, original requests and responses, token usage,
 model identity, request/input hashes, source revision, first observed terminal

@@ -369,7 +369,7 @@ export function EmulatedRunChartsPanel({
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground dark:text-foreground">
+    <div className="content-panel rounded-lg border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground dark:text-foreground">
       {text}
     </div>
   );
@@ -425,7 +425,7 @@ function MetricChart({
   const cardShellClassName = `min-w-0 transition-opacity duration-[240ms] ${
     isDimmed ? "opacity-65" : "opacity-100"
   }`;
-  const cardClassName = `min-w-0 rounded-lg border border-border bg-card p-3 transition-[border-color,box-shadow] duration-200 sm:p-4 ${
+  const cardClassName = `content-panel min-w-0 rounded-lg border border-border bg-card p-3 transition-[border-color,box-shadow] duration-200 sm:p-4 ${
     isDimmed
       ? ""
       : `${isActive ? "border-primary/40 dark:border-border " : ""} focus-within:border-ring `

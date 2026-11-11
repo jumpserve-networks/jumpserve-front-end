@@ -62,10 +62,10 @@ export function AssessmentDetail({ assessmentId, jobId, gapId, launchId }: { ass
       <p className="text-muted-foreground">Submitted <LocalDateTime value={paper.created_at} /></p>
       <Badge variant="outline">{paper.published ? "Published assessment" : "Not published"}</Badge>
     </div> : null}
-    {detailError ? <p role="alert" className="rounded-lg border p-4 text-sm text-destructive">Assessment details are unavailable. {detailError} {detail ? "Previously retrieved details may be stale." : ""}</p> : null}
+    {detailError ? <p role="alert" className="content-panel rounded-lg border p-4 text-sm text-destructive">Assessment details are unavailable. {detailError} {detail ? "Previously retrieved details may be stale." : ""}</p> : null}
     {detailError || queueError ? <Button variant="outline" onClick={() => setRevision(value => value + 1)}>Retry status</Button> : null}
     {detail || queue ? <>
-      <section aria-label="Assessment status" className="space-y-4 rounded-lg border p-5">
+      <section aria-label="Assessment status" className="content-panel space-y-4 rounded-lg border p-5">
         <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-semibold">Assessment status</h2>{status ? <Badge variant="secondary">{paperWorkflowLabel(status as NonNullable<PaperDetail["paper"]["workflow_status"]>)}</Badge> : null}</div>
         <dl className="grid gap-5 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1"><dt className="text-muted-foreground">Current stage</dt><dd className="font-medium" data-assessment-stage>{queue || detail?.preparation_status ? progress.stage : queueError ? "Unknown" : "Loading…"}</dd></div>
@@ -77,7 +77,7 @@ export function AssessmentDetail({ assessmentId, jobId, gapId, launchId }: { ass
       </section>
       {tasks.length ? <section aria-label="Claim progress" className="space-y-4">
         <h2 className="text-lg font-semibold">Claim progress</h2>
-        <div className="rounded-lg border"><Table><TableHeader className="bg-muted/40"><TableRow><TableHead scope="col" className="p-3">Claim</TableHead><TableHead scope="col" className="p-3">Stage</TableHead><TableHead scope="col" className="p-3">Status</TableHead><TableHead scope="col" className="p-3">Finding</TableHead></TableRow></TableHeader><TableBody>{tasks.slice(0, limit).map(task => <TableRow key={task.id}>
+        <div className="content-panel rounded-lg border"><Table><TableHeader className="bg-muted/40"><TableRow><TableHead scope="col" className="p-3">Claim</TableHead><TableHead scope="col" className="p-3">Stage</TableHead><TableHead scope="col" className="p-3">Status</TableHead><TableHead scope="col" className="p-3">Finding</TableHead></TableRow></TableHeader><TableBody>{tasks.slice(0, limit).map(task => <TableRow key={task.id}>
           <TableHead scope="row" className="min-w-48 max-w-xl p-3 align-top font-medium whitespace-normal break-words">{task.claim_title ?? "Paper preparation"}</TableHead><TableCell className="p-3 align-top whitespace-normal">{assessmentTaskStage(task)}</TableCell><TableCell className="p-3 align-top">{words(task.status)}</TableCell><TableCell className="p-3 align-top">{task.label ?? "—"}</TableCell>
         </TableRow>)}</TableBody></Table></div>
         {tasks.length > limit ? <Button variant="outline" onClick={() => setLimit(value => value + 20)}>Show more claims</Button> : null}

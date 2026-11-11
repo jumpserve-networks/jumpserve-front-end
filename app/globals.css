@@ -25,6 +25,27 @@
 @plugin "@tailwindcss/typography";
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Content has one frame. Nested panels become plain sections; controls, table
+   rules, quote accents and keyboard focus rings keep their own styling. This is
+   intentionally unlayered so responsive/dark utility borders cannot restore an
+   inner frame. Portalled dialogs start a new framing context. */
+:is(.content-panel, [data-slot="dialog-content"], [data-slot="alert-dialog-content"], [data-slot="sheet-content"], [data-slot="popover-content"]) .content-panel {
+  border-width: 0;
+  border-radius: 0;
+  background-color: transparent;
+  --tw-shadow: 0 0 #0000;
+  padding-inline: 0;
+}
+
+/* A nested shared Card's content should align with its surrounding section. */
+:is(.content-panel, [data-slot="dialog-content"], [data-slot="alert-dialog-content"], [data-slot="sheet-content"], [data-slot="popover-content"]) [data-slot="card"].content-panel {
+  padding-block: 0;
+}
+
+:is(.content-panel, [data-slot="dialog-content"], [data-slot="alert-dialog-content"], [data-slot="sheet-content"], [data-slot="popover-content"]) [data-slot="card"].content-panel > :is([data-slot="card-header"], [data-slot="card-content"], [data-slot="card-footer"]) {
+  padding-inline: 0;
+}
+
 @media print {
   body:has(.research-report-page) {
     --background: #fff;

@@ -68,7 +68,7 @@ export function ResearchComparisonPanel({ points, selectedClients }: { points: A
         })}</TableBody>
       </Table>}
 
-      {reasons.size > 0 && <div className="rounded-lg border border-border bg-muted p-4 text-sm">
+      {reasons.size > 0 && <div className="content-panel rounded-lg border border-border bg-muted p-4 text-sm">
         <p className="font-medium">Excluded from comparison</p>
         <ul className="mt-2 list-inside list-disc space-y-1 text-muted-foreground">{[...reasons].map(([reason, n]) => <li key={reason}>{reason}: {n} {n === 1 ? "parent run" : "parent runs"}</li>)}</ul>
       </div>}

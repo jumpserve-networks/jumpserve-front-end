@@ -411,7 +411,7 @@ export function ChatPanel({
     "text-sm [&_table]:w-full [&_table]:border-collapse [&_table]:my-2 [&_th]:border [&_th]:border-border [&_th]:bg-slate-200/50 [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:font-semibold [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 dark:[&_th]:bg-card [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1 [&_li]:my-0.5 [&_p]:my-1 [&_pre]:bg-slate-800 [&_pre]:text-slate-200 [&_pre]:rounded [&_pre]:p-2 [&_pre]:my-2 [&_pre]:overflow-x-auto [&_code]:text-primary [&_h1]:text-lg [&_h1]:font-bold [&_h1]:my-2 [&_h2]:text-base [&_h2]:font-bold [&_h2]:my-2 [&_h3]:font-bold [&_h3]:my-1";
 
   return (
-    <div className="flex flex-col sm:flex-row h-[calc(var(--page-height)-8rem)] min-h-96 overflow-hidden rounded-lg border border-border bg-card dark:bg-background">
+    <div className="content-panel flex flex-col sm:flex-row h-[calc(var(--page-height)-8rem)] min-h-96 overflow-hidden rounded-lg border border-border bg-card dark:bg-background">
       {/* Sidebar */}
       <SessionSidebar
         sessions={sessions}

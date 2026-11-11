@@ -15,7 +15,7 @@ export function NetworkJobCancel({ studyId, jobId, onSaved }: { studyId: string;
     } catch (error) { setMessage(error instanceof Error ? error.message : "Cancellation was not confirmed; inspect retained status."); }
     finally { setBusy(false); }
   }
-  return <details className="rounded-md border p-3"><summary className="cursor-pointer text-sm">Cancel running networking experiment</summary>
+  return <details className="content-panel rounded-md border p-3"><summary className="cursor-pointer text-sm">Cancel running networking experiment</summary>
     <form className="mt-3 space-y-3" onSubmit={cancel}>
       <label className="block space-y-1"><span>Networking cancellation reason</span><Textarea required disabled={busy} maxLength={2000} value={reason} onChange={event => { setReason(event.target.value); request.current = ""; }} /></label>
       <Button type="submit" variant="outline" disabled={busy || !reason.trim()}>Request networking cancellation</Button>
