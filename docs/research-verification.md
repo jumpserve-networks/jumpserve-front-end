@@ -12,10 +12,9 @@ sidebar entry are retired. Follow-up experiment actions retain Google sign-in
 and backend authorization. Credentials and original private files remain protected.
 See [shared assessment details](shared-assessment-details-v1.md).
 
-The public production release check is `npm run verify:research:production`. It
-uses only the canonical JumpServe origin, never signs in or submits owner writes,
-and preserves timestamped desktop/mobile evidence. Teaching queue downloads remain
-synthetic. A successful public check does not establish Google owner execution.
+After an authorized release, run
+`npm run verify:research:assessments:production -- <merge-revision>` for a public
+read check of the released revision, assessment navigation and the inline queue.
 
 The owner workspace now includes a dependency-aware claim queue. Claims retain
 separate scientific assessments; campaigns execute bounded checks. Prerequisites
@@ -53,11 +52,10 @@ reviews before publication. Reviewer identities and human/AI independence are de
 provenance. Generic AI chat is not enabled; imported studies link to their own existing
 evaluated chat and source measurements.
 
-Use `npm test`, `npm run lint`, `npm run build` and `npm run verify:research` with the
-isolated backend/database fixture described in
-`jumpserve-infra/docs/research-workflow.md`. The verifier records desktop/mobile,
-light/dark, charts, exports, navigation and missing/invalid states. It does not create
-a legitimate Google session or establish a production storage round trip.
+Use `npm test`, `npm run lint` and `npm run build` for local checks.
+`npm run verify:research:public-queue` checks the current assessment and queue
+pages in a browser using synthetic backend records. The isolated database test
+in `jumpserve-infra/docs/research-workflow.md` checks publication and access rules.
 
 Production release requires an explicit deployment request for these changes and
 the migration/API/frontend order in that infrastructure guide. See the versioned

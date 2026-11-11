@@ -14,7 +14,10 @@ const api='http://127.0.0.1:4104',queueRoute=url=>url.origin==='http://127.0.0.1
 const metadata=bundleOnly?null:await(await fetch(api+'/fixture-metadata')).json();if(!bundleOnly)assert.match(metadata.database,/^jumpserve_research_ideas_test_/);
 const directory='.test-artifacts/research-autonomy/'+new Date().toISOString().replaceAll(':','-');await mkdir(directory,{recursive:true});
 const report={protocol:'autonomy-turn-policy-v1',mode:bundleOnly?'bundle-only':'local-campaign',database:metadata?.database??null,checks:[],browser_errors:[],real_model_calls:0,cloud_instances:0,reviewer:{identity:'Primary Codex AI implementer',type:'AI',independent:false},conditional_gaps:['Actual model evaluation of the amended controller instruction','Legitimate Google request','Remote Supabase Storage','Actual cloud TCP invocation and deployed bounds'],measured_charges_usd:null};
-const runtimeRaw=await readFile('../jumpserve-infra/research-workflow-runtime.json');report.runtime_manifest_sha256=createHash('sha256').update(runtimeRaw).digest('hex');report.input_sha256=JSON.parse(runtimeRaw).files;
+if (metadata) {
+ assert.match(metadata.input_sha256?.['api.py'] ?? '', /^[a-f0-9]{64}$/);
+ report.input_sha256 = metadata.input_sha256;
+}
 report.frontend_input_sha256={};for(const path of ['scripts/verify-research-autonomy.mjs','app/components/research-workflow/assessment-detail.tsx','app/components/research-workflow/public-experiment-queue.tsx','lib/research-public-queue.ts','app/components/research-workflow/autonomous-assessments.tsx','lib/research-autonomy.ts','lib/research-paper-upload.ts','lib/research-paper-review.ts','app/components/research-workflow/paper-review.tsx','app/components/research-workflow/workspace.tsx','app/(modules)/research-verification/new-assessment/[assessmentId]/page.tsx'])report.frontend_input_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
 let server,browser,study;
 const uploadFixture={name:'explicit-local-paper-storage',setup(plugin){
@@ -69,15 +72,44 @@ try{
   await page.goto('about:blank');let data;
   for(let i=0;i<90;i++){data=await state();const w=data.autonomy.workflows.find(w=>w.study_id===study);if(w.status!=='running')break;await new Promise(resolve=>setTimeout(resolve,500));}
   const tasks=data.autonomy.tasks.filter(t=>t.study_id===study);assert.equal(tasks.filter(t=>t.status==='resolved').length,2);assert.equal(tasks.filter(t=>t.status==='blocked').length,1);assert.equal(data.jobs.filter(j=>j.study_id===study).length,4);
-  await page.goto(origin+'/research-verification/assessment/'+study);await page.getByText('completed with blockers',{exact:true}).waitFor();await page.getByText('Applicable authorized instrument or archived measurement data',{exact:true}).waitFor();
+  await page.goto(origin+'/research-verification/assessment/'+study);
+  await page.locator('[data-assessment-stage]').filter({hasText: /^Finished with gaps$/}).waitFor();
+  await page.getByText(/Applicable authorized instrument or archived measurement data/).waitFor();
   return {independent_of_browser:true,claims:3,resolved:2,blocked:1,experiments:4,turn_limit:null,attempt_counts:tasks.map(t=>t.attempts)};
  });
  await check('shared prompt projections retain exact identities and the owner fixture preserves tailored retry evidence',async()=>{
   assert.equal(await page.getByText('No AI turn limit',{exact:false}).count(),0);
   assert.equal(await page.getByText(/\/ 25 model attempts|25 attempts per claim/).count(),0);
-  const article=page.locator('article').filter({has:page.getByRole('heading',{name:/Synthetic eventual-agreement claim/})}).last();await article.getByRole('button',{name:'View prompts and responses'}).click();await article.getByText('Turn 8 · assessment · complete',{exact:true}).waitFor();
-  const details=article.locator('details').filter({has:page.locator('summary').filter({hasText:'Exact prompt and configuration'})}).first();await details.locator('summary').click();assert.ok((await details.innerText()).length>0);
-  const tasks=(await state()).autonomy.tasks;const t=tasks.find(t=>t.study_id===study&&t.claim_title?.includes('eventual-agreement'));assert.ok(t);const history=await(await fetch(api+'/research/studies/'+study+'/autonomy?task='+t.id,{headers})).json();assert.equal(history.study_id,study);assert.equal(history.task_id,t.id);assert.equal(history.coverage.total,8);assert.ok(history.turns.some(r=>r.stage==='planning'&&r.number>1&&r.request.messages[0].content[0].text.includes('missing observation')));const shared=await(await fetch(api+'/research/studies/'+study+'/autonomy?public=1&task='+t.id)).json();assert.equal(shared.access,'public-read-only');assert.equal(shared.projection.policy,'research-shared-details-v1');assert.equal(shared.study_id,study);assert.equal(shared.task_id,t.id);assert.ok(shared.turns.length>0);for(const turn of shared.turns){const original=history.turns.find(value=>value.id===turn.id);assert.ok(original);assert.equal(turn.request_sha256,original.request_sha256);}await writeFile(directory+'/prompt-history-fixture.json',JSON.stringify(history,null,2)+'\n');return {turns:8,owner_original_prompts:true,shared_projection:true,matched_study_and_task:true,tailored_failure_context:true,unknown_cost_preserved:true};
+  const article = page.locator('article').filter({has: page.getByRole('heading', {name: /Synthetic eventual-agreement claim/})}).last();
+  await article.getByRole('button', {name: 'View prompts and responses'}).click();
+  const finalTurn = article.locator('article').filter({has: page.getByText('Turn 8 · assessment · complete', {exact: true})});
+  await finalTurn.locator('summary').filter({hasText: /^Prompt and configuration \(shared copy\)$/}).click();
+
+  const tasks = (await state()).autonomy.tasks;
+  const task = tasks.find(task => task.study_id === study && task.claim_title?.includes('eventual-agreement'));
+  assert.ok(task);
+  const history = await (await fetch(api+'/research/studies/'+study+'/autonomy?task='+task.id, {headers})).json();
+  assert.equal(history.study_id, study);
+  assert.equal(history.task_id, task.id);
+  assert.equal(history.coverage.total, 8);
+  assert.ok(history.turns.some(turn => turn.stage === 'planning' && turn.number > 1 && turn.request.messages[0].content[0].text.includes('missing observation')));
+  const originalFinalTurn = history.turns.find(turn => turn.number === 8);
+  assert.ok(originalFinalTurn);
+  await finalTurn.getByText('original request SHA256 '+originalFinalTurn.request_sha256).waitFor();
+
+  const shared = await (await fetch(api+'/research/studies/'+study+'/autonomy?public=1&task='+task.id)).json();
+  assert.equal(shared.access, 'public-read-only');
+  assert.equal(shared.projection.policy, 'research-shared-details-v1');
+  assert.equal(shared.study_id, study);
+  assert.equal(shared.task_id, task.id);
+  assert.ok(shared.turns.length > 0);
+  for (const turn of shared.turns) {
+   const original = history.turns.find(value => value.id === turn.id);
+   assert.ok(original);
+   assert.equal(turn.request_sha256, original.request_sha256);
+  }
+  await writeFile(directory+'/prompt-history-fixture.json', JSON.stringify(history, null, 2)+'\n');
+  return {turns: 8, owner_original_prompts: true, shared_projection: true, matched_study_and_task: true, tailored_failure_context: true, unknown_cost_preserved: true};
  });
  await check('desktop and mobile light and dark states fit with visible blockers',async()=>{
   for(const width of [1365,390]){await page.setViewportSize({width,height:width===390?844:900});for(const dark of [false,true]){await page.evaluate(dark=>document.documentElement.classList.toggle('dark',dark),dark);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:directory+'/'+width+'-'+(dark?'dark':'light')+'.png',fullPage:true});}}
@@ -104,7 +136,7 @@ try{
   return {anonymous_real_next_routes:true,alias_query_preserved:true,legitimate_google_session:false};
  });
  await check('invalid and unavailable status stays unknown without overwriting retained evidence',async()=>{
-  await page.goto(origin+'/research-verification/assessment/'+study);await page.getByText('completed with blockers',{exact:true}).waitFor();
+  await page.goto(origin+'/research-verification/assessment/'+study);await page.locator('[data-assessment-stage]').filter({hasText: /^Finished with gaps$/}).waitFor();
   await page.route(queueRoute,async route=>{const response=await route.fetch();const value=await response.json();value.autonomy.tasks[0].attempts=-1;await route.fulfill({response,json:value});});
   await page.getByRole('alert').filter({hasText:'Previously retrieved status may be stale.'}).waitFor();await page.screenshot({path:directory+'/stale-invalid-status.png',fullPage:true});
   await page.unroute(queueRoute);await page.route(queueRoute,route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Explicit local unavailable-status fixture.'})}));
