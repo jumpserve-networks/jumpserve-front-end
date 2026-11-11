@@ -6,7 +6,7 @@ import { CheckCircle2, CircleAlert, LoaderCircle, X } from "lucide-react";
 import { Button, buttonVariants } from "@/app/components/ui/button";
 import { useUserPreferences } from "@/app/components/user-preferences";
 import { PaperUploadManager } from "@/lib/paper-upload-manager";
-import { researchRequest } from "@/lib/research-workflow-api";
+import { paperIntakeRequest } from "@/lib/paper-intake-client";
 import { createClient } from "@/lib/supabase/client";
 import { NEW_ASSESSMENT_PATH } from "@/lib/test-modules";
 import { researchAssessmentPath } from "@/lib/research-pathways";
@@ -33,7 +33,7 @@ function AssessmentNotice({ activity, stale, onDismiss }: { activity: Assessment
 export function PaperUploadsProvider({ children }: { children: ReactNode }) {
   const ownerId = useUserPreferences()?.userId ?? null;
   const manager = useMemo(() => new PaperUploadManager(ownerId,
-    (path, options) => researchRequest(path, options, ownerId ?? undefined),
+    (path, options) => paperIntakeRequest(path, options, ownerId ?? undefined),
     async (ticket, file) => {
       const { error } = await createClient().storage.from(ticket.bucket).uploadToSignedUrl(ticket.path, ticket.token, file, { contentType: "application/pdf", upsert: false });
       if (error) throw new Error("The PDF upload response could not be confirmed.");

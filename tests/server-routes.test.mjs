@@ -33,6 +33,7 @@ const replacements = {
   ...Object.fromEntries([['delay','StudyDashboard'],['leo','LeoDashboard'],['http2','Http2Dashboard'],['ipv6','IPv6Dashboard'],['reliable','ReliableDashboard']].map(([kind,name])=>['@/app/components/'+kind+'-study/dashboard',boundary(name)])),
   '@/app/components/research-workflow/assessments': boundary('Assessments'),
   '@/app/components/research-workflow/assessment-detail': boundary('AssessmentDetail'),
+  '@/app/components/research-workflow/paper-assessment': "export function PaperAssessment({children}){return children;}",
   '@/app/components/research-workflow/paper-review': boundary('PaperReviewPanel'),
   '@/app/components/research-workflow/claim-designer': boundary('ClaimDesigner'),
   '@/app/components/research-workflow/design-claim': boundary('DesignClaim'),

@@ -22,9 +22,9 @@ function confirmed(result: Intake, id: string) {
 export async function prepareUploadedPaper(request: Request, id: string, file: File, upload: (ticket: PaperUploadTicket, file: File) => Promise<void>, progress: (phase: string) => void = () => {}) {
   progress("Checking PDF…");
   const metadata = await paperUploadMetadata(file);
-  const capabilities = await request<{ autonomy?: { version: string; enabled: boolean }; paper_uploads?: { version: string; review_version: string; confirmation_required: boolean; maximum_bytes: number } }>("/capabilities");
-  if (capabilities.autonomy?.version !== "research-autonomy-v3" || capabilities.paper_uploads?.version !== PAPER_UPLOAD_VERSION || capabilities.paper_uploads.review_version !== PAPER_REVIEW_VERSION || capabilities.paper_uploads.confirmation_required !== true || capabilities.paper_uploads.maximum_bytes !== PAPER_UPLOAD_MAX_BYTES) throw new Error("The connected service needs the PDF review update. No paper was uploaded.");
-  if (!capabilities.autonomy?.enabled) throw new Error("Autonomous assessment is temporarily unavailable. No paper was uploaded.");
+  const capabilities = await request<{ paper_intake?: { version: string; enabled: boolean }; paper_uploads?: { version: string; review_version: string; confirmation_required: boolean; maximum_bytes: number } }>("/capabilities");
+  if (capabilities.paper_intake?.version !== "paper-intake-next-v1" || capabilities.paper_uploads?.version !== PAPER_UPLOAD_VERSION || capabilities.paper_uploads.review_version !== PAPER_REVIEW_VERSION || capabilities.paper_uploads.confirmation_required !== true || capabilities.paper_uploads.maximum_bytes !== PAPER_UPLOAD_MAX_BYTES) throw new Error("The connected service needs the PDF review update. No paper was uploaded.");
+  if (!capabilities.paper_intake.enabled) throw new Error("Server-side paper preparation is not configured. No paper was uploaded.");
   const ticket = await request<PaperUploadTicket | { version: string; id: string; status: "started"; result: Intake }>("/paper-uploads", { method: "POST", body: JSON.stringify({ action: "reserve", request_id: id, ...metadata }) });
   if (ticket.version !== PAPER_UPLOAD_VERSION || ticket.id !== id) throw new Error("Private upload identity was not confirmed. Retry with the original request ID.");
   if (ticket.status === "started") return confirmed(ticket.result, id);

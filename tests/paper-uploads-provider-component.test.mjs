@@ -17,7 +17,7 @@ const replacements={
  'next/link':"export default function Link({prefetch,...props}){return globalThis.__uploadReact.createElement('a',props);}",
  '@/app/components/user-preferences':'export const useUserPreferences=()=>globalThis.__uploadPreferences;',
  '@/lib/paper-upload-manager':'export const PaperUploadManager=globalThis.__uploadManagerClass;',
- '@/lib/research-workflow-api':'export const researchRequest=(...args)=>globalThis.__uploadRequest(...args);',
+ '@/lib/paper-intake-client':'export const paperIntakeRequest=(...args)=>globalThis.__uploadRequest(...args);',
  '@/lib/supabase/client':'export const createClient=()=>globalThis.__uploadClient;',
 };
 const hooks=registerHooks({resolve(specifier,context,next){return replacements[specifier]?{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent(replacements[specifier])}:next(specifier,context);}});
