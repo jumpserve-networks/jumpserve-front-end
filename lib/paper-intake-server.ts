@@ -15,7 +15,7 @@ export async function intakeDatabase() {
   if (!key || !process.env.NEXT_PUBLIC_SUPABASE_URL) throw new Error("Paper preparation needs a server-side Supabase key.");
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, key, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: (url, options) => fetch(url, { ...options, signal: AbortSignal.timeout(20_000), cache: "no-store" }) } });
 }
-async function modelClient() {
+export async function modelClient() {
   const key = (await paperIntakeCredentials())?.openaiApiKey;
   if (!key) throw new Error("Paper preparation needs OPENAI_API_KEY on the server.");
   return new OpenAI({ apiKey: key, maxRetries: 0, timeout: 25_000 });

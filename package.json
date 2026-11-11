@@ -22,6 +22,7 @@
     "verify:research:autonomy": "node scripts/verify-research-autonomy.mjs",
     "verify:research:assessments:production": "node scripts/verify-assessment-navigation-production.mjs",
     "eval:paper": "node --import ./scripts/lib/register-typescript.mjs scripts/evaluate-paper-intake.mjs",
+    "eval:experiment-plan": "node --import ./scripts/lib/register-typescript.mjs scripts/evaluate-experiment-plan.mjs",
     "verify:paper": "node --import ./scripts/lib/register-typescript.mjs scripts/verify-paper-intake.mjs"
   },
   "dependencies": {
