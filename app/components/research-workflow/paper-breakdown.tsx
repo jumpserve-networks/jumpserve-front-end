@@ -30,9 +30,9 @@ export function PaperBreakdownPanel({ value, version, preparing, busy, onPrepare
     </div>
     {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : breakdown ? <>
       <p role="status" className="text-sm">{breakdown.extraction_version ? `One model pass over extracted text from ${breakdown.total_pages} PDF ${breakdown.total_pages === 1 ? "page" : "pages"}.` : `${breakdown.cursor} of ${breakdown.total_chunks} extracted text chunks examined across ${breakdown.total_pages} PDF pages.`}</p>
-      {breakdown.reason ? <p className="rounded-md border p-3 text-sm">{breakdown.reason}</p> : null}
+      {breakdown.reason ? <p className="content-panel rounded-md border p-3 text-sm">{breakdown.reason}</p> : null}
       {breakdown.missing_text_pages.length ? <p className="text-sm text-muted-foreground">No readable text on PDF pages {breakdown.missing_text_pages.join(", ")}. Those pages remain uncovered.</p> : null}
-    </> : <div role="status" className="space-y-3 rounded-lg border p-4 text-sm">
+    </> : <div role="status" className="content-panel space-y-3 rounded-lg border p-4 text-sm">
       <p>{preparing ? "Preparing Access, Experiment, Data and Validate from the paper’s extracted text…" : version === PAPER_BREAKDOWN_VERSION ? "A four-section breakdown has not been prepared for this paper." : "The connected service needs the paper breakdown update to prepare these sections."}</p>
       {!preparing && version === PAPER_BREAKDOWN_VERSION && onPrepare ? <Button type="button" variant="outline" disabled={busy} onClick={onPrepare}>Prepare four-section breakdown</Button> : null}
     </div>}
@@ -40,13 +40,13 @@ export function PaperBreakdownPanel({ value, version, preparing, busy, onPrepare
       {PAPER_BREAKDOWN_SECTIONS.map(section => {
         const entries = breakdown?.sections[section.id] ?? [];
         const limit = limits[section.id] ?? 8;
-        return <section key={section.id} aria-labelledby={`paper-breakdown-${section.id}`} className="min-w-0 space-y-3 rounded-lg border p-4">
+        return <section key={section.id} aria-labelledby={`paper-breakdown-${section.id}`} className="content-panel min-w-0 space-y-3 rounded-lg border p-4">
           <h3 id={`paper-breakdown-${section.id}`} className="font-semibold">{section.title}</h3>
           <p className="text-sm text-muted-foreground">{section.description}</p>
           {entries.length ? <>
             <p className="text-xs text-muted-foreground">Showing {Math.min(limit, entries.length)} of {entries.length} recorded details.</p>
-            <ul className="space-y-3">
-              {entries.slice(0, limit).map(item => <li key={item.id} className="space-y-2 rounded-md border p-3 text-sm">
+            <ul className="divide-y divide-border">
+              {entries.slice(0, limit).map(item => <li key={item.id} className="space-y-2 py-3 text-sm first:pt-0 last:pb-0">
                 <p className="whitespace-pre-wrap break-words">{item.description}</p>
                 <details><summary className="cursor-pointer text-xs text-muted-foreground">Source quote · PDF page {item.page}</summary><blockquote className="mt-2 whitespace-pre-wrap break-words border-l-2 pl-3">{item.quote}</blockquote></details>
               </li>)}

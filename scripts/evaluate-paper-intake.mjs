@@ -21,7 +21,7 @@ const root=resolve('.test-artifacts/paper-intake-evaluations');
 function named(name){if(!RUN_NAME.test(name??''))throw new Error('Supply a run name with 1–80 letters, digits, dots, underscores or hyphens.');return join(root,name);}
 function revision(){
  let git;try{git={commit:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim(),dirty:Boolean(execFileSync('git',['status','--porcelain'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim())};}catch{git={commit:null,dirty:null};}
- const files=['lib/paper-intake-model.ts','lib/paper-intake-runner.ts','lib/paper-intake-pdf.ts','lib/research-paper-breakdown.ts','scripts/lib/paper-intake-cases.mjs','package-lock.json'];
+ const files=['lib/paper-intake-model.ts','lib/paper-source-references.ts','lib/paper-intake-runner.ts','lib/paper-intake-pdf.ts','lib/research-paper-breakdown.ts','scripts/lib/paper-intake-cases.mjs','package-lock.json'];
  return {...git,node:process.version,source_hashes:Object.fromEntries(files.map(path=>[path,sha256(readFileSync(path))]))};
 }
 const failures=[];
@@ -32,7 +32,7 @@ if(values.replay){
  for(const item of manifest.cases){
   const saved=await readJSON(join(directory,item.id+'.json'));if(!saved?.response)throw new Error('A saved case has no retained response to replay.');
   if(sha256(JSON.stringify(saved.testCase))!==item.input_sha256||sha256(JSON.stringify(saved.request))!==item.request_sha256)throw new Error('Saved evaluation inputs do not match their manifest.');
-  try{const result=gradePaperCase(saved.testCase,saved.response);cases.push({id:item.id,...result});if(!result.passed)failures.push(item.id);}
+  try{const result=gradePaperCase(saved.testCase,saved.response,saved.request.instructions);cases.push({id:item.id,...result});if(!result.passed)failures.push(item.id);}
   catch(error){cases.push({id:item.id,passed:false,error:error.message,quote_issues:quoteDiagnostics(saved.response,saved.testCase.paper)});failures.push(item.id);}
  }
  const report={mode:'replay',run:values.replay,passed:!failures.length,cases,model_calls:0,validator_revision:revision()};await privateDirectory(join(directory,'replays'));await privateJSON(join(directory,'replays',Date.now()+'.json'),report);
@@ -79,7 +79,7 @@ if(values.replay){
     const end=Date.now()+180000;
     while(['queued','in_progress'].includes(saved.response.status)&&Date.now()<end){await new Promise(r=>setTimeout(r,2000));saved.response=await client.responses.retrieve(saved.response.id);saved.status=saved.response.status;await privateJSON(path,saved);}
     if(!['queued','in_progress'].includes(saved.response.status)&&!saved.terminal_observed_at){saved.terminal_observed_at=new Date().toISOString();await privateJSON(path,saved);}
-    let graded;try{graded=gradePaperCase(item.testCase,saved.response);}catch(error){graded={passed:false,error:error.message,quote_issues:quoteDiagnostics(saved.response,item.testCase.paper)};}
+    let graded;try{graded=gradePaperCase(item.testCase,saved.response,item.request.instructions);}catch(error){graded={passed:false,error:error.message,quote_issues:quoteDiagnostics(saved.response,item.testCase.paper)};}
     if(!graded.passed)failures.push(item.id);
     const row={id:item.id,status:saved.response.status,response_id:saved.response.id,model:saved.response.model,usage:saved.response.usage??null,observed_duration_ms:saved.terminal_observed_at?Date.parse(saved.terminal_observed_at)-Date.parse(saved.started_at):null,...graded};reportCases.push(row);
     console.log(JSON.stringify({case:item.id,status:row.status,passed:row.passed,sections:row.sections??null,response_id:row.response_id}));

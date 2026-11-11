@@ -50,7 +50,7 @@ function PaperAssessmentView({ assessmentId, ownerId, children, allowResume }: {
     <ResearchHeader title={view?.title ?? "Paper assessment"} showModuleLabel={false} />
     {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
     {!view ? <p role="status">Loading paper preparation status…</p> : <>
-      <section className="space-y-3 rounded-lg border p-4" aria-label="Paper preparation status">
+      <section className="content-panel space-y-3 rounded-lg border p-4" aria-label="Paper preparation status">
         <p role="status" className="text-sm font-medium">{view.stage === "ready" ? "Paper breakdown ready" : view.stage === "cancelled" ? "Paper preparation cancelled" : view.stage === "uncertain" ? "Submission needs reconciliation" : view.status === "failed" ? "Paper needs attention" : "Preparing paper breakdown…"}</p>
         {view.authors?.length ? <p className="text-sm">{view.authors.join(", ")}</p> : null}
         {view.domain ? <p className="text-sm text-muted-foreground">{view.domain}</p> : null}
@@ -61,7 +61,7 @@ function PaperAssessmentView({ assessmentId, ownerId, children, allowResume }: {
           {view.owner && ["uploaded", "processing", "uncertain"].includes(view.stage) ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void action("cancel")}>Cancel preparation</Button> : null}</div>
       </section>
       {view.owner ? <PaperBreakdownPanel version="paper-breakdown-v1" value={view.breakdown} preparing={paperIntakePending(view.stage)} busy={busy} /> : <p className="text-sm text-muted-foreground">The paper breakdown and source quotes are available to the paper’s owner.</p>}
-      <section aria-labelledby="phase-one-queue" className="space-y-2 rounded-lg border p-4"><h2 id="phase-one-queue" className="text-lg font-semibold">Experiment Queue</h2><p className="text-sm">{view.experiment_jobs === 0 ? "No experiments have been queued. This assessment prepares the paper breakdown only." : `${view.experiment_jobs} recorded experiment jobs.`}</p></section>
+      <section aria-labelledby="phase-one-queue" className="content-panel space-y-2 rounded-lg border p-4"><h2 id="phase-one-queue" className="text-lg font-semibold">Experiment Queue</h2><p className="text-sm">{view.experiment_jobs === 0 ? "No experiments have been queued. This assessment prepares the paper breakdown only." : `${view.experiment_jobs} recorded experiment jobs.`}</p></section>
     </>}
   </main>;
 }

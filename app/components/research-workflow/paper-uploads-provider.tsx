@@ -19,7 +19,7 @@ function AssessmentNotice({ activity, stale, onDismiss }: { activity: Assessment
   const pending = activity.phase !== "finished" && activity.status !== "unavailable" && !stale;
   const success = activity.phase === "finished" && activity.status === "completed";
   const Icon = pending ? LoaderCircle : success ? CheckCircle2 : CircleAlert;
-  return <article data-assessment-notice={activity.id} aria-atomic="true" className="space-y-3 rounded-xl border border-primary/40 bg-card p-4 text-card-foreground shadow-lg">
+  return <article data-assessment-notice={activity.id} aria-atomic="true" className="content-panel space-y-3 rounded-xl border border-primary/40 bg-card p-4 text-card-foreground shadow-lg">
     <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 items-start gap-2"><span aria-hidden="true" className={cn("mt-0.5 shrink-0 text-primary", pending && "animate-spin")}><Icon className="size-4" /></span><h2 className="text-sm font-semibold">{assessmentActivityHeading(activity)}</h2></div><Button variant="ghost" size="icon-sm" className="shrink-0 text-foreground" aria-label={`Dismiss assessment notification for ${activity.title}`} onClick={onDismiss}><X aria-hidden="true" /></Button></div>
     <p className="break-words text-sm font-medium">{activity.title}</p>
     {stale ? <p className="text-sm text-warning">Status is temporarily unavailable. {activity.counts ? "The last recorded progress is shown." : "JumpServe will retry automatically."}{activity.statusError ? <span className="mt-1 block">{activity.statusError}</span> : null}</p> : null}
@@ -58,15 +58,15 @@ export function PaperUploadsProvider({ children }: { children: ReactNode }) {
       {state.activity.map(activity => <AssessmentNotice key={`${activity.id}:${activity.phase}`} activity={activity} stale={Boolean(state.error || activity.statusError)} onDismiss={() => manager.dismissActivity(activity.id, activity.phase)} />)}
       {state.notices.map(notice => {
         const upload = state.uploads.find(u => u.id === notice.id);
-        return <article key={`${notice.id}:${notice.kind}`} data-paper-notice={notice.id} className="space-y-3 rounded-xl border border-primary/40 bg-card p-4 text-card-foreground shadow-lg">
+        return <article key={`${notice.id}:${notice.kind}`} data-paper-notice={notice.id} className="content-panel space-y-3 rounded-xl border border-primary/40 bg-card p-4 text-card-foreground shadow-lg">
           <div className="flex items-start justify-between gap-3"><h2 className="text-sm font-semibold">{notice.kind === "ready" ? "Paper ready for review" : "Paper needs attention"}</h2><Button variant="ghost" size="icon-sm" className="shrink-0 text-foreground" aria-label={`Dismiss notification for ${notice.title}`} onClick={() => manager.dismiss(notice.id, notice.kind)}><X aria-hidden="true" /></Button></div>
           <p className="break-words text-sm font-medium">{notice.title}</p>
           {notice.kind !== "ready" ? <p className="text-sm text-muted-foreground">{upload?.retryable ? upload.message : "An earlier upload or preparation attempt failed. Open the paper details for its current status."}</p> : null}
           {upload?.retryable ? <Button size="sm" variant="outline" onClick={() => manager.retry(upload.id)}>Retry upload</Button> : <Link prefetch={false} href={`${NEW_ASSESSMENT_PATH}/${notice.id}`} onClick={() => { if (notice.kind === "ready") manager.dismiss(notice.id, notice.kind); }} className={buttonVariants({ size: "sm" })}>{notice.kind === "ready" ? "Review paper" : "View paper details"}</Link>}
         </article>;
       })}
-      {statusError ? <div role="alert" className="space-y-2 rounded-xl border bg-card p-4 text-sm text-card-foreground"><p>Paper notifications are temporarily unavailable. Saved preparation work is retained.</p><Button size="sm" variant="outline" onClick={() => void manager.refresh()}>Retry status</Button></div> : null}
-      {state.persistenceError ? <p className="rounded-lg border bg-card p-3 text-sm text-card-foreground">{state.persistenceError}</p> : null}
+      {statusError ? <div role="alert" className="content-panel space-y-2 rounded-xl border bg-card p-4 text-sm text-card-foreground"><p>Paper notifications are temporarily unavailable. Saved preparation work is retained.</p><Button size="sm" variant="outline" onClick={() => void manager.refresh()}>Retry status</Button></div> : null}
+      {state.persistenceError ? <p className="content-panel rounded-lg border bg-card p-3 text-sm text-card-foreground">{state.persistenceError}</p> : null}
     </aside> : null}
   </Context.Provider>;
 }

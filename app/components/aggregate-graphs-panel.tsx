@@ -849,7 +849,7 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <article className="rounded-lg border border-border bg-card p-4 sm:p-5">
+    <article className="content-panel rounded-lg border border-border bg-card p-4 sm:p-5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold tracking-normal text-muted-foreground">
@@ -870,7 +870,7 @@ function ChartCard({
 
 function EmptyChartState({ text }: { text: string }) {
   return (
-    <div className="flex h-[320px] items-center justify-center rounded-lg border border-dashed border-border bg-card text-center text-sm text-muted-foreground">
+    <div className="content-panel flex h-[320px] items-center justify-center rounded-lg border border-dashed border-border bg-card text-center text-sm text-muted-foreground">
       {text}
     </div>
   );
@@ -888,11 +888,9 @@ function DescriptorList({
       {items.map((item) => (
         <div
           key={item.title}
-          className={
-            compact
+          className={`content-panel ${compact
               ? "rounded-lg border border-border bg-card px-3 py-2 dark:border-primary/40 dark:bg-background"
-              : "rounded-lg border border-border bg-card p-3"
-          }
+              : "rounded-lg border border-border bg-card p-3"}`}
         >
           <dt
             className={
@@ -955,7 +953,7 @@ function ModeDescriptorPanel({
       : null;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
+    <div className="content-panel rounded-lg border border-border bg-card p-3">
       <div className="grid gap-3 md:grid-cols-2">
           <div>
             <p className="text-[11px] font-semibold tracking-normal text-muted-foreground">
@@ -1297,7 +1295,7 @@ function SelectedTestGroupsBubble({
 
   return (
     <div
-      className="relative mb-3 rounded-lg border border-border bg-card px-3 py-2 dark:border-primary/40 dark:bg-background "
+      className="content-panel relative mb-3 rounded-lg border border-border bg-card px-3 py-2 dark:border-primary/40 dark:bg-background "
       aria-label="Selected test groups"
     >
       <div className="absolute left-8 top-full h-3 w-3 -translate-y-1/2 rotate-45 border-b border-r border-border bg-card dark:border-primary/40 dark:bg-background" />
@@ -1690,7 +1688,7 @@ export function FlowSummaryStrip({ points }: { points: FlowPoint[] }) {
       {items.map((item) => (
         <div
           key={item.label}
-          className="rounded-lg border border-border bg-card px-3 py-2"
+          className="content-panel rounded-lg border border-border bg-card px-3 py-2"
         >
           <p className="text-[11px] font-semibold tracking-normal text-muted-foreground">
             {item.label}
@@ -1733,7 +1731,7 @@ export function FacetGrid({
         {columnValues.map((queueSize) => (
           <div
             key={`queue-${queueSize}`}
-            className="rounded-lg border border-border bg-card px-3 py-2 text-center text-xs font-semibold text-foreground"
+            className="content-panel rounded-lg border border-border bg-card px-3 py-2 text-center text-xs font-semibold text-foreground"
           >
             {`${formatAxisValue(queueSize)} KB Queue`}
           </div>
@@ -1741,7 +1739,7 @@ export function FacetGrid({
         {rowValues.flatMap((rowValue) => [
           <div
             key={`workload-${rowValue}`}
-            className="flex items-center rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground"
+            className="content-panel flex items-center rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground"
           >
             {`${formatAxisValue(rowValue)} MB`}
           </div>,
@@ -1774,7 +1772,7 @@ function FacetCellChart({ points }: { points: FlowPoint[] }) {
 
   if (!summary) {
     return (
-      <div className="flex min-h-[170px] items-center justify-center rounded-lg border border-dashed border-border bg-card p-3 text-xs text-muted-foreground">
+      <div className="content-panel flex min-h-[170px] items-center justify-center rounded-lg border border-dashed border-border bg-card p-3 text-xs text-muted-foreground">
         No data
       </div>
     );
@@ -1795,7 +1793,7 @@ function FacetCellChart({ points }: { points: FlowPoint[] }) {
   }));
 
   return (
-    <div className="rounded-lg border border-border bg-card p-3">
+    <div className="content-panel rounded-lg border border-border bg-card p-3">
       <div className="mb-2 grid grid-cols-3 gap-1 text-center">
         <div>
           <p className="text-[11px] tracking-normal text-muted-foreground">
@@ -3974,7 +3972,7 @@ export function AggregateGraphsPanel({
   return (
     <main className="bg-background relative min-h-[var(--page-height)] overflow-hidden p-5 sm:p-10">
       <div className="mx-auto w-full max-w-7xl">
-        <section className="w-full rounded-lg border border-border bg-card p-5 sm:p-6">
+        <section className="content-panel w-full rounded-lg border border-border bg-card p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-medium text-muted-foreground">
@@ -4013,7 +4011,7 @@ export function AggregateGraphsPanel({
 
           <div className="mt-6 grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
             <aside className="flex items-start">
-              <div className="w-full rounded-lg border border-border bg-muted/40 p-4">
+              <div className="content-panel w-full rounded-lg border border-border bg-muted/40 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-semibold tracking-normal text-foreground">
@@ -4302,7 +4300,7 @@ export function AggregateGraphsPanel({
               </Button>
             </div>
 
-            <section className="mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">
+            <section className="content-panel mt-5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">
               <div className="shrink-0 border-b border-border bg-card px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-xs font-semibold tracking-normal text-muted-foreground">
@@ -4324,7 +4322,7 @@ export function AggregateGraphsPanel({
                   return (
                     <div
                       key={group.label}
-                      className={`rounded-lg border p-3 text-sm transition ${
+                      className={`content-panel rounded-lg border p-3 text-sm transition ${
                         isSelected
                           ? "border-border bg-accent text-foreground dark:border-primary/40"
                           : "border-border bg-card text-foreground hover:border-border hover:bg-card dark:hover:bg-accent"
@@ -4376,7 +4374,7 @@ export function AggregateGraphsPanel({
                           <span>{`View matched parent runs (${matchedTests.length})`}</span>
                           <span aria-hidden="true" className="ml-2 h-2 w-2 rotate-45 border-b-2 border-r-2 border-border transition group-data-open:rotate-[225deg]" />
                         </CollapsibleTrigger>
-                        <CollapsibleContent className="mt-2 rounded-lg border border-border bg-card p-3 dark:bg-background">
+                        <CollapsibleContent className="content-panel mt-2 rounded-lg border border-border bg-card p-3 dark:bg-background">
                           <p className="text-xs leading-5 text-muted-foreground">
                             {formatGroupCriteria(group)}
                           </p>

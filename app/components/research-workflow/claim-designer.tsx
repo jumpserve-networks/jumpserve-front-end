@@ -89,10 +89,10 @@ export function ClaimDesigner({ studyId }: { studyId: string }) {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (failure) { setError(errorText(failure)); }
   }
-  if (!state) return <section className="space-y-3 rounded-lg border p-5">{error ? <><p role="alert" className="text-destructive">{error}</p><Button onClick={() => void reload().catch(failure => setError(errorText(failure)))}>Retry loading saved design</Button></> : <p role="status">Loading the source-bound experiment design…</p>}</section>;
+  if (!state) return <section className="content-panel space-y-3 rounded-lg border p-5">{error ? <><p role="alert" className="text-destructive">{error}</p><Button onClick={() => void reload().catch(failure => setError(errorText(failure)))}>Retry loading saved design</Button></> : <p role="status">Loading the source-bound experiment design…</p>}</section>;
   const origin = state.claim_design.document;
   return <div className="space-y-6">
-    <section className="space-y-3 rounded-lg border p-5">
+    <section className="content-panel space-y-3 rounded-lg border p-5">
       <h2 className="text-xl font-semibold">Design an experiment for this claim</h2>
       <blockquote className="border-l-2 pl-4">{origin.claim.description}</blockquote>
       <p className="text-sm text-muted-foreground">{origin.source.citation} · {origin.claim.location} · Source review: {origin.source.review_status}</p>
@@ -102,11 +102,11 @@ export function ClaimDesigner({ studyId }: { studyId: string }) {
       <div className="flex flex-wrap gap-4 text-sm"><Link className="underline" href={`${ASSESSMENTS_PATH}/${origin.study.id}?view=gaps`}>Original assessment</Link><Link className="underline" href={experimentQueuePath(studyId)}>Experiment Queue</Link><Link className="underline" href={`${PATH}/workspace/${studyId}`}>Evidence workspace</Link></div>
       <Button size="sm" variant="outline" onClick={() => void download(state)}>Download experiment design</Button>
     </section>
-    {error ? <p role="alert" className="rounded-md border p-3 text-sm text-destructive">{error}</p> : null}
-    {message ? <p role="status" className="rounded-md border p-3 text-sm">{message}</p> : null}
-    <section className="space-y-4 rounded-lg border p-5" aria-labelledby="claim-design-conversation">
+    {error ? <p role="alert" className="content-panel rounded-md border p-3 text-sm text-destructive">{error}</p> : null}
+    {message ? <p role="status" className="content-panel rounded-md border p-3 text-sm">{message}</p> : null}
+    <section className="content-panel space-y-4 rounded-lg border p-5" aria-labelledby="claim-design-conversation">
       <h2 id="claim-design-conversation" className="text-lg font-semibold">1. Develop the experiment</h2>
-      <div className="space-y-4">{state.runs.filter(run => run.task === "planning").map(run => <article key={run.id} className="space-y-3 rounded-md border p-4 text-sm">
+      <div className="space-y-4">{state.runs.filter(run => run.task === "planning").map(run => <article key={run.id} className="content-panel space-y-3 rounded-md border p-4 text-sm">
         <p className="font-medium">AI {run.output?.response_mode === "clarify" ? "clarification" : "proposal"} · {run.status} · plan version {state.packets.find(row => row.id === run.packet_id)?.version}</p>
         {run.reason ? <p className="text-destructive">{run.reason}</p> : null}
         {run.output ? <><p className="whitespace-pre-wrap">{run.output.rendering?.summary_origin === "server-mode-status" ? "JumpServe: " : ""}{run.output.summary}</p>
@@ -123,7 +123,7 @@ export function ClaimDesigner({ studyId }: { studyId: string }) {
       </form>
       {dirty ? <p role="status" className="text-sm">Save your editor changes before requesting or adopting another proposal.</p> : null}
     </section>
-    <section className="space-y-4 rounded-lg border p-5"><h2 className="text-lg font-semibold">2. Save the plan and resolve review findings</h2><p className="text-sm text-muted-foreground">Saved version {packet?.version ?? "unknown"}. Missing fields: {state.missing.length ? state.missing.join("; ") : "None reported by structural checks; fresh reviews still required."}</p>
+    <section className="content-panel space-y-4 rounded-lg border p-5"><h2 className="text-lg font-semibold">2. Save the plan and resolve review findings</h2><p className="text-sm text-muted-foreground">Saved version {packet?.version ?? "unknown"}. Missing fields: {state.missing.length ? state.missing.join("; ") : "None reported by structural checks; fresh reviews still required."}</p>
       <fieldset disabled={busy}><PacketEditor key={packet?.id} packet={packet ?? null} studyId={studyId} planningEndpoint="claim-design" onDirty={() => setDirty(true)} onSaved={async expected => { await reload(expected); setDirty(false); }} /></fieldset>
     </section>
     <IdeaActions key={`reviews-${packet?.id}`} state={state} studyId={studyId} planningEndpoint="claim-design" dirty={dirty || busy} reload={async () => { await reload(); }} />

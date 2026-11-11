@@ -552,7 +552,7 @@ export function ParentRunIndex({
   return (
     <section className="w-full max-w-7xl">
       <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
-        <article className="relative h-fit overflow-hidden rounded-lg border border-border bg-card p-5 lg:sticky lg:top-6">
+        <article className="content-panel relative h-fit overflow-hidden rounded-lg border border-border bg-card p-5 lg:sticky lg:top-6">
           <div className="relative">
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs font-semibold tracking-normal text-muted-foreground dark:text-foreground">
@@ -713,7 +713,7 @@ export function ParentRunIndex({
                       Ordered only
                     </Button>
                     {isOrderedCcaFilterEnabled ? (
-                      <div className="space-y-3 rounded-lg border border-border bg-accent p-2.5 dark:border-primary/40">
+                      <div className="content-panel space-y-3 rounded-lg border border-border bg-accent p-2.5 dark:border-primary/40">
                         <div>
                           <p className="px-1.5 pb-1 text-[11px] font-semibold tracking-normal text-primary">
                             Client 1
@@ -1171,7 +1171,7 @@ export function ParentRunIndex({
           </Button>
         </article>
 
-        <article className="relative flex min-h-[32rem] flex-col rounded-lg border border-border bg-card p-6 sm:p-8 lg:min-h-[calc(100dvh-9rem)]">
+        <article className="content-panel relative flex min-h-[32rem] flex-col rounded-lg border border-border bg-card p-6 sm:p-8 lg:min-h-[calc(100dvh-9rem)]">
           <Link
             href={EMULATED_TESTS_MODULE.href}
             aria-label="Go to emulated tests module"
@@ -1204,7 +1204,7 @@ export function ParentRunIndex({
             Showing {pageData.parentRuns.length} of {totalCount} tests
           </p>
           <div className="mt-4 flex justify-end">
-            <div className="inline-flex rounded-lg border border-border bg-card p-1">
+            <div className="content-panel inline-flex rounded-lg border border-border bg-card p-1">
               <Button
                 variant="ghost"
                 size="sm"
@@ -1245,7 +1245,7 @@ export function ParentRunIndex({
           >
             {sortedParentRuns.length > 0 ? (
               parentRunView === "list" ? (
-                <div className="overflow-x-auto rounded-lg border border-border bg-card">
+                <div className="content-panel overflow-x-auto rounded-lg border border-border bg-card">
                   <Table className="w-full table-fixed border-collapse">
                     <TableHeader>
                       <TableRow className="border-b border-border bg-card">
@@ -1437,7 +1437,7 @@ export function ParentRunIndex({
                 sortedParentRuns.map((parentRun) => (
                   <article
                     key={parentRun.id}
-                    className="group rounded-lg border border-border bg-card px-5 py-4 text-left transition duration-200 hover:border-border "
+                    className="content-panel group rounded-lg border border-border bg-card px-5 py-4 text-left transition duration-200 hover:border-border "
                   >
                     <Link
                       href={getParentRunHref(parentRun.id)}
@@ -1470,7 +1470,7 @@ export function ParentRunIndex({
                 ))
               )
             ) : (
-              <div className="rounded-lg border border-dashed border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground dark:text-foreground">
+              <div className="content-panel rounded-lg border border-dashed border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground dark:text-foreground">
                 No parent runs matched your filters.
               </div>
             )}

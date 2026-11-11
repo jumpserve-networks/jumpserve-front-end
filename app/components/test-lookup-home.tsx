@@ -20,7 +20,7 @@ export async function TestLookupHome({
           {parentRunPage.parentRuns.length > 0 ? (
             <ParentRunIndex initialPage={parentRunPage} />
           ) : (
-            <section className="relative w-full max-w-4xl rounded-lg border border-border bg-card p-10 text-center">
+            <section className="content-panel relative w-full max-w-4xl rounded-lg border border-border bg-card p-10 text-center">
               <Link
                 href={EMULATED_TESTS_MODULE.href}
                 aria-label="Go to emulated tests module"

@@ -51,7 +51,7 @@ export function AwsRegionMap({ label, regions, value, onChange, disabled = false
     move({ x: viewport.x, y: viewport.y, zoom: viewport.zoom * factor });
   }
 
-  return <section aria-label={label} className="overflow-hidden rounded-md border">
+  return <section aria-label={label} className="content-panel overflow-hidden rounded-md border">
     <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2">
       <p className="text-sm font-medium">{label}</p>
       <div className="flex items-center gap-1" role="group" aria-label={`${label} controls`}>

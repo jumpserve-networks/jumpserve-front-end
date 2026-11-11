@@ -24,9 +24,9 @@ export function Prompts({ prompts }: { prompts: PromptSummary[] }) {
       <div className="space-y-1 text-sm"><span id="prompt-status-label">Status</span><Select value={status} onValueChange={value => setStatus(value ?? "")}><SelectTrigger aria-labelledby="prompt-status-label" className="w-full"><SelectValue>{status || "All versions"}</SelectValue></SelectTrigger><SelectContent><SelectItem value="">All versions</SelectItem>{["Active", "Published", "Draft", "Recorded"].map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div>
     </div>
     <p role="status" className="text-sm text-muted-foreground">{visible.length} {visible.length === 1 ? "version" : "versions"}</p>
-    {visible.length ? <div className="divide-y rounded-lg border">{visible.map(prompt => <article key={prompt.id} className="relative flex flex-wrap items-center justify-between gap-3 p-4 focus-within:ring-2 focus-within:ring-ring">
+    {visible.length ? <div className="content-panel divide-y rounded-lg border">{visible.map(prompt => <article key={prompt.id} className="relative flex flex-wrap items-center justify-between gap-3 p-4 focus-within:ring-2 focus-within:ring-ring">
       <div className="min-w-0 space-y-1"><p className="text-sm text-muted-foreground">{promptArea(prompt.module_id)}</p><h2 className="break-words font-medium"><Link href={promptPath(prompt.id)} prefetch={false} className="underline after:absolute after:inset-0">{prompt.version}</Link></h2><p className="text-xs text-muted-foreground">Updated <LocalDateTime value={prompt.updated_at} /></p></div>
       <Badge variant={prompt.active ? "default" : "secondary"}>{promptStatus(prompt)}</Badge>
-    </article>)}</div> : <p className="rounded-lg border p-5 text-sm">{prompts.length ? "No prompts match these filters." : "No saved prompts yet."}</p>}
+    </article>)}</div> : <p className="content-panel rounded-lg border p-5 text-sm">{prompts.length ? "No prompts match these filters." : "No saved prompts yet."}</p>}
   </>;
 }

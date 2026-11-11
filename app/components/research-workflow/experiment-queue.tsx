@@ -56,7 +56,7 @@ function GapExperimentPlanner({ studyId, gapId, onQueued }: { studyId: string; g
     } catch (error) { if (!controller.signal.aborted) setError(`${failureText(error)} Saved work may already exist. Retrying resumes the same follow-up without creating duplicate jobs.`); }
     finally { inFlight.current = false; setBusy(false); }
   }
-  return <section aria-label="Queue a follow-up experiment" className="space-y-4 rounded-lg border border-primary/40 p-5">
+  return <section aria-label="Queue a follow-up experiment" className="content-panel space-y-4 rounded-lg border border-primary/40 p-5">
     <h2 className="text-lg font-semibold">Queue a follow-up experiment</h2>
     <Link className="text-sm underline" href={`${ASSESSMENTS_PATH}/${studyId}?view=gaps#gap-${gapId}`}>Back to the evidence gap</Link>
     {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
@@ -76,5 +76,5 @@ function GapExperimentPlanner({ studyId, gapId, onQueued }: { studyId: string; g
 export function AssessmentGapExperiments({ studyId, gapId, launchId }: { studyId: string; gapId: string; launchId?: string }) {
   const router = useRouter();
   function queued(id: string, job: string) { router.push(experimentQueuePath(id, job)); }
-  return launchId ? <section aria-label="Run requested experiment" className="space-y-3 rounded-lg border p-5"><h2 className="text-lg font-semibold">Run requested experiment</h2><RunGapExperiment studyId={studyId} gapId={gapId} launchId={launchId} onQueued={queued} /></section> : <GapExperimentPlanner studyId={studyId} gapId={gapId} onQueued={queued} />;
+  return launchId ? <section aria-label="Run requested experiment" className="content-panel space-y-3 rounded-lg border p-5"><h2 className="text-lg font-semibold">Run requested experiment</h2><RunGapExperiment studyId={studyId} gapId={gapId} launchId={launchId} onQueued={queued} /></section> : <GapExperimentPlanner studyId={studyId} gapId={gapId} onQueued={queued} />;
 }

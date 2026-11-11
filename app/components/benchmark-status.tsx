@@ -342,7 +342,7 @@ export function BenchmarkStatus({ canManage = false }: { canManage?: boolean }) 
         return (
           <div
             key={job.id}
-            className="rounded-lg border border-border bg-card p-4"
+            className="content-panel rounded-lg border border-border bg-card p-4"
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 flex-1">

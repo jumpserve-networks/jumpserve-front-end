@@ -19,7 +19,7 @@ export function SharedAssessmentRecords({ studyId }: { studyId: string }) {
   }, [studyId, selection.kind, selection.after, key]);
   const current = result?.key === key ? result : null;
   const data = current?.data;
-  return <section aria-label="Shared assessment records" className="space-y-4 rounded-lg border p-4 text-sm">
+  return <section aria-label="Shared assessment records" className="content-panel space-y-4 rounded-lg border p-4 text-sm">
     <h2 className="font-semibold">Assessment records</h2>
     <ResearchSelect label="Recorded information" value={selection.kind} onChange={value => setSelection({ kind: value as SharedRecordKind, previous: [] })} options={Object.entries(SHARED_RECORD_KINDS).map(([value, label]) => ({ value, label }))} />
     {current?.error ? <div role="alert" className="space-y-2"><p>{current.error} Record coverage is unknown.</p><Button size="sm" variant="outline" onClick={() => setRevision(value => value+1)}>Try again</Button></div> : data ? <>

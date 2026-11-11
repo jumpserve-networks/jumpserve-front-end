@@ -75,7 +75,7 @@ export default async function ParentRunPage({
     return (
       <main className="bg-background relative min-h-[var(--page-height)] p-4 sm:p-10">
         <div className="relative z-10 mx-auto flex w-full items-start justify-center py-3 sm:py-8">
-          <section className="w-full max-w-4xl rounded-lg border border-border bg-card p-10 text-center">
+          <section className="content-panel w-full max-w-4xl rounded-lg border border-border bg-card p-10 text-center">
             <p className="text-xs font-semibold tracking-normal text-primary">
               Jumpserve
             </p>
@@ -94,7 +94,7 @@ export default async function ParentRunPage({
   return (
     <main className="bg-background relative box-border min-h-[var(--page-height)] p-2 sm:p-6">
       <div className="relative z-10 mx-auto flex w-full items-start justify-center py-1 sm:py-3">
-        <section className="w-full max-w-6xl rounded-lg border border-border bg-card p-4 sm:rounded-lg sm:p-8">
+        <section className="content-panel w-full max-w-6xl rounded-lg border border-border bg-card p-4 sm:rounded-lg sm:p-8">
           <div className="mb-6 border-b border-border pb-2.5 sm:mb-8 sm:pb-3">
             <p className="mb-3 text-xs font-semibold tracking-normal text-primary">
               Jumpserve
@@ -155,7 +155,7 @@ export default async function ParentRunPage({
             </div>
           </div>
           <div className="mb-6 grid min-w-0 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-[minmax(0,2.4fr)_repeat(4,minmax(0,1fr))]">
-            <article className="min-w-0 rounded-lg border border-border bg-card p-4 sm:col-span-2 lg:col-span-1">
+            <article className="content-panel min-w-0 rounded-lg border border-border bg-card p-4 sm:col-span-2 lg:col-span-1">
               <div className="flex flex-col gap-1 text-sm text-muted-foreground">
                 <span className="uppercase tracking-[0.18em]">
                   {parentRun.clientCount} client{parentRun.clientCount === 1 ? "" : "s"}
@@ -217,7 +217,7 @@ function SummaryCard({
   value: string;
 }) {
   return (
-    <article className="min-w-0 rounded-lg border border-border bg-card p-4">
+    <article className="content-panel min-w-0 rounded-lg border border-border bg-card p-4">
       <p className="text-xs font-semibold tracking-normal text-muted-foreground">
         {label}
       </p>
@@ -238,7 +238,7 @@ function ChartsLoadingFallback() {
         {Array.from({ length: 4 }, (_, index) => (
           <div
             key={index}
-            className="h-[320px] animate-pulse rounded-lg border border-border bg-card"
+            className="content-panel h-[320px] animate-pulse rounded-lg border border-border bg-card"
           />
         ))}
       </div>

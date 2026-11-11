@@ -9,7 +9,7 @@ export function IdeaReviewSources({ run, packet }: { run: IdeaRun; packet?: Idea
   try { source = reviewSources(run, packet); }
   catch (error) { return <p role="alert" className="text-sm text-destructive">{error instanceof Error ? error.message : "The recorded declarations could not be verified."}</p>; }
   if (!source) return null;
-  return <details className="rounded-md border p-3">
+  return <details className="content-panel rounded-md border p-3">
     <summary className="cursor-pointer text-sm font-medium">Recorded declarations · plan version {source.version}</summary>
     {source.fields.length ? <dl className="space-y-3">{source.fields.map(field => <div key={field.path} className="min-w-0 space-y-1">
       <dt className="break-words text-xs font-medium">{GUIDE_QUESTIONS.find(question => question.id === field.path.split("/").at(-1))?.label ?? "Plan field"} · {field.path}</dt>

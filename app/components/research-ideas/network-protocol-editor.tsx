@@ -96,19 +96,19 @@ export function NetworkProtocolEditor({ studyId, document, protocol, onChange, g
     } catch (error) { setMessage(error instanceof Error ? error.message : "Private input persistence was not confirmed."); }
     finally { setBusy(false); }
   }
-  return <details open={guided || undefined} className="rounded-md border p-4"><summary className="cursor-pointer text-sm font-medium">Automatic networking execution</summary>
+  return <details open={guided || undefined} className="content-panel rounded-md border p-4"><summary className="cursor-pointer text-sm font-medium">Automatic networking execution</summary>
     <div className="mt-4 space-y-4 text-sm">
       {!capabilities ? <p role="status">The connected backend has not confirmed networking execution support.</p> : !capabilities.runners.find(item => item.id === runner)?.enabled ? <p role="status">This runner is registered but cloud execution is not enabled in the connected environment.</p> : null}
       <ResearchSelect label="Networking executor" value={runner} onChange={choose} options={NETWORK_RUNNERS.map(item => ({ value: item.id, label: item.name }))} />
       <label className="block space-y-1"><span>Configuration identity</span><Input disabled={busy} value={identity} onChange={e => { edit(); setIdentity(e.target.value); }} /></label>
       {guided ? <NetworkingFields key={runner} runner={runner} text={config} disabled={busy} onChange={updateConfig} onValidityChange={valid => { setFieldsValid(valid); if (!valid) edit(); }} /> : null}
       <details open={!guided || undefined}><summary className="cursor-pointer font-medium">Full {assessment ? "assessment" : "test"} configuration</summary><label className="mt-3 block space-y-1"><span>Networking {assessment ? "assessment" : "test"} configuration JSON</span><Textarea aria-label={`Networking ${assessment ? "assessment" : "test"} configuration JSON`} disabled={busy} className="min-h-48 font-mono text-xs" value={config} onChange={e => { edit(); setConfig(e.target.value); }} /></label></details>
-      {runner === "custom-package-v1" ? <div className="space-y-3 rounded-md border p-3">
+      {runner === "custom-package-v1" ? <div className="content-panel space-y-3 rounded-md border p-3">
         <p>Python scripts receive JUMPSERVE_SPEC and write JUMPSERVE_OUTPUT using the network-observations-v1 contract. Upload original source privately, or enter a public container image pinned by sha256 digest in the configuration. Custom packages run on one isolated EC2 host; external endpoints and required equipment must be specified. Credentials belong in private inputs.</p>
         <label className="block space-y-1"><span>Package version</span><Input disabled={busy} value={packageVersion} onChange={e => setPackageVersion(e.target.value)} /></label>
         <label className="block space-y-1"><span>Original Python experiment source</span><Textarea aria-label="Original Python experiment source" disabled={busy} className="min-h-40 font-mono text-xs" value={source} onChange={e => setSource(e.target.value)} /></label>
         <Button type="button" variant="outline" disabled={busy || !source.trim()} onClick={() => void upload()}>Preserve package source</Button>
-        <details className="rounded-md border p-3"><summary className="cursor-pointer">Private provider, VPN or experiment input</summary><div className="mt-3 space-y-3">
+        <details className="content-panel rounded-md border p-3"><summary className="cursor-pointer">Private provider, VPN or experiment input</summary><div className="mt-3 space-y-3">
           <p>Private files remain outside public protocols and model context. Scripts and containers read them from JUMPSERVE_INPUTS. Specify actual required provider or VPN credentials before queueing; the executor does not invent them.</p>
           <label className="block space-y-1"><span>Private input filename</span><Input disabled={busy} value={privateName} onChange={e => setPrivateName(e.target.value)} /></label>
           <label className="block space-y-1"><span>Private input version</span><Input disabled={busy} value={privateVersion} onChange={e => setPrivateVersion(e.target.value)} /></label>

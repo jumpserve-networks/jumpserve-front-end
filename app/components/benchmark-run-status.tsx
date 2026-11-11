@@ -149,7 +149,7 @@ export function BenchmarkRunStatus({ initialJob, canManage = false }: { initialJ
           </div>
           <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{benchmarkStatusMessage(job)}</p>
           {pollError && <p role="alert" className="text-sm text-destructive">Status updates interrupted: {pollError} Retrying automatically; the last known status is shown.</p>}
-          {job.error_message && <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm break-words text-destructive">{job.error_message}</p>}
+          {job.error_message && <p role="alert" className="content-panel rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm break-words text-destructive">{job.error_message}</p>}
         </CardHeader>
         <CardContent className="space-y-6">
           <ol aria-label="Benchmark steps" className="space-y-5">
@@ -190,7 +190,7 @@ export function BenchmarkRunStatus({ initialJob, canManage = false }: { initialJ
             {!terminal && <span className="text-xs text-muted-foreground">Updates every 5 seconds.</span>}
           </div>
           {canManage && !terminal && confirmCancel && (
-            <div className="space-y-3 rounded-lg border p-4">
+            <div className="content-panel space-y-3 rounded-lg border p-4">
               <p className="text-sm">Cancel this benchmark and terminate its EC2 instance?</p>
               <div className="flex flex-wrap gap-2">
                 <Button variant="destructive" disabled={cancelling} onClick={handleCancel}>{cancelling ? "Cancelling…" : "Confirm cancellation"}</Button>

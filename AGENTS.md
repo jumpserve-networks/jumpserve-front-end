@@ -329,6 +329,10 @@ Important columns currently used:
   `app/globals.css`; keep chart series distinct and pair status colors with text
   and icons. Preserve the light palette. Avoid decorative gradients and
   page-entry animations.
+- Mark bordered content containers with `content-panel` (the shared `Card` already
+  includes it). Keep one outer frame; nested panels render as plain sections.
+  Use headings, spacing and dividers inside panels. Preserve borders and focus
+  indicators on buttons, inputs, selections and other interactive controls.
 - Animations and transitions must behave consistently regardless of the browser
   or operating system motion preference. Do not add `prefers-reduced-motion`
   checks, `motion-safe:`/`motion-reduce:` variants, or preference-based animation
