@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import {beforeEach,test} from 'node:test';
+import {registerHooks} from 'node:module';
+globalThis.__planBoundary={};
+const hook=registerHooks({resolve(specifier,context,next){
+ if(specifier==='next/server')return next('next/server.js',context);
+ if(specifier==='@/lib/paper-intake-server')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('export const intakeActor=(...a)=>globalThis.__planBoundary.actor(...a);export const loadIntake=(...a)=>globalThis.__planBoundary.load(...a);')};
+ if(specifier==='@/lib/paper-experiment-plan-server')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('export class ExperimentPlanError extends Error{constructor(message,status){super(message);this.status=status;}}export const cancelPlan=(...a)=>globalThis.__planBoundary.cancel(...a);export const confirmPlan=(...a)=>globalThis.__planBoundary.confirm(...a);export const experimentPlanView=(row)=>row;export const loadExperimentPlan=(...a)=>globalThis.__planBoundary.read(...a);export const refreshPlan=(...a)=>globalThis.__planBoundary.refresh(...a);')};
+ return next(specifier,context);
+}});
+const {GET,POST}=await import('../app/(modules)/research-verification/api/experiment-plan/route.ts');hook.deregister();
+const id='11111111-1111-4111-8111-111111111111';let calls,s;
+beforeEach(()=>{calls=[];s=globalThis.__planBoundary;s.actor=async request=>request.headers.get('authorization')==='Bearer verified'?'owner':null;s.load=async(study,actor)=>{calls.push(['load',study,actor]);return{study_id:id,owner_id:'owner',status:'ready'};};s.read=async()=>null;s.refresh=async row=>{calls.push(['refresh']);return row;};s.confirm=async(...args)=>{calls.push(['confirm',...args]);return{stage:'processing'};};s.cancel=async(...args)=>{calls.push(['cancel',...args]);return{stage:'cancelled'};};});
+const get=token=>new Request('https://example.test/api/experiment-plan?id='+id,{headers:token?{authorization:'Bearer '+token}:{}});
+const post=(body,token='verified')=>new Request('https://example.test/api/experiment-plan',{method:'POST',headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})},body:JSON.stringify(body)});
+const confirmation={action:'confirm',study_id:id,intake_revision:4,sections:{access:[],experiment:[],data:[],validate:[]}};
+test('anonymous and unverified callers cannot read confirm or trigger a planning call',async()=>{for(const token of [null,'unverified']){assert.equal((await GET(get(token))).status,401);assert.equal((await POST(post(confirmation,token))).status,401);}assert.deepEqual(calls,[]);});
+test('nonowners deleted assessments and unfinished phase one cannot confirm',async()=>{s.load=async()=>null;assert.equal((await POST(post(confirmation))).status,404);s.load=async()=>({status:'processing'});assert.equal((await POST(post(confirmation))).status,409);assert.equal(calls.some(c=>c[0]==='confirm'),false);});
+test('owner confirmation forwards only reviewed sections and exact phase-one revision',async()=>{const response=await POST(post(confirmation));assert.equal(response.status,200);assert.match(response.headers.get('cache-control'),/private, no-store/);assert.deepEqual(calls.find(c=>c[0]==='confirm').slice(2),[4,confirmation.sections]);assert.equal(calls[0][2],'owner');});
+test('forged requests revision omission execution operations and oversized bodies are rejected',async()=>{for(const body of [{...confirmation,owner_id:'other'},{...confirmation,intake_revision:null},{...confirmation,action:'execute'},{action:'cancel',study_id:id,token:'forged'}])assert.equal((await POST(post(body))).status,400);assert.equal((await POST(post({...confirmation,padding:'x'.repeat(80001)}))).status,413);assert.equal(calls.some(c=>['confirm','cancel'].includes(c[0])),false);});
+test('status refresh and cancellation operate on the existing owner plan only',async()=>{s.read=async(study,actor)=>{assert.equal(study,id);assert.equal(actor,'owner');return{status:'processing'};};assert.equal((await GET(get('verified'))).status,200);assert.equal(calls.filter(c=>c[0]==='refresh').length,1);assert.equal((await POST(post({action:'cancel',study_id:id}))).status,200);assert.equal(calls.filter(c=>c[0]==='cancel').length,1);assert.equal(calls.some(c=>c[0]==='confirm'),false);});

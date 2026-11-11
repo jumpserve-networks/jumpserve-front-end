@@ -46,9 +46,9 @@ test('partial results remain readable with explicit progress and no ready or sci
 test('long sections show bounded pages without losing later details', async () => {
   const value = fixture(); value.sections.access = Array.from({length: 12}, (_, i) => ({id: `access-${i}`, description: `Resource detail ${i + 1}`, quote: `Exact resource quote ${i + 1}`, page: 1}));
   show(value); const access = screen.getByRole('region', {name: 'Access'});
-  assert.ok(within(access).getByText('Showing 8 of 12 recorded details.')); assert.equal(screen.queryByText('Resource detail 12'), null);
+  assert.equal(within(access).queryByText(/recorded details/), null); assert.equal(screen.queryByText('Resource detail 12'), null);
   await act(async () => {fireEvent.click(screen.getByRole('button', {name: 'Show more access details'}));});
-  assert.ok(screen.getByText('Resource detail 12')); assert.ok(within(access).getByText('Showing 12 of 12 recorded details.'));
+  assert.ok(screen.getByText('Resource detail 12')); assert.equal(within(access).queryByText(/recorded details/), null);
 });
 
 test('older services, missing results and explicit preparation remain separate from automatic actions', async () => {

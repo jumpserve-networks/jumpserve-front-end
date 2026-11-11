@@ -5,6 +5,7 @@ import { Button } from "@/app/components/ui/button";
 import { useUserPreferences } from "@/app/components/user-preferences";
 import { ResearchHeader } from "./header";
 import { PaperBreakdownPanel } from "./paper-breakdown";
+import { PaperExperimentPlanning } from "./paper-experiment-planning";
 import { paperIntakeFetch } from "@/lib/paper-intake-client";
 import { ResearchRequestError } from "@/lib/research-workflow-api";
 import { paperIntakePending, validatePaperIntake, type PaperIntakeView } from "@/lib/paper-intake";
@@ -60,8 +61,8 @@ function PaperAssessmentView({ assessmentId, ownerId, children, allowResume }: {
           {view.owner && view.stage === "uploaded" ? <Button size="sm" disabled={busy} onClick={() => void action("prepare")}>Prepare breakdown</Button> : null}
           {view.owner && ["uploaded", "processing", "uncertain"].includes(view.stage) ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void action("cancel")}>Cancel preparation</Button> : null}</div>
       </section>
-      {view.owner ? <PaperBreakdownPanel version="paper-breakdown-v1" value={view.breakdown} preparing={paperIntakePending(view.stage)} busy={busy} /> : <p className="text-sm text-muted-foreground">The paper breakdown and source quotes are available to the paper’s owner.</p>}
-      <section aria-labelledby="phase-one-queue" className="content-panel space-y-2 rounded-lg border p-4"><h2 id="phase-one-queue" className="text-lg font-semibold">Experiment Queue</h2><p className="text-sm">{view.experiment_jobs === 0 ? "No experiments have been queued. This assessment prepares the paper breakdown only." : `${view.experiment_jobs} recorded experiment jobs.`}</p></section>
+      {view.owner && ownerId && view.stage === "ready" && view.breakdown ? <PaperExperimentPlanning assessmentId={assessmentId} ownerId={ownerId} breakdown={view.breakdown} /> : view.owner ? <PaperBreakdownPanel version="paper-breakdown-v1" value={view.breakdown} preparing={paperIntakePending(view.stage)} busy={busy} /> : <p className="text-sm text-muted-foreground">The paper breakdown and source quotes are available to the paper’s owner.</p>}
+      <section aria-labelledby="phase-one-queue" className="content-panel space-y-2 rounded-lg border p-4"><h2 id="phase-one-queue" className="text-lg font-semibold">Experiment Queue</h2><p className="text-sm">{view.experiment_jobs === 0 ? "No experiments have been queued." : `${view.experiment_jobs} recorded experiment jobs.`}</p></section>
     </>}
   </main>;
 }

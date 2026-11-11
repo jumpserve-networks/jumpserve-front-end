@@ -4,13 +4,18 @@ import { useState } from "react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { PAPER_BREAKDOWN_SECTIONS, PAPER_BREAKDOWN_VERSION, validatePaperBreakdown, type PaperBreakdown, type PaperBreakdownSection } from "@/lib/research-paper-breakdown";
+import type { ReviewedSections } from "@/lib/paper-experiment-plan";
+import { Textarea } from "@/app/components/ui/textarea";
+import { Checkbox } from "@/app/components/ui/checkbox";
 
-export function PaperBreakdownPanel({ value, version, preparing, busy, onPrepare }: {
+export function PaperBreakdownPanel({ value, version, preparing, busy, onPrepare, review, onReviewChange }: {
   value?: unknown;
   version?: string;
   preparing: boolean;
   busy: boolean;
   onPrepare?: () => void;
+  review?: ReviewedSections;
+  onReviewChange?: (section: PaperBreakdownSection, itemId: string, description: string | null) => void;
 }) {
   const [limits, setLimits] = useState<Partial<Record<PaperBreakdownSection, number>>>({});
   let breakdown: PaperBreakdown | null = null;
@@ -44,10 +49,12 @@ export function PaperBreakdownPanel({ value, version, preparing, busy, onPrepare
           <h3 id={`paper-breakdown-${section.id}`} className="font-semibold">{section.title}</h3>
           <p className="text-sm text-muted-foreground">{section.description}</p>
           {entries.length ? <>
-            <p className="text-xs text-muted-foreground">Showing {Math.min(limit, entries.length)} of {entries.length} recorded details.</p>
             <ul className="divide-y divide-border">
-              {entries.slice(0, limit).map(item => <li key={item.id} className="space-y-2 py-3 text-sm first:pt-0 last:pb-0">
-                <p className="whitespace-pre-wrap break-words">{item.description}</p>
+              {entries.slice(0, limit).map((item, index) => <li key={item.id} className="space-y-2 py-3 text-sm first:pt-0 last:pb-0">
+                {review && onReviewChange ? <>
+                  <label className="flex items-center gap-2"><Checkbox checked={review[section.id].some(entry => entry.id === item.id)} disabled={busy} onCheckedChange={checked => onReviewChange(section.id, item.id, checked ? item.description : null)} />Include {section.title} detail {index + 1}</label>
+                  <Textarea aria-label={`${section.title} detail ${index + 1} description`} value={review[section.id].find(entry => entry.id === item.id)?.description ?? item.description} disabled={busy || !review[section.id].some(entry => entry.id === item.id)} maxLength={400} onChange={event => onReviewChange(section.id, item.id, event.target.value)} />
+                </> : <p className="whitespace-pre-wrap break-words">{item.description}</p>}
                 <details><summary className="cursor-pointer text-xs text-muted-foreground">Source quote · PDF page {item.page}</summary><blockquote className="mt-2 whitespace-pre-wrap break-words border-l-2 pl-3">{item.quote}</blockquote></details>
               </li>)}
             </ul>
