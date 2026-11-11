@@ -1,5 +1,8 @@
 # Paper breakdown, phase one
 
+Repeatable CLI evaluation, replay and operator verification are documented in
+[Browser-free paper prompt testing](paper-intake-testing.md).
+
 Uploading a PDF at `/research-verification/new-assessment` prepares Access,
 Experiment, Data and Validate in the Next.js Node server. It does not create an
 experiment workflow, autonomy task or worker dispatch. Both the review URL and

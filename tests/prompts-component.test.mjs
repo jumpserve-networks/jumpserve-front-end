@@ -60,3 +60,10 @@ test('area and status selections intersect and resetting both restores every ori
 test('an empty saved catalog stays distinct from a search with no matches', () => {
   render(React.createElement(Prompts, {prompts: []})); assert.equal(screen.getByRole('status').textContent, '0 versions'); assert.ok(screen.getByText('No saved prompts yet.')); assert.equal(screen.queryByText('No prompts match these filters.'), null);
 });
+
+test('paper assessment templates can be found and filtered as recorded versions',async()=>{
+ const recorded={...item(9,'research-paper-intake','paper-assessment-original','Draft'),recorded:true};
+ render(React.createElement(Prompts,{prompts:[...fixture(),recorded]}));
+ await choose('Area','Paper assessment');await choose('Status','Recorded');assert.deepEqual(titles(),[recorded.version]);
+ assert.equal(screen.getByRole('link',{name:recorded.version}).getAttribute('href'),'/prompts/'+recorded.id);assert.ok(screen.getByText('Recorded',{selector:'[data-slot="badge"]'}));
+});

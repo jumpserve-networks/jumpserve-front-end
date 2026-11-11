@@ -1,12 +1,13 @@
 import "server-only";
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
-import { extractText, getDocumentProxy } from "unpdf";
-import { PAPER_INTAKE_MAX_PAGES, PAPER_INTAKE_MODEL, PAPER_INTAKE_RESERVATION_CENTS, paperModelRequest, sha256 } from "./paper-intake-model";
+import { sha256 } from "./paper-intake-model";
+import { preparePaperIntake } from "./paper-intake-service";
 import { PAPER_INTAKE_VERSION, paperIntakePending, type PaperIntakeView } from "./paper-intake";
 import { cancelPaperIntake, refreshPaperIntake, type IntakeRecord } from "./paper-intake-runner";
 import { isGoogleAuthenticatedUser } from "./auth-provider";
 import { paperIntakeCredentials } from "./paper-intake-credentials";
+import { readWithAssessmentDeletion } from "./assessment-visibility";
 
 export async function intakeConfigured() { return Boolean(await paperIntakeCredentials()); }
 export async function intakeDatabase() {
@@ -27,7 +28,14 @@ export async function intakeActor(request: Request) {
   return !error && isGoogleAuthenticatedUser(data.user) ? data.user!.id : null;
 }
 export async function loadIntake(id: string, actor?: string | null) {
-  let query = (await intakeDatabase()).from("research_paper_intakes").select("*").eq("study_id", id);
+  const db = await intakeDatabase();
+  const active = await readWithAssessmentDeletion(filterDeleted => {
+    const query = db.from("research_studies").select("id").eq("id", id);
+    return (filterDeleted ? query.is("deleted_at", null) : query).maybeSingle();
+  });
+  if (active.error) throw new Error(`Assessment availability could not be checked (database code ${active.error.code || "unknown"}).`);
+  if (!active.data) return null;
+  let query = db.from("research_paper_intakes").select("*").eq("study_id", id);
   if (actor) query = query.eq("owner_id", actor);
   const { data, error } = await query.maybeSingle();
   if (error && ["PGRST205", "42P01"].includes(error.code)) return null;
@@ -54,6 +62,7 @@ export async function intakeView(row: IntakeRecord, actor?: string | null): Prom
 export async function reserveIntake(actor: string, id: string, metadata: Record<string, unknown>) {
   if (!await intakeConfigured()) throw new Error("Configure the server-side OpenAI and Supabase keys before uploading a paper.");
   const row = await save("reserve", { study_id: id, owner_id: actor }, metadata);
+  if (!await loadIntake(id, actor)) throw new Error("Assessment not found.");
   if (row.status !== "uploaded") return { version: "research-paper-upload-v2", id, status: "started", result: await intakeView(row, actor) };
   const path = `${id}/${row.sha256}`;
   const { data, error } = await (await intakeDatabase()).storage.from("research-paper-uploads").createSignedUploadUrl(path, { upsert: false });
@@ -72,48 +81,30 @@ async function retainedArtifact(row: IntakeRecord, id: string, bytes: Uint8Array
 export async function prepareIntake(row: IntakeRecord) {
   if (row.status !== "uploaded") return refreshIntake(row);
   const model = await modelClient();
-  let admitted: Awaited<ReturnType<typeof save>>;
-  try {
-    const { data, error } = await (await intakeDatabase()).storage.from("research-paper-uploads").download(`${row.study_id}/${row.sha256}`);
-    if (error || !data) throw new Error("The private PDF upload is unavailable. Retry with the original file and request ID.");
-    const bytes = new Uint8Array(await data.arrayBuffer());
-    if (bytes.length !== row.byte_count || sha256(bytes) !== row.sha256 || !new TextDecoder().decode(bytes.slice(0, 1024)).trimStart().startsWith("%PDF-")) throw new Error("The stored PDF does not match the original upload identity.");
-    const pdf = await getDocumentProxy(bytes.slice(), { enableXfa: false, disableFontFace: true, stopAtErrors: true, maxImageSize: 1_000_000 });
-    let paper;
-    try {
-      if (pdf.numPages > PAPER_INTAKE_MAX_PAGES) throw new Error("Phase one accepts up to 200 PDF pages.");
-      const extracted = await extractText(pdf, { mergePages: false });
-      paper = { totalPages: extracted.totalPages, pages: extracted.text.map((text, index) => ({ page: index + 1, text })) };
-    } finally { await pdf.loadingTask.destroy(); }
-    const request = paperModelRequest(paper);
-    const artifacts = [await retainedArtifact(row, row.original_artifact_id, bytes, "application/pdf", "paper-original-upload"), await retainedArtifact(row, row.text_artifact_id, new TextEncoder().encode(JSON.stringify(paper)), "application/json", "paper-text-extraction")];
-    admitted = await save("begin", row, { model_id: PAPER_INTAKE_MODEL, request, paper_text: paper, artifacts, reserved_cents: PAPER_INTAKE_RESERVATION_CENTS });
-  } catch (error) {
-    // Input/storage failures happen before admission, so a byte-identical retry is safe.
-    throw error;
-  }
-  if (!admitted.admitted) return admitted;
-  let response;
-  try { response = await model.responses.create(paperModelRequest(admitted.paper_text!), { headers: { "X-Client-Request-Id": admitted.submit_token! } }); }
-  catch (error) {
-    if (error instanceof OpenAI.APIError && error.status && error.status >= 400 && error.status < 500 && ![408, 409].includes(error.status)) {
-      return save("failed", admitted, { token: admitted.submit_token, response: { status: error.status, request_id: error.requestID }, reason: `OpenAI rejected the paper request (HTTP ${error.status}). Check the server's model access, API key and quota. The request will not be submitted again automatically.` });
-    }
-    return save("uncertain", admitted, { token: admitted.submit_token, reason: "The original OpenAI submission was not confirmed. It will not be submitted again automatically; reconcile the retained request identity before any replacement." });
-  }
-  // Retry acknowledgement only. Never retry the model request after a lost DB response.
-  const payload = { token: admitted.submit_token, response_id: response.id, response };
-  try { return await save("submitted", admitted, payload); }
-  catch { return save("submitted", admitted, payload); }
+  return preparePaperIntake(row, {
+    ...operations(), retainArtifact: retainedArtifact,
+    readOriginal: async current => {
+      const { data, error } = await (await intakeDatabase()).storage.from("research-paper-uploads").download(`${current.study_id}/${current.sha256}`);
+      if (error || !data) throw new Error("The private PDF upload is unavailable. Retry with the original file and request ID.");
+      return new Uint8Array(await data.arrayBuffer());
+    },
+    create: (request, token) => model.responses.create(request, { headers: { "X-Client-Request-Id": token } }),
+  });
 }
 
 export async function ownerIntakes(actor: string) {
   const db = await intakeDatabase();
-  const owned = await db.from("research_study_owners").select("study_id").eq("owner_id", actor).limit(1000);
+  const owned = await readWithAssessmentDeletion(filterDeleted => {
+    const query = db.from("research_study_owners").select("study_id,active_study:research_studies!inner(id)").eq("owner_id", actor).limit(1000);
+    return filterDeleted ? query.is("active_study.deleted_at", null) : query;
+  });
   if (owned.error) throw new Error("Owned paper list could not be loaded.");
   if (!owned.data.length) return { access: "owner-drafts", studies: [] };
   const ids = owned.data.map(item => item.study_id);
-  const [studies, reviews, intakes] = await Promise.all([db.from("research_studies").select("id,title,study_kind,created_at").in("id", ids).order("created_at", { ascending: false }), db.from("research_paper_reviews").select("study_id,status,title").in("study_id", ids), db.from("research_paper_intakes").select("*").eq("owner_id", actor).in("status", ["submitting", "processing"]).order("updated_at").limit(3)]);
+  const [studies, reviews, intakes] = await Promise.all([readWithAssessmentDeletion(filterDeleted => {
+    const query = db.from("research_studies").select("id,title,study_kind,created_at").in("id", ids).order("created_at", { ascending: false });
+    return filterDeleted ? query.is("deleted_at", null) : query;
+  }), db.from("research_paper_reviews").select("study_id,status,title").in("study_id", ids), db.from("research_paper_intakes").select("*").eq("owner_id", actor).in("status", ["submitting", "processing"]).order("updated_at").limit(3)]);
   if (studies.error || reviews.error || intakes.error && !["PGRST205", "42P01"].includes(intakes.error.code)) throw new Error("Paper notification status could not be loaded.");
   const refreshed = await Promise.all(((intakes.data ?? []) as IntakeRecord[]).map(refreshIntake));
   return { access: "owner-drafts", studies: studies.data.map(study => { const review = reviews.data.find(r => r.study_id === study.id), current = refreshed.find(r => r.study_id === study.id); return { ...study, title: current?.title ?? review?.title ?? study.title, ...(review ? { paper_review_status: current ? current.status === "ready" ? "ready" : paperIntakePending(current.status) ? "preparing" : "failed" : review.status } : {}) }; }) };

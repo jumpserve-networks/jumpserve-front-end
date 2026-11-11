@@ -9,6 +9,8 @@ export const PAPER_INTAKE_MAX_OUTPUT_TOKENS = 12_000;
 export const PAPER_INTAKE_RESERVATION_CENTS = 100;
 export const sha256 = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 export type PaperText = { pages: { page: number; text: string }[]; totalPages: number };
+// Postgres JSONB may reorder object properties. Hash a fixed serialization.
+export const serializePaperText = (paper: PaperText) => JSON.stringify({ totalPages: paper.totalPages, pages: paper.pages.map(({ page, text }) => ({ page, text })) });
 type GroundedText = { text: string; quote: string; page: number };
 type ExtractedItem = { description: string; quote: string; page: number };
 export type PaperIntakeExtraction = { title: GroundedText | null; domain: GroundedText | null; authors: { name: string; quote: string; page: number }[]; sections: Record<"access" | "experiment" | "data" | "validate", ExtractedItem[]> };
@@ -63,7 +65,7 @@ export function validatePaperExtraction(value: unknown, paper: PaperText): Paper
 }
 export function extractionBreakdown(value: PaperIntakeExtraction, paper: PaperText, sourceId: string, textArtifactId: string): PaperBreakdown {
   return { version: "paper-breakdown-v1", status: "ready", source_id: sourceId, text_artifact_id: textArtifactId,
-    text_sha256: sha256(JSON.stringify(paper)), policy_sha256: sha256(PAPER_INTAKE_INSTRUCTIONS), extraction_version: PAPER_INTAKE_POLICY_VERSION, cursor: 1, total_chunks: 1, total_pages: paper.totalPages,
+    text_sha256: sha256(serializePaperText(paper)), policy_sha256: sha256(PAPER_INTAKE_INSTRUCTIONS), extraction_version: PAPER_INTAKE_POLICY_VERSION, cursor: 1, total_chunks: 1, total_pages: paper.totalPages,
     missing_text_pages: paper.pages.filter(p => !p.text.trim()).map(p => p.page),
     sections: Object.fromEntries(PAPER_BREAKDOWN_SECTIONS.map(({ id }) => [id, value.sections[id].map((item, index) => ({ ...item, id: `${sourceId}:${id}:${index}` }))])) as PaperBreakdown["sections"],
     limitation: "One-pass AI reading aid over extracted PDF text. Quotes are checked against their recorded pages with whitespace normalization. Descriptions and metadata are not independently reviewed. Selected details are not exhaustive; figures, equations, scans and supplements may be missing. No experiments have been run or results independently validated.", reason: null };

@@ -9,7 +9,7 @@ const hook=registerHooks({resolve(specifier,context,next){
  if(specifier==='@supabase/supabase-js')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('export const createClient=()=>globalThis.__intakeTest.db;')};
  return next(specifier,context);
 }});
-const {prepareIntake,intakeView,intakeActor}=await import('../lib/paper-intake-server.ts');hook.deregister();
+const {prepareIntake,intakeView,intakeActor,loadIntake,ownerIntakes}=await import('../lib/paper-intake-server.ts');hook.deregister();
 function fixturePDF(){
  const content='BT /F1 12 Tf 40 200 Td (Explicit Access PDF parsing fixture; no academic claims.) Tj ET';
  const objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>','<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 400] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>','<< /Length '+content.length+' >>\nstream\n'+content+'\nendstream'];
@@ -40,9 +40,53 @@ test('simultaneous preparations admit only one inference and an acknowledgement 
 test('ambiguous OpenAI failures retain one uncertain original call without automatic submission retry',async()=>{
  state.responses.create=async()=>{state.calls.push(['model']);throw new Error('Lost provider response');};const result=await prepareIntake({...state.row});assert.equal(result.status,'uncertain');await prepareIntake(result);assert.equal(state.calls.filter(c=>c[0]==='model').length,1);assert.equal(state.calls.at(-1)[0],'uncertain');
 });
+test('a rejected prompt-recording transaction stops preparation before the provider is called',async()=>{
+ state.db.rpc=async()=>({error:{message:'The exact prompt version could not be recorded'}});
+ await assert.rejects(()=>prepareIntake({...state.row}),/exact prompt version could not be recorded/);
+ assert.equal(state.calls.some(call=>call[0]==='model'),false);
+});
 test('missing credentials and mismatched original bytes fail before admitting a model call',async()=>{
  delete process.env.OPENAI_API_KEY;await assert.rejects(()=>prepareIntake({...state.row}),/OPENAI_API_KEY/);assert.equal(state.calls.length,0);process.env.OPENAI_API_KEY='synthetic-server-key';await assert.rejects(()=>prepareIntake({...state.row,sha256:'a'.repeat(64)}),/original upload identity/);assert.equal(state.calls.length,0);
 });
 test('Google access tokens are verified and public views contain no paper text quotes paths or owner identity',async()=>{
  assert.equal(await intakeActor(new Request('https://example.test')),null);assert.equal(await intakeActor(new Request('https://example.test',{headers:{authorization:'Bearer unverified'}})),null);assert.equal(await intakeActor(new Request('https://example.test',{headers:{authorization:'Bearer verified'}})),'verified-owner');const view=await intakeView({...state.row,status:'processing',title:'PRIVATE TITLE',breakdown:{private:'SOURCE QUOTE'},reason:'PRIVATE REASON'});assert.equal(view.owner,false);assert.equal(view.title,null);assert.equal(view.breakdown,null);assert.equal(view.reason,null);assert.equal(JSON.stringify(view).includes('verified-owner'),false);assert.equal(view.experiment_jobs,0);
+});
+
+function availabilityQueries({legacy=false,deleted=false,failure=null}={}){
+ state.reads=[];
+ state.db.from=table=>{
+  const filters=[];
+  const result=single=>{
+   state.reads.push({table,filters:structuredClone(filters)});
+   const deletion=filters.some(filter=>filter[0]==='is'&&filter[1].endsWith('deleted_at'));
+   if(failure&&table==='research_studies')return{data:null,error:failure};
+   if(legacy&&deletion)return{data:null,error:{code:'42703',message:'column research_studies.deleted_at does not exist'}};
+   const study={id:state.row.study_id,title:'Saved title',study_kind:'paper',created_at:state.row.created_at};
+   const data=table==='research_studies'?deleted?[]:[study]:table==='research_study_owners'?[{study_id:state.row.study_id}]:table==='research_paper_reviews'?[]:single?[structuredClone(state.row)]:[];
+   return{data:single?data[0]??null:data,error:null};
+  };
+  const query={select(){return query;},eq(...args){filters.push(['eq',...args]);return query;},is(...args){filters.push(['is',...args]);return query;},in(...args){filters.push(['in',...args]);return query;},limit(){return query;},order(){return query;},maybeSingle:async()=>result(true),then:(resolve,reject)=>Promise.resolve(result(false)).then(resolve,reject)};
+  return query;
+ };
+}
+
+test('ready assessments load before the deletion migration and retain the original owner restriction',async()=>{
+ availabilityQueries({legacy:true});state.row.status='ready';
+ const result=await loadIntake(state.row.study_id,state.row.owner_id);
+ assert.equal(result.status,'ready');assert.deepEqual(state.reads.map(read=>read.table),['research_studies','research_studies','research_paper_intakes']);
+ assert.ok(state.reads.at(-1).filters.some(filter=>filter[1]==='owner_id'&&filter[2]===state.row.owner_id));assert.equal(state.calls.length,0);
+});
+test('a deleted assessment is never read from the private intake relation',async()=>{
+ availabilityQueries({deleted:true});assert.equal(await loadIntake(state.row.study_id),null);
+ assert.deepEqual(state.reads.map(read=>read.table),['research_studies']);assert.ok(state.reads[0].filters.some(filter=>filter[0]==='is'&&filter[1]==='deleted_at'));
+});
+test('owner notifications also work before the deletion migration without starting model work',async()=>{
+ availabilityQueries({legacy:true});const result=await ownerIntakes(state.row.owner_id);
+ assert.equal(result.access,'owner-drafts');assert.deepEqual(result.studies.map(study=>study.id),[state.row.study_id]);
+ assert.equal(state.reads.filter(read=>read.table==='research_study_owners').length,2);assert.equal(state.reads.filter(read=>read.table==='research_studies').length,2);assert.equal(state.calls.length,0);
+});
+test('an unexpected availability failure reports its code without loading private paper data',async()=>{
+ availabilityQueries({failure:{code:'42501',message:'Private database diagnostics'}});
+ await assert.rejects(loadIntake(state.row.study_id),/Assessment availability could not be checked \(database code 42501\)/);
+ assert.deepEqual(state.reads.map(read=>read.table),['research_studies']);
 });

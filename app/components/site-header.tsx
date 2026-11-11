@@ -5,8 +5,6 @@ import type { ReactNode } from "react";
 import { GlobalAuthButton } from "@/app/components/auth-button";
 import { JumpServeLogo } from "@/app/components/jumpserve-logo";
 import { ThemeSelector } from "@/app/components/theme-selector";
-import { ScrollText } from "lucide-react";
-import { PROMPTS_PATH } from "@/lib/prompts";
 
 export function SiteHeader({ navigation }: { navigation?: ReactNode }) {
   return (
@@ -24,7 +22,6 @@ export function SiteHeader({ navigation }: { navigation?: ReactNode }) {
           </Link>
         </div>
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <Link href={PROMPTS_PATH} aria-label="Prompts" title="Prompts" className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><ScrollText className="size-4" /><span className="hidden lg:inline">Prompts</span></Link>
           <ThemeSelector variant="icons" />
           <GlobalAuthButton placement="header" />
         </div>

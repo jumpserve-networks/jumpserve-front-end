@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {afterEach, test} from 'node:test';
 import {registerHooks} from 'node:module';
 import React from 'react';
-import {cleanup, fireEvent, render, screen, waitFor} from '@testing-library/react';
+import {act, cleanup, fireEvent, render, screen, waitFor} from '@testing-library/react';
 
 globalThis.__assessmentReact = React;
 const listURL = new URL('../lib/research-assessment-list.ts', import.meta.url).href;
@@ -12,6 +12,7 @@ const sources = {
   'next/form': `export default function Form({action,...props}) {return globalThis.__assessmentReact.createElement('form',{...props,action});}`,
   '@/app/components/user-preferences': `export const useUserPreferences=()=>globalThis.__assessmentPreferences; export const LocalDateTime=({value})=>globalThis.__assessmentReact.createElement('time',{},value);`,
   '@/lib/research-assessment-list': `export {assessmentListPath} from ${JSON.stringify(listURL)};export const loadAssessmentList=(...args)=>globalThis.__assessmentLoad(...args);`,
+  '@/lib/research-assessment-delete': `export const deleteAssessment=(...args)=>globalThis.__assessmentDelete(...args);`,
 };
 const hook = registerHooks({resolve(specifier, context, next) {
   if (sources[specifier]) return {shortCircuit: true, url: 'data:text/javascript,' + encodeURIComponent(sources[specifier])};
@@ -19,7 +20,7 @@ const hook = registerHooks({resolve(specifier, context, next) {
 }});
 const {Assessments} = await import('../app/components/research-workflow/assessments.tsx');
 hook.deregister();
-afterEach(() => {cleanup(); delete globalThis.__assessmentPreferences; delete globalThis.__assessmentLoad;});
+afterEach(() => {cleanup(); delete globalThis.__assessmentPreferences; delete globalThis.__assessmentLoad; delete globalThis.__assessmentDelete;});
 
 const id = '91169871-14c2-4bde-a0a5-50bf78403d86';
 const paper = change => ({id, title: 'Synthetic networking paper', authors: ['Fixture Author'], initiated_by: 'Fixture Initiator',
@@ -40,6 +41,31 @@ test('table is the default view and recorded title, initiator, stage and detail 
   assert.equal(screen.getByRole('button', {name: 'Table'}).getAttribute('aria-current'), 'page');
   assert.equal(screen.getByRole('button', {name: 'All Assessments'}).getAttribute('aria-current'), 'page');
   assert.equal(screen.getByLabelText('Filter by name').getAttribute('type'), 'search');
+  assert.equal(screen.queryByRole('button',{name:/Delete assessment/}),null);
+});
+test('owner deletion requires confirmation and refreshes the personal list only after persistence succeeds',async()=>{
+ globalThis.__assessmentPreferences={userId:'owner'};let deleted=false;const calls=[];
+ globalThis.__assessmentLoad=async()=>catalog(deleted?[]:[paper()]);
+ globalThis.__assessmentDelete=async(...args)=>{calls.push(args);deleted=true;};
+ show({mine:true});fireEvent.click(await screen.findByRole('button',{name:'Delete assessment: Synthetic networking paper'}));
+ const dialog=await screen.findByRole('alertdialog');assert.match(dialog.textContent,/remain privately retained/);assert.equal(calls.length,0);
+ fireEvent.click(screen.getByRole('button',{name:'Keep assessment'}));assert.equal(calls.length,0);
+ fireEvent.click(screen.getByRole('button',{name:'Delete assessment: Synthetic networking paper'}));
+ fireEvent.click(await screen.findByRole('button',{name:'Delete assessment',exact:true}));
+ await screen.findByRole('heading',{name:'You have no assessments yet'});assert.deepEqual(calls,[[id,'owner']]);assert.ok(screen.getByText('Assessment deleted.'));
+});
+test('failed deletion keeps the card and dialog with a retryable error',async()=>{
+ globalThis.__assessmentPreferences={userId:'owner'};globalThis.__assessmentDelete=async()=>{throw new Error('Stop running work before deleting.');};show({mine:true,view:'card'});
+ fireEvent.click(await screen.findByRole('button',{name:'Delete assessment: Synthetic networking paper'}));fireEvent.click(await screen.findByRole('button',{name:'Delete assessment',exact:true}));
+ assert.match((await screen.findByRole('alert')).textContent,/Stop running/);assert.ok(screen.getByRole('article',{hidden:true}));assert.ok(screen.getByRole('alertdialog'));assert.equal(screen.getByRole('button',{name:'Delete assessment',exact:true}).disabled,false);
+ fireEvent.click(screen.getByRole('button',{name:'Keep assessment'}));await waitFor(()=>assert.equal(screen.queryByRole('alertdialog'),null));
+});
+test('a pending deletion cannot submit twice and keeps a usable close control',async()=>{
+ globalThis.__assessmentPreferences={userId:'owner'};let resolve,calls=0;
+ globalThis.__assessmentDelete=()=>{calls++;return new Promise(done=>{resolve=done;});};show({mine:true});
+ fireEvent.click(await screen.findByRole('button',{name:'Delete assessment: Synthetic networking paper'}));const confirm=await screen.findByRole('button',{name:'Delete assessment',exact:true});
+ fireEvent.click(confirm);fireEvent.click(confirm);assert.equal(calls,1);assert.equal(screen.getByRole('button',{name:'Deleting…'}).disabled,true);assert.equal(screen.getByRole('button',{name:'Close'}).disabled,false);
+ await act(async()=>{resolve();});await waitFor(()=>assert.equal(screen.queryByRole('alertdialog'),null));
 });
 test('the first catalogue page offers an older page without a redundant newest-page link',async()=>{
  show({},catalog([paper()],'next'));await screen.findByRole('link',{name:'Older assessments'});assert.equal(screen.queryByRole('link',{name:'Newest assessments'}),null);
