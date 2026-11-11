@@ -70,19 +70,6 @@ confirmation, empty/legacy states and mobile/desktop light/dark layouts. These
 two sets of numbers describe different explicit software fixtures. They are not
 measurements or classifications of the live paper.
 
-Successful and failed reports remain under each repository's `.test-artifacts`.
-All newly added cases are exposed development regressions, authored and inspected
-by the implementing AI. They are not held-out, human, or independent review.
-No live model taxonomy quality or semantic prompt-injection resistance is claimed.
-Those checks are a remaining release condition in
-`jumpserve-infra/docs/paper-review-selection-protocol-v1.md`.
-
-The subsequent [TCP88 diagnosis](tcp88-extraction-diagnosis-v1.md) distinguishes
-an older service with no grouping result from a completed empty shortlist. Its
-saved review contains 175 source-grounded candidates; absent categories were
-caused by the grouping update still being local. The page now exposes the
-extraction count and this distinction explicitly.
-
 ## Release order and limits
 
 Keep this work local until an explicit release request. Before deployment, finish

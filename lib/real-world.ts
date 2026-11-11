@@ -1,6 +1,6 @@
 export const REAL_WORLD_CCAS = ["cubic", "bbr", "reno"] as const;
 export const REAL_WORLD_INSTANCE_TYPES = ["t3.small", "t3.medium", "t3.large"] as const;
-export const REAL_WORLD_DEFAULT_INSTANCE_TYPE = "t3.medium";
+const REAL_WORLD_DEFAULT_INSTANCE_TYPE = "t3.medium";
 export type Placement = { region: string; zone_id: string; instance_type: string };
 export type PlacementUpdate = Placement | ((current: Placement) => Placement);
 export type AwsRegion = { region: string; enabled: boolean; opt_in_status: string };
@@ -22,7 +22,7 @@ export type RealWorldStatusEntry = {
   outcome: "completed" | "failed" | "cancelled" | null;
 };
 export const emptyPlacement = (): Placement => ({ region: "", zone_id: "", instance_type: REAL_WORLD_DEFAULT_INSTANCE_TYPE });
-export function isRealWorldInstanceType(instanceType: string): boolean {
+function isRealWorldInstanceType(instanceType: string): boolean {
   return REAL_WORLD_INSTANCE_TYPES.some((allowed) => allowed === instanceType);
 }
 export function isRealWorldZoneAvailable(zone: AwsZone, instanceType: string = REAL_WORLD_DEFAULT_INSTANCE_TYPE): boolean {

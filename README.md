@@ -69,6 +69,14 @@ run `npm run test:coverage:report -- --all-sources`; that includes verification
 scripts and writes a separate report under `coverage/all-sources/`. Unit tests
 do not execute those scripts against production.
 
+## Maintained tools
+
+The supported commands are documented in `package.json`, CI workflows and
+`maintained-tools.json`. Automated tests use synthetic fixtures. Historical
+archives, completed experiment corpora and release-evidence bundles are no
+longer checked into the working tree. Current schema/bootstrap migrations,
+runtime pins and operational policies remain active platform inputs.
+
 ## Test modules
 
 When logged out, `/` is a public landing page explaining JumpServe, the experiment
@@ -325,8 +333,7 @@ checks capabilities before creating an idea or requesting a model call. Deploy
 the additive idea/prompt migrations and evaluated prompt before enabling the
 module-aware APIs and this frontend. Local changes are not a production release.
 
-`npm run verify:research:queue` (also available as
-`npm run verify:research:public-queue`) checks the current public Experiment Queue
+`npm run verify:research:public-queue` checks the current public Experiment Queue
 through the local Next.js app and actual backend handlers with synthetic data.
 Reports and screenshots are retained under `.test-artifacts/public-experiment-queue/`.
 The retired private queue dashboard is no longer part of browser verification.
@@ -344,15 +351,3 @@ synthetic authentication/model responses; it cannot verify a legitimate Google
 owner or remote Supabase Storage. It also checks local Next.js navigation and
 sign-in return paths on port 6001. Reports and screenshots are retained under
 `.test-artifacts/research-ideas/browser/`, including failed checks.
-
-`npm run verify:research:ideas -- --guided` adds the guided question/answer campaign,
-uncertain-save/model replay, a declared critical-review correction, explicit owner
-approval and two actual local package invocations. Its synthetic provider responses
-are software fixtures, not evaluation of actual model answers or scientific evidence.
-The fixed fixture executes only its known loopback HTTP program. Reports include
-initial/completed desktop/mobile light/dark views and saved original plan hashes,
-under `.test-artifacts/idea-guide/browser/`. To verify current Tailwind layouts,
-build the app first, or set `JUMPSERVE_BROWSER_CSS_PATH` to the compiled
-`.next/static/chunks` directory of an isolated matching build checkout. The verifier
-preserves the actual CSS used with its report. See the frozen
-`docs/idea-guided-interface-protocol-v1.json` for pass criteria and conditional gaps.
