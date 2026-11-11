@@ -43,6 +43,7 @@ async function main(){
   if(!process.env.OPENAI_API_KEY)throw new Error('Configure server-only OPENAI_API_KEY before a live planning evaluation.');
   const client=new OpenAI({apiKey:process.env.OPENAI_API_KEY,baseURL:'https://api.openai.com/v1',maxRetries:0,timeout:25000});let newCalls=0;
   if(!saved){
+   if(breakdown.sections.experiment.length)await client.models.retrieve(request.model); // Read-only network/key preflight before admitting inference.
    saved={version:'experiment-plan-evaluation-v1',identity:identity(breakdown,request),breakdown,request,token:randomUUID(),started_at:new Date().toISOString(),status:'submitting'};
    // The admission survives process failure. An unacknowledged call is retained
    // as uncertain and cannot be silently repeated by rerunning the command.
@@ -51,7 +52,7 @@ async function main(){
    else{
     newCalls=1;
     try{saved.response=await client.responses.create(request,{headers:{'X-Client-Request-Id':saved.token}});saved.status=saved.response.status;}
-    catch(error){saved.status=error instanceof OpenAI.APIError&&error.status>=400&&error.status<500&&![408,409].includes(error.status)?'rejected':'uncertain';saved.error={http_status:error.status??null,code:error.code??null};}
+    catch(error){saved.status=error instanceof OpenAI.APIError&&error.status>=400&&error.status<500&&![408,409].includes(error.status)?'rejected':'uncertain';saved.error={http_status:error.status??null,code:error.code??null,transport_code:/^(?:E[A-Z]+|UND_ERR_[A-Z_]+)$/.test(error.cause?.code??'')?error.cause.code:null};}
    }
    await privateJSON(path,saved);
   }
