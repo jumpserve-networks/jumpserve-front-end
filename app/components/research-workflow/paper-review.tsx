@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -11,6 +11,12 @@ import { researchRequest } from "@/lib/research-workflow-api";
 import { experimentQueuePath } from "@/lib/research-experiment-queue";
 import { validatePaperReview, reviewRoles, parseReviewAuthors, PAPER_AUTHORS_VERSION, type ReviewGroup, type PaperReview } from "@/lib/research-paper-review";
 import { usePaperUploads } from "@/app/components/research-workflow/paper-uploads-provider";
+import { PaperBreakdownPanel } from "@/app/components/research-workflow/paper-breakdown";
+import { PAPER_BREAKDOWN_VERSION } from "@/lib/research-paper-breakdown";
+
+function AssessmentScope({ collapsible, children }: { collapsible: boolean; children: ReactNode }) {
+  return collapsible ? <details className="rounded-lg border p-4"><summary className="cursor-pointer font-medium">Optional experiment assessment</summary><div className="mt-4 space-y-4"><p className="text-sm text-muted-foreground">The paper breakdown is saved during preparation. Selecting claims and confirming below starts a separate experiment assessment.</p>{children}</div></details> : children;
+}
 
 export function PaperReviewPanel({ assessmentId }: { assessmentId: string }) {
   const router = useRouter();
@@ -80,11 +86,15 @@ export function PaperReviewPanel({ assessmentId }: { assessmentId: string }) {
     if (!group) setSelected(previous => previous.filter(value => value !== id));
   }
   return <section className="space-y-5">
-    <p className="text-sm text-muted-foreground">1. Upload PDF <span aria-hidden>→</span> <strong className="text-foreground">2. Review information</strong> <span aria-hidden>→</span> 3. Run assessment</p>
+    <p className="text-sm text-muted-foreground">1. Upload PDF <span aria-hidden>→</span> <strong className="text-foreground">2. Review paper breakdown</strong></p>
     {error ? <div role="alert" className="space-y-3 rounded-lg border p-4 text-sm"><p className="text-destructive">{error}</p><Button type="button" variant="outline" disabled={busy} onClick={() => setRetry(n => n + 1)}>Reload paper information</Button></div> : null}
     {!review || preparing ? <div role="status" className="space-y-2 rounded-lg border p-5"><h2 className="font-semibold">{review ? "Preparing your paper…" : "Loading paper information…"}</h2><p className="text-sm text-muted-foreground">We’ll notify you when the paper is ready to review.</p>{review ? <p className="text-sm">{review.progress}</p> : null}{review?.claims.length ? <p className="text-sm">{review.claims.length} candidate claims found so far.</p> : null}</div> : null}
     {review?.status === "failed" ? <div role="alert" className="space-y-2 rounded-lg border p-5"><h2 className="font-semibold">Paper preparation needs attention</h2><p className="text-sm">{review.reason ?? "The paper could not be fully prepared."}</p>{review.organization && review.claims.length ? <Button type="button" variant="outline" disabled={busy} onClick={() => void organize()}>Organize extracted statements</Button> : null}<Link className="text-sm underline" href={experimentQueuePath(assessmentId)}>View preparation details</Link></div> : null}
-    {review && ["ready", "confirmed"].includes(review.status) ? <form onSubmit={confirm} aria-label="Confirm paper information" className="space-y-5 rounded-lg border p-5">
+    {review ? <>
+      {review.title ? <div className="space-y-1"><h2 className="font-semibold">{review.confirmation?.title ?? review.title}</h2>{(review.confirmation?.authors ?? review.authors)?.length ? <p className="text-sm text-muted-foreground">{(review.confirmation?.authors ?? review.authors)!.join(", ")}</p> : null}{review.domain ? <p className="text-sm text-muted-foreground">{review.confirmation?.domain ?? review.domain}</p> : null}</div> : null}
+      <PaperBreakdownPanel key={assessmentId} value={review.breakdown} version={review.breakdown_version} preparing={preparing} busy={busy} onPrepare={review.status !== "confirmed" && review.organization && review.claims.length ? () => void organize() : undefined} />
+    </> : null}
+    {review && ["ready", "confirmed"].includes(review.status) ? <AssessmentScope collapsible={review.breakdown_version === PAPER_BREAKDOWN_VERSION}><form onSubmit={confirm} aria-label="Confirm paper information" className="space-y-5 rounded-lg border p-5">
       <div className="space-y-2 text-sm"><label htmlFor="review-paper-title" className="font-medium">Title</label><Input className="text-foreground" id="review-paper-title" required maxLength={300} value={title} onChange={event => setTitle(event.target.value)} disabled={busy || review.status === "confirmed"} aria-describedby={!review.title ? "review-title-help" : undefined} />{!review.title ? <p id="review-title-help" className="text-muted-foreground">Title not identified.</p> : null}</div>
       <div className="space-y-2 text-sm"><label htmlFor="review-paper-authors" className="font-medium">Authors</label><Textarea className="text-foreground" id="review-paper-authors" rows={2} maxLength={40100} value={authors} onChange={event => setAuthors(event.target.value)} placeholder="One author per line" disabled={busy || review.status === "confirmed" || review.authors_version !== PAPER_AUTHORS_VERSION} /></div>
       <div className="space-y-2 text-sm"><label htmlFor="review-paper-domain" className="font-medium">Research Domain</label><Input className="text-foreground" id="review-paper-domain" required maxLength={5000} value={domain} onChange={event => setDomain(event.target.value)} disabled={busy || review.status === "confirmed"} aria-describedby={!review.domain ? "review-domain-help" : undefined} />{!review.domain ? <p id="review-domain-help" className="text-muted-foreground">Research domain not identified.</p> : null}</div>
@@ -113,6 +123,6 @@ export function PaperReviewPanel({ assessmentId }: { assessmentId: string }) {
         {matching.length > otherLimit ? <Button type="button" variant="outline" size="sm" onClick={() => setOtherLimit(n => n + 20)}>Show more statements</Button> : null}
       </div> : null}</details> : null}
       {review.status === "confirmed" ? <Link className="underline" href={experimentQueuePath(assessmentId)}>View assessment progress</Link> : <>{!review.can_start ? <p role="alert" className="text-sm text-destructive">This paper’s authorization no longer admits work. Review the preparation details in Experiment Queue.</p> : null}<Button type="submit" size="lg" disabled={busy || !review.can_start || selected.length === 0 || !review.organization || selected.some(id => !roles[id]) || !title.trim() || !domain.trim()}>{busy ? "Starting assessment…" : "Confirm and start assessment"}</Button></>}
-    </form> : null}
+    </form></AssessmentScope> : null}
   </section>;
 }

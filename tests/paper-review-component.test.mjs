@@ -146,3 +146,14 @@ test('typed preparation failures retain diagnostics and failed papers without ex
 test('a response without retained confirmation cannot start an assessment and missing rationale stays absent',async()=>{
  review.organization.rationale='';await show();assert.equal(screen.queryByText('Why these suggestions?'),null);await check('Assess central claim 1');confirm=async()=>structuredClone(review);await submit();assert.ok(screen.getByText('Assessment start is unconfirmed. Retry using this same review.'));assert.deepEqual(tracked,[]);assert.deepEqual(pushes,[]);
 });
+
+test('the four-section breakdown is the main view and optional experiment controls start closed', async () => {
+  review.breakdown_version = 'paper-breakdown-v1';
+  review.breakdown = {version: 'paper-breakdown-v1', status: 'ready', source_id: uid(100), text_artifact_id: uid(101), text_sha256: 'a'.repeat(64), policy_sha256: 'b'.repeat(64), cursor: 1, total_chunks: 1, total_pages: 1, missing_text_pages: [], sections: {access: [{id: uid(200), description: 'Paper describes two Linux hosts.', quote: 'Two Linux hosts.', page: 1}], experiment: [], data: [], validate: []}, limitation: 'Extracted text only, without experiment execution or independent validation.', reason: null};
+  await show();
+  assert.ok(screen.getByRole('heading', {name: 'Access', exact: true})); assert.ok(screen.getByText('Paper describes two Linux hosts.'));
+  const optional = screen.getByText('Optional experiment assessment').closest('details'); assert.equal(optional.open, false);
+  assert.equal(calls.filter(call => call.body.action !== 'review').length, 0); assert.deepEqual(tracked, []); assert.deepEqual(pushes, []);
+  await act(async () => {optional.open = true; fireEvent(optional, new window.Event('toggle'));});
+  assert.equal(screen.getByRole('button', {name: 'Confirm and start assessment'}).disabled, true);
+});

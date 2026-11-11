@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { AssessmentDetail } from "@/app/components/research-workflow/assessment-detail";
+import { PaperAssessment } from "@/app/components/research-workflow/paper-assessment";
 import { isResearchId } from "@/lib/research-experiment-queue";
 import { requireGoogleUser } from "@/lib/auth";
 import { researchAssessmentPath, researchSearchSuffix } from "@/lib/research-pathways";
@@ -14,5 +15,5 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const { job, gap, run } = query;
   if ([job, gap, run].some(value => value !== undefined && !isResearchId(value)) || (run && !gap)) notFound();
   if (gap) await requireGoogleUser(`${researchAssessmentPath(assessmentId)}${researchSearchSuffix(query)}`);
-  return <AssessmentDetail key={assessmentId} assessmentId={assessmentId} jobId={job as string | undefined} gapId={gap as string | undefined} launchId={run as string | undefined} />;
+  return <PaperAssessment key={assessmentId} assessmentId={assessmentId}><AssessmentDetail assessmentId={assessmentId} jobId={job as string | undefined} gapId={gap as string | undefined} launchId={run as string | undefined} /></PaperAssessment>;
 }

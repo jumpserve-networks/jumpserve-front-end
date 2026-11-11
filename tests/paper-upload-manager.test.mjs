@@ -52,7 +52,7 @@ function fixture(t, options = {}) {
   const request = async (path, init) => {
     calls.push({ path, body: init?.body && JSON.parse(init.body), signal: init?.signal });
     if (path === '/studies?mine=1&status=1') return options.list ? options.list() : { access: 'owner-drafts', studies: [...studies.values()] };
-    if (path === '/capabilities') return { autonomy: { version: 'research-autonomy-v3', enabled: true }, paper_uploads: { version: 'research-paper-upload-v2', review_version: 'research-paper-review-v1', maximum_bytes: 10000000, confirmation_required: true } };
+    if (path === '/capabilities') return { paper_intake: { version: 'paper-intake-next-v1', enabled: true }, autonomy: { version: 'research-autonomy-v3', enabled: false }, paper_uploads: { version: 'research-paper-upload-v2', review_version: 'research-paper-review-v1', maximum_bytes: 10000000, confirmation_required: true } };
     const body = JSON.parse(init.body), id = body.request_id;
     if (body.action === 'reserve') {
       reserved.set(id, body);

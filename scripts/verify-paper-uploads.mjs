@@ -39,8 +39,8 @@ const server = createServer(async (req, res) => {
     if (url.pathname === '/bundle.js') { res.writeHead(200, { 'Content-Type': 'text/javascript' }); res.end(bundle); return; }
     if (url.pathname === '/bundle.css') { res.writeHead(200, { 'Content-Type': 'text/css' }); res.end(css); return; }
     if (url.pathname === '/api/profile') return json({ profile: { id: owner, first_name: 'Fixture', last_name: 'Researcher', timezone: 'America/New_York' } });
-    if (url.pathname === '/research/capabilities') return json({ autonomy: { version: 'research-autonomy-v3', enabled: true }, paper_uploads: { version: 'research-paper-upload-v2', review_version: 'research-paper-review-v1', maximum_bytes: 10000000, confirmation_required: true } });
-    if (url.pathname === '/research/studies') {
+    if (url.pathname === '/research/capabilities' || url.pathname === '/research-verification/api/paper-intake' && url.searchParams.has('capabilities')) return json({ paper_intake: { version: 'paper-intake-next-v1', enabled: true }, autonomy: { version: 'research-autonomy-v3', enabled: false }, paper_uploads: { version: 'research-paper-upload-v2', review_version: 'research-paper-review-v1', maximum_bytes: 10000000, confirmation_required: true } });
+    if (url.pathname === '/research/studies' || url.pathname === '/research-verification/api/paper-intake' && url.searchParams.has('mine')) {
       if (failureMode) return json({ error: 'Explicit fixture status outage' }, 503);
       return json({ access: 'owner-drafts', ...(legacyStatusMode ? {} : { assessment_status_version: 'research-assessment-status-v1' }), studies: [...records.values()].filter(r => r.owner === owner && r.paper_review_status).map(r => ({ id: r.id, title: r.title, authors: r.authors ?? null, domain: 'Networking', scope: 'Explicit browser software fixture', study_kind: 'paper', paper_review_status: r.paper_review_status, ...(legacyStatusMode ? {} : { assessment_status: r.assessment_status ?? null }) })) });
     }
@@ -76,7 +76,13 @@ const server = createServer(async (req, res) => {
       const row=records.get(url.pathname.split('/')[3]);
       return row?json({version:'research-paper-catalog-v1',access:'public-read-only',id:row.id,title:row.title,authors:row.authors??null}):json({error:'Paper not found'},404);
     }
-    if (url.pathname === '/research/paper-uploads') {
+    if (url.pathname === '/research-verification/api/paper-intake' && req.method === 'GET' && url.searchParams.has('id')) {
+      const row=records.get(url.searchParams.get('id'));
+      if(!row?.direct)return json({error:'Legacy paper'},404);
+      const owns=req.headers.authorization==='Bearer fixture:'+row.owner;
+      return json({version:'paper-intake-next-v1',id:row.id,review_version:'research-paper-review-v1',stage:row.stage,status:row.stage==='ready'?'ready':row.stage==='processing'?'preparing':'failed',title:owns?row.title:null,authors:owns?['Explicit Author']:null,domain:owns?'Networking':null,created_at:'2026-11-11T00:00:00Z',updated_at:'2026-11-11T00:01:00Z',reason:owns?row.reason??null:null,owner:owns,breakdown:owns?row.breakdown??null:null,experiment_jobs:0});
+    }
+    if (url.pathname === '/research/paper-uploads' || url.pathname === '/research-verification/api/paper-intake' && req.method === 'POST') {
       const id = body.request_id;
       if (body.action === 'reserve') {
         if (!records.has(id)) records.set(id, { ...body, id, owner, title: 'Extracted ' + body.filename.replace(/\.pdf$/i, '') });
@@ -112,7 +118,7 @@ async function check(name, run) {
 try {
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
   origin = `http://127.0.0.1:${server.address().port}`;
-  const bundled = await build({ stdin: { contents: `import React,{useEffect,useState} from 'react';import {createRoot} from 'react-dom/client';import Link from 'next/link';import {UserPreferencesProvider} from './app/components/user-preferences';import {PaperUploadsProvider} from './app/components/research-workflow/paper-uploads-provider';import {PaperIntake} from './app/components/research-workflow/workspace';import {Assessments} from './app/components/research-workflow/assessments';import {PaperReviewPanel} from './app/components/research-workflow/paper-review';function App(){const [path,setPath]=useState(location.pathname+location.search);useEffect(()=>{const changed=()=>setPath(location.pathname+location.search);addEventListener('popstate',changed);return()=>removeEventListener('popstate',changed)},[]);return <><nav><Link href='/research-verification/new-assessment'>Upload papers</Link><Link href='/'>Browse home</Link><Link href='/research-ideas'>Browse ideas</Link><Link href='/research-verification/assessments?mine=1'>My assessments</Link><Link href='/research-verification/assessments'>Assessments</Link></nav><main>{path.split('?')[0]==='/research-verification/assessments'?<Assessments key={path} mine={new URLSearchParams(location.search).get('mine')==='1'}/>:path==='/research-verification/new-assessment'?<PaperIntake/>:path.startsWith('/research-verification/new-assessment/')?<PaperReviewPanel assessmentId={path.split('/').pop()}/>:<h1>Browsing JumpServe</h1>}</main></>;}createRoot(document.getElementById('root')).render(<React.StrictMode><UserPreferencesProvider><PaperUploadsProvider><App/></PaperUploadsProvider></UserPreferencesProvider></React.StrictMode>);`, resolveDir: process.cwd(), sourcefile: 'paper-uploads-browser.tsx', loader: 'tsx' },
+  const bundled = await build({ stdin: { contents: `import React,{useEffect,useState} from 'react';import {createRoot} from 'react-dom/client';import Link from 'next/link';import {UserPreferencesProvider} from './app/components/user-preferences';import {PaperUploadsProvider} from './app/components/research-workflow/paper-uploads-provider';import {PaperIntake} from './app/components/research-workflow/workspace';import {Assessments} from './app/components/research-workflow/assessments';import {PaperReviewPanel} from './app/components/research-workflow/paper-review';import {PaperAssessment} from './app/components/research-workflow/paper-assessment';function App(){const [path,setPath]=useState(location.pathname+location.search);useEffect(()=>{const changed=()=>setPath(location.pathname+location.search);addEventListener('popstate',changed);return()=>removeEventListener('popstate',changed)},[]);return <><nav><Link href='/research-verification/new-assessment'>Upload papers</Link><Link href='/'>Browse home</Link><Link href='/research-ideas'>Browse ideas</Link><Link href='/research-verification/assessments?mine=1'>My assessments</Link><Link href='/research-verification/assessments'>Assessments</Link></nav><main>{path.split('?')[0]==='/research-verification/assessments'?<Assessments key={path} mine={new URLSearchParams(location.search).get('mine')==='1'}/>:path==='/research-verification/new-assessment'?<PaperIntake/>:path.startsWith('/research-verification/new-assessment/')?<PaperAssessment key={path} assessmentId={path.split('/').pop()}><PaperReviewPanel assessmentId={path.split('/').pop()}/></PaperAssessment>:path.startsWith('/research-verification/assessment/')?<PaperAssessment key={path} assessmentId={path.split('/').pop()}><h1>Browsing JumpServe</h1></PaperAssessment>:<h1>Browsing JumpServe</h1>}</main></>;}createRoot(document.getElementById('root')).render(<React.StrictMode><UserPreferencesProvider><PaperUploadsProvider><App/></PaperUploadsProvider></UserPreferencesProvider></React.StrictMode>);`, resolveDir: process.cwd(), sourcefile: 'paper-uploads-browser.tsx', loader: 'tsx' },
     bundle: true, write: false, platform: 'browser', format: 'iife', define: { 'process.env.NODE_ENV': '"development"', 'process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL': JSON.stringify(origin),'process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL':JSON.stringify(origin) },
     plugins: [{ name: 'synthetic-auth-storage-and-next-navigation', setup(p) {
       p.onResolve({ filter: /^(@\/lib\/supabase\/client|next\/(link|navigation|form))$/ }, a => ({ path: a.path, namespace: 'fixture' }));
@@ -361,6 +367,65 @@ try {
       }
     }
     return {filters:['mine','all'],same_source_order:true,missing_authors_explicit:true,widths:[1365,390],themes:['light','dark']};
+  });
+  await check('paper breakdown shows source-grounded sections before any optional experiment request', async () => {
+    const paper = '60000000-0000-4000-8000-000000000001';
+    const breakdown = {version: 'paper-breakdown-v1', status: 'ready', source_id: source, text_artifact_id: '60000000-0000-4000-8000-000000000002', text_sha256: 'a'.repeat(64), policy_sha256: 'b'.repeat(64), cursor: 2, total_chunks: 2, total_pages: 3, missing_text_pages: [3], sections: {
+      access: [{id: 'access-1', description: 'Authors used two Linux hosts.', quote: 'We used two Linux hosts.', page: 1}],
+      experiment: [{id: 'experiment-1', description: 'Each transfer was repeated three times.', quote: 'Each transfer was repeated three times.', page: 2}],
+      data: [{id: 'data-1', description: 'RTT was sampled every 100 ms.', quote: 'RTT was sampled every 100 ms.', page: 2}],
+      validate: [{id: 'validate-1', description: 'Authors compared their results with a baseline.', quote: 'We compared with the baseline.', page: 2}],
+    }, limitation: 'Explicit synthetic reading fixture. Figures and supplements remain unreviewed. No independent validation.', reason: null};
+    const actions = [];
+    let value = {...review({id: paper, title: 'Explicit four-section paper fixture', paper_review_status: 'ready'}), breakdown_version: 'paper-breakdown-v1', breakdown};
+    await page.route(origin + '/research/paper-uploads', async route => {
+      const body = route.request().postDataJSON(); actions.push(body.action); assert.equal(body.request_id, paper); assert.equal(body.action, 'review');
+      await route.fulfill({json: value});
+    });
+    await page.goto(origin + '/research-verification/new-assessment/' + paper);
+    await page.getByRole('heading', {name: 'Paper breakdown', exact: true}).waitFor();
+    for (const name of ['Access', 'Experiment', 'Data', 'Validate']) await page.getByRole('heading', {name, exact: true}).waitFor();
+    const optional = page.locator('details').filter({has: page.locator('summary', {hasText: /^Optional experiment assessment$/})});
+    assert.equal(await optional.getAttribute('open'), null); assert.equal(await page.getByRole('button', {name: 'Confirm and start assessment'}).count(), 0);
+    await page.getByText('Source quote · PDF page 1', {exact: true}).click();
+    await page.getByText('We used two Linux hosts.', {exact: true}).waitFor();
+    await page.getByText('No readable text on PDF pages 3. Those pages remain uncovered.', {exact: true}).waitFor();
+    for (const width of [1365, 390]) for (const dark of [false, true]) {
+      await page.setViewportSize({width, height: width === 390 ? 844 : 900}); await page.evaluate(value => document.documentElement.classList.toggle('dark', value), dark);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+      await page.screenshot({path: `${directory}/paper-breakdown-${width}-${dark ? 'dark' : 'light'}.png`, fullPage: true});
+    }
+    await page.reload(); await page.getByText('Authors used two Linux hosts.', {exact: true}).waitFor();
+    value = {...value, breakdown: {...breakdown, status: 'limited', cursor: 1, reason: 'Fixture detail limit reached; remaining text is unexamined.'}};
+    await page.reload(); await page.getByText('Partial breakdown', {exact: true}).waitFor(); await page.getByText(value.breakdown.reason, {exact: true}).waitFor();
+    value = {...value, breakdown: {...value.breakdown, sections: {...breakdown.sections, validate: []}}};
+    await page.reload(); await page.getByText('No details identified in the text examined so far.', {exact: true}).waitFor();
+    assert.ok(actions.length >= 4); assert.ok(actions.every(action => action === 'review'));
+    await page.unroute(origin + '/research/paper-uploads');
+    return {sections: ['Access','Experiment','Data','Validate'], original_quote_and_pages: true, missing_and_partial_coverage_explicit: true, reload_retains_breakdown: true, optional_assessment_collapsed: true, experiment_requests: 0, widths: [1365,390], themes: ['light','dark']};
+  });
+  await check('Next.js phase one opens saved sections at both URLs and keeps private quotes out of public views',async()=>{
+    const id='60000000-0000-4000-8000-000000000001';
+    const breakdown={version:'paper-breakdown-v1',status:'ready',extraction_version:'paper-intake-one-pass-v1',source_id:source,text_artifact_id:claim,text_sha256:'a'.repeat(64),policy_sha256:'b'.repeat(64),cursor:1,total_chunks:1,total_pages:1,missing_text_pages:[],sections:Object.fromEntries(['access','experiment','data','validate'].map(section=>[section,[{id:section,description:'Explicit '+section+' detail',quote:'PRIVATE SOURCE QUOTE',page:1}]])),limitation:'Explicit browser fixture, not a scientific assessment.',reason:null};
+    records.set(id,{id,owner:ownerA,direct:true,stage:'ready',title:'Direct Next.js paper',breakdown});
+    const before=requests.length;
+    for(const prefix of ['new-assessment','assessment']){
+      await page.goto(origin+'/research-verification/'+prefix+'/'+id);
+      await page.getByRole('heading',{name:'Direct Next.js paper',exact:true}).waitFor();
+      for(const name of ['Access','Experiment','Data','Validate','Experiment Queue'])await page.getByRole('heading',{name,exact:true}).waitFor();
+      await page.getByText('Source quote · PDF page 1',{exact:true}).first().click();
+      await page.getByText('PRIVATE SOURCE QUOTE',{exact:true}).first().waitFor();
+      assert.equal(await page.getByRole('button',{name:'Confirm and start assessment'}).count(),0);
+      for(const width of [1365,390]){await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);await page.screenshot({path:`${directory}/next-paper-${prefix}-${width}.png`,fullPage:true});}
+    }
+    await page.evaluate(()=>window.fixtureSwitchOwner(null));
+    await page.getByText('The paper breakdown and source quotes are available to the paper’s owner.',{exact:true}).waitFor();
+    assert.equal(await page.getByText('PRIVATE SOURCE QUOTE',{exact:true}).count(),0);
+    assert.equal(await page.getByRole('heading',{name:'Direct Next.js paper',exact:true}).count(),0);
+    await page.getByRole('heading',{name:'Experiment Queue',exact:true}).waitFor();
+    assert.ok(requests.slice(before).filter(r=>r.path.includes('/paper-intake')).every(r=>r.method==='GET'));
+    await page.evaluate(id=>window.fixtureSwitchOwner(id),ownerA);
+    return{both_detail_routes:true,private_quotes_hidden_on_signout:true,no_experiment_controls:true,worker_enabled:false,widths:[1365,390]};
   });
   await check('account change and sign-out hide previous-owner notices without changing their dismissals', async () => {
     await page.evaluate(id => window.fixtureSwitchOwner(id), ownerB);

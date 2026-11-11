@@ -8,5 +8,5 @@ export const dynamic = "force-dynamic";
 
 export default async function NewAssessment({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requireGoogleUser(NEW_ASSESSMENT_PATH + researchSearchSuffix(await searchParams));
-  return <main className="mx-auto max-w-5xl space-y-6 px-4 py-6"><ResearchHeader title="Start a research assessment" /><PaperIntake /></main>;
+  return <main className="mx-auto max-w-5xl space-y-6 px-4 py-6"><ResearchHeader title="Break down a research paper" /><PaperIntake /></main>;
 }

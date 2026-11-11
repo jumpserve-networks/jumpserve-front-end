@@ -1,5 +1,6 @@
 import { PAPER_REVIEW_VERSION } from "./research-paper-upload";
 import { isAssessmentBudgetCents, validAssessmentBudgetPolicy, type AssessmentBudgetPolicy } from "./research-autonomy";
+import type { PaperBreakdown } from "./research-paper-breakdown";
 
 export const PAPER_SELECTION_VERSION = "paper-review-selection-v1";
 export const PAPER_AUTHORS_VERSION = "paper-review-authors-v1";
@@ -17,6 +18,7 @@ export type PaperReview = {
   version: string; id: string; status: "preparing" | "ready" | "failed" | "confirmed"; revision: number;
   title: string | null; domain: string | null; reason: string | null; progress: string; can_start: boolean;
   authors?: string[] | null; authors_version?: typeof PAPER_AUTHORS_VERSION;
+  breakdown_version?: string; breakdown?: PaperBreakdown | null;
   claims: { id: string; description: string; claim_type: string; location: string; source_id: string }[];
   coverage: Record<string, unknown>;
   organization?: ReviewOrganization;

@@ -6,9 +6,9 @@ const id='10000000-0000-4000-8000-000000000001';
 const raw='%PDF-1.4\nExplicit software input, not an academic paper.\n%%EOF';
 const file=()=>new File([raw],'previous-paper.pdf',{type:'application/pdf'});
 const result={id,review_version:'research-paper-review-v1',status:'preparing'};
-const capabilities={autonomy:{version:'research-autonomy-v3',enabled:true},paper_uploads:{version:'research-paper-upload-v2',maximum_bytes:PAPER_UPLOAD_MAX_BYTES,review_version:'research-paper-review-v1',confirmation_required:true}};
-test('disabled autonomy cannot admit an upload and untyped storage failures remain explicitly unconfirmed',async()=>{
- await assert.rejects(()=>prepareUploadedPaper(async()=>({...capabilities,autonomy:{version:'research-autonomy-v3',enabled:false}}),id,file(),async()=>assert.fail('No upload permitted')),/No paper was uploaded/);
+const capabilities={paper_intake:{version:'paper-intake-next-v1',enabled:true},paper_uploads:{version:'research-paper-upload-v2',maximum_bytes:PAPER_UPLOAD_MAX_BYTES,review_version:'research-paper-review-v1',confirmation_required:true}};
+test('unconfigured server cannot admit an upload and untyped storage failures remain explicitly unconfirmed',async()=>{
+ await assert.rejects(()=>prepareUploadedPaper(async()=>({...capabilities,paper_intake:{version:'paper-intake-next-v1',enabled:false}}),id,file(),async()=>assert.fail('No upload permitted')),/No paper was uploaded/);
  const s=service(value=>value,async()=>{throw null;});await assert.rejects(()=>prepareUploadedPaper(s.request,id,file(),async()=>{throw new Error('Original upload transport failure');}),/same file and request.*Storage is unavailable/);
 });
 function service(mutateTicket=x=>x,finalize=async()=>result){const calls=[];return {calls,request:async(path,options)=>{calls.push({path,options});if(path==='/capabilities')return capabilities;const body=JSON.parse(options.body);if(body.action==='prepare')return finalize();return mutateTicket({version:'research-paper-upload-v2',id,status:'pending',bucket:'research-paper-uploads',path:id+'/'+body.sha256,token:'explicit-test-upload-permission',sha256:body.sha256,byte_count:body.byte_count,maximum_bytes:PAPER_UPLOAD_MAX_BYTES});}};}
@@ -42,7 +42,7 @@ test('unconfirmed verification retains a useful retry error and does not automat
 
 test('old service is rejected before reserving a PDF and an automatic start is not accepted',async()=>{
  let calls=0;
- await assert.rejects(()=>prepareUploadedPaper(async()=>{calls++;return {...capabilities,autonomy:{version:'research-autonomy-v2',enabled:true}};},id,file(),async()=>{}),/No paper was uploaded/);assert.equal(calls,1);
+ await assert.rejects(()=>prepareUploadedPaper(async()=>{calls++;return {...capabilities,paper_intake:{version:'old-intake',enabled:true}};},id,file(),async()=>{}),/No paper was uploaded/);assert.equal(calls,1);
  const s=service(x=>x,async()=>({...result,review_version:'old-automatic-start'}));
  await assert.rejects(()=>prepareUploadedPaper(s.request,id,file(),async()=>{}),/Retry with this original request ID/);
 });
