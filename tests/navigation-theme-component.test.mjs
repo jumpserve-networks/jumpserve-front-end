@@ -74,18 +74,18 @@ test('module navigation preserves canonical sections and highlights overview det
     const nav = screen.getByRole('navigation', {name: (testModule?.name ?? 'JumpServe') + ' navigation'});
     const links = within(nav).getAllByRole('link');
     assert.equal(links[0].textContent, 'Overview'); assert.equal(links[0].getAttribute('aria-current'), 'page');
-    assert.deepEqual(links.map(link => link.getAttribute('href')), [testModule?.href ?? '/', ...(testModule?.sections ?? []).map(section => section.href), '/platform-updates']);
+    assert.deepEqual(links.map(link => link.getAttribute('href')), [testModule?.href ?? '/', ...(testModule?.sections ?? []).map(section => section.href), '/prompts', '/platform-updates']);
     fireEvent.click(links.at(-1)); assert.equal(navigations, 1);
     if (testModule?.id === 'research-verification' || !testModule) assert.equal(screen.queryByText('Test module'), null);
     else assert.ok(screen.getByText('Test module'));
     cleanup();
   }
   const testModule = TEST_MODULES.find(entry => entry.id === 'congestion-control-emulated');
-  for (const pathname of ['/congestion-control-emulated/parent-run/42', '/platform-updates/original-update']) {
+  for (const pathname of ['/congestion-control-emulated/parent-run/42', '/platform-updates/original-update', '/prompts', '/prompts/original-version']) {
     render(h(ModuleNavigation, {testModule, pathname}));
     const current = screen.getAllByRole('link').filter(link => link.getAttribute('aria-current') === 'page');
     assert.equal(current.length, 1);
-    assert.equal(current[0].getAttribute('href'), pathname.startsWith('/platform') ? '/platform-updates' : '/congestion-control-emulated/test-lookup');
+    assert.equal(current[0].getAttribute('href'), pathname.startsWith('/platform') ? '/platform-updates' : pathname.startsWith('/prompts') ? '/prompts' : '/congestion-control-emulated/test-lookup');
     cleanup();
   }
 });
@@ -98,7 +98,8 @@ test('mobile navigation opens accessibly and closes after navigation or a deskto
     await click(trigger);
     let dialog = screen.getByRole('dialog', {name: testModule?.name ?? 'JumpServe'});
     assert.match(dialog.textContent, testModule ? /Navigate between this module/ : /Navigate JumpServe/);
-    await click(within(dialog).getByRole('link', {name: 'Platform Updates'}));
+    assert.deepEqual(within(dialog).getAllByRole('link').slice(-2).map(link=>link.textContent),['Prompts','Platform Updates']);
+    await click(within(dialog).getByRole('link', {name: 'Prompts'}));
     await waitFor(() => assert.equal(screen.queryByRole('dialog'), null));
     await click(trigger); dialog = screen.getByRole('dialog');
     const desktop = media.get('(min-width: 1024px)');
@@ -143,5 +144,5 @@ test('standalone header and repeated logos retain home navigation and unique SVG
     assert.equal(logo.querySelector('rect').getAttribute('mask'), `url(#${logo.querySelector('mask').id})`);
     assert.equal(logo.getAttribute('aria-hidden'), 'true');
   }
-  assert.equal(screen.getByRole('link', {name: 'Prompts'}).getAttribute('href'), '/prompts');
+  assert.equal(screen.queryByRole('link', {name: 'Prompts'}), null);
 });

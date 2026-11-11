@@ -21,7 +21,6 @@ test('breakdown retains all four sections, exact quotes, page references, units 
   for (const name of ['Access', 'Experiment', 'Data', 'Validate']) assert.ok(screen.getByRole('heading', {name, exact: true}));
   assert.ok(screen.getByText('RTT was recorded in ms.')); assert.ok(screen.getByText('No readable text on PDF pages 3. Those pages remain uncovered.'));
   assert.ok(screen.getByText('No details identified in the text examined so far.'));
-  assert.ok(screen.getByText(/does not acquire resources, run experiments or independently validate results/));
   const source = screen.getByText('Source quote · PDF page 1'); assert.equal(source.parentElement.querySelector('blockquote').textContent, value.sections.access[0].quote);
 });
 

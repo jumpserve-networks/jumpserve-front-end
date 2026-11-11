@@ -20,7 +20,9 @@
     "verify:paper-uploads": "node scripts/verify-paper-uploads.mjs",
     "verify:research:ideas": "node scripts/verify-research-ideas.mjs",
     "verify:research:autonomy": "node scripts/verify-research-autonomy.mjs",
-    "verify:research:assessments:production": "node scripts/verify-assessment-navigation-production.mjs"
+    "verify:research:assessments:production": "node scripts/verify-assessment-navigation-production.mjs",
+    "eval:paper": "node --import ./scripts/lib/register-typescript.mjs scripts/evaluate-paper-intake.mjs",
+    "verify:paper": "node --import ./scripts/lib/register-typescript.mjs scripts/verify-paper-intake.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "3.1132.0",
@@ -41,6 +43,8 @@
     "unpdf": "2.1.0"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@supabase/mcp-server-supabase": "0.16.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/react": "16.3.3",
     "@types/node": "^20",

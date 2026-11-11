@@ -32,6 +32,14 @@ test('active status comes from the pointer and publication, and structured text 
  assert.deepEqual(JSON.parse(formatPrompt(JSON.stringify(value))),value);assert.equal(formatPrompt('Exact plain text\nnext line'),'Exact plain text\nnext line');
 });
 
+test('recorded paper assessment prompts are distinct from evaluated agent publications',async t=>{
+ const prior=process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL;process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL='https://example.test';t.after(()=>{if(prior===undefined)delete process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL;else process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL=prior;});
+ const value={...prompt(),module_id:'research-paper-intake',recorded:true};
+ assert.equal(promptArea(value.module_id),'Paper assessment');assert.equal(promptStatus(value),'Recorded');
+ assert.equal((await readPrompts('token',undefined,async()=>Response.json({version:'prompt-catalog-v1',prompts:[value]}))).prompts[0].recorded,true);
+ for(const change of [{recorded:'yes'},{active:true},{published_at:'2026-11-01T00:00:00Z'},{module_id:'research-autonomy'}])await assert.rejects(readPrompts('token',undefined,async()=>Response.json({version:'prompt-catalog-v1',prompts:[{...value,...change}]})),/invalid response/);
+});
+
 test('prompt catalog validation rejects malformed versions hashes timestamps and incomplete stored content',async t=>{
  const environment={...process.env};t.after(()=>{for(const key of Object.keys(process.env))if(!(key in environment))delete process.env[key];Object.assign(process.env,environment);});process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL='https://example.test';
  const changes=[{id:0},{module_id:0},{module_id:'unsafe/module'},{version:0},{version:''},{version:'x'.repeat(121)},{content_sha256:0},{content_sha256:'invalid'},{created_at:0},{created_at:'invalid'},{updated_at:0},{updated_at:'invalid'},{published_at:0},{published_at:'invalid'},{active:0},{active:true}];

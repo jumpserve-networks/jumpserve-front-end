@@ -1,7 +1,7 @@
 import { TEST_MODULES } from "@/lib/test-modules";
 
 export const PROMPTS_PATH = "/prompts";
-export type PromptSummary = { id: string; module_id: string; version: string; content_sha256: string; created_at: string; updated_at: string; published_at: string | null; active: boolean };
+export type PromptSummary = { id: string; module_id: string; version: string; content_sha256: string; created_at: string; updated_at: string; published_at: string | null; active: boolean; recorded?: boolean };
 export type PromptDetail = PromptSummary & { system_prompt: string; research_context: string };
 export type PromptCatalog = { version: "prompt-catalog-v1"; prompts: PromptSummary[] };
 
@@ -9,9 +9,10 @@ const names: Record<string, string> = {
   "research-autonomy": "Assessment autonomy",
   "research-claim-design": "Claim design",
   "research-experiment-builder": "Experiment builder",
+  "research-paper-intake": "Paper assessment",
 };
 export const promptArea = (module: string) => names[module] ?? TEST_MODULES.find(item => item.id === module)?.name ?? module;
-export const promptStatus = (prompt: PromptSummary) => prompt.active ? "Active" : prompt.published_at ? "Published" : "Draft";
+export const promptStatus = (prompt: PromptSummary) => prompt.recorded ? "Recorded" : prompt.active ? "Active" : prompt.published_at ? "Published" : "Draft";
 export const promptPath = (id: string) => `${PROMPTS_PATH}/${encodeURIComponent(id)}`;
 export const isPromptId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
@@ -21,7 +22,8 @@ function summary(value: unknown): value is PromptSummary {
   return typeof p.id === "string" && isPromptId(p.id) && typeof p.module_id === "string" && /^[a-z0-9-]{1,120}$/.test(p.module_id) &&
     typeof p.version === "string" && p.version.trim().length > 0 && p.version.length <= 120 && typeof p.content_sha256 === "string" && /^[0-9a-f]{64}$/.test(p.content_sha256) &&
     typeof p.created_at === "string" && Number.isFinite(Date.parse(p.created_at)) && typeof p.updated_at === "string" && Number.isFinite(Date.parse(p.updated_at)) &&
-    (p.published_at === null || typeof p.published_at === "string" && Number.isFinite(Date.parse(p.published_at))) && typeof p.active === "boolean" && (!p.active || p.published_at !== null);
+    (p.published_at === null || typeof p.published_at === "string" && Number.isFinite(Date.parse(p.published_at))) && typeof p.active === "boolean" && (!p.active || p.published_at !== null) &&
+    (p.recorded === undefined || typeof p.recorded === "boolean") && (!p.recorded || p.module_id === "research-paper-intake" && !p.active && p.published_at === null);
 }
 const invalid = (): never => { throw new Error("The prompt service returned an invalid response."); };
 

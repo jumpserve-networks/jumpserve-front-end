@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {paperModelRequest,validatePaperExtraction,extractionBreakdown,PAPER_INTAKE_MODEL} from '../lib/paper-intake-model.ts';
+import {paperModelRequest,validatePaperExtraction,extractionBreakdown,PAPER_INTAKE_MODEL,serializePaperText,sha256} from '../lib/paper-intake-model.ts';
 import {refreshPaperIntake,cancelPaperIntake} from '../lib/paper-intake-runner.ts';
 import {validatePaperBreakdown} from '../lib/research-paper-breakdown.ts';
 import {validatePaperIntake} from '../lib/paper-intake.ts';
@@ -26,6 +26,11 @@ test('one pass allows 32 details on one readable page without inventing chunk co
 });
 test('completed response saves verified breakdown and original response without new inference',async()=>{
  const ops=operations();const result=await refreshPaperIntake(row(),ops);assert.equal(result.status,'ready');assert.deepEqual(ops.calls.map(c=>c[0]),['retrieve','finish']);assert.equal(result.response.id,'resp_original');assert.equal(result.breakdown.sections.data[0].page,1);assert.equal(result.title,'An Explicit Test Paper');
+});
+test('Postgres JSONB property order cannot change the text artifact identity',()=>{
+ const decoded={pages:paper.pages.map(p=>({text:p.text,page:p.page})),totalPages:paper.totalPages};
+ assert.notEqual(JSON.stringify(decoded),JSON.stringify(paper));assert.equal(serializePaperText(decoded),serializePaperText(paper));
+ assert.equal(extractionBreakdown(extraction(),decoded,row().source_id,row().text_artifact_id).text_sha256,sha256(serializePaperText(paper)));
 });
 test('queued status only retrieves the same response and terminal records are inert',async()=>{
  const ops=operations({...response(),status:'in_progress'});assert.equal((await refreshPaperIntake(row(),ops)).status,'processing');for(const status of ['ready','failed','uncertain','cancelled'])await refreshPaperIntake({...row(),status},ops);assert.deepEqual(ops.calls,[['retrieve','resp_original']]);

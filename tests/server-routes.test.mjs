@@ -270,6 +270,7 @@ test('prompt pages require a verified user and server session before displaying 
   assert.equal(document.querySelector('script'), null); assert.equal(document.querySelectorAll('pre')[0].textContent, '<script>source is data</script>'); assert.equal(document.querySelectorAll('pre')[1].textContent, '{\n  "zero": 0,\n  "missing": null\n}'); assert.equal(document.querySelectorAll('time').length, 2);
   assert.equal(state.queries.at(-1).options.headers.Authorization, 'Bearer synthetic-server-session'); assert.equal(state.queries.at(-1).options.cache, 'no-store');
   state.prompt = {...state.prompt, active: false, published_at: null}; document = await renderPage('prompt', props({versionId: ID})); assert.match(document.body.textContent, /Draft/); assert.match(document.body.textContent, /Not published/);
+  state.prompt = {...state.prompt,module_id:'research-paper-intake',recorded:true};document=await renderPage('prompt',props({versionId:ID}));assert.match(document.body.textContent,/Paper assessment/);assert.match(document.body.textContent,/Recorded/);assert.match(document.body.textContent,/Instructions/);assert.match(document.body.textContent,/Input template and model settings/);assert.doesNotMatch(document.body.textContent,/Not published/);
   state.authPaths.length = 0; state.queries.length = 0; await assertNotFound(() => pages.prompt.default(props({versionId: 'invalid'}))); assert.deepEqual(state.authPaths, []); assert.deepEqual(state.queries, []);
 });
 

@@ -54,7 +54,7 @@ function PaperAssessmentView({ assessmentId, ownerId, children, allowResume }: {
         <p role="status" className="text-sm font-medium">{view.stage === "ready" ? "Paper breakdown ready" : view.stage === "cancelled" ? "Paper preparation cancelled" : view.stage === "uncertain" ? "Submission needs reconciliation" : view.status === "failed" ? "Paper needs attention" : "Preparing paper breakdown…"}</p>
         {view.authors?.length ? <p className="text-sm">{view.authors.join(", ")}</p> : null}
         {view.domain ? <p className="text-sm text-muted-foreground">{view.domain}</p> : null}
-        {view.reason ? <p className="text-sm text-muted-foreground">{view.reason}</p> : null}
+        {view.reason && view.reason !== "OpenAI is preparing the four paper sections." ? <p className="text-sm text-muted-foreground">{view.reason}</p> : null}
         <p className="text-xs text-muted-foreground">Updated {new Date(view.updated_at).toLocaleString()}</p>
         <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" disabled={busy} onClick={() => setRevision(r => r + 1)}>Check status</Button>
           {view.owner && view.stage === "uploaded" ? <Button size="sm" disabled={busy} onClick={() => void action("prepare")}>Prepare breakdown</Button> : null}
