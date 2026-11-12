@@ -18,7 +18,7 @@ test('CLI failures do not expose API credentials or provider key fragments',()=>
 });
 
 test('every hand-authored evaluation reference is grounded and covers its declared software checks',()=>{
- for(const item of PAPER_CASES){const graded=gradePaperCase(item,referenceResponse(item.reference));assert.equal(graded.passed,true,item.id);assert.ok(graded.checks.length>=3);}
+ for(const item of PAPER_CASES){const graded=gradePaperCase(item,referenceResponse(item.reference,item.reference_format));assert.equal(graded.passed,true,item.id);assert.ok(graded.checks.length>=3);}
  const injection=gradePaperCase(PAPER_CASES[2],referenceResponse(PAPER_CASES[2].reference));assert.deepEqual(injection.breakdown.missing_text_pages,[3]);
 });
 test('semantic regressions cannot pass merely because their quotes exist in the paper',()=>{

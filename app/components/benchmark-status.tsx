@@ -156,7 +156,7 @@ function LogViewer({ jobId }: { jobId: string }) {
         {expanded ? "Hide logs" : "Show logs"}
       </Button>
       {expanded && (
-        <div className="mt-1 max-h-60 overflow-y-auto rounded-md bg-slate-900 p-3 font-mono text-xs text-green-400">
+        <div className="mt-1 max-h-60 overflow-y-auto bg-slate-900 p-3 font-mono text-xs text-green-400">
           {logs.length === 0 ? (
             <span className="text-muted-foreground">
               Waiting for logs...

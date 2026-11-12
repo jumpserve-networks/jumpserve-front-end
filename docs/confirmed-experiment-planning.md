@@ -3,6 +3,23 @@ assessment owner can confirm those sections. Before confirmation, descriptions
 can be corrected and details excluded. Source quotes, PDF pages and the original
 phase-one extraction remain unchanged. Editing clears the review checkbox.
 
+The owner flow shows four wizard steps starting at
+`/research-verification/new-assessment`: Paper Upload, Initial Assessment,
+Experiment Steps, and Run Experiments. Upload remains batch-capable; each
+retained paper links to its own Initial Assessment screen at
+`/research-verification/new-assessment/<id>?step=breakdown`. The upload route
+cannot open later stages without a selected assessment. A preparing paper stays
+on step two. Confirmation advances to step three; a verified ready plan enables
+step four. Run Experiments is currently a placeholder with a disabled execution
+button, without queue polling or launch actions. Back navigation keeps the saved confirmation.
+The `step` query parameter preserves the selected screen through refresh,
+browser history and Google sign-in. Direct links cannot bypass confirmation or
+plan readiness. Historical `step=queue` wizard URLs open the execution placeholder.
+The Paper Upload step links back to the upload route without changing the
+original paper, confirmation or implementation plan.
+The shared `/research-verification/assessment/<id>` page retains its combined
+view and existing public queue access.
+
 The explicit “Confirm phase one and create experiment steps” action atomically
 records the phase-one revision, reviewed snapshot, owner, timestamp, exact request,
 prompt version and model reservation. Phase two groups related Experiment details

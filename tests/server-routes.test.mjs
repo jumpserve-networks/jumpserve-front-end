@@ -34,6 +34,7 @@ const replacements = {
   '@/app/components/research-workflow/assessments': boundary('Assessments'),
   '@/app/components/research-workflow/assessment-detail': boundary('AssessmentDetail'),
   '@/app/components/research-workflow/paper-assessment': "export function PaperAssessment({children}){return children;}",
+  '@/app/components/research-workflow/paper-assessment-steps': boundary('PaperAssessmentSteps'),
   '@/app/components/research-workflow/paper-review': boundary('PaperReviewPanel'),
   '@/app/components/research-workflow/claim-designer': boundary('ClaimDesigner'),
   '@/app/components/research-workflow/design-claim': boundary('DesignClaim'),
@@ -206,6 +207,17 @@ test('public assessment detail validates every queue identity and gates gap work
   for (const [id, query] of [['invalid', {}], [ID, {job: 'invalid'}], [ID, {gap: ['invalid']}], [ID, {run: 'invalid'}], [ID, {run: OTHER}]]) {
     state.authPaths.length = 0; await assertNotFound(() => pages.assessment.default(props({assessmentId: id}, query))); assert.deepEqual(state.authPaths, []);
   }
+});
+
+test('paper review enables the wizard and preserves a validated step through sign-in', async () => {
+  const page = await pages.review.default(props({assessmentId:ID},{step:'implementation'}));
+  assert.equal(page.props.wizard,true);assert.deepEqual(state.authPaths,[BASE+'/new-assessment/'+ID+'?step=implementation']);
+  for(const [requested,canonical]of [['execution','execution'],['queue','execution'],['upload','upload']]){state.authPaths=[];await pages.review.default(props({assessmentId:ID},{step:requested}));assert.deepEqual(state.authPaths,[BASE+'/new-assessment/'+ID+'?step='+canonical]);}
+  for(const step of [['queue'],'https://example.test','unknown']){state.authPaths=[];await pages.review.default(props({assessmentId:ID},{step}));assert.deepEqual(state.authPaths,[BASE+'/new-assessment/'+ID]);}
+});
+test('the upload route starts the four-step wizard before an assessment identity exists',async()=>{
+ await renderPage('newPaper',props({}, {step:'execution'}));
+ assert.deepEqual(capture('PaperAssessmentSteps'),{current:'upload'});assert.equal(capture('PaperIntake').wizard,true);
 });
 
 test('paper review and experiment design validate frozen identities before requesting authorization', async () => {

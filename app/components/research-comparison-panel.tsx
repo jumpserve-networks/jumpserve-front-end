@@ -58,7 +58,7 @@ export function ResearchComparisonPanel({ points, selectedClients }: { points: A
                 <CollapsibleContent className="mt-2 space-y-2 text-xs">
                   <p>Representative recorded settings; CCAs vary between the two cohorts.</p>
                   {(["bbr", "cubic"] as const).map(cca => <p key={cca}>{cca.toUpperCase()}: {block[cca].map(r => <Link key={r.parentRunId} className="mr-2 text-primary underline" href={`${EMULATED_MODULE_PATH}/parent-run/${r.parentRunId}`}>#{r.parentRunId}</Link>)}</p>)}
-                  <pre className="max-h-64 overflow-auto rounded bg-muted p-2 whitespace-pre-wrap break-all">{JSON.stringify(block.configuration, null, 2)}</pre>
+                  <pre className="max-h-64 overflow-auto bg-muted p-2 whitespace-pre-wrap break-all">{JSON.stringify(block.configuration, null, 2)}</pre>
                 </CollapsibleContent>
               </Collapsible>
             </TableCell>

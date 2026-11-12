@@ -1,7 +1,8 @@
 import type { Response } from "openai/resources/responses/responses";
 import { extractionBreakdown, validatePaperExtraction, type PaperText } from "./paper-intake-model";
 import { paperIntakePending, type PaperIntakeStage } from "./paper-intake";
-import { PAPER_SOURCE_FORMAT, resolvePaperSources } from "./paper-source-references";
+import { PAPER_SOURCE_FORMAT, PAPER_SOURCE_FORMAT_V3, PAPER_SOURCE_FORMAT_V4, PAPER_SOURCE_FORMAT_V5, resolvePaperSources } from "./paper-source-references";
+import { assertPaperIntakeQuality } from "./paper-intake-quality";
 
 export type IntakeRecord = {
   study_id: string; owner_id: string; filename: string; sha256: string; byte_count: number;
@@ -10,6 +11,7 @@ export type IntakeRecord = {
   request: unknown; paper_text: PaperText | null; created_at: string; updated_at: string; deadline_at: string;
   title: string | null; domain: string | null; authors: string[]; breakdown: unknown; reason: string | null;
   admitted?: boolean;
+  revision?: number; review_revision?: number;
 };
 
 export function readPaperExtraction(response: Response, paper: PaperText) {
@@ -17,7 +19,11 @@ export function readPaperExtraction(response: Response, paper: PaperText) {
   if (response.output.some(item => item.type === "message" && item.content.some(part => part.type === "refusal"))) throw new Error("The model declined to prepare this breakdown.");
   const output = response.output.filter(item => item.type === "message").flatMap(item => item.content).filter(part => part.type === "output_text").map(part => part.text).join("");
   const parsed = JSON.parse(output);
-  return validatePaperExtraction(response.text?.format?.type === "json_schema" && response.text.format.name === PAPER_SOURCE_FORMAT ? resolvePaperSources(parsed, paper) : parsed, paper);
+  const format = response.text?.format?.type === "json_schema" ? response.text.format.name : null;
+  const referenced = format === PAPER_SOURCE_FORMAT || format === PAPER_SOURCE_FORMAT_V3 || format === PAPER_SOURCE_FORMAT_V4 || format === PAPER_SOURCE_FORMAT_V5;
+  const extraction = validatePaperExtraction(referenced ? resolvePaperSources(parsed, paper, format !== PAPER_SOURCE_FORMAT, format === PAPER_SOURCE_FORMAT_V5) : parsed, paper);
+  if (format === PAPER_SOURCE_FORMAT_V4 || format === PAPER_SOURCE_FORMAT_V5) assertPaperIntakeQuality(extraction, paper);
+  return extraction;
 }
 export type IntakeOperations = {
   save: (operation: string, row: IntakeRecord, payload: Record<string, unknown>) => Promise<IntakeRecord>;

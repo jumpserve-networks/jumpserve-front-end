@@ -5,6 +5,16 @@ No browser session or Google token is needed for these developer commands. The
 website's Google and owner checks remain in place; these commands do not create
 a user session or expose another HTTP authentication path.
 
+Preparation starts only after the database admits the exact retained request.
+An `uploaded` intake has not started a model call. Owner status responses include
+`paper_intake_stage` and `paper_intake_reason`; polling preserves a local failure
+and its retry action when a reserved upload or an older coarse status says only
+`preparing`. A recorded running or ready result can reconcile a lost response
+without submitting another call. After a model compatibility update, use
+**Prepare breakdown** on the retained paper or retry the original upload identity;
+there is no need to create a replacement assessment. Apply the model admission
+migration before running a frontend that selects the newer phase-one model.
+
 ## Fast checks and CI
 
 ```sh
@@ -12,9 +22,11 @@ npm run eval:paper
 npm test
 ```
 
-The default evaluation checks three hand-authored, source-grounded references:
+The default evaluation checks four hand-authored, source-grounded references:
 complete methods, sparse/missing information, and embedded instructions plus a
-missing-text page. It makes zero model/database calls. CI runs this command
+missing-text page, plus a synthetic case that separates three hypotheses from a
+derived table percentage, retains collection/setup/uncertainty requirements and
+checks implementation choices against their actual supporting passages. It makes zero model/database calls. CI runs this command
 without API credentials. These are exposed software fixtures, not independent
 scientific evaluations or proof of general model accuracy.
 
@@ -40,6 +52,12 @@ their original schemas and raw responses. See
 [`paper-source-citations-v2.md`](paper-source-citations-v2.md) for the protocol and
 the rejected prompt-only comparison.
 
+Step one is pinned to `gpt-5.4-2026-03-05` with low reasoning; phase-two planning
+keeps its independent mini profile. To compare the previous pinned mini model
+without changing the app, use `--model gpt-5.4-mini-2026-03-17` in a new live run.
+Only these two pinned profiles are accepted, and the selected model is part of
+the frozen request identity. A comparison never activates a model automatically.
+
 The report includes per-case checks, original requests and responses, token usage,
 model identity, request/input hashes, source revision, first observed terminal
 time and comparisons with a baseline. Exact quotes and PDF pages are checked
@@ -63,7 +81,7 @@ Different inputs or instructions cannot reuse that name. Choose a new run name
 for an intentional independent trial. An uncertain submission is never repeated
 automatically. Concurrent processes cannot admit calls for the same run. A
 three-minute polling limit retains a pending response for later retrieval.
-`--max-calls` defaults to 3 and caps new requests; estimates are recorded as
+`--max-calls` defaults to the current corpus size (4) and caps new requests; estimates are recorded as
 reservations, while actual charges remain unknown. There are no automatic model
 fallbacks or inference retries. Ctrl-C stops the CLI; persisted request identities
 must be inspected/resumed rather than replaced blindly.
@@ -83,6 +101,31 @@ assessment records. This supports repeated prompt experiments on the same paper,
 including one whose original preparation failed. PDF evaluations check structure
 and source grounding; they have no expected-answer oracle for scientific quality.
 `--pdf` without `--live` checks extraction and input bounds without a model call.
+
+For a substantive review regression on one paper, add a private expectation file:
+
+```sh
+npm run eval:paper -- --live --run paper-quality-01 \
+  --from-assessment ASSESSMENT_UUID --expectations private-expectations.json \
+  --max-calls 1
+npm run eval:paper -- --replay paper-quality-01
+```
+
+Expectations are bounded JSON data, not executable graders. They can specify
+provenance, coherent experiment count, distinct claim labels/acceptance rules,
+explicit attribution of reported results, and details whose narrative must match
+specified alternatives and whose citations must contain selected source phrases
+or PDF pages. `scripts/lib/paper-intake-quality-case.mjs` is a public synthetic
+example. Store actual papers and their expectation files under ignored private
+`.test-artifacts`, never in the public corpus. Expectations join the named run's
+frozen input identity; changing them requires a new run. Replays cannot replace
+the original expectations. Select checks for scientific substance, not one exact
+wording or an arbitrary grouping of otherwise valid implementation choices.
+
+These checks expose specified regressions; neither a passing schema nor these
+lexical checks establish complete entailment, independent scientific validity or
+exhaustive coverage. A paper without custom expectations retains only its
+structural/source-grounding evaluation.
 
 ## Verify the persisted assessment pipeline
 

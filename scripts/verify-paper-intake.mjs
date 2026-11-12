@@ -6,7 +6,7 @@ import OpenAI from 'openai';
 import {createClient} from '@supabase/supabase-js';
 import {preparePaperIntake} from '../lib/paper-intake-service.ts';
 import {refreshPaperIntake,cancelPaperIntake,readPaperExtraction} from '../lib/paper-intake-runner.ts';
-import {PAPER_INTAKE_MODEL,sha256,extractionBreakdown,serializePaperText} from '../lib/paper-intake-model.ts';
+import {PAPER_INTAKE_MODEL,PAPER_INTAKE_SUPPORTED_MODELS,sha256,extractionBreakdown,serializePaperText} from '../lib/paper-intake-model.ts';
 import {validatePaperBreakdown} from '../lib/research-paper-breakdown.ts';
 import {connectPaperMCP} from './lib/paper-intake-mcp.mjs';
 import {privateDirectory,privateJSON,lockRun} from './lib/paper-evaluation-store.mjs';
@@ -52,7 +52,7 @@ try{
  if(after.intake.model_calls){
   checks.original_artifact_hash=after.artifacts.find(a=>a.id===row.original_artifact_id)?.sha256===original.identity.sha256;
   checks.retained_text_hash=after.artifacts.find(a=>a.id===row.text_artifact_id)?.sha256===sha256(serializePaperText(after.intake.paper_text));
-  checks.request_retained=after.intake.request?.model===PAPER_INTAKE_MODEL&&typeof after.intake.request.input==='string';
+  checks.request_retained=PAPER_INTAKE_SUPPORTED_MODELS.includes(after.intake.request?.model)&&after.intake.model_id===after.intake.request.model&&typeof after.intake.request.input==='string';
   checks.response_retained=!row.provider_response_id||after.intake.response?.id===row.provider_response_id;
  }
  if(row.status==='ready'){

@@ -77,7 +77,11 @@ try {
     await page.waitForURL(url => url.pathname === detail);
     const jobPath = detail + '?job=' + job + '#job-' + job;
     await page.goto(origin + jobPath, { waitUntil: 'domcontentloaded' });
-    if (queue.jobs.length) { const focused = page.locator('#job-' + job); await focused.waitFor(); assert.ok((await focused.getAttribute('class')).includes('ring-primary')); }
+    if (queue.jobs.length) {
+      const focused = page.locator('#job-' + job); await focused.waitFor();
+      assert.equal(await focused.getAttribute('data-selected'), 'true');
+      assert.notEqual(await focused.evaluate(node => getComputedStyle(node).backgroundColor), 'rgba(0, 0, 0, 0)');
+    }
     else await page.getByText('The requested job was not returned for this paper. Its status is unknown.', { exact: true }).waitFor();
     const empty = await fetch(origin + base + '/experiment-queue', { redirect: 'manual' }); assert.equal(empty.status, 308);
     const destination = new URL(empty.headers.get('location'), origin); assert.equal(destination.pathname, list); assert.equal(destination.searchParams.get('mine'), '1');
@@ -99,6 +103,11 @@ try {
       await page.getByRole('button', { name: theme, exact: true }).click();
       await page.waitForFunction(dark => document.documentElement.classList.contains('dark') === dark, theme === 'Dark Mode');
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      const framed = await page.locator('.content-panel').evaluateAll(nodes => nodes.filter(node => {
+        const style = getComputedStyle(node);
+        return [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth, style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomRightRadius, style.borderBottomLeftRadius].some(value => parseFloat(value) > 0);
+      }).length);
+      assert.equal(framed, 0, 'Content containers stay square and borderless');
       if (width === 390) {
         await page.getByRole('button', { name: 'Open module menu', exact: true }).click();
         assert.equal(await page.getByRole('dialog').getByRole('link', { name: 'Experiment Queue', exact: true }).count(), 0); await page.keyboard.press('Escape');

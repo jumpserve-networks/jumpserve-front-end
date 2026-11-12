@@ -61,7 +61,7 @@ function BenchmarkLogs({ jobId, terminal }: { jobId: string; terminal: boolean }
       <CardContent className="space-y-3">
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <pre tabIndex={0} aria-label="Benchmark log output" aria-busy={loading}
-          className="max-h-96 overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-5 whitespace-pre-wrap break-all text-slate-200 focus-visible:outline-2 focus-visible:outline-ring">
+          className="max-h-96 overflow-auto bg-slate-950 p-4 text-xs leading-5 whitespace-pre-wrap break-all text-slate-200 focus-visible:outline-2 focus-visible:outline-ring">
           {logs.length > 0
             ? logs.map((entry) => entry.message).join("\n")
             : loading ? "Loading logs…" : terminal ? "No log entries are available for this run." : "Waiting for the instance to send its first logs…"}
@@ -179,7 +179,7 @@ export function BenchmarkRunStatus({ initialJob, canManage = false }: { initialJ
             ))}
           </ol>
 
-          <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+          <p className="bg-muted p-3 text-sm text-muted-foreground">
             Automatic EC2 termination is configured; termination status is not tracked here.
           </p>
 

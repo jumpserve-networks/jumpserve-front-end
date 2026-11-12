@@ -26,7 +26,7 @@ export function ThemeSelector({ variant = "select" }: { variant?: "select" | "ic
   );
   if (variant === "icons") {
     return (
-      <div role="group" aria-label="Color theme" className="flex shrink-0 items-center rounded-md border border-border p-0.5">
+      <div role="group" aria-label="Color theme" className="flex shrink-0 items-center p-0.5">
         {THEME_OPTIONS.map(({ value, label, Icon }) => (
           <Button
             key={value}
