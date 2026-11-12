@@ -31,7 +31,7 @@ test('a reserved paper waits for preparation without displaying running model pr
 test('a ready wizard passes preparation without mounting a recorded queue',async()=>{
  await show();assert.ok(screen.getByText('Wizard planning screen'));assert.equal(globalThis.__paperWizard.planning.wizard,true);assert.ok(globalThis.__paperWizard.planning.preparation);assert.equal(globalThis.__paperWizard.planning.queue,undefined);assert.equal(screen.queryByRole('region',{name:'Paper preparation status'}),null);assert.equal(screen.queryByRole('heading',{name:'Experiment Queue'}),null);
 });
-test('the public assessment page retains its combined view and queue section',async()=>{
+test('the non-wizard preparation view retains its combined planning and queue summary',async()=>{
  await show(false);assert.ok(screen.getByText('Combined planning view'));assert.equal(globalThis.__paperWizard.planning.wizard,undefined);assert.ok(screen.getByRole('heading',{name:'Experiment Queue'}));assert.equal(screen.queryByRole('navigation',{name:'Assessment steps'}),null);
 });
 test('loading a new reviewed version clears the old review form consent',async()=>{

@@ -33,7 +33,7 @@ const replacements = {
   ...Object.fromEntries([['delay','StudyDashboard'],['leo','LeoDashboard'],['http2','Http2Dashboard'],['ipv6','IPv6Dashboard'],['reliable','ReliableDashboard']].map(([kind,name])=>['@/app/components/'+kind+'-study/dashboard',boundary(name)])),
   '@/app/components/research-workflow/assessments': boundary('Assessments'),
   '@/app/components/research-workflow/assessment-detail': boundary('AssessmentDetail'),
-  '@/app/components/research-workflow/paper-assessment': "export function PaperAssessment({children}){return children;}",
+  '@/app/components/research-workflow/paper-assessment': "export function PaperAssessment(props){globalThis.__routeState.captures.push({name:'PaperAssessment',props});return props.children;}",
   '@/app/components/research-workflow/paper-assessment-steps': boundary('PaperAssessmentSteps'),
   '@/app/components/research-workflow/paper-review': boundary('PaperReviewPanel'),
   '@/app/components/research-workflow/claim-designer': boundary('ClaimDesigner'),
@@ -203,6 +203,7 @@ test('assessment list passes safe cursor and trimmed name with table as the defa
 
 test('public assessment detail validates every queue identity and gates gap work before rendering', async () => {
   await renderPage('assessment', props({assessmentId: ID}, {job: OTHER})); assert.deepEqual(capture('AssessmentDetail'), {assessmentId: ID, jobId: OTHER, gapId: undefined, launchId: undefined}); assert.deepEqual(state.authPaths, []);
+  assert.equal(state.captures.some(item=>item.name==='PaperAssessment'),false,'Shared queue rendering must not depend on private intake status');
   await renderPage('assessment', props({assessmentId: ID}, {gap: OTHER, run: ID})); assert.deepEqual(state.authPaths, [BASE + '/assessment/' + ID + '?gap=' + OTHER + '&run=' + ID]);
   for (const [id, query] of [['invalid', {}], [ID, {job: 'invalid'}], [ID, {gap: ['invalid']}], [ID, {run: 'invalid'}], [ID, {run: OTHER}]]) {
     state.authPaths.length = 0; await assertNotFound(() => pages.assessment.default(props({assessmentId: id}, query))); assert.deepEqual(state.authPaths, []);
