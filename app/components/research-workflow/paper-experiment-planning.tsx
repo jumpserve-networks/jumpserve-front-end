@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/app/components/ui/button";
-import { Checkbox } from "@/app/components/ui/checkbox";
 import { requireAccessToken } from "@/lib/browser-auth";
 import { RESEARCH_SIGN_IN_REQUIRED } from "@/lib/research-workflow-api";
 import { EXPERIMENT_PLAN_PATH, planPending, planningSources, reviewedSections, validateExperimentPlanView, type ExperimentPlanView, type ReviewedSections } from "@/lib/paper-experiment-plan";
@@ -30,10 +29,10 @@ export function PaperExperimentPlanning({ wizard = false, ...props }: PlanningPr
 function PaperPlanningView({ assessmentId, ownerId, breakdown, wizard, preparation }: PlanningProps & { wizard?: PaperWizardNavigation }) {
   const [view, setView] = useState<ExperimentPlanView | null>(null);
   const [review, setReview] = useState<ReviewedSections>(() => reviewedSections(breakdown));
-  const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
+  const invalidReview = Object.values(review).flat().some(item => !item.description.trim());
   const stepPanel = useRef<HTMLElement>(null);
   useEffect(() => {
     let active = true, timer: ReturnType<typeof setTimeout>;
@@ -54,7 +53,7 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, wizard, preparati
     return () => { active = false; controller.abort(); clearTimeout(timer); };
   }, [assessmentId, ownerId, revision]);
   async function action(action: "confirm" | "cancel") {
-    if (!view || action === "confirm" && (!confirmed || view.stage !== "awaiting_confirmation")) return;
+    if (!view || busy || action === "confirm" && (invalidReview || view.stage !== "awaiting_confirmation")) return;
     setBusy(true); setError("");
     try {
       const payload = action === "confirm" ? { action, study_id: assessmentId, intake_revision: view.intake_revision, sections: review } : { action, study_id: assessmentId };
@@ -65,7 +64,6 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, wizard, preparati
     finally { setBusy(false); }
   }
   function edit(section: PaperBreakdownSection, id: string, description: string | null) {
-    setConfirmed(false);
     setReview(previous => ({ ...previous, [section]: description === null ? previous[section].filter(item => item.id !== id) : previous[section].some(item => item.id === id) ? previous[section].map(item => item.id === id ? { id, description } : item) : [...previous[section], { id, description }] }));
   }
   const awaiting = view?.stage === "awaiting_confirmation";
@@ -79,9 +77,8 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, wizard, preparati
   const feedback = error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null;
   const confirmation = <div className="space-y-4">
         <p className="text-sm">Review Access, Experiment, Data and Validate above. Correct descriptions or exclude details before confirming. Source quotes and PDF pages stay with the original evidence.</p>
-        <label className="flex items-start gap-2 text-sm"><Checkbox className="mt-0.5" checked={confirmed} disabled={busy} onCheckedChange={checked => setConfirmed(checked === true)} />I have reviewed all four sections and confirm this information for experiment planning.</label>
-        <p className="text-sm text-muted-foreground">Confirmation saves this version and generates implementation steps. Experiments start in a later phase.</p>
-        <Button disabled={busy || !confirmed || Object.values(review).flat().some(item => !item.description.trim())} onClick={() => void action("confirm")}>{busy ? "Saving confirmation…" : wizard ? "Confirm and continue" : "Confirm phase one and create experiment steps"}</Button>
+        <p className="text-sm text-muted-foreground">Confirmation saves this version and generates implementation steps.</p>
+        <Button disabled={busy || invalidReview} onClick={() => void action("confirm")}>{busy ? "Saving confirmation…" : wizard ? "Confirm and continue" : "Confirm phase one and create experiment steps"}</Button>
       </div>;
   const breakdownPanel = <PaperBreakdownPanel version={PAPER_BREAKDOWN_VERSION} value={saved} preparing={false} busy={busy} review={awaiting ? review : undefined} onReviewChange={awaiting ? edit : undefined} />;
   const implementationPanel = <section aria-labelledby="experiment-planning-title" className="content-panel space-y-4 rounded-lg border p-4">
@@ -100,7 +97,7 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, wizard, preparati
             {step.validation_ref ? <div className="space-y-1"><p className="font-medium">Validation check: {sources.find(s => s.ref === step.validation_ref)?.label ?? step.validation_ref}</p><PaperClaimCriterion criterion={sources.find(s => s.ref === step.validation_ref)!.criterion!} /></div> : null}
             {step.source_refs.length ? <details><summary className="cursor-pointer text-xs text-muted-foreground">Confirmed supporting details</summary><ul className="mt-2 space-y-2">{step.source_refs.map(ref => { const source = sources.find(s => s.ref === ref)!; return <li key={ref}><p>{source.description}</p>{(source.citations ?? [{ quote: source.quote, page: source.page }]).map((citation, i) => <div key={i}><p className="text-xs text-muted-foreground">PDF page {citation.page}</p><blockquote className="mt-1 whitespace-pre-wrap border-l-2 pl-3">{citation.quote}</blockquote></div>)}</li>; })}</ul></details> : null}
           </li>)}</ol>
-          {experiment.open_questions.length ? <div className="space-y-2 text-sm"><h4 className="font-medium">Missing information and open questions</h4><ul className="list-disc space-y-1 pl-5">{experiment.open_questions.map((question, i) => <li key={i}>{question}</li>)}</ul></div> : null}
+          {experiment.open_questions.length ? <div className="space-y-2 text-sm"><h4 className="font-medium">Decisions to resolve before execution</h4><ul className="list-disc space-y-1 pl-5">{experiment.open_questions.map((question, i) => <li key={i}>{question}</li>)}</ul></div> : null}
         </section>)}
       </>}
       <Button size="sm" variant="outline" disabled={busy} onClick={() => setRevision(value => value + 1)}>Check planning status</Button>

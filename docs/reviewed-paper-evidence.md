@@ -108,3 +108,15 @@ incomplete responses and revised expectation versions remain in private named
 runs. This is development qualification, not a held-out scientific evaluation.
 The schema, source-term guards and lexical expectations cover specified failure
 modes; they do not prove arbitrary descriptions are fully supported or exhaustive.
+
+The next Step 2 prompt candidate extends attribution to diagnostic requirements
+in Validate. A reported anomaly remains a reported concern to audit; a new
+experiment investigates anomalies it actually observes, without being required
+to reproduce a reported baseline merely to explain it. Explicit numerical claim
+targets and unresolved acceptance criteria remain intact. Offline checks cover
+the existing extraction contract. The pre-release live development evaluation
+retained exact source quotes and all three claim criteria, and its baseline-audit
+description correctly conditioned the new experiment's diagnosis on a gap being
+observed. The exposed case still failed title, receiver-evidence and trial-state
+choice expectations. These are retained prompt-quality limitations, not a clean
+scientific qualification or evidence that arbitrary papers are fully covered.
