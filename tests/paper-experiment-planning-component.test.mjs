@@ -6,18 +6,22 @@ import React from 'react';
 import {act,cleanup,fireEvent,render,screen} from '@testing-library/react';
 import {breakdownFixture,planFixture} from './support/experiment-plan-fixture.mjs';
 globalThis.__planComponent={};
-const hook=registerHooks({resolve(specifier,context,next){if(specifier==='@/lib/browser-auth')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('export const requireAccessToken=(...args)=>globalThis.__planComponent.token(...args);')};if(specifier==='@/lib/research-workflow-api')return{shortCircuit:true,url:'data:text/javascript,export const RESEARCH_SIGN_IN_REQUIRED="Sign in";'};return next(specifier,context);}});
+globalThis.__planReact=React;
+const navigation=`const subscribe=callback=>{globalThis.__planComponent.listeners.add(callback);return()=>globalThis.__planComponent.listeners.delete(callback);};export const usePathname=()=>'/research-verification/new-assessment/11111111-1111-4111-8111-111111111111';export const useRouter=()=>({push:(...args)=>globalThis.__planComponent.push(...args)});export function useSearchParams(){const query=globalThis.__planReact.useSyncExternalStore(subscribe,()=>globalThis.__planComponent.search);return new URLSearchParams(query);}`;
+const hook=registerHooks({resolve(specifier,context,next){if(specifier==='next/link')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('export default function Link({prefetch,...props}){return globalThis.__planReact.createElement("a",props);}')};if(specifier==='next/navigation')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent(navigation)};if(specifier==='@/lib/browser-auth')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('export const requireAccessToken=(...args)=>globalThis.__planComponent.token(...args);')};if(specifier==='@/lib/research-workflow-api')return{shortCircuit:true,url:'data:text/javascript,export const RESEARCH_SIGN_IN_REQUIRED="Sign in";'};return next(specifier,context);}});
 const {PaperExperimentPlanning}=await import('../app/components/research-workflow/paper-experiment-planning.tsx');hook.deregister();
 const id='11111111-1111-4111-8111-111111111111';
 let calls,view,post,originalFetch;
 beforeEach(()=>{
  calls=[];originalFetch=globalThis.fetch;globalThis.__planComponent.token=async(_message,owner)=>{assert.equal(owner,'owner');return 'verified-owner';};
+ globalThis.__planComponent.search='';globalThis.__planComponent.listeners=new Set();globalThis.__planComponent.pushes=[];
+ globalThis.__planComponent.push=(url,options)=>{globalThis.__planComponent.pushes.push({url,options});globalThis.__planComponent.search=new URL(url,'https://example.test').search.slice(1);for(const callback of globalThis.__planComponent.listeners)callback();};
  view={version:'paper-experiment-plan-v1',study_id:id,stage:'awaiting_confirmation',intake_revision:4,confirmed_at:null,confirmed_breakdown:null,plan:null,reason:null};
  post=async body=>{const b=breakdownFixture();for(const section of Object.keys(b.sections))b.sections[section]=body.sections[section].map(item=>({...b.sections[section].find(s=>s.id===item.id),description:item.description}));return view={...view,stage:'processing',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:b};};
  globalThis.fetch=async(url,options)=>{assert.match(url,/api\/experiment-plan\?id=/);assert.equal(options.headers.Authorization,'Bearer verified-owner');calls.push({url,options});return Response.json(options.method==='POST'?await post(JSON.parse(options.body)):view);};
 });
 afterEach(()=>{cleanup();globalThis.fetch=originalFetch;});
-async function show(){await act(async()=>{render(React.createElement(PaperExperimentPlanning,{assessmentId:id,ownerId:'owner',breakdown:breakdownFixture()}));});}
+async function show(options={}){await act(async()=>{render(React.createElement(PaperExperimentPlanning,{assessmentId:id,ownerId:'owner',breakdown:breakdownFixture(),...options}));});}
 async function click(name){await act(async()=>{fireEvent.click(screen.getByRole('button',{name}));});}
 async function check(name){await act(async()=>{fireEvent.click(screen.getByRole('checkbox',{name}));});}
 const confirmLabel='I have reviewed all four sections and confirm this information for experiment planning.';
@@ -41,4 +45,28 @@ test('processing polls only the original plan, then stops polling when ready',as
 });
 test('failed status reads leave confirmation disabled and can be checked again',async()=>{
  globalThis.fetch=async()=>Response.json({error:'Database update required'},{status:424});await show();assert.ok(screen.getByText('Database update required'));assert.equal(screen.queryByRole('button',{name:/Confirm phase one/}),null);
+});
+const wizard=()=>show({wizard:true});
+test('wizard shows only the breakdown before confirmation and guards direct future-step URLs',async()=>{
+ globalThis.__planComponent.search='step=execution&from=retained';await wizard();
+ assert.ok(screen.getByRole('heading',{name:'Paper breakdown'}));assert.equal(screen.queryByRole('heading',{name:'Experiment Steps'}),null);assert.equal(screen.queryByText('Experiment execution is coming soon.'),null);
+ assert.equal(screen.getByRole('button',{name:'Step 2: Initial Assessment'}).getAttribute('aria-current'),'step');assert.equal(screen.getByRole('button',{name:'Step 3: Experiment Steps'}).disabled,true);assert.equal(screen.getByRole('button',{name:'Step 4: Run Experiments'}).disabled,true);assert.equal(screen.getByRole('button',{name:'Confirm and continue'}).disabled,true);
+ fireEvent.change(screen.getByRole('textbox',{name:'Data detail 1 description'}),{target:{value:'Reviewed measurement'}});
+ await act(async()=>{globalThis.__planComponent.push('?step=implementation');});assert.equal(screen.getByRole('textbox',{name:'Data detail 1 description'}).value,'Reviewed measurement');assert.equal(calls.filter(c=>c.options.method==='POST').length,0);
+});
+test('confirmation advances to implementation; back navigation retains the confirmed snapshot without another submission',async()=>{
+ globalThis.__planComponent.search='from=retained';await wizard();fireEvent.change(screen.getByRole('textbox',{name:'Data detail 1 description'}),{target:{value:'Confirmed edited measurement'}});await check(confirmLabel);await click('Confirm and continue');
+ assert.ok(screen.getByRole('heading',{name:'Experiment Steps'}));assert.equal(screen.queryByRole('heading',{name:'Paper breakdown'}),null);assert.equal(screen.queryByText('Experiment execution is coming soon.'),null);assert.equal(screen.getByRole('button',{name:'Next: Run Experiments'}).disabled,true);
+ assert.match(globalThis.__planComponent.pushes.at(-1).url,/from=retained&step=implementation/);assert.deepEqual(globalThis.__planComponent.pushes.at(-1).options,{scroll:false});assert.equal(document.activeElement,screen.getByRole('region',{name:'Experiment Steps step'}));
+ await click('Back to Initial Assessment');assert.ok(screen.getByText('Confirmed edited measurement'));assert.equal(screen.queryByRole('textbox'),null);assert.equal(screen.queryByRole('button',{name:'Confirm and continue'}),null);await click('Next: Experiment Steps');assert.equal(calls.filter(c=>c.options.method==='POST').length,1);
+});
+test('ready wizard resumes implementation and visits the execution placeholder without any launch or queue request',async()=>{
+ view={...view,stage:'ready',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture(),plan:planFixture()};await wizard();assert.ok(screen.getByRole('heading',{name:'Experiment Steps'}));assert.equal(screen.queryByRole('heading',{name:'Paper breakdown'}),null);await click('Next: Run Experiments');assert.ok(screen.getByText('Experiment execution is coming soon.'));assert.equal(screen.queryByRole('heading',{name:'Experiment Steps'}),null);assert.equal(screen.queryByRole('heading',{name:'Paper breakdown'}),null);assert.equal(screen.getByRole('button',{name:'Step 4: Run Experiments'}).getAttribute('aria-current'),'step');assert.equal(screen.getByRole('button',{name:'Run experiments',exact:true}).disabled,true);await click('Back to Experiment Steps');await click('Step 2: Initial Assessment');assert.ok(screen.getByRole('heading',{name:'Paper breakdown'}));assert.equal(calls.filter(c=>c.options.method==='POST').length,0);
+});
+test('retired queue URLs open the placeholder and survive reload and browser back selects a prior step without new writes',async()=>{
+ view={...view,stage:'ready',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture(),plan:planFixture()};globalThis.__planComponent.search='step=queue';await wizard();assert.ok(screen.getByText('Experiment execution is coming soon.'));await act(async()=>{globalThis.__planComponent.search='step=breakdown';for(const callback of globalThis.__planComponent.listeners)callback();});assert.ok(screen.getByRole('heading',{name:'Paper breakdown'}));assert.equal(screen.queryByText('Experiment execution is coming soon.'),null);assert.equal(calls.length,1);
+});
+test('failed and uncertain planning stay on implementation and cannot advance to the execution placeholder',async()=>{
+ for(const stage of ['failed','uncertain','cancelled']){view={...view,stage,confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture()};globalThis.__planComponent.search='step=queue';await wizard();assert.ok(screen.getByRole('heading',{name:'Experiment Steps'}));assert.equal(screen.getByRole('button',{name:'Next: Run Experiments'}).disabled,true);assert.equal(screen.getByRole('button',{name:'Step 4: Run Experiments'}).disabled,true);cleanup();}
+ assert.equal(calls.filter(c=>c.options.method==='POST').length,0);
 });

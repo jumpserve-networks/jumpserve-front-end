@@ -1036,7 +1036,7 @@ function ExplorerModeSegmentedControl({
         const option = EXPLORER_MODES.find((item) => item.id === values[0]);
         if (option) onSelectedModeChange(option.id);
       }}
-      className="inline-flex flex-wrap gap-2 rounded-lg border border-border bg-card p-1"
+      className="inline-flex flex-wrap gap-2 bg-card p-1"
 
       aria-label="Explorer mode"
     >
@@ -1298,7 +1298,7 @@ function SelectedTestGroupsBubble({
       className="content-panel relative mb-3 rounded-lg border border-border bg-card px-3 py-2 dark:border-primary/40 dark:bg-background "
       aria-label="Selected test groups"
     >
-      <div className="absolute left-8 top-full h-3 w-3 -translate-y-1/2 rotate-45 border-b border-r border-border bg-card dark:border-primary/40 dark:bg-background" />
+      <div className="absolute left-8 top-full h-3 w-3 -translate-y-1/2 rotate-45 bg-card dark:bg-background" />
       <div className="relative flex flex-wrap items-center gap-2">
         <span className="text-xs font-semibold tracking-normal text-primary">
           Viewing
@@ -1822,7 +1822,7 @@ function FacetCellChart({ points }: { points: FlowPoint[] }) {
       </div>
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="h-36 w-full rounded-lg bg-card text-muted-foreground dark:bg-background"
+        className="h-36 w-full bg-card text-muted-foreground dark:bg-background"
         role="img"
         aria-label="Facet scatter of flow completion time versus added delay"
       >
@@ -1921,7 +1921,7 @@ export function ScatterPlot({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-lg bg-card text-muted-foreground"
+      className="h-[52vh] min-h-[380px] w-full overflow-visible bg-card text-muted-foreground"
       role="img"
       aria-label="Run-level scatter plot of added delay versus flow completion time"
       onMouseLeave={() => setHoveredPoint(null)}
@@ -2353,7 +2353,7 @@ export function ParentRunConnectionChart({
     <div className="space-y-4">
       <svg
         viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-        className={`h-[48vh] min-h-[340px] w-full select-none overflow-visible rounded-lg bg-card text-muted-foreground ${
+        className={`h-[48vh] min-h-[340px] w-full select-none overflow-visible bg-card text-muted-foreground ${
           isZoomed ? (panState ? "cursor-grabbing" : "cursor-grab") : ""
         }`}
         style={{ userSelect: "none" }}
@@ -2678,7 +2678,7 @@ export function OtherClientDelayFlowChart({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[48vh] min-h-[340px] w-full overflow-visible rounded-lg bg-card text-muted-foreground"
+      className="h-[48vh] min-h-[340px] w-full overflow-visible bg-card text-muted-foreground"
       role="img"
       aria-label="Scatter plot of flow completion time versus the other client's added delay"
       onMouseLeave={() => setHoveredPoint(null)}
@@ -2932,7 +2932,7 @@ export function RawBoxPlot({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-lg bg-card text-muted-foreground"
+      className="h-[52vh] min-h-[380px] w-full overflow-visible bg-card text-muted-foreground"
       role="img"
       aria-label="Box plot of flow completion time grouped by added delay"
       onMouseLeave={() => setHoveredStat(null)}
@@ -3186,7 +3186,7 @@ export function EcdfChart({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[52vh] min-h-[380px] w-full overflow-visible rounded-lg bg-card text-muted-foreground"
+      className="h-[52vh] min-h-[380px] w-full overflow-visible bg-card text-muted-foreground"
       role="img"
       aria-label="Empirical cumulative distribution of flow completion time"
       onMouseLeave={() => setHoveredPoint(null)}
@@ -3419,7 +3419,7 @@ export function PercentileHeatmap({
   return (
     <svg
       viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-      className="h-[48vh] min-h-[340px] w-full overflow-visible rounded-lg bg-card text-muted-foreground"
+      className="h-[48vh] min-h-[340px] w-full overflow-visible bg-card text-muted-foreground"
       role="img"
       aria-label="Heatmap of percentile flow completion time by delay and client"
     >

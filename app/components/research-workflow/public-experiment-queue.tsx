@@ -38,7 +38,7 @@ export function PublicExperimentQueue({ studyId, jobId, data, error }: { studyId
         {jobId && !jobs.some(j => j.id === jobId) ? <p role="status" className="text-sm">The requested job was not returned for this paper. Its status is unknown.</p> : null}
         {!visible.length ? <p role="status" className="content-panel rounded-lg border p-4 text-sm">{jobs.length ? "No jobs match this filter." : "No experiment jobs recorded yet."}</p> : <>
           <p className="text-xs text-muted-foreground">Showing {Math.min(limit, visible.length)} of {visible.length} matching jobs.</p>
-          {visible.slice(0, limit).map(job => <article key={job.id} id={`job-${job.id}`} className={`content-panel scroll-mt-24 space-y-3 rounded-lg border p-4 text-sm ${job.id === jobId ? "border-primary ring-1 ring-primary" : ""}`}>
+          {visible.slice(0, limit).map(job => <article key={job.id} id={`job-${job.id}`} data-selected={job.id === jobId} className={`content-panel scroll-mt-24 space-y-3 rounded-lg border p-4 text-sm ${job.id === jobId ? "bg-accent/40" : ""}`}>
             <div className="flex flex-wrap items-start justify-between gap-3"><h3 className="break-all font-semibold">Experiment {job.id}</h3><Badge variant={job.status === "failed" || job.status === "expired" ? "destructive" : "secondary"} className="h-auto py-1">{job.status === "manual" ? "Needs operator" : words(job.status)}</Badge></div>
             <p>{job.execution_mode === "manual" ? "Requires an operator; queueing does not execute an experiment." : "Automatic experiment"}</p>
             <p>Recorded run status: {job.run_status === null ? "unavailable" : words(job.run_status)}. Run completion does not establish claim validity.</p>

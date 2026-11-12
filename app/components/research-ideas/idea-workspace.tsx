@@ -71,7 +71,7 @@ function ModelAttempt({ run, packet }: { run: IdeaRun; packet?: IdeaPacket }) {
       {run.output.findings.map((finding, index) => <p key={index}><strong>{finding.severity} · {finding.field}:</strong> {finding.message}</p>)}</> : null}
     <IdeaReviewSources run={run} packet={packet} />
     <p className="text-xs text-muted-foreground">AI · {run.model_id}. {run.task === "planning" ? "Bounded planning conversation." : "Fresh packet-only context; shared model and sources, independent scientific review not asserted."}</p>
-    <details><summary className="cursor-pointer text-xs">Prompt, context and usage provenance</summary><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md bg-muted p-3 text-xs">{JSON.stringify({ prompt_version_id: run.prompt_version_id, packet_id: run.packet_id, provenance: run.provenance, usage: run.usage }, null, 2)}</pre></details>
+    <details><summary className="cursor-pointer text-xs">Prompt, context and usage provenance</summary><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all bg-muted p-3 text-xs">{JSON.stringify({ prompt_version_id: run.prompt_version_id, packet_id: run.packet_id, provenance: run.provenance, usage: run.usage }, null, 2)}</pre></details>
   </article>;
 }
 

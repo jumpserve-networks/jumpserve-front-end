@@ -52,6 +52,16 @@ export async function connectPaperMCP(projectRef,traceDirectory){
    if(!uuid(id)||!uuid(owner))throw new Error('Valid paper and owner identities are required.');
    const result=await rows(`select to_jsonb(i) as intake from public.research_paper_intakes i where study_id=${sql(id)}::uuid and owner_id=${sql(owner)}::uuid`);return result[0]?.intake??null;
   },
+  async reviewState(id,owner){
+   if(!uuid(id)||!uuid(owner))throw new Error('Valid paper and owner identities required.');
+   const result=await rows(`select s.deleted_at is not null as deleted,exists(select 1 from public.research_experiment_plans where study_id=s.id) as confirmed,coalesce(r.revision,i.revision) as revision,r.id as review_id from public.research_studies s join public.research_paper_intakes i on i.study_id=s.id left join lateral(select id,revision from public.research_paper_breakdown_reviews where study_id=s.id order by revision desc limit 1) r on true where s.id=${sql(id)}::uuid and i.owner_id=${sql(owner)}::uuid`);
+   if(result.length!==1)throw new Error('Private assessment not found.');return result[0];
+  },
+  async review(row,payload){
+   if(!uuid(row.study_id)||!uuid(row.owner_id)||!uuid(payload.review_id))throw new Error('Valid review and owner identities required.');
+   const result=await rows(`select public.research_review_paper_breakdown(${sql(row.owner_id)}::uuid,${sql(row.study_id)}::uuid,${sql(JSON.stringify(payload))}::jsonb) as review`,false);
+   if(result.length!==1||result[0].review?.study_id!==row.study_id||result[0].review?.id!==payload.review_id)throw new Error('Saved correction identity mismatch.');return result[0].review;
+  },
   async save(operation,row,payload){
    if(!['reserve','begin','submitted','uncertain','failed','finish','cancel'].includes(operation)||!uuid(row.study_id)||!uuid(row.owner_id))throw new Error('Unsupported paper-intake operation or owner identity.');
    const result=await rows(`select public.research_paper_intake(${sql(operation)},${sql(row.owner_id)}::uuid,${sql(row.study_id)}::uuid,${sql(JSON.stringify(payload))}::jsonb) as intake`,false);

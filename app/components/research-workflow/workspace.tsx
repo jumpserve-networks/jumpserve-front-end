@@ -43,7 +43,7 @@ function templates(snapshot: ResearchSnapshot): Record<string, Record<string, un
   };
 }
 
-export function PaperIntake() {
+export function PaperIntake({ wizard = false }: { wizard?: boolean } = {}) {
   const uploads = usePaperUploads();
   const [error, setError] = useState("");
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -65,7 +65,7 @@ export function PaperIntake() {
     {uploads.error || uploads.persistenceError ? <p role="alert" className="text-sm text-destructive">{uploads.error || uploads.persistenceError} <Button variant="outline" size="sm" onClick={() => void uploads.refresh()}>Retry status</Button></p> : null}
     {uploads.uploads.length ? <section aria-label="Your paper uploads" className="space-y-3"><h2 className="text-lg font-semibold">Your paper uploads</h2>{uploads.uploads.map(upload => <article key={upload.id} className="content-panel space-y-2 rounded-lg border p-4 text-sm">
       <h3 className="break-words font-medium">{upload.title}</h3><p role={upload.phase === "failed" ? "alert" : "status"}>{upload.phase === "queued" || upload.phase === "uploading" ? upload.message : upload.phase === "preparing" ? "Preparing paper information…" : upload.phase === "ready" ? "Ready to review" : upload.phase === "confirmed" ? "Assessment started" : upload.message || "Paper preparation needs attention."}</p>
-      {upload.retryable ? <Button size="sm" variant="outline" onClick={() => uploads.retry(upload.id)}>Retry upload</Button> : ["preparing", "ready", "failed"].includes(upload.phase) ? <Link className="underline" href={`${NEW_ASSESSMENT_PATH}/${upload.id}`}>{upload.phase === "ready" ? "Review paper" : "View paper preparation"}</Link> : null}
+      {upload.retryable ? <Button size="sm" variant="outline" onClick={() => uploads.retry(upload.id)}>Retry upload</Button> : ["uploaded", "preparing", "ready", "failed"].includes(upload.phase) ? <Link className="underline" href={`${NEW_ASSESSMENT_PATH}/${upload.id}${wizard ? "?step=breakdown" : ""}`}>{wizard ? "Continue to Initial Assessment" : upload.phase === "ready" ? "Review paper" : "View paper preparation"}</Link> : null}
     </article>)}</section> : null}
   </div>;
 }

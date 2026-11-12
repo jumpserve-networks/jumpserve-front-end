@@ -96,6 +96,38 @@ test('preparation status never invents readiness; ready notices stay through con
   assert.ok(!saved.includes('Paper One')); assert.ok(saved.includes(first));
 });
 
+test('polling cannot erase a rejected preparation or its retry, including older coarse status listings',async t=>{
+ for(const stage of [undefined,'uploaded']){
+  let rejected=true;
+  const f=fixture(t,{prepare:async()=>{if(rejected)throw Error('Paper preparation could not start. No model request was sent.');}});
+  f.manager.enqueue([pdf('retained.pdf')]);await until(()=>f.manager.getSnapshot().uploads[0]?.retryable);
+  const original=f.manager.getSnapshot().uploads[0];
+  f.studies.set(original.id,{id:original.id,title:'Reserved original paper',paper_review_status:'preparing',...(stage?{paper_intake_stage:stage}:{})});
+  await f.manager.refresh();
+  const failed=f.manager.getSnapshot().uploads[0];assert.equal(failed.phase,'failed');assert.equal(failed.message,original.message);assert.equal(failed.retryable,true);assert.deepEqual(f.manager.getSnapshot().activity,[]);
+  assert.equal(f.calls.filter(c=>c.body?.action==='prepare').length,1);
+  rejected=false;f.manager.retry(original.id);await until(()=>f.calls.filter(c=>c.body?.action==='prepare').length===2&&f.manager.getSnapshot().uploads[0].phase==='preparing');
+  assert.equal(f.manager.getSnapshot().uploads.length,1);assert.equal(f.manager.getSnapshot().uploads[0].id,original.id);
+ }
+});
+test('a verified ready result clears a local preparation error without another submission',async t=>{
+ const f=fixture(t,{prepare:async()=>{throw Error('Lost prepare response');}});f.manager.enqueue([pdf('retained.pdf')]);await until(()=>f.manager.getSnapshot().uploads[0]?.retryable);
+ const {id}=f.manager.getSnapshot().uploads[0];f.studies.set(id,{id,title:'Ready original',paper_review_status:'ready',paper_intake_stage:'ready'});await f.manager.refresh();
+ const item=f.manager.getSnapshot().uploads[0];assert.equal(item.phase,'ready');assert.equal(item.message,'');assert.equal(item.retryable,false);assert.equal(f.calls.filter(c=>c.body?.action==='prepare').length,1);
+});
+test('a recorded in-progress call reconciles a lost preparation response without submitting again',async t=>{
+ const f=fixture(t,{prepare:async()=>{throw Error('Lost prepare response');}});f.manager.enqueue([pdf('retained.pdf')]);await until(()=>f.manager.getSnapshot().uploads[0]?.retryable);
+ const {id}=f.manager.getSnapshot().uploads[0];f.studies.set(id,{id,title:'Processing original',paper_review_status:'preparing',paper_intake_stage:'processing'});await f.manager.refresh();
+ const item=f.manager.getSnapshot().uploads[0];assert.equal(item.phase,'preparing');assert.equal(item.message,'');assert.equal(item.retryable,false);assert.equal(f.manager.getSnapshot().activity[0].phase,'preparing');assert.equal(f.calls.filter(c=>c.body?.action==='prepare').length,1);
+});
+test('a reserved upload never claims that model preparation is running and failure reasons survive refresh',async t=>{
+ const f=fixture(t);f.manager.enqueue([pdf('original.pdf')]);await until(()=>f.manager.getSnapshot().uploads[0]?.phase==='preparing');
+ const {id}=f.manager.getSnapshot().uploads[0];Object.assign(f.studies.get(id),{paper_intake_stage:'uploaded'});await f.manager.refresh();
+ assert.equal(f.manager.getSnapshot().uploads[0].phase,'uploaded');assert.match(f.manager.getSnapshot().uploads[0].message,/has not started/);assert.deepEqual(f.manager.getSnapshot().activity,[]);
+ Object.assign(f.studies.get(id),{paper_review_status:'failed',paper_intake_stage:'failed',paper_intake_reason:'The recorded model response failed verification.'});await f.manager.refresh();await f.manager.refresh();
+ assert.equal(f.manager.getSnapshot().uploads[0].message,'The recorded model response failed verification.');assert.equal(f.manager.getSnapshot().uploads[0].retryable,false);
+});
+
 test('server state restores notices after reload, including preparation completed while the browser was closed', async t => {
   const local = storage(), studies = [{ id: first, title: 'Paper One', paper_review_status: 'ready' }, { id: second, title: 'Paper Two', paper_review_status: 'ready' }];
   const f = fixture(t, { storage: local, list: () => ({ access: 'owner-drafts', studies }) });

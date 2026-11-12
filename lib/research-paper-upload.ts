@@ -3,7 +3,7 @@ const PAPER_UPLOAD_VERSION = "research-paper-upload-v2";
 export const PAPER_REVIEW_VERSION = "research-paper-review-v1";
 export type PaperUploadTicket = { version: typeof PAPER_UPLOAD_VERSION; id: string; status: "pending"; bucket: "research-paper-uploads"; path: string; token: string; sha256: string; byte_count: number; maximum_bytes: number };
 type Request = <T = unknown>(path: string, options?: RequestInit) => Promise<T>;
-type Intake = { id: string; review_version: string; status: string };
+type Intake = { id: string; review_version: string; status: string; stage?: string; reason?: string | null };
 
 export async function paperUploadMetadata(file: File) {
   if (!file || typeof file.arrayBuffer !== "function" || !file.name.toLowerCase().endsWith(".pdf") || file.name.length > 200 || /[\/\\\x00-\x1f\x7f]/.test(file.name)) throw new Error("Choose a PDF file with a filename of at most 200 characters.");

@@ -23,11 +23,11 @@ export function Assessments({ before, mine = false, name = "", view = "table" }:
   return <main className="mx-auto max-w-6xl space-y-6 px-4 py-6" data-testid="assessments">
     <ResearchHeader title="Assessments" showModuleLabel={false} />
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <nav aria-label="Assessment filter" className="flex w-fit max-w-full rounded-lg border bg-muted/40 p-1">
+      <nav aria-label="Assessment filter" className="flex w-fit max-w-full bg-muted/40 p-1">
         <Button size="sm" variant={mine ? "ghost" : "secondary"} nativeButton={false} render={<Link href={assessmentListPath({ name, view })} aria-current={!mine ? "page" : undefined} />}>All Assessments</Button>
         <Button size="sm" variant={mine ? "secondary" : "ghost"} nativeButton={false} render={<Link href={assessmentListPath({ mine: true, name, view })} aria-current={mine ? "page" : undefined} />}>My Assessments</Button>
       </nav>
-      <nav aria-label="Assessment view" className="flex w-fit rounded-lg border bg-muted/40 p-1">
+      <nav aria-label="Assessment view" className="flex w-fit bg-muted/40 p-1">
         {(["card", "table"] as const).map(option => <Button key={option} size="sm" variant={view === option ? "secondary" : "ghost"} nativeButton={false} render={<Link href={assessmentListPath({ mine, before, name, view: option })} scroll={false} aria-current={view === option ? "page" : undefined} />}>{option === "card" ? "Card" : "Table"}</Button>)}
       </nav>
     </div>

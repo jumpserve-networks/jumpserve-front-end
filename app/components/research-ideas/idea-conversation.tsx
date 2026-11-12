@@ -40,7 +40,7 @@ export function IdeaConversation({ state, active }: { state: IdeaState; active: 
         const asked = typeof ownerMessage === "string" && ownerMessage.startsWith("Question for the guide: ") ? ownerMessage.slice("Question for the guide: ".length) : null;
         return <div key={run.id} className="space-y-3">
           {asked ? <article className="content-panel ml-6 rounded-lg border bg-primary/5 p-3 text-sm"><p className="text-xs font-medium text-muted-foreground">You · discussion</p><p className="whitespace-pre-wrap break-words">{asked}</p></article> : null}
-          <article className="mr-3 space-y-1 rounded-lg bg-muted p-3 text-sm">
+          <article className="mr-3 space-y-1 bg-muted p-3 text-sm">
             <p className="text-xs font-medium text-muted-foreground">AI guide · version {state.packets.find(p => p.id === run.packet_id)?.version ?? "unavailable"} · {run.status}{run.packet_id !== state.current_packet_id ? " · earlier plan" : ""}</p>
             <p className="whitespace-pre-wrap break-words">{run.output?.summary ?? run.reason ?? "Waiting for a recorded response."}</p>
             {run.status === "complete" ? run.output?.questions.map((question, index) => <p key={index} className="whitespace-pre-wrap break-words font-medium">{question}</p>) : null}

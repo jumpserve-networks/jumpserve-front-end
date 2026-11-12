@@ -92,6 +92,11 @@ test('paper intake retains an enqueue error and a non-Error failure without rese
   globalThis.__workspaceUploads.enqueue = () => {throw Error('Original queue unavailable');}; fireEvent.submit(form); assert.ok(screen.getByText('Original queue unavailable'));
   globalThis.__workspaceUploads.enqueue = () => {throw null;}; fireEvent.submit(form); assert.ok(screen.getByText('The operation could not complete. Your input is retained.'));
 });
+test('wizard uploads link each retained paper to its own initial assessment screen',()=>{
+ Object.assign(globalThis.__workspaceUploads,{uploads:[{id:uid(31),title:'First paper',phase:'preparing'},{id:uid(32),title:'Second paper',phase:'ready'}]});
+ render(React.createElement(PaperIntake,{wizard:true}));
+ assert.deepEqual(screen.getAllByRole('link',{name:'Continue to Initial Assessment'}).map(a=>a.getAttribute('href')),['/research-verification/new-assessment/'+uid(31)+'?step=breakdown','/research-verification/new-assessment/'+uid(32)+'?step=breakdown']);
+});
 
 test('owner studies filters paper and idea pathways and resolves author fallbacks without mixing routes', async () => {
   studies = [snapshot.study, {...snapshot.study, id: uid(20), title: 'Explicit paper authors', authors: ['Recorded Author']}, {...snapshot.study, id: uid(21), title: 'Ready paper', paper_review_status: 'ready'}, {...snapshot.study, id: uid(22), study_kind: 'idea', title: 'Private idea'}];

@@ -61,7 +61,7 @@ export function PaperUploadsProvider({ children }: { children: ReactNode }) {
         return <article key={`${notice.id}:${notice.kind}`} data-paper-notice={notice.id} className="content-panel space-y-3 rounded-xl border border-primary/40 bg-card p-4 text-card-foreground shadow-lg">
           <div className="flex items-start justify-between gap-3"><h2 className="text-sm font-semibold">{notice.kind === "ready" ? "Paper ready for review" : "Paper needs attention"}</h2><Button variant="ghost" size="icon-sm" className="shrink-0 text-foreground" aria-label={`Dismiss notification for ${notice.title}`} onClick={() => manager.dismiss(notice.id, notice.kind)}><X aria-hidden="true" /></Button></div>
           <p className="break-words text-sm font-medium">{notice.title}</p>
-          {notice.kind !== "ready" ? <p className="text-sm text-muted-foreground">{upload?.retryable ? upload.message : "An earlier upload or preparation attempt failed. Open the paper details for its current status."}</p> : null}
+          {notice.kind !== "ready" ? <p className="text-sm text-muted-foreground">{upload?.message || "An earlier upload or preparation attempt failed. Open the paper details for its current status."}</p> : null}
           {upload?.retryable ? <Button size="sm" variant="outline" onClick={() => manager.retry(upload.id)}>Retry upload</Button> : <Link prefetch={false} href={`${NEW_ASSESSMENT_PATH}/${notice.id}`} onClick={() => { if (notice.kind === "ready") manager.dismiss(notice.id, notice.kind); }} className={buttonVariants({ size: "sm" })}>{notice.kind === "ready" ? "Review paper" : "View paper details"}</Link>}
         </article>;
       })}

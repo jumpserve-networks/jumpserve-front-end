@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {beforeEach,test} from 'node:test';
 import {registerHooks} from 'node:module';
 import {sha256} from '../lib/paper-intake-model.ts';
+import {evidenceBreakdown} from './support/paper-evidence-fixture.mjs';
 
 const hook=registerHooks({resolve(specifier,context,next){
  if(specifier==='server-only')return{shortCircuit:true,url:'data:text/javascript,export {}'};
@@ -45,6 +46,11 @@ test('a rejected prompt-recording transaction stops preparation before the provi
  await assert.rejects(()=>prepareIntake({...state.row}),/exact prompt version could not be recorded/);
  assert.equal(state.calls.some(call=>call[0]==='model'),false);
 });
+test('a rejected model admission explains that inference never started and keeps the uploaded paper',async()=>{
+ state.db.rpc=async()=>({error:{message:'Bounded one-pass request and retained paper text required'}});
+ await assert.rejects(()=>prepareIntake({...state.row}),/app and database preparation settings do not match\. No model request was sent\. Your uploaded PDF is retained/);
+ assert.equal(state.row.status,'uploaded');assert.equal(state.calls.some(call=>call[0]==='model'),false);
+});
 test('missing credentials and mismatched original bytes fail before admitting a model call',async()=>{
  delete process.env.OPENAI_API_KEY;await assert.rejects(()=>prepareIntake({...state.row}),/OPENAI_API_KEY/);assert.equal(state.calls.length,0);process.env.OPENAI_API_KEY='synthetic-server-key';await assert.rejects(()=>prepareIntake({...state.row,sha256:'a'.repeat(64)}),/original upload identity/);assert.equal(state.calls.length,0);
 });
@@ -60,9 +66,10 @@ function availabilityQueries({legacy=false,deleted=false,failure=null}={}){
    state.reads.push({table,filters:structuredClone(filters)});
    const deletion=filters.some(filter=>filter[0]==='is'&&filter[1].endsWith('deleted_at'));
    if(failure&&table==='research_studies')return{data:null,error:failure};
+   if(table==='research_paper_breakdown_reviews')return state.reviewFailure?{data:null,error:state.reviewFailure}:{data:state.review??null,error:legacy?{code:'42P01',message:'table missing'}:null};
    if(legacy&&deletion)return{data:null,error:{code:'42703',message:'column research_studies.deleted_at does not exist'}};
    const study={id:state.row.study_id,title:'Saved title',study_kind:'paper',created_at:state.row.created_at};
-   const data=table==='research_studies'?deleted?[]:[study]:table==='research_study_owners'?[{study_id:state.row.study_id}]:table==='research_paper_reviews'?[]:single?[structuredClone(state.row)]:[];
+   const data=table==='research_studies'?deleted?[]:[study]:table==='research_study_owners'?[{study_id:state.row.study_id}]:table==='research_paper_reviews'?state.listedReviews??[]:single?[structuredClone(state.row)]:state.listedIntakes??[];
    return{data:single?data[0]??null:data,error:null};
   };
   const query={select(){return query;},eq(...args){filters.push(['eq',...args]);return query;},is(...args){filters.push(['is',...args]);return query;},in(...args){filters.push(['in',...args]);return query;},limit(){return query;},order(){return query;},maybeSingle:async()=>result(true),then:(resolve,reject)=>Promise.resolve(result(false)).then(resolve,reject)};
@@ -73,8 +80,17 @@ function availabilityQueries({legacy=false,deleted=false,failure=null}={}){
 test('ready assessments load before the deletion migration and retain the original owner restriction',async()=>{
  availabilityQueries({legacy:true});state.row.status='ready';
  const result=await loadIntake(state.row.study_id,state.row.owner_id);
- assert.equal(result.status,'ready');assert.deepEqual(state.reads.map(read=>read.table),['research_studies','research_studies','research_paper_intakes']);
+ assert.equal(result.status,'ready');assert.deepEqual(state.reads.map(read=>read.table),['research_studies','research_studies','research_paper_intakes','research_paper_breakdown_reviews']);
  assert.ok(state.reads.at(-1).filters.some(filter=>filter[1]==='owner_id'&&filter[2]===state.row.owner_id));assert.equal(state.calls.length,0);
+});
+test('owner views use a verified reviewed overlay while original and public views remain protected',async()=>{
+ availabilityQueries();state.row.status='ready';state.row.revision=4;state.row.breakdown=evidenceBreakdown();
+ const original=structuredClone(state.row),b=structuredClone(original.breakdown);b.review={id:'review',revision:5,reviewed_at:new Date().toISOString(),reason:'Correct provenance.',reviewer_type:'AI'};state.review={revision:5,breakdown:b};
+ const row=await loadIntake(state.row.study_id,state.row.owner_id);assert.equal(row.revision,5);assert.equal(row.breakdown.review.id,'review');assert.deepEqual(state.row,original);
+ assert.equal((await loadIntake(state.row.study_id)).breakdown.review,undefined);
+ const count={select:()=>({eq:async()=>({count:0,error:null})})};const from=state.db.from;state.db.from=t=>t==='research_queue_jobs'?count:from(t);
+ assert.equal((await intakeView(row,state.row.owner_id)).breakdown.review.id,'review');assert.equal((await intakeView(row)).breakdown,null);
+ state.reviewFailure={code:'42501'};await assert.rejects(()=>loadIntake(state.row.study_id,state.row.owner_id),/Reviewed paper evidence.*42501/);
 });
 test('a deleted assessment is never read from the private intake relation',async()=>{
  availabilityQueries({deleted:true});assert.equal(await loadIntake(state.row.study_id),null);
@@ -84,6 +100,15 @@ test('owner notifications also work before the deletion migration without starti
  availabilityQueries({legacy:true});const result=await ownerIntakes(state.row.owner_id);
  assert.equal(result.access,'owner-drafts');assert.deepEqual(result.studies.map(study=>study.id),[state.row.study_id]);
  assert.equal(state.reads.filter(read=>read.table==='research_study_owners').length,2);assert.equal(state.reads.filter(read=>read.table==='research_studies').length,2);assert.equal(state.calls.length,0);
+});
+test('owner notifications distinguish a reserved upload from model processing and retain failure reasons',async()=>{
+ availabilityQueries();state.listedIntakes=[{...state.row}];state.listedReviews=[{study_id:state.row.study_id,status:'preparing',title:null}];
+ let result=await ownerIntakes(state.row.owner_id);
+ assert.equal(result.studies[0].paper_intake_stage,'uploaded');assert.equal(result.studies[0].paper_review_status,'preparing');assert.equal(state.calls.length,0);
+ state.listedIntakes[0]={...state.row,status:'failed',reason:'Retained provider failure'};
+ result=await ownerIntakes(state.row.owner_id);assert.equal(result.studies[0].paper_review_status,'failed');assert.equal(result.studies[0].paper_intake_reason,'Retained provider failure');
+ state.listedIntakes[0]={...state.row,status:'ready'};state.listedReviews[0].status='confirmed';
+ result=await ownerIntakes(state.row.owner_id);assert.equal(result.studies[0].paper_review_status,'confirmed');assert.equal(state.calls.length,0);
 });
 test('an unexpected availability failure reports its code without loading private paper data',async()=>{
  availabilityQueries({failure:{code:'42501',message:'Private database diagnostics'}});

@@ -679,8 +679,8 @@ function MetricChart({
   const hasVisibleSeries = interactiveSeriesForRender.length > 0;
 
   const chartClassName = isExpanded
-    ? "h-[min(58dvh,34rem)] min-h-[16rem] w-full touch-pan-y overflow-visible rounded-lg bg-card text-muted-foreground sm:h-[min(64dvh,38rem)]"
-    : "h-48 w-full touch-pan-y overflow-visible rounded-lg bg-card text-muted-foreground sm:h-56";
+    ? "h-[min(58dvh,34rem)] min-h-[16rem] w-full touch-pan-y overflow-visible bg-card text-muted-foreground sm:h-[min(64dvh,38rem)]"
+    : "h-48 w-full touch-pan-y overflow-visible bg-card text-muted-foreground sm:h-56";
   const axisTickTextClass = isExpanded
     ? "fill-slate-500 text-[16px] font-medium dark:fill-slate-300"
     : "fill-slate-500 text-[11px] dark:fill-slate-400";
@@ -1449,7 +1449,7 @@ function MetricChart({
         <div
           className={
             onExpand
-              ? "mt-3 touch-pan-y rounded-lg"
+              ? "mt-3 touch-pan-y"
               : "mt-3"
           }
         >

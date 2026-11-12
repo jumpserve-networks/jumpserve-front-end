@@ -8,6 +8,7 @@ import { cancelPaperIntake, refreshPaperIntake, type IntakeRecord } from "./pape
 import { isGoogleAuthenticatedUser } from "./auth-provider";
 import { paperIntakeCredentials } from "./paper-intake-credentials";
 import { readWithAssessmentDeletion } from "./assessment-visibility";
+import { validatePaperBreakdown } from "./research-paper-breakdown";
 
 export async function intakeConfigured() { return Boolean(await paperIntakeCredentials()); }
 export async function intakeDatabase() {
@@ -40,10 +41,22 @@ export async function loadIntake(id: string, actor?: string | null) {
   const { data, error } = await query.maybeSingle();
   if (error && ["PGRST205", "42P01"].includes(error.code)) return null;
   if (error) throw new Error(`Paper status could not be loaded: ${error.message}`);
-  return data as IntakeRecord | null;
+  return data && actor ? effectiveIntake(data as IntakeRecord, actor) : data as IntakeRecord | null;
+}
+/** A reviewed overlay never changes the frozen original model call or intake. */
+export async function effectiveIntake(row: IntakeRecord, actor: string) {
+  if (actor !== row.owner_id || row.status !== "ready" || row.review_revision) return row;
+  const { data, error } = await (await intakeDatabase()).from("research_paper_breakdown_reviews").select("revision,breakdown").eq("study_id", row.study_id).eq("owner_id", actor).order("revision", { ascending: false }).limit(1).maybeSingle();
+  if (error && ["PGRST205", "42P01"].includes(error.code)) return row;
+  if (error) throw new Error(`Reviewed paper evidence could not be loaded (database code ${error.code || "unknown"}).`);
+  if (!data) return row;
+  const breakdown = validatePaperBreakdown(data.breakdown);
+  if (!breakdown.review || breakdown.review.revision !== data.revision || !row.revision || data.revision <= row.revision) throw new Error("The reviewed paper revision could not be verified.");
+  return { ...row, breakdown, revision: data.revision, review_revision: data.revision, updated_at: breakdown.review.reviewed_at };
 }
 async function save(operation: string, row: Pick<IntakeRecord, "study_id" | "owner_id">, payload: Record<string, unknown>) {
   const { data, error } = await (await intakeDatabase()).rpc("research_paper_intake", { p_operation: operation, p_actor: row.owner_id, p_study: row.study_id, p_payload: payload });
+  if (operation === "begin" && error?.message === "Bounded one-pass request and retained paper text required") throw new Error("Paper preparation could not start because the app and database preparation settings do not match. No model request was sent. Your uploaded PDF is retained.");
   if (error) throw new Error(`Paper preparation could not be saved: ${error.message}`);
   return data as IntakeRecord & { admitted?: boolean };
 }
@@ -53,6 +66,7 @@ export const cancelIntake = (row: IntakeRecord) => cancelPaperIntake(row, operat
 
 export async function intakeView(row: IntakeRecord, actor?: string | null): Promise<PaperIntakeView> {
   const owner = actor === row.owner_id;
+  if (owner) row = await effectiveIntake(row, actor!);
   const { count, error } = await (await intakeDatabase()).from("research_queue_jobs").select("id", { count: "exact", head: true }).eq("study_id", row.study_id);
   if (error || count === null) throw new Error("The recorded Experiment Queue could not be checked.");
   return { version: PAPER_INTAKE_VERSION, id: row.study_id, status: row.status === "ready" ? "ready" : paperIntakePending(row.status) ? "preparing" : "failed", review_version: "research-paper-review-v1", stage: row.status,
@@ -101,11 +115,17 @@ export async function ownerIntakes(actor: string) {
   if (owned.error) throw new Error("Owned paper list could not be loaded.");
   if (!owned.data.length) return { access: "owner-drafts", studies: [] };
   const ids = owned.data.map(item => item.study_id);
-  const [studies, reviews, intakes] = await Promise.all([readWithAssessmentDeletion(filterDeleted => {
+  const [studies, reviews, intakes, intakeStatuses] = await Promise.all([readWithAssessmentDeletion(filterDeleted => {
     const query = db.from("research_studies").select("id,title,study_kind,created_at").in("id", ids).order("created_at", { ascending: false });
     return filterDeleted ? query.is("deleted_at", null) : query;
-  }), db.from("research_paper_reviews").select("study_id,status,title").in("study_id", ids), db.from("research_paper_intakes").select("*").eq("owner_id", actor).in("status", ["submitting", "processing"]).order("updated_at").limit(3)]);
-  if (studies.error || reviews.error || intakes.error && !["PGRST205", "42P01"].includes(intakes.error.code)) throw new Error("Paper notification status could not be loaded.");
+  }), db.from("research_paper_reviews").select("study_id,status,title").in("study_id", ids), db.from("research_paper_intakes").select("*").eq("owner_id", actor).in("study_id", ids).in("status", ["submitting", "processing"]).order("updated_at").limit(3), db.from("research_paper_intakes").select("study_id,status,title,reason").eq("owner_id", actor).in("study_id", ids).limit(1000)]);
+  if (studies.error || reviews.error || [intakes.error, intakeStatuses.error].some(error => error && !["PGRST205", "42P01"].includes(error.code))) throw new Error("Paper notification status could not be loaded.");
+  const recorded = (intakeStatuses.data ?? []) as Pick<IntakeRecord, "study_id" | "status" | "title" | "reason">[];
   const refreshed = await Promise.all(((intakes.data ?? []) as IntakeRecord[]).map(refreshIntake));
-  return { access: "owner-drafts", studies: studies.data.map(study => { const review = reviews.data.find(r => r.study_id === study.id), current = refreshed.find(r => r.study_id === study.id); return { ...study, title: current?.title ?? review?.title ?? study.title, ...(review ? { paper_review_status: current ? current.status === "ready" ? "ready" : paperIntakePending(current.status) ? "preparing" : "failed" : review.status } : {}) }; }) };
+  return { access: "owner-drafts", studies: studies.data.map(study => {
+    const review = reviews.data.find(r => r.study_id === study.id);
+    const current = refreshed.find(r => r.study_id === study.id) ?? recorded.find(r => r.study_id === study.id);
+    const status = review?.status === "confirmed" ? "confirmed" : current ? current.status === "ready" ? "ready" : paperIntakePending(current.status) ? "preparing" : "failed" : review?.status;
+    return { ...study, title: current?.title ?? review?.title ?? study.title, ...(status ? { paper_review_status: status } : {}), ...(current ? { paper_intake_stage: current.status, paper_intake_reason: current.reason } : {}) };
+  }) };
 }

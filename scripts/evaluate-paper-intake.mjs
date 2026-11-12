@@ -12,21 +12,23 @@ import {PAPER_CASES,CORPUS_VERSION,gradePaperCase,referenceResponse,quoteDiagnos
 import {RUN_NAME,privateDirectory,privateJSON,readJSON,lockRun} from './lib/paper-evaluation-store.mjs';
 import {assessmentEvaluationSource} from './lib/paper-evaluation-source.mjs';
 import {paperCLIError} from './lib/paper-cli-errors.mjs';
+import {validatePaperExpectations} from './lib/paper-intake-quality-checks.mjs';
 
 async function main(){
-const {values}=parseArgs({options:{live:{type:'boolean'},run:{type:'string'},replay:{type:'string'},pdf:{type:'string'},'from-assessment':{type:'string'},prompt:{type:'string'},case:{type:'string'},baseline:{type:'string'},'max-calls':{type:'string',default:'3'},help:{type:'boolean'}}});
-if(values.help){console.log('npm run eval:paper [-- --live --run NAME [--case ID | --pdf FILE | --from-assessment UUID] [--prompt FILE] [--baseline NAME] [--max-calls N]]\nnpm run eval:paper -- --replay NAME\nDefault: offline reference checks; no model or database calls. Named live runs resume saved response IDs. --from-assessment reads its private source without changing assessment state.');process.exit(0);}
+const {values}=parseArgs({options:{live:{type:'boolean'},run:{type:'string'},replay:{type:'string'},pdf:{type:'string'},'from-assessment':{type:'string'},expectations:{type:'string'},model:{type:'string'},prompt:{type:'string'},case:{type:'string'},baseline:{type:'string'},'max-calls':{type:'string',default:String(PAPER_CASES.length)},help:{type:'boolean'}}});
+if(values.help){console.log('npm run eval:paper [-- --live --run NAME [--case ID | --pdf FILE | --from-assessment UUID] [--expectations FILE] [--model PINNED_MODEL] [--prompt FILE] [--baseline NAME] [--max-calls N]]\nnpm run eval:paper -- --replay NAME\nDefault: offline reference checks; no model or database calls. --expectations supplies bounded, paper-specific quality checks for one live paper. Named runs freeze expectations, model and request settings and resume saved response IDs. --from-assessment reads its private source without changing assessment state.');process.exit(0);}
+if(values.model&&(!values.live||!['gpt-5.4-mini-2026-03-17','gpt-5.4-2026-03-05'].includes(values.model)))throw new Error('A model comparison requires --live and one of the pinned GPT-5.4 models.');
 env.loadEnvConfig(process.cwd());
 const root=resolve('.test-artifacts/paper-intake-evaluations');
 function named(name){if(!RUN_NAME.test(name??''))throw new Error('Supply a run name with 1–80 letters, digits, dots, underscores or hyphens.');return join(root,name);}
 function revision(){
  let git;try{git={commit:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim(),dirty:Boolean(execFileSync('git',['status','--porcelain'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim())};}catch{git={commit:null,dirty:null};}
- const files=['lib/paper-intake-model.ts','lib/paper-source-references.ts','lib/paper-intake-runner.ts','lib/paper-intake-pdf.ts','lib/research-paper-breakdown.ts','scripts/lib/paper-intake-cases.mjs','package-lock.json'];
+ const files=['lib/paper-intake-model.ts','lib/paper-source-references.ts','lib/paper-breakdown-evidence.ts','lib/paper-evidence-index.ts','lib/paper-intake-quality.ts','lib/paper-intake-runner.ts','lib/paper-intake-pdf.ts','lib/research-paper-breakdown.ts','scripts/lib/paper-intake-cases.mjs','scripts/lib/paper-intake-quality-case.mjs','scripts/lib/paper-intake-quality-checks.mjs','tests/support/paper-evidence-fixture.mjs','package-lock.json'];
  return {...git,node:process.version,source_hashes:Object.fromEntries(files.map(path=>[path,sha256(readFileSync(path))]))};
 }
 const failures=[];
 if(values.replay){
- if(values.live||values.pdf||values['from-assessment']||values.prompt||values.run||values.case)throw new Error('Replay uses the frozen inputs and responses of its named run.');
+ if(values.live||values.pdf||values['from-assessment']||values.expectations||values.model||values.prompt||values.run||values.case)throw new Error('Replay uses the frozen inputs, expectations and responses of its named run.');
  const directory=named(values.replay),manifest=await readJSON(join(directory,'manifest.json'));if(!manifest)throw new Error('Saved evaluation run not found.');
  const cases=[];
  for(const item of manifest.cases){
@@ -44,18 +46,23 @@ if(values.replay){
  let source=null;
  if(values.pdf){const bytes=new Uint8Array(await readFile(values.pdf));source={sha256:sha256(bytes),byte_count:bytes.length};cases=[{id:'provided-paper',paper:await extractPaperPDF(bytes),expected:null}];}
  if(values['from-assessment']){const saved=await assessmentEvaluationSource(values['from-assessment']);source=saved.source;cases=[{id:'provided-paper',paper:saved.paper,expected:null}];}
+ if(values.expectations){
+  if(!values.live||cases.length!==1||!source)throw new Error('Custom expectations require one live --pdf or --from-assessment input.');
+  const raw=await readFile(values.expectations,'utf8');if(Buffer.byteLength(raw)>64000)throw new Error('Paper expectations exceed 64,000 bytes.');
+  cases=[{...cases[0],expected:validatePaperExpectations(JSON.parse(raw))}];
+ }
  const instructions=values.prompt?await readFile(values.prompt,'utf8'):null;
  if(instructions!==null&&(!instructions.trim()||Buffer.byteLength(instructions)>40000))throw new Error('Candidate instructions must contain 1–40,000 UTF-8 bytes.');
  if(!values.live){
   if(values.run||values.baseline||values.prompt)throw new Error('Named runs and candidate prompts require --live; use --replay for saved outputs.');
-  for(const c of cases){paperModelRequest(c.paper);if(c.reference)gradePaperCase(c,referenceResponse(c.reference));}
+  for(const c of cases){paperModelRequest(c.paper);if(c.reference&&!gradePaperCase(c,referenceResponse(c.reference,c.reference_format)).passed)throw new Error(`The offline reference failed its quality checks: ${c.id}.`);}
   console.log(JSON.stringify({mode:'offline',passed:true,cases:cases.map(c=>c.id),model_calls:0,meaning:source?'PDF extraction and complete-input bounds only; no model output evaluated.':'Hand-authored fixture/schema/grounding checks; no model quality measured.'}));
  }else{
   const directory=named(values.run),maxCalls=Number(values['max-calls']);if(!Number.isSafeInteger(maxCalls)||maxCalls<1||maxCalls>20)throw new Error('max-calls must be an integer from 1 to 20.');
   if(!process.env.OPENAI_API_KEY)throw new Error('Configure server-only OPENAI_API_KEY before a live evaluation.');
   const release=await lockRun(directory);
   try{
-   const requests=cases.map(c=>{const request=paperModelRequest(c.paper);if(instructions!==null)request.instructions=instructions;return {id:c.id,input_sha256:sha256(JSON.stringify(c)),request_sha256:sha256(JSON.stringify(request)),request,testCase:c};});
+   const requests=cases.map(c=>{const request=paperModelRequest(c.paper);if(instructions!==null)request.instructions=instructions;if(values.model)request.model=values.model;return {id:c.id,input_sha256:sha256(JSON.stringify(c)),request_sha256:sha256(JSON.stringify(request)),request,testCase:c};});
    const baseline=values.baseline?await readJSON(join(named(values.baseline),'report.json')):null;
    if(values.baseline&&!baseline)throw new Error('Baseline report not found.');
    const old=await readJSON(join(directory,'manifest.json'));

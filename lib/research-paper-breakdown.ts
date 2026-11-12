@@ -6,8 +6,8 @@ export const PAPER_BREAKDOWN_SECTIONS = [
   { id: "validate", title: "Validate", description: "The authors’ reported checks, baselines, uncertainty and limitations." },
 ] as const;
 export type PaperBreakdownSection = typeof PAPER_BREAKDOWN_SECTIONS[number]["id"];
-export type PaperBreakdownItem = { id: string; description: string; quote: string; page: number };
-export type PaperBreakdown = {
+export type PaperBreakdownItem = { id: string; description: string; quote: string; page: number } & PaperItemEvidence;
+export type PaperBreakdown = PaperDocumentEvidence & {
   version: typeof PAPER_BREAKDOWN_VERSION;
   status: "preparing" | "ready" | "limited";
   source_id: string;
@@ -23,6 +23,8 @@ export type PaperBreakdown = {
   limitation: string;
   reason: string | null;
   last_turn_id?: string;
+  reported_values_origin?: "paper_reported";
+  review?: { id: string; revision: number; reviewed_at: string; reason: string; reviewer_type: "AI" | "human" };
 };
 
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
@@ -42,6 +44,8 @@ export function validatePaperBreakdown(value: unknown): PaperBreakdown {
       !boundedText(value.limitation, 2000) || value.reason !== null && !boundedText(value.reason, 2000) ||
       value.last_turn_id !== undefined && !boundedText(value.last_turn_id, 100) || !record(value.sections) || Object.keys(value.sections).length !== 4 ||
       value.status === "ready" && (value.total_chunks === 0 || value.cursor !== value.total_chunks) || value.status === "limited" && value.reason === null) throw failure();
+  if (!validDocumentEvidence(value, value.total_pages as number, value.missing_text_pages as number[]) || (value.provenance !== undefined || value.reported_values_origin !== undefined) && value.reported_values_origin !== "paper_reported") throw failure();
+  if (value.review !== undefined && (!record(value.review) || !boundedText(value.review.id, 100) || !integer(value.review.revision) || value.review.revision < 1 || typeof value.review.reviewed_at !== "string" || !Number.isFinite(Date.parse(value.review.reviewed_at)) || !boundedText(value.review.reason, 2000) || !["AI", "human"].includes(String(value.review.reviewer_type)))) throw failure();
   const ids = new Set<string>();
   for (const { id } of PAPER_BREAKDOWN_SECTIONS) {
     const entries = value.sections[id];
@@ -49,10 +53,12 @@ export function validatePaperBreakdown(value: unknown): PaperBreakdown {
     for (const entry of entries) {
       if (!record(entry) || !boundedText(entry.id, 100) || ids.has(entry.id) || !boundedText(entry.description, 400) ||
           !boundedText(entry.quote, 800) || !integer(entry.page) || entry.page < 1 || entry.page > value.total_pages ||
-          value.missing_text_pages.includes(entry.page)) throw failure();
+          value.missing_text_pages.includes(entry.page) || !validItemEvidence(entry, value.total_pages as number, value.missing_text_pages as number[])) throw failure();
+      if (entry.kind && (id === "experiment" && entry.kind !== "experiment_specification" || entry.kind === "experiment_specification" && id !== "experiment" || entry.kind === "claim" && id !== "validate" || entry.kind === "reported_result" && id !== "data")) throw failure();
       ids.add(entry.id);
     }
   }
   if (ids.size > 200 || ids.size > (value.extraction_version ? 32 : value.cursor * 8)) throw failure();
   return value as PaperBreakdown;
 }
+import { validDocumentEvidence, validItemEvidence, type PaperDocumentEvidence, type PaperItemEvidence } from "./paper-breakdown-evidence";

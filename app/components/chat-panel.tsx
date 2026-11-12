@@ -215,7 +215,7 @@ function SessionSidebar({
         {sessions.map((s) => (
           <div
             key={s.id}
-            className={`group mb-1 flex items-start gap-1 rounded-lg px-2.5 py-2 text-sm transition ${
+            className={`group mb-1 flex items-start gap-1 px-2.5 py-2 text-sm transition ${
               s.id === activeSessionId
                 ? "bg-accent text-primary"
                 : "text-muted-foreground hover:bg-muted dark:hover:bg-accent"
@@ -496,7 +496,7 @@ export function ChatPanel({
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[85%] rounded-lg px-4 py-3 ${
+                className={`max-w-[85%] px-4 py-3 ${
                   msg.role === "user"
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-foreground dark:bg-card"
@@ -525,7 +525,7 @@ export function ChatPanel({
 
           {isLoading && (
             <div className="flex justify-start">
-              <div className="rounded-lg bg-muted px-4 py-3 dark:bg-card">
+              <div className="bg-muted px-4 py-3 dark:bg-card">
                 <div className="flex items-center gap-1.5">
                   <div className="h-2 w-2 animate-bounce rounded-full bg-slate-400" />
                   <div className="h-2 w-2 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: "0.1s" }} />

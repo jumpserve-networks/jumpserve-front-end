@@ -7,6 +7,7 @@ import { PAPER_BREAKDOWN_SECTIONS, PAPER_BREAKDOWN_VERSION, validatePaperBreakdo
 import type { ReviewedSections } from "@/lib/paper-experiment-plan";
 import { Textarea } from "@/app/components/ui/textarea";
 import { Checkbox } from "@/app/components/ui/checkbox";
+import { PaperClaimCriterion, PaperEvidenceCitations } from "./paper-evidence";
 
 export function PaperBreakdownPanel({ value, version, preparing, busy, onPrepare, review, onReviewChange }: {
   value?: unknown;
@@ -34,7 +35,8 @@ export function PaperBreakdownPanel({ value, version, preparing, busy, onPrepare
       {breakdown && breakdown.status !== "ready" ? <Badge variant="secondary">{breakdown.status === "limited" ? "Partial breakdown" : "Preparing breakdown"}</Badge> : null}
     </div>
     {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : breakdown ? <>
-      <p role="status" className="text-sm">{breakdown.extraction_version ? `One model pass over extracted text from ${breakdown.total_pages} PDF ${breakdown.total_pages === 1 ? "page" : "pages"}.` : `${breakdown.cursor} of ${breakdown.total_chunks} extracted text chunks examined across ${breakdown.total_pages} PDF pages.`}</p>
+      {breakdown.provenance ? <aside aria-label="Document provenance" className="space-y-2 border-l-2 border-warning pl-3 text-sm"><h3 className="font-semibold">Document provenance</h3><p className="font-medium">{({ synthetic: "Synthetic document: reported benchmark results are fabricated.", simulated: "The paper reports simulated results.", reported_empirical: "The paper describes its results as empirical observations.", unspecified: "Document provenance is not explicitly identified." })[breakdown.provenance.classification]}</p>{breakdown.provenance.statement ? <p>{breakdown.provenance.statement}</p> : null}<PaperEvidenceCitations citations={breakdown.provenance.citations} /></aside> : null}
+      <p role="status" className="text-sm">{breakdown.review ? `Reviewed version ${breakdown.review.revision} · ${breakdown.review.reviewer_type} document review. Original extraction retained.` : breakdown.extraction_version ? `One model pass over extracted text from ${breakdown.total_pages} PDF ${breakdown.total_pages === 1 ? "page" : "pages"}.` : `${breakdown.cursor} of ${breakdown.total_chunks} extracted text chunks examined across ${breakdown.total_pages} PDF pages.`}</p>
       {breakdown.reason ? <p className="content-panel rounded-md border p-3 text-sm">{breakdown.reason}</p> : null}
       {breakdown.missing_text_pages.length ? <p className="text-sm text-muted-foreground">No readable text on PDF pages {breakdown.missing_text_pages.join(", ")}. Those pages remain uncovered.</p> : null}
     </> : <div role="status" className="content-panel space-y-3 rounded-lg border p-4 text-sm">
@@ -51,11 +53,15 @@ export function PaperBreakdownPanel({ value, version, preparing, busy, onPrepare
           {entries.length ? <>
             <ul className="divide-y divide-border">
               {entries.slice(0, limit).map((item, index) => <li key={item.id} className="space-y-2 py-3 text-sm first:pt-0 last:pb-0">
+                {item.label ? <h4 className="font-medium">{item.label}</h4> : null}
+                {item.kind === "reported_result" ? <p className="text-xs font-medium text-muted-foreground">Paper-reported result{breakdown?.provenance?.classification === "synthetic" ? " · Fabricated benchmark value" : ""}</p> : null}
                 {review && onReviewChange ? <>
                   <label className="flex items-center gap-2"><Checkbox checked={review[section.id].some(entry => entry.id === item.id)} disabled={busy} onCheckedChange={checked => onReviewChange(section.id, item.id, checked ? item.description : null)} />Include {section.title} detail {index + 1}</label>
                   <Textarea aria-label={`${section.title} detail ${index + 1} description`} value={review[section.id].find(entry => entry.id === item.id)?.description ?? item.description} disabled={busy || !review[section.id].some(entry => entry.id === item.id)} maxLength={400} onChange={event => onReviewChange(section.id, item.id, event.target.value)} />
                 </> : <p className="whitespace-pre-wrap break-words">{item.description}</p>}
-                <details><summary className="cursor-pointer text-xs text-muted-foreground">Source quote · PDF page {item.page}</summary><blockquote className="mt-2 whitespace-pre-wrap break-words border-l-2 pl-3">{item.quote}</blockquote></details>
+                {item.criterion ? <PaperClaimCriterion criterion={item.criterion} /> : null}
+                {item.specification ? <dl className="space-y-2">{Object.entries(item.specification).map(([key, detail]) => <div key={key}><dt className="font-medium capitalize">{key}</dt><dd className="whitespace-pre-wrap">{detail}</dd></div>)}</dl> : null}
+                <PaperEvidenceCitations citations={item.citations ?? [{ quote: item.quote, page: item.page }]} label={item.citations ? "Source quotes" : "Source quote"} />
               </li>)}
             </ul>
             {entries.length > limit ? <Button type="button" size="sm" variant="outline" onClick={() => setLimits(previous => ({ ...previous, [section.id]: (previous[section.id] ?? 8) + 8 }))}>Show more {section.title.toLowerCase()} details</Button> : null}
@@ -63,5 +69,6 @@ export function PaperBreakdownPanel({ value, version, preparing, busy, onPrepare
         </section>;
       })}
     </div>
+    {breakdown?.implementation_choices?.length ? <section aria-label="Implementation choices to resolve" className="space-y-3"><h3 className="font-semibold">Implementation choices to resolve</h3><p className="text-sm text-muted-foreground">The paper does not fix these implementation details. Select and record them explicitly before execution.</p><ul className="divide-y divide-border">{breakdown.implementation_choices.map(choice => <li key={choice.name} className="space-y-2 py-3 text-sm"><h4 className="font-medium">{choice.name}</h4><p>{choice.reason}</p><PaperEvidenceCitations citations={choice.citations} label="Related paper context" /></li>)}</ul></section> : null}
   </section>;
 }

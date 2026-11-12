@@ -1,14 +1,15 @@
 import { prepareUploadedPaper, type PaperUploadTicket } from "./research-paper-upload";
 import { ASSESSMENT_STATUS_VERSION, activityKey, parseAssessmentSummary, type AssessmentActivity, type AssessmentSummary } from "./assessment-notifications";
 import { assessmentSummaryFromPublicQueue, loadPublicStudyQueue } from "./research-public-queue";
+import { PAPER_INTAKE_STAGES, type PaperIntakeStage } from "./paper-intake";
 
 type Request = <T>(path: string, options?: RequestInit) => Promise<T>;
 type Kind = "ready" | "failed";
-type Phase = "queued" | "uploading" | "preparing" | "ready" | "failed" | "confirmed";
+type Phase = "queued" | "uploading" | "uploaded" | "preparing" | "ready" | "failed" | "confirmed";
 export type PaperUploadItem = { id: string; filename: string; title: string; phase: Phase; message: string; retryable: boolean };
 export type PaperNotice = { id: string; title: string; kind: Kind };
 export type PaperUploadState = { uploads: PaperUploadItem[]; notices: PaperNotice[]; activity: AssessmentActivity[]; error: string; persistenceError: string };
-type Study = { id: string; title: string; paper_review_status?: "preparing" | "ready" | "failed" | "confirmed"; study_kind?: string; assessment_status?: AssessmentSummary | null; assessment_status_error?: string };
+type Study = { id: string; title: string; paper_review_status?: "preparing" | "ready" | "failed" | "confirmed"; paper_intake_stage?: PaperIntakeStage; paper_intake_reason?: string | null; study_kind?: string; assessment_status?: AssessmentSummary | null; assessment_status_error?: string };
 type OwnerStudyList = { access: string; studies: Study[]; assessment_status_version?: string };
 type Preferences = { seen: { id: string; kind: Kind }[]; dismissed: string[]; activity: { tracked: string[]; dismissed: string[] } };
 type Storage = Pick<globalThis.Storage, "getItem" | "setItem">;
@@ -32,10 +33,11 @@ export function parsePaperNoticePreferences(raw: string | null): Preferences {
 function ownerStudies(value: OwnerStudyList) {
   if (!value || value.access !== "owner-drafts" || !Array.isArray(value.studies) || value.studies.length > 100 || !value.studies.every(s => s && ID.test(s.id) && typeof s.title === "string" && s.title.length <= 300 && (s.paper_review_status === undefined || ["preparing", "ready", "failed", "confirmed"].includes(s.paper_review_status))) || new Set(value.studies.map(s => s.id)).size !== value.studies.length) throw new Error("Paper preparation status could not be verified.");
   if (value.assessment_status_version !== undefined && value.assessment_status_version !== ASSESSMENT_STATUS_VERSION) throw new Error("Assessment notification version is unsupported; current progress is unknown.");
+  if (value.studies.some(s => s.paper_intake_stage !== undefined && !PAPER_INTAKE_STAGES.includes(s.paper_intake_stage) || s.paper_intake_reason !== undefined && s.paper_intake_reason !== null && typeof s.paper_intake_reason !== "string")) throw new Error("Paper preparation status could not be verified.");
   return value.studies.filter(s => s.study_kind !== "idea" && (s.paper_review_status !== undefined || s.assessment_status != null)).map(s => ({ ...s, assessment_status: parseAssessmentSummary(s.assessment_status) }));
 }
 
-/** One authenticated browser's uploads. Preparation itself remains in Supabase/the worker. */
+/** One authenticated browser's uploads. Preparation is owned by the server. */
 export class PaperUploadManager {
   private state: PaperUploadState = EMPTY;
   private listeners = new Set<() => void>();
@@ -115,6 +117,10 @@ export class PaperUploadManager {
   private updateActivity(studies: Study[]) {
     const activity: AssessmentActivity[] = [];
     for (const study of studies) {
+      const upload = this.state.uploads.find(item => item.id === study.id);
+      // A reserved PDF has not started inference. Older listings only expose
+      // "preparing", so retain a local failure until a real outcome is recorded.
+      if (study.paper_intake_stage === "uploaded" || study.paper_intake_stage === undefined && study.paper_review_status === "preparing" && upload?.phase === "failed" && upload.retryable) continue;
       const submitted = this.state.activity.find(item => item.id === study.id && item.status === "submitted");
       // A listing already in flight can describe the review before the owner's
       // confirmed response. Do not roll its queued notice back to preparation.
@@ -174,7 +180,11 @@ export class PaperUploadManager {
       if (!this.active || generation !== this.generation) return;
       const uploads = this.state.uploads.map(u => {
         const study = studies.find(s => s.id === u.id);
-        return study && !["queued", "uploading"].includes(u.phase) ? { ...u, title: study.title, phase: study.paper_review_status!, message: "", retryable: false } : u;
+        if (!study?.paper_review_status || ["queued", "uploading"].includes(u.phase)) return u;
+        if (u.phase === "failed" && u.retryable && study.paper_review_status === "preparing" && (study.paper_intake_stage === undefined || study.paper_intake_stage === "uploaded")) return { ...u, title: study.title };
+        const phase: Phase = study.paper_intake_stage === "uploaded" ? "uploaded" : study.paper_review_status;
+        const message = phase === "uploaded" ? "Paper uploaded. Preparation has not started." : phase === "failed" ? study.paper_intake_reason || u.message || "Paper preparation needs attention." : "";
+        return { ...u, title: study.title, phase, message, retryable: false };
       });
       this.set({ uploads, error: "" });
       this.updateActivity(studies);
@@ -226,7 +236,9 @@ export class PaperUploadManager {
       }, message => { if (this.active && generation === this.generation) this.patch(item.id, { message }); });
       if (!this.active || generation !== this.generation) return;
       this.files.delete(item.id);
-      this.patch(item.id, { phase: result.status as Phase, message: "Paper preparation continues in the background.", retryable: false });
+      const phase = result.stage === "uploaded" ? "uploaded" : result.status as Phase;
+      const message = phase === "failed" ? result.reason || "Paper preparation needs attention." : phase === "uploaded" ? "Paper uploaded. Preparation has not started." : phase === "preparing" ? "Paper preparation continues in the background." : "";
+      this.patch(item.id, { phase, message, retryable: false });
       void this.refresh();
     } catch (error) {
       if (this.active && generation === this.generation) {
