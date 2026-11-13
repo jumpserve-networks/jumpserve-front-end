@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import {afterEach,beforeEach,test} from 'node:test';
 import {registerHooks} from 'node:module';
 import React from 'react';
-import {act,cleanup,fireEvent,render,screen} from '@testing-library/react';
+import {act,cleanup,fireEvent,render,screen,within} from '@testing-library/react';
 import {breakdownFixture,planFixture} from './support/experiment-plan-fixture.mjs';
+import {implementationBreakdown,hierarchicalImplementationPlan} from './support/implementation-plan-fixture.mjs';
 globalThis.__planComponent={};
 globalThis.__planReact=React;
 const navigation=`const subscribe=callback=>{globalThis.__planComponent.listeners.add(callback);return()=>globalThis.__planComponent.listeners.delete(callback);};export const usePathname=()=>'/research-verification/new-assessment/11111111-1111-4111-8111-111111111111';export const useRouter=()=>({push:(...args)=>globalThis.__planComponent.push(...args)});export function useSearchParams(){const query=globalThis.__planReact.useSyncExternalStore(subscribe,()=>globalThis.__planComponent.search);return new URLSearchParams(query);}`;
@@ -36,6 +37,21 @@ test('opening phase one does not start planning; the button confirms valid edits
 });
 test('saved plans display ordered steps proposed choices missing information and retained source quotes',async()=>{
  view={...view,stage:'ready',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture(),plan:planFixture()};await show();assert.equal(calls.length,1);assert.ok(screen.getByText('Experiment steps ready'));assert.ok(screen.getByText('Proposed implementation scaffold · Proposed implementation'));assert.ok(screen.getByRole('heading',{name:'Decisions to resolve before execution'}));assert.ok(screen.getByText('Which experiment platform should be used?'));assert.ok(screen.getAllByText('Original data quote').length>0);assert.equal(screen.queryByRole('checkbox'),null);assert.equal(screen.queryByRole('button',{name:/Confirm phase one/}),null);
+});
+test('hierarchical stages show numbered actionable children and retain each claim criterion and its evidence',async()=>{
+ view={...view,stage:'ready',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:implementationBreakdown(),plan:hierarchicalImplementationPlan()};await wizard();
+ const experiments=screen.getByRole('list',{name:'Experiments'}),stages=within(experiments).getByRole('list',{name:'Stages for experiment 1'});
+ assert.equal(stages.children.length,4);assert.ok(screen.getByRole('heading',{name:/1\.1 Prepare and configure the experiment/}));
+ const actions=screen.getByRole('list',{name:/Actions for 1\.4 Validate the three claims/});assert.equal(actions.children.length,3);
+ assert.ok(within(actions).getByRole('heading',{name:/1\.4\.1 Evaluate H1/}));assert.ok(within(actions).getByRole('heading',{name:/1\.4\.2 Evaluate H2/}));assert.ok(within(actions).getByRole('heading',{name:/1\.4\.3 Evaluate H3/}));
+ assert.equal(screen.getAllByText(/^Validation check:/).length,3);assert.ok(within(actions).getAllByText(/PDF page/).length>0);
+ assert.ok(screen.getByRole('heading',{name:'Decisions to resolve before execution'}));assert.equal(calls.filter(c=>c.options.method==='POST').length,0);
+});
+test('stages collapse and expand locally without new planning requests or changing the saved hierarchy',async()=>{
+ const plan=hierarchicalImplementationPlan();view={...view,stage:'ready',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:implementationBreakdown(),plan};await wizard();
+ const title=screen.getByRole('heading',{name:/1\.1 Prepare and configure the experiment/}),details=title.closest('details'),summary=title.closest('summary');
+ assert.equal(details.open,true);fireEvent.click(summary);assert.equal(details.open,false);fireEvent.click(summary);assert.equal(details.open,true);
+ assert.deepEqual(view.plan,plan);assert.equal(calls.length,1);assert.equal(screen.queryByRole('button',{name:'Run experiments',exact:true}),null);
 });
 test('lost confirmation response preserves edits and status reload discovers the original call',async()=>{
  await show();fireEvent.change(screen.getByRole('textbox',{name:'Data detail 1 description'}),{target:{value:'Keep this reviewed measurement'}});const actual=post;post=async body=>{await actual(body);throw new Error('Lost confirmation response');};await click('Confirm phase one and create experiment steps');assert.ok(screen.getByText('Lost confirmation response'));assert.equal(screen.getByRole('textbox',{name:'Data detail 1 description'}).value,'Keep this reviewed measurement');await click('Check planning status');assert.ok(screen.getByText('Keep this reviewed measurement'));assert.equal(calls.filter(c=>c.options.method==='POST').length,1);

@@ -6,10 +6,10 @@ import env from '@next/env';
 import OpenAI from 'openai';
 import {experimentPlanRequest} from '../lib/paper-experiment-plan-model.ts';
 import {readExperimentPlan} from '../lib/paper-experiment-plan-runner.ts';
-import {validateExperimentPlan} from '../lib/paper-experiment-plan.ts';
+import {experimentActions,validateExperimentPlan} from '../lib/paper-experiment-plan.ts';
 import {validatePaperBreakdown} from '../lib/research-paper-breakdown.ts';
 import {sha256} from '../lib/paper-intake-model.ts';
-import {breakdownFixture,planFixture} from '../tests/support/experiment-plan-fixture.mjs';
+import {breakdownFixture,planFixture,hierarchicalPlanFixture} from '../tests/support/experiment-plan-fixture.mjs';
 import {RUN_NAME,privateJSON,readJSON,lockRun} from './lib/paper-evaluation-store.mjs';
 import {paperCLIError} from './lib/paper-cli-errors.mjs';
 import {planQualityChecks,validatePlanExpectations} from './lib/experiment-plan-checks.mjs';
@@ -21,7 +21,7 @@ async function main(){
  function named(name){if(!RUN_NAME.test(name??''))throw new Error('Supply a run name with 1–80 letters, digits, dots, underscores or hyphens.');return join(root,name);}
  const identity=(breakdown,request,expectations)=>sha256(JSON.stringify({breakdown,request,...(expectations===undefined?{}:{expectations})}));
  function verify(saved){if(saved.identity!==identity(saved.breakdown,saved.request,saved.expectations))throw new Error('Saved evaluation inputs do not match their frozen identity.');validatePaperBreakdown(saved.breakdown);if(saved.expectations!==undefined)validatePlanExpectations(saved.expectations);}
- function grade(saved){const plan=readExperimentPlan(saved.response,saved.breakdown),checks=planQualityChecks(plan,saved.expectations);return{passed:checks.every(check=>check.passed),experiments:plan.experiments.length,steps:plan.experiments.reduce((n,e)=>n+e.steps.length,0),checks};}
+ function grade(saved){const plan=readExperimentPlan(saved.response,saved.breakdown,saved.request?.text?.format?.name),checks=planQualityChecks(plan,saved.expectations);return{passed:checks.every(check=>check.passed),experiments:plan.experiments.length,stages:plan.experiments.reduce((n,e)=>n+(e.stages?.length??0),0),steps:plan.experiments.reduce((n,e)=>n+experimentActions(e).length,0),checks};}
  if(values.replay){
   if(values.live||values.run||values.confirmed||values.prompt||values.expectations)throw new Error('Replay uses only the frozen inputs and response.');
   const directory=named(values.replay),saved=await readJSON(join(directory,'run.json'));if(!saved?.response)throw new Error('No retained response is available for replay.');verify(saved);
@@ -34,7 +34,7 @@ async function main(){
  if(values.prompt){const instructions=await readFile(values.prompt,'utf8');if(!instructions.trim()||Buffer.byteLength(instructions)>40000)throw new Error('Candidate instructions must contain 1–40,000 UTF-8 bytes.');request.instructions=instructions;}
  if(!values.live){
   if(values.run||values.prompt)throw new Error('Named runs and candidate prompts require --live.');
-  if(!values.confirmed)validateExperimentPlan(planFixture(),breakdown);
+  if(!values.confirmed){validateExperimentPlan(planFixture(),breakdown);validateExperimentPlan(hierarchicalPlanFixture(),breakdown);}
   console.log(JSON.stringify({mode:'offline',passed:true,model_calls:0,expectations_checked:expectations!==undefined,meaning:values.confirmed?'Confirmed-input and optional expectation bounds checked; no generated output evaluated.':'Hand-authored plan schema/source and optional expectation bounds checks; no model quality measured.'}));return;
  }
  env.loadEnvConfig(process.cwd());

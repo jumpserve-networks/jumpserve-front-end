@@ -4,7 +4,7 @@ import {spawnSync} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import {join} from 'node:path';
 import {planQualityChecks,validatePlanExpectations} from '../scripts/lib/experiment-plan-checks.mjs';
-import {implementationBreakdown,implementationPlan,implementationExpectations} from './support/implementation-plan-fixture.mjs';
+import {implementationBreakdown,implementationPlan,implementationExpectations,hierarchicalImplementationPlan} from './support/implementation-plan-fixture.mjs';
 import {evidencePlan} from './support/paper-evidence-fixture.mjs';
 import {planningSources,validateExperimentPlan} from '../lib/paper-experiment-plan.ts';
 import {experimentPlanRequest} from '../lib/paper-experiment-plan-model.ts';
@@ -15,13 +15,11 @@ import {privateDirectory,privateJSON} from '../scripts/lib/paper-evaluation-stor
 test('provider schemas admit only confirmed references and reserve implementation space without changing legacy saved plans',()=>{
  const breakdown=implementationBreakdown(),request=experimentPlanRequest(breakdown),experiment=request.text.format.schema.properties.experiments.items;
  assert.deepEqual(experiment.properties.experiment_refs.items.enum,['experiment-1']);
- assert.deepEqual(experiment.properties.steps.items.properties.source_refs.items.enum,Object.values(planningSources(breakdown)).flat().map(source=>source.ref));
- assert.equal(experiment.properties.steps.items.properties.source_refs.items.enum.includes('provenance'),false);
- assert.ok(experiment.properties.steps.minItems>=4);
- assert.equal(experiment.properties.steps.minItems,7); // Four implementation responsibilities plus three claim checks.
- const complex=structuredClone(breakdown);while(complex.implementation_choices.length<6)complex.implementation_choices.push(structuredClone(complex.implementation_choices[0]));
- assert.equal(experimentPlanRequest(complex).text.format.schema.properties.experiments.items.properties.steps.minItems,12);
- const legacy=experimentPlanRequest(breakdownFixture());assert.equal(legacy.text.format.name,'paper_experiment_steps_v1');assert.equal(legacy.text.format.schema.properties.experiments.items.properties.steps.items.required.includes('validation_ref'),false);
+ const actions=experiment.properties.stages.items.properties.steps;
+ assert.deepEqual(actions.items.properties.source_refs.items.enum,Object.values(planningSources(breakdown)).flat().map(source=>source.ref));
+ assert.equal(actions.items.properties.source_refs.items.enum.includes('provenance'),false);
+ assert.equal(experiment.properties.steps,undefined);assert.equal(experiment.properties.stages.maxItems,8);assert.equal(actions.maxItems,8);
+ const legacy=experimentPlanRequest(breakdownFixture());assert.equal(legacy.text.format.name,'paper_experiment_steps_v3');assert.deepEqual(legacy.text.format.schema.properties.experiments.items.properties.stages.items.properties.steps.items.properties.validation_ref.enum,[null]);
  // Historical validation-only outputs remain readable; the stronger generation
  // contract does not invalidate an owner's already saved plan.
  assert.doesNotThrow(()=>validateExperimentPlan(evidencePlan(),breakdown));
@@ -48,16 +46,16 @@ test('question checks use unresolved questions rather than a matching phrase els
  assert.ok(planQualityChecks(plan,expected).every(check=>check.passed));plan.experiments[0].title='Already validated';assert.equal(planQualityChecks(plan,expected).at(-1).passed,false);
 });
 test('expectation files are bounded data with no executable graders or invalid source identities',()=>{
- for(const bad of [{},{code:'process.exit(0)'},{experiment_count:9},{minimum_steps:97},{required_source_refs:['data-99']},{required_source_refs:['data-1','data-1']},{details:[{name:'Bad',scope:'open_questions',basis:'paper',mentions:[['x']]}]},{details:[{name:'Bad',mentions:[[]]}]},{details:[{name:'Bad',mentions:[['x'.repeat(161)]]}]},{details:[{name:'Bad',scope:'javascript',mentions:[['x']]}]},{forbidden:['']},null])assert.throws(()=>validatePlanExpectations(bad),/bounded/);
+ for(const bad of [{},{code:'process.exit(0)'},{experiment_count:9},{minimum_steps:193},{minimum_stages:65},{required_source_refs:['data-99']},{required_source_refs:['data-1','data-1']},{details:[{name:'Bad',scope:'open_questions',basis:'paper',mentions:[['x']]}]},{details:[{name:'Bad',mentions:[[]]}]},{details:[{name:'Bad',mentions:[['x'.repeat(161)]]}]},{details:[{name:'Bad',scope:'javascript',mentions:[['x']]}]},{forbidden:['']},null])assert.throws(()=>validatePlanExpectations(bad),/bounded/);
  assert.equal(validatePlanExpectations(implementationExpectations()).experiment_count,1);
 });
 test('frozen browser-free replay checks content, fails deficient plans, and detects changed expectations',async()=>{
  const breakdown=implementationBreakdown(),request=experimentPlanRequest(breakdown),expectations=implementationExpectations();
- assert.equal(request.model,'gpt-5.4-mini-2026-03-17');assert.equal(request.text.format.name,'paper_experiment_steps_v2');assert.equal(JSON.stringify(request).includes('full-grid trial scope'),false);
+ assert.equal(request.model,'gpt-5.4-mini-2026-03-17');assert.equal(request.text.format.name,'paper_experiment_steps_v3');assert.equal(JSON.stringify(request).includes('full-grid trial scope'),false);
  const directory=join(process.cwd(),'.test-artifacts','experiment-plan-evaluations','unit-content-'+randomUUID());await privateDirectory(directory);
- const saved={breakdown,request,expectations,identity:sha256(JSON.stringify({breakdown,request,expectations})),response:{id:'resp_fixture',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(implementationPlan())}]}]}};
+ const saved={breakdown,request,expectations,identity:sha256(JSON.stringify({breakdown,request,expectations})),response:{id:'resp_fixture',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(hierarchicalImplementationPlan())}]}]}};
  const args=['--import','./scripts/lib/register-typescript.mjs','scripts/evaluate-experiment-plan.mjs','--replay',directory.split('/').at(-1)];
  await privateJSON(join(directory,'run.json'),saved);let result=spawnSync(process.execPath,args,{encoding:'utf8',timeout:10000});assert.equal(result.status,0,result.stderr);assert.equal(JSON.parse(result.stdout).model_calls,0);assert.ok(JSON.parse(result.stdout).checks.every(check=>check.passed));
- saved.response.output[0].content[0].text=JSON.stringify(evidencePlan());await privateJSON(join(directory,'run.json'),saved);result=spawnSync(process.execPath,args,{encoding:'utf8',timeout:10000});assert.equal(result.status,1);assert.equal(JSON.parse(result.stdout).passed,false);
+ const {steps,...deficient}=evidencePlan().experiments[0];saved.response.output[0].content[0].text=JSON.stringify({experiments:[{...deficient,stages:[{title:'Only validation',steps}]}]});await privateJSON(join(directory,'run.json'),saved);result=spawnSync(process.execPath,args,{encoding:'utf8',timeout:10000});assert.equal(result.status,1);assert.equal(JSON.parse(result.stdout).passed,false);
  saved.expectations.minimum_steps=1;await privateJSON(join(directory,'run.json'),saved);result=spawnSync(process.execPath,args,{encoding:'utf8',timeout:10000});assert.equal(result.status,1);assert.match(result.stderr,/frozen identity/);
 });

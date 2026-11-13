@@ -24,8 +24,8 @@ view and existing public queue access.
 The explicit “Confirm phase one and create experiment steps” action atomically
 records the phase-one revision, reviewed snapshot, owner, timestamp, exact request,
 prompt version and model reservation. Phase two groups related Experiment details
-into experiments and returns ordered implementation steps, supporting references,
-proposed choices and missing information. Each confirmed Experiment detail must
+into experiments and returns ordered stages with actionable substeps, supporting
+references, proposed choices and missing information. Each confirmed Experiment detail must
 be covered exactly once. An empty confirmed Experiment section saves an empty
 plan without a model call.
 
@@ -39,20 +39,34 @@ settings, and leaves missing scientific acceptance rules as decisions to resolve
 before execution. Minimum comparisons cannot imply coverage of a full-grid claim.
 Paper-reported and fabricated benchmarks stay separate from independent results;
 planned work cannot be described as completed.
-The provider schema limits generated source references to the confirmed details
-and reserves implementation space before validation. A single design reserves
-at least four implementation steps plus one per structured claim, within the
-existing 12-step maximum.
-Complex single designs with at least six recorded choices use all twelve steps
-to split configuration, protocol and collection work into smaller instructions.
+New requests use `paper_experiment_steps_v3`: experiments contain `stages`, and
+each stage contains its actionable `steps`. Each action keeps its own instructions,
+paper/proposed basis, source references and nullable claim-validation reference.
+Stage labels organize the work; they do not claim paper support. The provider
+schema constrains references to confirmed details. Client/server and SQL guards
+allow up to eight stages, eight actions per stage and twenty-four actions total
+per experiment. Stage/action titles are bounded to 160 characters and action
+instructions to 800. Exactly one action checks each structured claim across the
+whole hierarchy. Flat v1/v2 plans retain their original twelve-step/1200-character
+bounds and remain readable.
 
-These changes preserve the existing v1/v2 plan contracts and do not require a new
-database migration. Existing confirmations and saved plans remain unchanged. Test
-new instructions with an unconfirmed assessment, or an isolated CLI input snapshot;
-the CLI does not confirm or modify the source assessment.
+The view numbers experiments, stages and actions as `1`, `1.2` and `1.2.1`.
+Stages start expanded and can be collapsed with native keyboard-accessible
+controls. Evidence, PDF pages and claim criteria stay with their action. This
+changes local presentation without sending requests or editing the saved plan.
+Older flat plans display their original actions with experiment/step numbering;
+the interface does not invent stages or regenerate their original response.
 
-The local candidate has been exercised against an exposed synthetic manuscript
-without modifying its assessment. The latest run produced a structurally valid
+New hierarchical generation requires infrastructure migration
+`202611120001_hierarchical_experiment_plans.sql` before the matching frontend is
+deployed. An older database rejects the new request before saving confirmation
+or admitting a model call, and the interface explains the required update.
+Existing confirmations, responses and plans are unchanged. Test new generation
+with an unconfirmed assessment after that migration, or an isolated CLI input
+snapshot; the CLI does not confirm or modify the source assessment.
+
+The earlier flat-plan prompt candidate was exercised against an exposed synthetic
+manuscript without modifying its assessment. That run produced a structurally valid
 12-step plan and passed 23 of 25 frozen content checks; two exact-reference
 coverage checks failed. Manual review also found technical choices that still
 need more precise operational settings. These are prompt-review limitations,
@@ -60,6 +74,12 @@ not evidence that the experiment is execution-ready. Failed candidates remain
 in the private evaluation history. Medium reasoning exhausted the output budget
 in one candidate, so the current configuration retains low reasoning. This is
 an implementation for review and testing; Step 4 remains a stub.
+
+The hierarchical candidate was also exercised with one browser-free live call
+against an exposed synthetic fixture. It returned six stages and fifteen actions,
+retaining all three distinct claim references and passing the frozen structure
+and source-coverage checks. This checks the new provider contract, not scientific
+validity across arbitrary papers. The earlier failed evaluations remain retained.
 
 Both phases use server-side Next.js calls to OpenAI. Confirmation does not create
 autonomy tasks, Experiment Queue jobs or worker dispatches. Experiment execution
@@ -100,6 +120,7 @@ validates the expectation format without evaluating generated content. For examp
 ```json
 {
   "experiment_count": 1,
+  "minimum_stages": 3,
   "minimum_steps": 6,
   "required_source_refs": ["experiment-1", "data-1", "validate-1"],
   "details": [
@@ -118,8 +139,10 @@ validates the expectation format without evaluating generated content. For examp
 ```
 
 Each `mentions` group offers alternatives; all groups must match within the same
-step or question. `scope: "plan"` checks the whole narrative. Optional `basis` and
-`source_refs` apply to a single step. `forbidden` checks for absent literal phrases.
+action or question. `scope: "plan"` checks the whole narrative, including stage
+headings. Optional `basis` and `source_refs` apply to one leaf action, never just
+a matching parent heading. `minimum_steps` counts leaf actions in either format;
+`minimum_stages` counts explicit stages. `forbidden` checks for absent literal phrases.
 These are lexical checks, not scientific judges; review the retained output to
 assess coverage, attribution, validity and feasibility.
 
@@ -132,11 +155,15 @@ semantic correctness.
 
 The existing schema depends on infrastructure migrations
 `202611110004_confirmed_experiment_plans.sql` and
-`202611110005_reviewed_paper_evidence.sql`. Environments missing those updates
-cannot confirm compatible paper evidence. This Step 3 prompt update adds no new
-schema dependency, and ordinary feature work does not apply production schema
-changes. No existing assessment is automatically confirmed.
+`202611110005_reviewed_paper_evidence.sql`, followed by
+`202611120001_hierarchical_experiment_plans.sql` for hierarchical generation.
+Ordinary feature work does not apply production schema changes. No existing
+assessment is automatically confirmed.
 The isolated database regression is
-`python3 test/check_experiment_plan_database.py` in `jumpserve-infra`; it covers
-ownership, RLS, source preservation, budgets, concurrent admission, prompt
-privacy, history, cancellation, deletion and the absence of worker dispatches.
+`python3 -B test/check_hierarchical_experiment_plans_database.py` in
+`jumpserve-infra`. It exercises the earlier review regression and then verifies
+idempotent migration without rewriting records, legacy/hierarchical JS/SQL parity,
+bounded nesting, source/claim coverage, original responses, owner/RLS checks,
+budgets, concurrent admission, prompt privacy, history, deletion and no worker
+dispatch. The earlier `check_experiment_plan_database.py` remains a fixed legacy
+schema regression.

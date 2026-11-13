@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import type { Response } from "openai/resources/responses/responses";
-import { experimentPlanRequest } from "./paper-experiment-plan-model";
+import { experimentPlanRequest, PAPER_EXPERIMENT_PLAN_FORMAT } from "./paper-experiment-plan-model";
 import { validateExperimentPlan, type ExperimentPlan, type PlanStage } from "./paper-experiment-plan";
 import type { PaperBreakdown } from "./research-paper-breakdown";
 
@@ -16,11 +16,14 @@ export type PlanOperations = {
   retrieve: (id: string) => Promise<Response>; cancel: (id: string) => Promise<Response>;
 };
 const live = (response: Response) => ["queued", "in_progress"].includes(response.status ?? "");
-export function readExperimentPlan(response: Response, breakdown: PaperBreakdown) {
+export function readExperimentPlan(response: Response, breakdown: PaperBreakdown, format = response.text?.format?.type === "json_schema" ? response.text.format.name : undefined) {
   if (response.status !== "completed") throw new Error(`OpenAI returned ${response.status ?? "an unknown planning status"}. The original response is retained.`);
   if (response.output.some(item => item.type === "message" && item.content.some(part => part.type === "refusal"))) throw new Error("The model declined to prepare experiment steps.");
   const output = response.output.filter(item => item.type === "message").flatMap(item => item.content).filter(part => part.type === "output_text").map(part => part.text).join("");
-  return validateExperimentPlan(JSON.parse(output), breakdown);
+  const plan = validateExperimentPlan(JSON.parse(output), breakdown);
+  if (format === PAPER_EXPERIMENT_PLAN_FORMAT && plan.experiments.some(experiment => !experiment.stages)) throw new Error("The experiment plan is missing its stages and actionable substeps.");
+  if (["paper_experiment_steps_v1", "paper_experiment_steps_v2"].includes(format ?? "") && plan.experiments.some(experiment => experiment.stages)) throw new Error("The response does not match the original flat planning format.");
+  return plan;
 }
 
 /** Admission, confirmation and the exact prompt commit together before inference. */
@@ -52,7 +55,8 @@ export async function refreshExperimentPlan(row: ExperimentPlanRecord, ops: Plan
   if (response.status === "cancelled") return ops.save("cancel", { token: row.submit_token, response, reason: expired ? "The original assessment deadline expired." : "Planning was cancelled." });
   let plan: ExperimentPlan;
   try {
-    plan = readExperimentPlan(response, row.confirmed_breakdown);
+    const request = row.request as { text?: { format?: { name?: string } } } | null;
+    plan = readExperimentPlan(response, row.confirmed_breakdown, request?.text?.format?.name);
   } catch (error) { return ops.save("failed", { token: row.submit_token, response, reason: error instanceof Error ? error.message : "The experiment steps could not be verified." }); }
   return ops.save("finish", { token: row.submit_token, response_id: response.id, response, plan });
 }

@@ -3,7 +3,7 @@ import {test} from 'node:test';
 import {confirmPaperSections, reviewedSections, validateExperimentPlan, validateExperimentPlanView} from '../lib/paper-experiment-plan.ts';
 import {experimentPlanRequest} from '../lib/paper-experiment-plan-model.ts';
 import {confirmAndPlan, refreshExperimentPlan, cancelExperimentPlan} from '../lib/paper-experiment-plan-runner.ts';
-import {breakdownFixture, planFixture} from './support/experiment-plan-fixture.mjs';
+import {breakdownFixture, planFixture, hierarchicalPlanFixture, legacyPlanRequestFixture} from './support/experiment-plan-fixture.mjs';
 import {spawnSync} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import {join} from 'node:path';
@@ -36,7 +36,8 @@ test('concurrent confirmations admit one model call, and lost acknowledgements r
  const f=fixture(),save=f.ops.save;let lost=true;f.ops.save=async(op,payload)=>{const result=await save(op,payload);if(op==='submitted'&&lost){lost=false;throw new Error('Lost acknowledgement');}return result;};
  await Promise.all([confirmAndPlan({},experimentPlanRequest(original),f.ops),confirmAndPlan({},experimentPlanRequest(original),f.ops)]);
  assert.equal(f.calls.filter(c=>c[0]==='model').length,1);assert.equal(f.calls.filter(c=>c[0]==='submitted').length,2);
- const finished=await refreshExperimentPlan(f.row,f.ops);assert.equal(finished.status,'ready');assert.deepEqual(finished.plan,planFixture());
+ f.ops.retrieve=async()=>({id:'resp_original',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(hierarchicalPlanFixture())}]}]});
+ const finished=await refreshExperimentPlan(f.row,f.ops);assert.equal(finished.status,'ready');assert.deepEqual(finished.plan,hierarchicalPlanFixture());
 });
 test('unconfirmed/rejected admissions and empty confirmed experiments make zero model calls',async()=>{
  const f=fixture();f.ops.save=async()=>{throw new Error('Confirmation refused');};await assert.rejects(confirmAndPlan({},experimentPlanRequest(original),f.ops),/Confirmation refused/);assert.equal(f.calls.length,0);
@@ -62,7 +63,7 @@ test('client validation rejects plans without a confirmation and requires a plan
 test('browser-free evaluation supports offline checks and frozen replay without model or database calls',async()=>{
  const args=['--import','./scripts/lib/register-typescript.mjs','scripts/evaluate-experiment-plan.mjs'];
  const offline=spawnSync(process.execPath,args,{encoding:'utf8',timeout:10000});assert.equal(offline.status,0,offline.stderr);assert.equal(JSON.parse(offline.stdout).model_calls,0);
- const name='unit-replay-'+randomUUID(),directory=join(process.cwd(),'.test-artifacts','experiment-plan-evaluations',name),request=experimentPlanRequest(original);
+ const name='unit-replay-'+randomUUID(),directory=join(process.cwd(),'.test-artifacts','experiment-plan-evaluations',name),request=legacyPlanRequestFixture(JSON.parse(experimentPlanRequest(original).input));
  const saved={breakdown:original,request,identity:sha256(JSON.stringify({breakdown:original,request})),response:{id:'resp_fixture',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(planFixture())}]}]}};
  await privateDirectory(directory);await privateJSON(join(directory,'run.json'),saved);
  const replay=spawnSync(process.execPath,[...args,'--replay',name],{encoding:'utf8',timeout:10000});assert.equal(replay.status,0,replay.stderr);assert.equal(JSON.parse(replay.stdout).model_calls,0);assert.equal(JSON.parse(replay.stdout).experiments,1);

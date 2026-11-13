@@ -4,12 +4,12 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/app/components/ui/button";
 import { requireAccessToken } from "@/lib/browser-auth";
 import { RESEARCH_SIGN_IN_REQUIRED } from "@/lib/research-workflow-api";
-import { EXPERIMENT_PLAN_PATH, planPending, planningSources, reviewedSections, validateExperimentPlanView, type ExperimentPlanView, type ReviewedSections } from "@/lib/paper-experiment-plan";
+import { EXPERIMENT_PLAN_PATH, planPending, reviewedSections, validateExperimentPlanView, type ExperimentPlanView, type ReviewedSections } from "@/lib/paper-experiment-plan";
 import { PAPER_BREAKDOWN_VERSION, type PaperBreakdown, type PaperBreakdownSection } from "@/lib/research-paper-breakdown";
 import { PaperBreakdownPanel } from "./paper-breakdown";
 import { PaperAssessmentSteps, PaperWizardRoute, type PaperWizardNavigation } from "./paper-assessment-steps";
 import { PAPER_ASSESSMENT_STEPS } from "@/lib/paper-assessment-wizard";
-import { PaperClaimCriterion } from "./paper-evidence";
+import { PaperExperimentPlanOutline } from "./paper-experiment-plan-outline";
 import Link from "next/link";
 import { NEW_ASSESSMENT_PATH } from "@/lib/test-modules";
 
@@ -68,7 +68,6 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, wizard, preparati
   }
   const awaiting = view?.stage === "awaiting_confirmation";
   const saved = view?.confirmed_breakdown ?? breakdown;
-  const sources = Object.values(planningSources(saved)).flat();
   const hasConfirmation = Boolean(view && !awaiting);
   const requestedStep = wizard?.requestedStep ?? (hasConfirmation ? "implementation" : "breakdown");
   const step = !hasConfirmation || requestedStep === "upload" ? "breakdown" : requestedStep === "execution" && view?.stage !== "ready" ? "implementation" : requestedStep;
@@ -81,7 +80,7 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, wizard, preparati
         <Button disabled={busy || invalidReview} onClick={() => void action("confirm")}>{busy ? "Saving confirmation…" : wizard ? "Confirm and continue" : "Confirm phase one and create experiment steps"}</Button>
       </div>;
   const breakdownPanel = <PaperBreakdownPanel version={PAPER_BREAKDOWN_VERSION} value={saved} preparing={false} busy={busy} review={awaiting ? review : undefined} onReviewChange={awaiting ? edit : undefined} />;
-  const implementationPanel = <section aria-labelledby="experiment-planning-title" className="content-panel space-y-4 rounded-lg border p-4">
+  const implementationPanel = <section aria-labelledby="experiment-planning-title" className="space-y-5">
       <h2 id="experiment-planning-title" className="text-lg font-semibold">{wizard ? "Experiment Steps" : "Phase 2 · Experiment implementation steps"}</h2>
       {feedback}
       {!view ? <p role="status" className="text-sm">Checking phase-one confirmation…</p> : awaiting ? confirmation : <>
@@ -89,16 +88,7 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, wizard, preparati
         <p role="status" className="text-sm font-medium">{view.stage === "ready" ? "Experiment steps ready" : view.stage === "cancelled" ? "Experiment planning cancelled" : view.stage === "failed" ? "Experiment planning needs attention" : view.stage === "uncertain" ? "Planning submission needs reconciliation" : "Preparing experiment implementation steps…"}</p>
         {view.reason ? <p className="text-sm text-muted-foreground">{view.reason}</p> : null}
         {view.stage === "processing" ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void action("cancel")}>Cancel planning</Button> : null}
-        {view.plan?.experiments.map((experiment, index) => <section key={index} aria-labelledby={`planned-experiment-${index}`} className="space-y-3 border-t pt-4">
-          <h3 id={`planned-experiment-${index}`} className="font-semibold">{index + 1}. {experiment.title}</h3>
-          <ol className="list-decimal space-y-4 pl-5">{experiment.steps.map((step, position) => <li key={position} className="space-y-1 pl-1 text-sm">
-            <p className="font-medium">{step.title}{step.basis === "proposed" ? " · Proposed implementation" : ""}</p>
-            <p className="whitespace-pre-wrap">{step.instructions}</p>
-            {step.validation_ref ? <div className="space-y-1"><p className="font-medium">Validation check: {sources.find(s => s.ref === step.validation_ref)?.label ?? step.validation_ref}</p><PaperClaimCriterion criterion={sources.find(s => s.ref === step.validation_ref)!.criterion!} /></div> : null}
-            {step.source_refs.length ? <details><summary className="cursor-pointer text-xs text-muted-foreground">Confirmed supporting details</summary><ul className="mt-2 space-y-2">{step.source_refs.map(ref => { const source = sources.find(s => s.ref === ref)!; return <li key={ref}><p>{source.description}</p>{(source.citations ?? [{ quote: source.quote, page: source.page }]).map((citation, i) => <div key={i}><p className="text-xs text-muted-foreground">PDF page {citation.page}</p><blockquote className="mt-1 whitespace-pre-wrap border-l-2 pl-3">{citation.quote}</blockquote></div>)}</li>; })}</ul></details> : null}
-          </li>)}</ol>
-          {experiment.open_questions.length ? <div className="space-y-2 text-sm"><h4 className="font-medium">Decisions to resolve before execution</h4><ul className="list-disc space-y-1 pl-5">{experiment.open_questions.map((question, i) => <li key={i}>{question}</li>)}</ul></div> : null}
-        </section>)}
+        {view.plan ? <PaperExperimentPlanOutline plan={view.plan} breakdown={saved} /> : null}
       </>}
       <Button size="sm" variant="outline" disabled={busy} onClick={() => setRevision(value => value + 1)}>Check planning status</Button>
     </section>;

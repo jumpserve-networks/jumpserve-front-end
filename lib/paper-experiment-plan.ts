@@ -6,8 +6,12 @@ export const EXPERIMENT_PLAN_VERSION = "paper-experiment-plan-v1";
 export const EXPERIMENT_PLAN_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/api/experiment-plan`;
 export type ReviewedSections = Record<PaperBreakdownSection, { id: string; description: string }[]>;
 export type ExperimentStep = { title: string; instructions: string; basis: "paper" | "proposed"; source_refs: string[]; validation_ref?: string | null };
-export type PlannedExperiment = { title: string; experiment_refs: string[]; steps: ExperimentStep[]; open_questions: string[] };
+export type ExperimentStage = { title: string; steps: ExperimentStep[] };
+export type PlannedExperiment = { title: string; experiment_refs: string[]; open_questions: string[] } & (
+  { steps: ExperimentStep[]; stages?: never } | { stages: ExperimentStage[]; steps?: never }
+);
 export type ExperimentPlan = { experiments: PlannedExperiment[] };
+export const experimentActions = (experiment: PlannedExperiment): ExperimentStep[] => experiment.stages ? experiment.stages.flatMap(stage => stage.steps) : experiment.steps;
 export type PlanStage = "awaiting_confirmation" | "submitting" | "processing" | "uncertain" | "ready" | "failed" | "cancelled";
 export type ExperimentPlanView = {
   version: typeof EXPERIMENT_PLAN_VERSION; study_id: string; stage: PlanStage; intake_revision: number;
@@ -55,12 +59,32 @@ export function validateExperimentPlan(value: unknown, breakdown: PaperBreakdown
   const expected = new Set(sources.experiment.map(s => s.ref)), covered = new Set<string>();
   const claims = new Set(sources.validate.filter(s => s.kind === "claim").map(s => s.ref)), checked = new Set<string>();
   const refList = (v: unknown, allowed: Set<string>, min = 0): v is string[] => Array.isArray(v) && v.length >= min && v.length <= 32 && v.every(r => typeof r === "string" && allowed.has(r)) && new Set(v).size === v.length;
+  let format: "flat" | "hierarchical" | undefined;
   for (const experiment of value.experiments) {
-    if (!object(experiment) || !exact(experiment, ["title", "experiment_refs", "steps", "open_questions"]) || !text(experiment.title, 200) || !refList(experiment.experiment_refs, expected, 1) ||
-      !Array.isArray(experiment.steps) || !experiment.steps.length || experiment.steps.length > 12 || !Array.isArray(experiment.open_questions) || experiment.open_questions.length > 12 || !experiment.open_questions.every(q => text(q, 400))) throw fail();
+    if (!object(experiment)) throw fail();
+    const hierarchical = "stages" in experiment;
+    const currentFormat = hierarchical ? "hierarchical" : "flat";
+    if (format && format !== currentFormat) throw fail();
+    format = currentFormat;
+    if (!exact(experiment, ["title", "experiment_refs", hierarchical ? "stages" : "steps", "open_questions"]) || !text(experiment.title, 200) || !refList(experiment.experiment_refs, expected, 1) ||
+      !Array.isArray(experiment.open_questions) || experiment.open_questions.length > 12 || !experiment.open_questions.every(q => text(q, 400))) throw fail();
+    let steps: unknown[];
+    if (hierarchical) {
+      if (!Array.isArray(experiment.stages) || !experiment.stages.length || experiment.stages.length > 8) throw fail();
+      steps = [];
+      for (const stage of experiment.stages) {
+        if (!object(stage) || !exact(stage, ["title", "steps"]) || !text(stage.title, 160) || !Array.isArray(stage.steps) || !stage.steps.length || stage.steps.length > 8) throw fail();
+        steps.push(...stage.steps);
+      }
+      if (steps.length > 24) throw fail();
+    } else {
+      if (!Array.isArray(experiment.steps) || !experiment.steps.length || experiment.steps.length > 12) throw fail();
+      steps = experiment.steps;
+    }
     for (const ref of experiment.experiment_refs) { if (covered.has(ref)) throw fail(); covered.add(ref); }
-    for (const step of experiment.steps) {
-      if (!object(step) || !exact(step, ["title", "instructions", "basis", "source_refs", ...("validation_ref" in step ? ["validation_ref"] : [])]) || !text(step.title, 160) || !text(step.instructions, 1200) || !["paper", "proposed"].includes(String(step.basis)) || !refList(step.source_refs, refs, step.basis === "paper" ? 1 : 0)) throw fail();
+    for (const step of steps) {
+      if (!object(step) || !exact(step, ["title", "instructions", "basis", "source_refs", ...(hierarchical || "validation_ref" in step ? ["validation_ref"] : [])]) || !text(step.title, 160) || !text(step.instructions, hierarchical ? 800 : 1200) || !["paper", "proposed"].includes(String(step.basis)) || !refList(step.source_refs, refs, step.basis === "paper" ? 1 : 0) ||
+        hierarchical && step.validation_ref !== null && typeof step.validation_ref !== "string") throw fail();
       if (step.validation_ref != null) {
         if (typeof step.validation_ref !== "string" || !claims.has(step.validation_ref) || checked.has(step.validation_ref) || !step.source_refs.includes(step.validation_ref)) throw fail();
         checked.add(step.validation_ref);
