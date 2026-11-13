@@ -22,6 +22,7 @@ function operations(study: string, actor: string) {
   return {
     save: async (operation: string, payload: Record<string, unknown>) => {
       const { data, error } = await (await intakeDatabase()).rpc("research_experiment_plan", { p_operation: operation, p_actor: actor, p_study: study, p_payload: payload });
+      if (error && operation === "confirm" && error.message === "Plan only from the exact confirmed sections") throw new ExperimentPlanError("Experiment planning needs the hierarchical-steps database update. Your paper has not been confirmed and no model call was sent.", 424);
       if (error) databaseFailure(error);
       return data as ExperimentPlanRecord;
     },

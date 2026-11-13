@@ -9,9 +9,10 @@ const lower = value => String(value).normalize('NFKC').replace(/\s+/gu, ' ').tri
 
 export function validatePlanExpectations(value) {
   const fail = () => { throw new Error('Invalid bounded experiment-plan expectations.'); };
-  if (!object(value) || !Object.keys(value).length || !only(value, ['experiment_count', 'minimum_steps', 'required_source_refs', 'details', 'forbidden'])) fail();
+  if (!object(value) || !Object.keys(value).length || !only(value, ['experiment_count', 'minimum_stages', 'minimum_steps', 'required_source_refs', 'details', 'forbidden'])) fail();
   if (value.experiment_count !== undefined && (!Number.isSafeInteger(value.experiment_count) || value.experiment_count < 0 || value.experiment_count > 8)) fail();
-  if (value.minimum_steps !== undefined && (!Number.isSafeInteger(value.minimum_steps) || value.minimum_steps < 0 || value.minimum_steps > 96)) fail();
+  if (value.minimum_stages !== undefined && (!Number.isSafeInteger(value.minimum_stages) || value.minimum_stages < 0 || value.minimum_stages > 64)) fail();
+  if (value.minimum_steps !== undefined && (!Number.isSafeInteger(value.minimum_steps) || value.minimum_steps < 0 || value.minimum_steps > 192)) fail();
   if (value.required_source_refs !== undefined && !refs(value.required_source_refs)) fail();
   if (value.forbidden !== undefined && (!Array.isArray(value.forbidden) || value.forbidden.length > 40 || !value.forbidden.every(term => text(term, 200)))) fail();
   if (value.details !== undefined && (!Array.isArray(value.details) || value.details.length > 40 || !value.details.every(detail =>
@@ -29,11 +30,13 @@ export function validatePlanExpectations(value) {
 export function planQualityChecks(plan, expectations) {
   if (expectations === undefined) return [];
   validatePlanExpectations(expectations);
-  const steps = plan.experiments.flatMap(experiment => experiment.steps);
+  const stages = plan.experiments.flatMap(experiment => experiment.stages ?? []);
+  const steps = plan.experiments.flatMap(experiment => experiment.stages ? experiment.stages.flatMap(stage => stage.steps) : experiment.steps);
   const questions = plan.experiments.flatMap(experiment => experiment.open_questions);
-  const narrative = lower(plan.experiments.map(experiment => [experiment.title, ...experiment.steps.map(step => `${step.title} ${step.instructions}`), ...experiment.open_questions]).flat().join(' '));
+  const narrative = lower([plan.experiments.map(experiment => [experiment.title, ...experiment.open_questions]).flat().join(' '), ...stages.map(stage => stage.title), ...steps.map(step => `${step.title} ${step.instructions}`)].join(' '));
   const checks = [], add = (name, passed) => checks.push({ name, passed: Boolean(passed) });
   if (expectations.experiment_count !== undefined) add('coherent experiment count', plan.experiments.length === expectations.experiment_count);
+  if (expectations.minimum_stages !== undefined) add('hierarchical stages retained', stages.length >= expectations.minimum_stages);
   if (expectations.minimum_steps !== undefined) add('implementation steps retained', steps.length >= expectations.minimum_steps);
   if (expectations.required_source_refs) {
     const used = new Set(steps.flatMap(step => step.source_refs));

@@ -21,3 +21,12 @@ export function implementationExpectations() {
     {name:'unresolved scientific acceptance',scope:'open_questions',mentions:[['h1'],['h3'],['tolerance'],['before observing','before inspecting']]},
   ]};
 }
+export function hierarchicalImplementationPlan() {
+ const {steps,...experiment}=implementationPlan().experiments[0];
+ return {experiments:[{...experiment,stages:[
+  {title:'Prepare and configure the experiment',steps:[steps[0]]},
+  {title:'Collect independent measurements',steps:[steps[1]]},
+  {title:'Analyze measurements',steps:[steps[2]]},
+  {title:'Validate the three claims',steps:steps.slice(3)},
+ ]}]};
+}
