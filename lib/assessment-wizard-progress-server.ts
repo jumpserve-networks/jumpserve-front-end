@@ -28,17 +28,24 @@ export async function readAssessmentWizardProgress(ids: string[]): Promise<Asses
   if (activeIds.length) {
     const [intakes, plans, reviews, workflows] = await Promise.all([
       db.from("research_paper_intakes").select("study_id,status", { count: "exact" }).in("study_id", activeIds).limit(activeIds.length + 1),
-      db.from("research_experiment_plans").select("study_id,status", { count: "exact" }).in("study_id", activeIds).limit(activeIds.length + 1),
+      db.from("research_experiment_plans").select("study_id,status,revision", { count: "exact" }).in("study_id", activeIds).limit(activeIds.length + 1),
       db.from("research_paper_reviews").select("study_id,status", { count: "exact" }).in("study_id", activeIds).limit(activeIds.length + 1),
       db.from("research_autonomy_workflows").select("study_id", { count: "exact" }).in("study_id", activeIds).limit(activeIds.length + 1),
     ]);
     const intakeRows = rows(intakes, activeIds, "study_id"), planRows = rows(plans, activeIds, "study_id"), reviewRows = rows(reviews, activeIds, "study_id"), workflowRows = rows(workflows, activeIds, "study_id");
+    const failedIds = activeIds.filter(id => planRows.get(id)?.status === "failed");
+    let linkReviews = new Map<string, Record<string, unknown>>();
+    if (failedIds.length) {
+      const result = await db.from("research_experiment_plan_link_reviews").select("study_id,base_revision", { count: "exact" }).in("study_id", failedIds).limit(failedIds.length + 1);
+      if (!result.error || !["42P01", "PGRST205"].includes(result.error.code ?? "")) linkReviews = rows(result, failedIds, "study_id");
+      for (const [id, review] of linkReviews) if (!Number.isSafeInteger(review.base_revision) || review.base_revision !== planRows.get(id)?.revision) throw new Error("Reviewed assessment steps could not be checked.");
+    }
     for (const id of activeIds) {
       const intake = intakeRows.get(id)?.status, plan = planRows.get(id)?.status, review = reviewRows.get(id)?.status;
       if (intake !== undefined && !["uploaded", "submitting", "processing", "uncertain", "ready", "failed", "cancelled"].includes(String(intake)) ||
           plan !== undefined && !["submitting", "processing", "uncertain", "ready", "failed", "cancelled"].includes(String(plan)) ||
           review !== undefined && !["preparing", "ready", "failed", "confirmed"].includes(String(review))) throw new Error("Assessment steps could not be checked.");
-      if (workflowRows.has(id) || plan === "ready") steps.set(id, 4);
+      if (workflowRows.has(id) || plan === "ready" || linkReviews.has(id)) steps.set(id, 4);
       else if (plan !== undefined || review === "confirmed") steps.set(id, 3);
       else if (intake === "uploaded") steps.set(id, 1);
       else if (intake !== undefined || review !== undefined) steps.set(id, 2);

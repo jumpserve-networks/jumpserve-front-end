@@ -1,3 +1,43 @@
+## Reviewed duplicate validation links
+
+Measurement and calibration actions may cite a claim in `source_refs`; only the
+one final evaluation uses its `validation_ref`. The prompt and schema distinguish
+these roles. A duplicate assignment is rejected with the claim identity, without
+repeating inference or changing the original response.
+
+An operator can review a completed, failed V3 response whose only invalid fields
+are duplicate validation assignments. Explicitly retain the dedicated evaluator
+using one-based experiment.stage.step positions:
+
+```sh
+npm run review:experiment-plan-links -- --assessment UUID \
+  --keep validate-3=1.5.3 --reason 'Retain the final H3 evaluation; the earlier RTT action only collects measurements.'
+```
+
+The default is a dry run. Repeat the identical command with `--apply` after the
+matching migration and frontend deployment. Supabase MCP appends an immutable
+private review and audit record. Only other occurrences of the selected duplicate
+assignment become null. The actions, wording, source references, original failed
+row and event history, raw response, confirmed sections, prompt, provider identity,
+counts and limits remain unchanged. Both TypeScript and Postgres must accept the
+complete reviewed plan under every existing source, claim, layout and size check.
+No model or experiment call occurs.
+
+The owner API overlays the reviewed plan as ready and includes `link_review`
+metadata. Progress reflects that exact original revision. This cannot repair
+missing actions, invented references, incomplete/refused responses, or altered
+scientific instructions. Ready, cancelled, deleted, stale and differently owned
+calls cannot be reviewed. Repeated apply uses the frozen review identity.
+Private traces remain in `.test-artifacts/experiment-plan-link-reviews/`.
+
+Release order: qualify `test/check_experiment_plan_link_reviews_database.py`,
+apply `202611150001_experiment_plan_link_reviews.sql`, deploy the frontend, then
+apply the reviewed selection. Original terminal records and their immutability
+guards are never relaxed. This is an operator annotation review, not scientific
+validation or an automatic choice of which action should decide a claim.
+
+## Confirmation and planning
+
 Phase one extracts Access, Experiment, Data and Validate. Only the Google-linked
 assessment owner can confirm those sections. Before confirmation, descriptions
 can be corrected and details excluded. Source quotes, PDF pages and the original
