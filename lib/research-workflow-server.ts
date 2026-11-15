@@ -9,7 +9,7 @@ async function publicRead<T>(path: string): Promise<ResearchRead<T>> {
     const base = origin();
     if (!base) return { status: "unavailable", reason: "The research workflow service is not configured. No assessment coverage is inferred." };
     const response = await fetch(`${base}/research${path}`, { cache: "no-store", signal: AbortSignal.timeout(20000), headers: { Accept: "application/json" } });
-    if (response.status === 404) return { status: "not-found", reason: "This assessment has no published snapshot, or the workflow service has not been released." };
+    if (response.status === 404) return { status: "not-found", reason: "Assessment evidence is unavailable, or the workflow service has not been released." };
     if (!response.ok) return { status: "unavailable", reason: `The research service is unavailable (HTTP ${response.status}). Missing results are not zero.` };
     return { status: "available", data: await response.json() as T };
   } catch { return { status: "unavailable", reason: "The research service could not return complete data. No truncated result is presented as a completed assessment." }; }

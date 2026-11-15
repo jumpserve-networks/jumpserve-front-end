@@ -1,10 +1,10 @@
 import { permanentRedirect } from "next/navigation";
-import { researchPublishedPath, researchSearchSuffix } from "@/lib/research-pathways";
-import type { PublishedStudyProps } from "@/app/components/research-workflow/published-studies";
+import { researchResultsPath, researchSearchSuffix } from "@/lib/research-pathways";
+import type { AssessmentResultProps } from "@/app/components/research-workflow/assessment-results";
 
 export const dynamic = "force-dynamic";
 
-export default async function LegacyAssessment({ params, searchParams }: PublishedStudyProps) {
+export default async function LegacyAssessment({ params, searchParams }: AssessmentResultProps) {
   const [{ studyId }, query] = await Promise.all([params, searchParams]);
-  permanentRedirect(researchPublishedPath("paper", studyId) + researchSearchSuffix(query));
+  permanentRedirect(researchResultsPath("paper", studyId) + researchSearchSuffix(query));
 }

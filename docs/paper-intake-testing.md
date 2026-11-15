@@ -15,6 +15,37 @@ without submitting another call. After a model compatibility update, use
 there is no need to create a replacement assessment. Apply the model admission
 migration before running a frontend that selects the newer phase-one model.
 
+## Revalidate a retained completed response
+
+An older reader must leave an unfamiliar `paper_breakdown_sources_*` request to
+a compatible reader instead of parsing it as legacy quote/page JSON and failing
+the shared intake. Deploy compatible readers before enabling a new source format
+against a shared database. Deadline cancellation and explicit owner cancellation
+retain their existing behavior.
+
+If an intake already failed with `Document provenance or implementation choices
+are invalid.`, the operator can validate its saved completed response and recover
+it through Supabase MCP:
+
+```sh
+npm run revalidate:paper -- --assessment UUID
+npm run revalidate:paper -- --assessment UUID --apply
+```
+
+The dry run checks the original response identity, format, saved prompt, complete
+paper text, exact citations and current extraction rules. Apply uses a single
+compare-and-swap transaction, records revalidation, and calls the existing audited
+finish operation. The original failed snapshot remains in history. Request,
+response, PDF identity, provider identity, model-call count, committed amount and
+deadline are preserved. Deleted, cancelled, confirmed, stale, incomplete and
+still-invalid results cannot be repaired through this command. Repeating a
+successful repair verifies the same ready result. This operation makes no model
+calls and starts no experiments. Private traces are saved under
+`.test-artifacts/paper-intake-revalidations/<assessment-id>`.
+
+The fixed local database check is
+`test/check_paper_intake_revalidation_database.py` in `jumpserve-infra`.
+
 ## Fast checks and CI
 
 ```sh
@@ -22,11 +53,13 @@ npm run eval:paper
 npm test
 ```
 
-The default evaluation checks four hand-authored, source-grounded references:
+The default evaluation checks five hand-authored, source-grounded references:
 complete methods, sparse/missing information, and embedded instructions plus a
 missing-text page, plus a synthetic case that separates three hypotheses from a
 derived table percentage, retains collection/setup/uncertainty requirements and
-checks implementation choices against their actual supporting passages. It makes zero model/database calls. CI runs this command
+checks implementation choices against their actual supporting passages, plus a
+dependency case requiring independent prerequisites and a nested data-analysis
+chain. It makes zero model/database calls. CI runs this command
 without API credentials. These are exposed software fixtures, not independent
 scientific evaluations or proof of general model accuracy.
 
@@ -36,6 +69,7 @@ Configure `OPENAI_API_KEY` locally, then name each intentional trial:
 
 ```sh
 npm run eval:paper -- --live --run baseline-v1
+npm run eval:paper -- --live --run dependencies-v6 --case section-dependencies
 npm run eval:paper -- --live --run candidate-title-v2 \
   --prompt evals/paper-intake/prompts/title-without-byline.txt \
   --baseline baseline-v1

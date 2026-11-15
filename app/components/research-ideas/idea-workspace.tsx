@@ -39,9 +39,9 @@ export function IdeaIntake() {
     ids.current ??= { study: crypto.randomUUID(), packet: crypto.randomUUID() };
     try {
       const capabilities = await researchRequest<{ ideas?: { version: string } }>("/capabilities");
-      if (capabilities.ideas?.version !== IDEA_VERSION) throw new Error("The connected research service does not yet support unpublished ideas. Your unsaved idea remains in this form.");
+      if (capabilities.ideas?.version !== IDEA_VERSION) throw new Error("The connected research service does not yet support research ideas. Your unsaved idea remains in this form.");
       const study = await researchRequest<ResearchStudy>("/studies", { method: "POST", body: JSON.stringify({ request_id: ids.current.study,
-        paper: { title, domain, scope: "Unpublished research idea. No experimental evidence has been collected by this intake.", paper_url: null, study_kind: "idea", origin_module: null } }) });
+        paper: { title, domain, scope: "Research idea. No experimental evidence has been collected by this intake.", paper_url: null, study_kind: "idea", origin_module: null } }) });
       if (study.id !== ids.current.study || study.study_kind !== "idea" || study.paper_url !== null) throw new Error("Idea study identity or origin was not confirmed; inspect saved studies before creating another.");
       setSavedStudy(study.id);
       const packet = await researchRequest<IdeaPacket>(`/studies/${study.id}/idea`, { method: "POST", body: JSON.stringify({ action: "save", request_id: ids.current.packet,
@@ -51,7 +51,7 @@ export function IdeaIntake() {
     } catch (failure) { setError(errorText(failure)); }
     finally { setBusy(false); }
   }
-  return <form onSubmit={submit} className="content-panel space-y-5 rounded-lg border p-5" aria-label="New unpublished research idea">
+  return <form onSubmit={submit} className="content-panel space-y-5 rounded-lg border p-5" aria-label="New research idea">
     <p className="text-sm text-muted-foreground">Your draft is private.</p>
     {[["Idea title", title, setTitle], ["Research domain", domain, setDomain]].map(([label, value, setter]) => <label key={label as string} className="block space-y-1 text-sm"><span className="font-medium">{label as string}</span><Input required maxLength={300} disabled={busy || Boolean(savedStudy)} value={value as string} onChange={event => { (setter as (value: string) => void)(event.target.value); changed(); }} /></label>)}
     <label className="block space-y-1 text-sm"><span className="font-medium">Research question</span><Textarea className="text-foreground" required maxLength={5000} disabled={busy || Boolean(savedStudy)} value={question} onChange={event => { setQuestion(event.target.value); changed(); }} /></label>
@@ -260,7 +260,7 @@ export function IdeaWorkspace({ studyId }: { studyId: string }) {
   return <div className="space-y-6"><section className="content-panel space-y-3 rounded-lg border p-5"><h2 className="text-xl font-semibold">{snapshot.study.title}</h2>
     {error ? <p role="alert" className="text-sm text-destructive">{error} Previously retrieved status is shown; your open answer is preserved. Refresh before relying on current readiness.</p> : null}
     {versionConflict ? <Button type="button" variant="outline" size="sm" onClick={() => void reload(undefined, true).catch(failure => setError(errorText(failure)))}>Discard this draft and load the newer plan</Button> : null}
-    <p className="text-sm">Unpublished research idea · {packet ? `packet version ${packet.version}` : "first plan not yet saved"} · {state.ready ? "Plan readiness accepted" : "Draft / review pending"}</p>
+    <p className="text-sm">Research idea · {packet ? `packet version ${packet.version}` : "first plan not yet saved"} · {state.ready ? "Plan readiness accepted" : "Draft / review pending"}</p>
     {!packet ? <p role="status" className="text-sm">Your study draft is preserved. Start answering below to save its first plan without creating another study.</p> : null}
     <div className="flex flex-wrap gap-2" aria-label="Planning interface"><Button type="button" size="sm" variant={mode === "guided" ? "default" : "outline"} aria-pressed={mode === "guided"} disabled={(dirty || campaignEditing) && mode !== "guided"} onClick={() => setMode("guided")}>Guided conversation</Button><Button type="button" size="sm" variant={mode === "advanced" ? "default" : "outline"} aria-pressed={mode === "advanced"} disabled={(dirty || campaignEditing) && mode !== "advanced"} onClick={() => setMode("advanced")}>Detailed editor and history</Button></div>
     <details open={mode === "advanced" || undefined} className="text-sm"><summary className="cursor-pointer"><span>History and results</span><span className="text-muted-foreground"> · {snapshot.records.runs.length} recorded runs</span></summary><div className="mt-3 space-y-3"><p className="text-muted-foreground">{snapshot.records.runs.length} scientific runs recorded.</p><div className="flex flex-wrap gap-3"><Button type="button" variant="outline" size="sm" onClick={() => void download(state)}>Download planning history</Button><Button type="button" variant="outline" size="sm" onClick={() => void reload().catch(failure => setError(errorText(failure)))}>Refresh retained status</Button><Link className="text-sm underline" href={`${PATH}/workspace/${studyId}`}>Scientific evidence workspace</Link></div><details><summary className="cursor-pointer text-xs">Retained packet versions</summary><ul className="mt-2 space-y-1 text-xs">{state.packets.map(row => <li key={row.id} className="break-all">Version {row.version} · {row.reason} · SHA256 {row.sha256}</li>)}</ul></details></div></details>

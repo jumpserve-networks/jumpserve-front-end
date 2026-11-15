@@ -1,9 +1,11 @@
 import type { PaperText } from "./paper-intake-model";
+import { validPaperDependencies } from "./paper-detail-dependencies";
 
 export const PAPER_SOURCE_FORMAT = "paper_breakdown_sources_v2";
 export const PAPER_SOURCE_FORMAT_V3 = "paper_breakdown_sources_v3";
 export const PAPER_SOURCE_FORMAT_V4 = "paper_breakdown_sources_v4";
 export const PAPER_SOURCE_FORMAT_V5 = "paper_breakdown_sources_v5";
+export const PAPER_SOURCE_FORMAT_V6 = "paper_breakdown_sources_v6";
 export type PaperSource = { ref: string; page: number; quote: string; start: number; end: number };
 
 /** Complete, deterministic slices of retained text. No generated quotation text. */
@@ -53,8 +55,8 @@ function metadataQuote(value: unknown, page: string, maximum: number, label: str
 }
 
 /** Resolve IDs on the server, then run the unchanged exact-quote validator. */
-export function resolvePaperSources(value: unknown, paper: PaperText, structured = false, scopedSpecification = false): unknown {
-  if (structured) return resolveStructuredPaperSources(value, paper, scopedSpecification);
+export function resolvePaperSources(value: unknown, paper: PaperText, structured = false, scopedSpecification = false, dependencies = false): unknown {
+  if (structured) return resolveStructuredPaperSources(value, paper, scopedSpecification, dependencies);
   if (!object(value) || !keys(value, ["title", "domain", "authors", "sections"]) || !Array.isArray(value.authors) || value.authors.length > 100 || !object(value.sections) || !keys(value.sections, ["access", "experiment", "data", "validate"])) throw new Error("The model did not return the complete source-referenced breakdown.");
   const sources = new Map(paperSources(paper).map(source => [source.ref, source]));
   function resolve(field: unknown, key: "text" | "name" | "description", label: string, exactMetadata = false) {
@@ -77,7 +79,7 @@ export function resolvePaperSources(value: unknown, paper: PaperText, structured
 }
 
 /** Multiple passages can support a description; each passage keeps its own PDF page. */
-export function resolveStructuredPaperSources(value: unknown, paper: PaperText, scopedSpecification = false): unknown {
+export function resolveStructuredPaperSources(value: unknown, paper: PaperText, scopedSpecification = false, dependencies = false): unknown {
   if (!object(value) || !keys(value, ["title", "domain", "authors", "sections", "provenance", "implementation_choices"]) || !object(value.sections) || !keys(value.sections, ["access", "experiment", "data", "validate"])) throw new Error("The structured paper breakdown is incomplete.");
   const sourceMap = new Map(paperSources(paper).map(s => [s.ref, s]));
   function citations(refs: unknown, allowEmpty = false) {
@@ -89,7 +91,8 @@ export function resolveStructuredPaperSources(value: unknown, paper: PaperText, 
     const entries = value.sections[section];
     if (!Array.isArray(entries) || entries.length > 8) throw new Error("Paper section detail bounds were exceeded.");
     enhanced[section] = entries.map(entry => {
-      if (!object(entry) || !keys(entry, ["source_refs", "description", "kind", "label", "criterion", "specification"])) throw new Error("Invalid structured paper detail.");
+      if (!object(entry) || !keys(entry, ["source_refs", "description", "kind", "label", "criterion", "specification", ...(dependencies ? ["depends_on"] : [])])) throw new Error("Invalid structured paper detail.");
+      if (dependencies && (!Array.isArray(entry.depends_on) || entry.depends_on.length > 7 || !entry.depends_on.every(ref => Number.isSafeInteger(ref) && ref >= 1 && ref <= entries.length))) throw new Error("Dependencies must identify details in the same section by their one-based positions.");
       let specification = entry.specification;
       let refs = entry.source_refs;
       if (scopedSpecification && entry.kind === "experiment_specification") {
@@ -105,8 +108,11 @@ export function resolveStructuredPaperSources(value: unknown, paper: PaperText, 
       }
       const evidence = citations(refs);
       if (section === "experiment" && entry.kind !== "experiment_specification" || entry.kind === "experiment_specification" && section !== "experiment" || entry.kind === "claim" && section !== "validate" || entry.kind === "reported_result" && section !== "data") throw new Error("Paper details must retain their experiment, claim and result roles.");
-      return { description: entry.description, ...evidence[0], citations: evidence, kind: entry.kind, label: entry.label, criterion: entry.criterion, specification };
+      return { description: entry.description, ...evidence[0], citations: evidence, kind: entry.kind, label: entry.label, criterion: entry.criterion, specification,
+        ...(dependencies ? { depends_on: (entry.depends_on as number[]).map(ref => `${section}-${ref}`) } : {}),
+      };
     });
+    if (dependencies && !validPaperDependencies(enhanced[section].map((entry, index) => ({ ...(entry as { depends_on: string[] }), id: `${section}-${index + 1}` })))) throw new Error("Paper detail dependencies cannot reference themselves, repeat or form cycles.");
     legacySections[section] = entries.map(entry => ({ description: entry.description, source_ref: entry.source_refs[0] }));
   }
   const legacy = resolvePaperSources({ title: value.title, domain: value.domain, authors: value.authors, sections: legacySections }, paper) as Record<string, unknown>;

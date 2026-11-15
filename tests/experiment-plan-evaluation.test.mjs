@@ -4,7 +4,7 @@ import {spawnSync} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import {join} from 'node:path';
 import {planQualityChecks,validatePlanExpectations} from '../scripts/lib/experiment-plan-checks.mjs';
-import {implementationBreakdown,implementationPlan,implementationExpectations,hierarchicalImplementationPlan} from './support/implementation-plan-fixture.mjs';
+import {implementationBreakdown,implementationPlan,implementationExpectations,hierarchicalImplementationPlan,granularImplementationPlan,granularImplementationExpectations} from './support/implementation-plan-fixture.mjs';
 import {evidencePlan} from './support/paper-evidence-fixture.mjs';
 import {planningSources,validateExperimentPlan} from '../lib/paper-experiment-plan.ts';
 import {experimentPlanRequest} from '../lib/paper-experiment-plan-model.ts';
@@ -46,7 +46,7 @@ test('question checks use unresolved questions rather than a matching phrase els
  assert.ok(planQualityChecks(plan,expected).every(check=>check.passed));plan.experiments[0].title='Already validated';assert.equal(planQualityChecks(plan,expected).at(-1).passed,false);
 });
 test('expectation files are bounded data with no executable graders or invalid source identities',()=>{
- for(const bad of [{},{code:'process.exit(0)'},{experiment_count:9},{minimum_steps:193},{minimum_stages:65},{required_source_refs:['data-99']},{required_source_refs:['data-1','data-1']},{details:[{name:'Bad',scope:'open_questions',basis:'paper',mentions:[['x']]}]},{details:[{name:'Bad',mentions:[[]]}]},{details:[{name:'Bad',mentions:[['x'.repeat(161)]]}]},{details:[{name:'Bad',scope:'javascript',mentions:[['x']]}]},{forbidden:['']},null])assert.throws(()=>validatePlanExpectations(bad),/bounded/);
+ for(const bad of [{},{code:'process.exit(0)'},{experiment_count:9},{minimum_steps:193},{minimum_stages:65},{max_instruction_characters:0},{max_instruction_characters:1201},{max_instruction_characters:'400'},{required_source_refs:['data-99']},{required_source_refs:['data-1','data-1']},{details:[{name:'Bad',scope:'open_questions',basis:'paper',mentions:[['x']]}]},{details:[{name:'Bad',mentions:[[]]}]},{details:[{name:'Bad',mentions:[['x'.repeat(161)]]}]},{details:[{name:'Bad',scope:'javascript',mentions:[['x']]}]},{forbidden:['']},null])assert.throws(()=>validatePlanExpectations(bad),/bounded/);
  assert.equal(validatePlanExpectations(implementationExpectations()).experiment_count,1);
 });
 test('frozen browser-free replay checks content, fails deficient plans, and detects changed expectations',async()=>{
@@ -58,4 +58,14 @@ test('frozen browser-free replay checks content, fails deficient plans, and dete
  await privateJSON(join(directory,'run.json'),saved);let result=spawnSync(process.execPath,args,{encoding:'utf8',timeout:10000});assert.equal(result.status,0,result.stderr);assert.equal(JSON.parse(result.stdout).model_calls,0);assert.ok(JSON.parse(result.stdout).checks.every(check=>check.passed));
  const {steps,...deficient}=evidencePlan().experiments[0];saved.response.output[0].content[0].text=JSON.stringify({experiments:[{...deficient,stages:[{title:'Only validation',steps}]}]});await privateJSON(join(directory,'run.json'),saved);result=spawnSync(process.execPath,args,{encoding:'utf8',timeout:10000});assert.equal(result.status,1);assert.equal(JSON.parse(result.stdout).passed,false);
  saved.expectations.minimum_steps=1;await privateJSON(join(directory,'run.json'),saved);result=spawnSync(process.execPath,args,{encoding:'utf8',timeout:10000});assert.equal(result.status,1);assert.match(result.stderr,/frozen identity/);
+});
+
+test('granularity expectations accept focused actions and reject the older compound plan',()=>{
+ const breakdown=implementationBreakdown(),plan=granularImplementationPlan(),expectations=granularImplementationExpectations();
+ validateExperimentPlan(plan,breakdown);assert.ok(planQualityChecks(plan,expectations).every(check=>check.passed));
+ const coarse=planQualityChecks(hierarchicalImplementationPlan(),expectations);assert.equal(coarse.find(check=>check.name==='implementation steps retained').passed,false);assert.equal(coarse.find(check=>check.name==='action instructions stay focused').passed,false);
+ const request=experimentPlanRequest(breakdown),action=request.text.format.schema.properties.experiments.items.properties.stages.items.properties.steps.items;
+ assert.equal(action.properties.instructions.maxLength,400);
+ // Historical plans retain their original validator bounds and remain readable.
+ validateExperimentPlan(hierarchicalImplementationPlan(),breakdown);
 });

@@ -11,10 +11,11 @@ export function PaperEvidenceCitations({ citations, label = "Source quotes" }: {
 }
 
 export function PaperClaimCriterion({ criterion }: { criterion: PaperCriterion }) {
+  const agreement = `${criterion.acceptance === "needs_definition" ? "Needs an operational definition before execution." : "Use the paper-defined comparison."}${criterion.tolerance ? ` ${criterion.tolerance}` : " No separate tolerance is stated."}`;
   return <dl className="space-y-1 text-sm">
     <div><dt className="inline font-medium">Metric: </dt><dd className="inline">{criterion.metric}</dd></div>
     <div><dt className="inline font-medium">Comparison: </dt><dd className="inline">{criterion.comparison}</dd></div>
     <div><dt className="inline font-medium">Target: </dt><dd className="inline">{criterion.target}</dd></div>
-    <div><dt className="inline font-medium">Agreement rule: </dt><dd className="inline">{criterion.acceptance === "needs_definition" ? "Needs an operational definition before execution." : "Use the paper-defined comparison."}{criterion.tolerance ? ` ${criterion.tolerance}` : " No separate tolerance is stated."}</dd></div>
+    <div><dt className="inline font-medium">Agreement rule: </dt><dd className="inline">{agreement}</dd></div>
   </dl>;
 }

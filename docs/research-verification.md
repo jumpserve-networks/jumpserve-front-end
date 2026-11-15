@@ -1,12 +1,13 @@
 # Research Verification module
 
-Each `/research-verification/assessment/<id>` page includes its **Experiment Queue**
-with claim history, repair progress and recorded experiment jobs. Published gap cards hand off to a
+Each `/research-verification/assessment/<id>` page shows paper metadata and the
+owner's wizard. The inline status, records and Experiment Queue sections have
+been removed; the public data APIs remain available. Published gap cards hand off to a
 private, resumable follow-up with retained checks. See
 [the queue workflow and verification protocol](experiment-queue.md) for supported
 plans, status semantics, limits and conditional release checks.
 
-Assessment pages are public read-only, including recorded prompts and responses.
+Paper metadata is public read-only; original papers and editing remain owner-only.
 Saved queue URLs redirect to the matching assessment; the standalone queue and
 sidebar entry are retired. Follow-up experiment actions retain Google sign-in
 and backend authorization. Credentials and original private files remain protected.
@@ -14,7 +15,7 @@ See [shared assessment details](shared-assessment-details-v1.md).
 
 After an authorized release, run
 `npm run verify:research:assessments:production -- <merge-revision>` for a public
-read check of the released revision, assessment navigation and the inline queue.
+read check of the released revision, assessment navigation and paper metadata.
 
 The owner workspace now includes a dependency-aware claim queue. Claims retain
 separate scientific assessments; campaigns execute bounded checks. Prerequisites

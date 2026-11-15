@@ -30,3 +30,58 @@ export function hierarchicalImplementationPlan() {
   {title:'Validate the three claims',steps:steps.slice(3)},
  ]}]};
 }
+
+export function granularImplementationPlan(){
+ const action=(title,instructions,source_refs=['experiment-1'],basis='proposed')=>({title,instructions,basis,source_refs,validation_ref:null});
+ return {experiments:[{title:'Reproduce the complete loss sweep',experiment_refs:['experiment-1'],stages:[
+  {title:'Prepare the environment',steps:[
+   action('Freeze the experiment scope','Freeze 0%, 3% and 6% loss with two 20-second trials per condition: six trials total. Keep fabricated paper values separate from independent measurements in the scope record.',['experiment-1','data-1']),
+   action('Install measurement tools','Proposed: install iperf3 and JSON tooling on the two Linux hosts. Save the installation log and verify executable availability.',['access-1','experiment-1']),
+   action('Capture software versions','Proposed: record the kernel, iperf3 and traffic-control versions in an immutable environment manifest.',['access-1','experiment-1']),
+   action('Allocate measurement identities','Proposed: allocate Supabase configuration, run and trial identities for the six planned trials. Save their mapping before collection.',['experiment-1','data-1']),
+  ]},
+  {title:'Configure the path',steps:[
+   action('Create the host topology','Proposed: connect two isolated Linux hosts through the controlled path. Save the interface and namespace mapping.',['access-1','experiment-1']),
+   action('Configure the rate shaper','Configure the specified 50 Mb/s path. Record the exact qdisc hierarchy and the resolved traffic-control configuration.',['experiment-1'],'paper'),
+   action('Configure propagation delay','Configure 10 ms propagation delay in each direction. Save the resolved delay settings.',['experiment-1'],'paper'),
+   action('Select the queue limit','Proposed: use a queue limit of 100 packets as a fixed baseline. Verify the resolved queue setting and retain backlog/drop diagnostics.'),
+   action('Select the shaper burst','Proposed: use a 16 KiB shaper burst as a fixed baseline. Verify the resolved burst value before calibration.'),
+  ]},
+  {title:'Calibrate the path',steps:[
+   action('Check connectivity','Proposed: verify bidirectional reachability between the hosts. Save the connectivity check output.'),
+   action('Measure the calibrated rate','Proposed: measure the no-loss path rate against the configured 50 Mb/s target. Save the calibration record without treating it as a claim outcome.'),
+   action('Measure idle RTT','Measure idle RTT with no bulk transfer against the near-20 ms target. Retain the raw RTT observations.',['experiment-1','validate-3'],'paper'),
+   action('Check configured loss','Proposed: record requested and observed packet-loss counts for each configured loss level. Save the calibration diagnostics separately from trial measurements.'),
+  ]},
+  {title:'Collect and persist measurements',steps:[
+   action('Freeze the trial schedule','Proposed: shuffle the six condition/trial identities with schedule seed 17. Save the complete ordered schedule before execution.'),
+   action('Assign independent loss seeds','Proposed: assign distinct loss seeds 1001 through 1006 to schedule positions 1 through 6. Save the trial-to-seed mapping; never restart the same realization for each repetition.'),
+   action('Reset each trial','Proposed: reset the connection and impairment state before each trial. Use zero warm-up and save the reset log without shortening the paper-defined 20-second measurement window.'),
+   action('Collect receiver measurements','Proposed: collect receiver goodput, retransmissions, idle RTT and raw JSON for each scheduled trial. Retain actual byte counts and timing, including failed-trial diagnostics.',['experiment-1','data-1']),
+   action('Upload raw trial artifacts','Proposed: upload each raw JSON artifact with its SHA256, trial identity and original configuration reference. Save the artifact receipt.',['experiment-1','data-1']),
+   action('Persist normalized measurements','Proposed: persist receiver goodput and raw JSON artifact references in Supabase with configuration/run/trial IDs, condition, timestamps, versions, seed, duration and failure reason. Preserve zero separately from missing.',['experiment-1','data-1']),
+  ]},
+  {title:'Analyze independent measurements',steps:[
+   action('Compute condition means','Compute arithmetic mean receiver goodput for each loss condition from valid independent whole trials. Save the condition summaries and their sample counts.',['experiment-1'],'paper'),
+   action('Report trial-level uncertainty','Use each whole trial as the replication unit. Proposed: report descriptive variance and small-sample limitations at two trials per condition, without claiming calibrated confidence intervals.'),
+  ]},
+  {title:'Validate the paper claims',steps:implementationPlan().experiments[0].steps.slice(3)},
+ ],open_questions:implementationPlan().experiments[0].open_questions}]};
+}
+export function granularImplementationExpectations(){
+ const previous=implementationExpectations();
+ // Check the same responsibilities at the finer action granularity. Collection
+ // and storage, and the two unresolved claims, need separate content checks.
+ return {...previous,minimum_stages:5,minimum_steps:16,max_instruction_characters:400,details:[
+  {name:'full-grid trial scope',mentions:[['0%'],['3%'],['6%'],['six trials','6 trials','6-trial'],['20-second','20 second','20 s']]},
+  {name:'receiver collection action',mentions:[['receiver'],['raw','json']]},
+  {name:'measurement persistence action',mentions:[['supabase'],['configuration','config'],['trial'],['seed']]},
+  {name:'trial-level uncertainty calculation',mentions:[['replication unit','unit of analysis','inference unit'],['variance','standard deviation','confidence interval','bootstrap'],['limitations','assumptions','small-sample']]},
+  {name:'data provenance separation',scope:'plan',mentions:[['fabricated','synthetic'],['independent measurements','independently measured'],['separate','separately']]},
+  ...['h1','h3'].map(claim=>({name:`unresolved ${claim} acceptance`,scope:'open_questions',mentions:[[claim],['tolerance','agreement rule'],['before observing','before inspecting','before reading','before results']]})),
+  {name:'explicit proposed queue limit',basis:'proposed',source_refs:['experiment-1'],mentions:[['queue'],['limit'],['packets','bytes','kib']]},
+  {name:'explicit proposed burst setting',basis:'proposed',source_refs:['experiment-1'],mentions:[['burst'],['bytes','kib','packets']]},
+  {name:'connectivity check',mentions:[['reachability','connectivity']]},
+  {name:'idle path calibration',mentions:[['idle'],['rtt']]},
+ ]};
+}

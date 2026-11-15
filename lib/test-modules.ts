@@ -20,7 +20,10 @@ const MODULE_PATHS = [EMULATED_MODULE_PATH, REAL_WORLD_MODULE_PATH, DELAY_STUDY_
 // One catalogue serves both scopes. Saved owner-list URLs select the personal
 // filter; exact matches keep private workspace details on their existing routes.
 export const LEGACY_EXACT_MODULE_ROUTES = [RESEARCH_WORKFLOW_MODULE_PATH, `/module${RESEARCH_WORKFLOW_MODULE_PATH}`, `/modules${RESEARCH_WORKFLOW_MODULE_PATH}`]
-  .flatMap(prefix => ["my-assessments", "workspace", "studies"].map(path => ({ source: `${prefix}/${path}`, destination: MY_ASSESSMENTS_PATH })));
+  .flatMap(prefix => [
+    ...["my-assessments", "workspace", "studies"].map(path => ({ source: `${prefix}/${path}`, destination: MY_ASSESSMENTS_PATH })),
+    ...["new-assessment", "new-study", "assessments", "studies"].map(path => ({ source: `${prefix}/${path}/:assessmentId`, destination: `${ASSESSMENT_PATH}/:assessmentId` })),
+  ]);
 
 export const LEGACY_MODULE_ROUTES = [
   { source: "/experiment-queue", destination: `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-queue` },
@@ -105,20 +108,20 @@ export const RESEARCH_VERIFICATION_MODULE = {
   description: "Assess claims in academic papers with versioned sources, documented protocols, recorded measurements and clear evidence gaps.",
   status: "available", href: RESEARCH_WORKFLOW_MODULE_PATH,
   sections: [
-    { href: NEW_ASSESSMENT_PATH, label: "Assess a Paper", description: "Create a paper assessment, prepare available domain plans and queue their checks.", paths: [NEW_ASSESSMENT_PATH] },
-    { href: ASSESSMENTS_PATH, label: "Assessments", description: "Browse submitted paper assessments, recorded progress and published evidence.", paths: [ASSESSMENTS_PATH, ASSESSMENT_PATH, `${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`, `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-design`, `${RESEARCH_WORKFLOW_MODULE_PATH}/design-claim`] },
-    { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/methods`, label: "Verification Methods", description: "Choose appropriate checks and understand publication criteria.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/methods`] },
+    { href: NEW_ASSESSMENT_PATH, label: "Assess a Paper", description: "Create a paper assessment, prepare available domain plans and queue their checks.", paths: [NEW_ASSESSMENT_PATH, ASSESSMENT_PATH] },
+    { href: ASSESSMENTS_PATH, label: "Assessments", description: "Browse submitted paper assessments, recorded progress and evidence.", paths: [ASSESSMENTS_PATH, `${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`, `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-design`, `${RESEARCH_WORKFLOW_MODULE_PATH}/design-claim`] },
+    { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/methods`, label: "Verification Methods", description: "Choose appropriate checks and understand validation criteria.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/methods`] },
   ],
 } as const satisfies TestModule;
 
 export const RESEARCH_IDEAS_MODULE = {
   id: "research-ideas", name: "Develop a New Idea",
-  description: "Develop an unpublished hypothesis, refine a research plan with the AI guide, and run experiments with preserved methods and measurements.",
+  description: "Develop a research hypothesis, refine a research plan with the AI guide, and run experiments with preserved methods and measurements.",
   status: "available", href: RESEARCH_IDEAS_MODULE_PATH,
   sections: [
-    { href: `${RESEARCH_IDEAS_MODULE_PATH}/new-idea`, label: "Develop an Idea", description: "Start with a question or unpublished hypothesis and plan an experiment.", paths: [`${RESEARCH_IDEAS_MODULE_PATH}/new-idea`, `${RESEARCH_IDEAS_MODULE_PATH}/ideas`] },
+    { href: `${RESEARCH_IDEAS_MODULE_PATH}/new-idea`, label: "Develop an Idea", description: "Start with a question or research hypothesis and plan an experiment.", paths: [`${RESEARCH_IDEAS_MODULE_PATH}/new-idea`, `${RESEARCH_IDEAS_MODULE_PATH}/ideas`] },
     { href: `${RESEARCH_IDEAS_MODULE_PATH}/workspace`, label: "My Ideas", description: "Resume your saved plans, reviews and experiment evidence.", paths: [`${RESEARCH_IDEAS_MODULE_PATH}/workspace`] },
-    { href: `${RESEARCH_IDEAS_MODULE_PATH}/test-results`, label: "Published Experiments", description: "Read published experiments on unpublished hypotheses and their evidence limits.", paths: [`${RESEARCH_IDEAS_MODULE_PATH}/test-results`, `${RESEARCH_IDEAS_MODULE_PATH}/studies`] },
+    { href: `${RESEARCH_IDEAS_MODULE_PATH}/test-results`, label: "Experiment Results", description: "Read recorded experiment results and their evidence limits.", paths: [`${RESEARCH_IDEAS_MODULE_PATH}/test-results`, `${RESEARCH_IDEAS_MODULE_PATH}/studies`] },
     { href: `${RESEARCH_IDEAS_MODULE_PATH}/methods`, label: "Idea Development Methods", description: "Understand planning, fresh reviews, protocol readiness and experiment execution.", paths: [`${RESEARCH_IDEAS_MODULE_PATH}/methods`] },
   ],
 } as const satisfies TestModule;

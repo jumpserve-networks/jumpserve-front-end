@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { ChevronRight } from "lucide-react";
 import { planningSources, type ExperimentPlan, type ExperimentStep } from "@/lib/paper-experiment-plan";
 import type { PaperBreakdown } from "@/lib/research-paper-breakdown";
 import { PaperClaimCriterion } from "./paper-evidence";
@@ -46,9 +47,9 @@ export function PaperExperimentPlanOutline({ plan, breakdown }: { plan: Experime
           {experiment.stages ? <ol role="list" aria-label={`Stages for experiment ${number}`} className="space-y-5 pl-3 sm:pl-5">
             {/* Saved plans are immutable; array positions form stable outline paths. */}
             {experiment.stages.map((stage, stageIndex) => <li key={stageIndex}>
-              <details open>
-                <summary className="cursor-pointer [overflow-wrap:anywhere] focus-visible:outline-2 focus-visible:outline-offset-4">
-                  <h4 className="inline font-medium"><span className="mr-2 tabular-nums text-muted-foreground">{number}.{stageIndex + 1}</span>{stage.title}</h4>
+              <details open className="group/stage">
+                <summary className="cursor-pointer list-none [overflow-wrap:anywhere] focus-visible:outline-2 focus-visible:outline-offset-4 [&::-webkit-details-marker]:hidden">
+                  <h4 className="inline font-medium"><span className="mr-2 tabular-nums text-muted-foreground">{number}.{stageIndex + 1}</span>{stage.title}<ChevronRight aria-hidden="true" className="ml-2 inline size-3 transition-transform group-open/stage:rotate-90" /></h4>
                 </summary>
                 <ol role="list" aria-label={`Actions for ${number}.${stageIndex + 1} ${stage.title}`} className="mt-4 space-y-5 pl-4 sm:pl-6">
                   {stage.steps.map((step, actionIndex) => <PlanAction key={actionIndex} step={step} number={`${number}.${stageIndex + 1}.${actionIndex + 1}`} sources={sources} nested />)}

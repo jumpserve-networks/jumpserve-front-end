@@ -1,6 +1,6 @@
 # Paper experiment queue
 
-The current queue lives inside each `/research-verification/assessment/<id>` page. Saved standalone queue links redirect to the corresponding assessment. See [shared queue status](public-experiment-queue-v1.md) and [shared assessment details](shared-assessment-details-v1.md) for navigation, public reads and authenticated follow-up actions.
+The user removed the inline queue, status summary and record controls from `/research-verification/assessment/<id>`. Saved queue links still redirect to the assessment wizard, preserving their identifiers. The public data APIs and authenticated follow-up actions remain available. The earlier queue interface is documented below; see [shared assessment details](shared-assessment-details-v1.md) for the current page layout and access rules.
 
 From a published assessment's **Evidence gaps & next experiments** view, choose
 **Choose experiment to queue**. Sign-in preserves the exact study/gap link. The

@@ -3,7 +3,7 @@ import { getResearchSnapshot } from "@/lib/research-workflow-server";
 import { measurementsCsv } from "@/lib/research-workflow";
 import { researchExportPath, researchStudyKind, type ResearchStudyKind } from "@/lib/research-pathways";
 
-export async function publishedStudyExport(request: Request, studyId: string, kind: ResearchStudyKind) {
+export async function studyResultsExport(request: Request, studyId: string, kind: ResearchStudyKind) {
   const result = await getResearchSnapshot(studyId);
   if (result.status !== "available") return Response.json({ error: result.reason }, { status: result.status === "not-found" ? 404 : 503 });
   const url = new URL(request.url);

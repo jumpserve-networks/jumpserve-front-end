@@ -207,8 +207,10 @@ anonymous SELECT grants only for experiment tables and the explicit
 in public pages: requester emails are not public. Saved configurations and chat
 sessions remain authenticated. Real-world cancellation is owner-only.
 
-Each `/research-verification/assessment/<id>` page includes a public read-only
-Experiment Queue section, even before publication. Retired queue links with
+Each `/research-verification/assessment/<id>` page shows the paper header and owner
+wizard. The user removed the Assessment status, Claim progress, assessment-record
+controls and Experiment Queue sections; do not restore them or poll queue data
+from that page. Public record APIs remain available. Retired queue links with
 `?assessment=<id>` or `?study=<id>` redirect there, retaining job identities;
 `&view=private` uses the same shared view. Prompts, responses,
 requirements, evidence records, configurations and event history are available
@@ -220,6 +222,14 @@ and size limits, preserve missing values and zero, and identify hashes as belong
 to unchanged originals. Retired queue links without an assessment open the
 My Assessments filter. Launches, cancellation and every write retain Google/owner checks. See
 `docs/shared-assessment-details-v1.md` for current access rules and verification.
+
+Paper assessments have no Published/Not published state or publishing action.
+Use the wizard step as progress and the canonical assessment route for every
+paper; old report URLs redirect there. Ignore legacy publication flags at the
+client boundary while preserving historical records and wire compatibility.
+Source-paper reported values and bibliographic provenance remain distinct from
+our measurements. Owner-only editing, private PDFs and private ideas retain
+their existing authorization checks.
 
 - Canonical production URL: `https://jumpserve.quaint-lab.org`
 - Production `NEXT_PUBLIC_SITE_URL`: `https://jumpserve.quaint-lab.org`

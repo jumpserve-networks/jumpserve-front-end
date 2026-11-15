@@ -31,7 +31,7 @@ try {
     const url = new URL(request.url());
     if (url.pathname.startsWith('/research/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method())) report.research_writes.push({ method: request.method(), path: url.pathname });
   });
-  let id, title, queue;
+  let id, title;
   await check('Table is the default and Card shows the same assessments', async () => {
     const response = await page.goto(origin + list, { waitUntil: 'domcontentloaded' }); assert.equal(response.status(), 200);
     const table = page.getByRole('table', { name: 'Assessments', exact: true });
@@ -49,24 +49,25 @@ try {
     return { assessment_count: ids.length, card_survives_reload: true };
   });
   const detail = base + '/assessment/' + id;
-  await check('assessment detail includes its recorded queue, history controls and stage', async () => {
-    const pending = page.waitForResponse(response => new URL(response.url()).pathname === '/research/studies/' + id + '/queue');
+  await check('assessment detail shows public paper metadata without status, records or queue sections', async () => {
+    const pending = page.waitForResponse(response => new URL(response.url()).pathname === '/research/papers/' + id);
+    const queueRequests = [];
+    const watch = request => {if (/\/research\/studies\/[^/]+\/(queue|autonomy)$/.test(new URL(request.url()).pathname)) queueRequests.push(request.url());};
+    page.on('request', watch);
     await page.goto(origin + detail, { waitUntil: 'domcontentloaded' });
-    const response = await pending; assert.equal(response.status(), 200); queue = await response.json();
+    const response = await pending; assert.equal(response.status(), 200);
+    const metadata = await response.json(); assert.equal(metadata.paper.id, id);
     const headers = await response.request().allHeaders(); assert.equal(headers.authorization, undefined); assert.equal(headers.cookie, undefined);
-    assert.equal(queue.study.id, id);
     await page.getByRole('heading', { name: title, exact: true }).waitFor();
-    const section = page.getByRole('region', { name: 'Experiment Queue', exact: true }); await section.waitFor();
-    await section.getByText(queue.coverage.jobs + ' recorded jobs for this paper.', { exact: true }).waitFor();
-    assert.equal(await section.locator('article[id^="job-"]').count(), Math.min(20, queue.jobs.length));
-    assert.equal(await section.locator('article[id^="claim-task-"]').count(), queue.autonomy.tasks.length);
-    assert.ok((await page.locator('[data-assessment-stage]').innerText()).trim());
-    assert.equal(await page.locator('aside').getByRole('link', { name: 'Experiment Queue', exact: true }).count(), 0);
-    assert.ok(!(await page.locator('main').innerText()).includes('Owner confirmed paper information; selected claims are ready for assessment.'));
-    return { assessment: id, jobs: queue.jobs.length, tasks: queue.autonomy.tasks.length, shared_read_only: true };
+    for (const name of ['Assessment status', 'Claim progress', 'Experiment Queue']) assert.equal(await page.getByRole('region', {name, exact: true}).count(), 0);
+    assert.equal(await page.getByRole('button', {name: 'View assessment records', exact: true}).count(), 0);
+    assert.equal(await page.locator('[data-assessment-stage]').count(), 0);
+    assert.equal(await page.locator('aside').getByRole('link', {name: 'Experiment Queue', exact: true}).count(), 0);
+    assert.deepEqual(queueRequests, []); page.off('request', watch);
+    return {assessment: id, public_metadata: true, removed_sections_absent: true, queue_requests: 0};
   });
   await check('saved queue links redirect to the assessment and preserve job identities', async () => {
-    const job = queue.jobs[0]?.id ?? '99999999-9999-4999-8999-999999999999';
+    const job = '99999999-9999-4999-8999-999999999999';
     for (const key of ['assessment', 'study']) {
       const response = await fetch(origin + base + '/experiment-queue?' + new URLSearchParams([[key, id], ['job', job], ['view', 'private'], ['tag', 'first'], ['tag', 'second']]), { redirect: 'manual' });
       assert.equal(response.status, 308); const location = new URL(response.headers.get('location'), origin);
@@ -77,15 +78,12 @@ try {
     await page.waitForURL(url => url.pathname === detail);
     const jobPath = detail + '?job=' + job + '#job-' + job;
     await page.goto(origin + jobPath, { waitUntil: 'domcontentloaded' });
-    if (queue.jobs.length) {
-      const focused = page.locator('#job-' + job); await focused.waitFor();
-      assert.equal(await focused.getAttribute('data-selected'), 'true');
-      assert.notEqual(await focused.evaluate(node => getComputedStyle(node).backgroundColor), 'rgba(0, 0, 0, 0)');
-    }
-    else await page.getByText('The requested job was not returned for this paper. Its status is unknown.', { exact: true }).waitFor();
+    await page.getByRole('heading', {name: title, exact: true}).waitFor();
+    assert.equal(new URL(page.url()).searchParams.get('job'), job);
+    assert.equal(await page.getByRole('region', {name: 'Experiment Queue', exact: true}).count(), 0);
     const empty = await fetch(origin + base + '/experiment-queue', { redirect: 'manual' }); assert.equal(empty.status, 308);
     const destination = new URL(empty.headers.get('location'), origin); assert.equal(destination.pathname, list); assert.equal(destination.searchParams.get('mine'), '1');
-    return { legacy_aliases: 3, job_focus: queue.jobs.length > 0, unknown_job_explicit: queue.jobs.length === 0, retired_index_uses_my_assessments: true };
+    return { legacy_aliases: 3, job_identity_preserved: true, removed_queue_stays_absent: true, retired_index_uses_my_assessments: true };
   });
   await check('follow-up actions retain sign-in and exact assessment identity', async () => {
     const next = detail + '?gap=22222222-2222-4222-8222-222222222222&run=33333333-3333-4333-8333-333333333333';
@@ -95,11 +93,12 @@ try {
     assert.deepEqual([...returned.searchParams].sort(), [...expected.searchParams].sort()); assert.equal(returned.hash, expected.hash);
     return { exact_return_path: true, unauthenticated_launches: 0 };
   });
-  await check('desktop and mobile themes retain the inline queue without a separate navigation item', async () => {
+  await check('desktop and mobile themes retain the assessment header without the removed sections', async () => {
     for (const width of [1365, 390]) for (const theme of ['Light Mode', 'Dark Mode']) {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
       await page.goto(origin + detail, { waitUntil: 'domcontentloaded' });
-      await page.getByRole('region', { name: 'Experiment Queue', exact: true }).getByRole('heading', { name: 'Experiment jobs', exact: true }).waitFor();
+      await page.getByRole('heading', {name: title, exact: true}).waitFor();
+      assert.equal(await page.getByRole('region', {name: 'Experiment Queue', exact: true}).count(), 0);
       await page.getByRole('button', { name: theme, exact: true }).click();
       await page.waitForFunction(dark => document.documentElement.classList.contains('dark') === dark, theme === 'Dark Mode');
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));

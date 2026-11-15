@@ -141,7 +141,7 @@ export const SHARED_RECORD_KINDS = {
   sources: "Sources and literature", claims: "Claims", protocols: "Protocols", configurations: "Configurations",
   campaigns: "Campaigns", claim_checks: "Claim checks", queue_jobs: "Experiment jobs", queue_events: "Event history",
   runs: "Runs and resource usage", published_values: "Published values", measurements: "Measurements", summaries: "Summaries",
-  assessments: "Scientific assessments", gaps: "Evidence gaps", reviews: "Reviews", publications: "Publication history", artifacts: "Artifact metadata",
+  assessments: "Scientific assessments", gaps: "Evidence gaps", reviews: "Reviews", publications: "Legacy snapshot history", artifacts: "Artifact metadata",
 } as const;
 export type SharedRecordKind = keyof typeof SHARED_RECORD_KINDS;
 export type SharedProjection = { policy: "research-shared-details-v1"; redacted: number; truncated: number; note: string };

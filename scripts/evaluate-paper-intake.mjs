@@ -23,7 +23,7 @@ const root=resolve('.test-artifacts/paper-intake-evaluations');
 function named(name){if(!RUN_NAME.test(name??''))throw new Error('Supply a run name with 1–80 letters, digits, dots, underscores or hyphens.');return join(root,name);}
 function revision(){
  let git;try{git={commit:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim(),dirty:Boolean(execFileSync('git',['status','--porcelain'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim())};}catch{git={commit:null,dirty:null};}
- const files=['lib/paper-intake-model.ts','lib/paper-source-references.ts','lib/paper-breakdown-evidence.ts','lib/paper-evidence-index.ts','lib/paper-intake-quality.ts','lib/paper-intake-runner.ts','lib/paper-intake-pdf.ts','lib/research-paper-breakdown.ts','scripts/lib/paper-intake-cases.mjs','scripts/lib/paper-intake-quality-case.mjs','scripts/lib/paper-intake-quality-checks.mjs','tests/support/paper-evidence-fixture.mjs','package-lock.json'];
+ const files=['lib/paper-intake-model.ts','lib/paper-source-references.ts','lib/paper-detail-dependencies.ts','lib/paper-breakdown-evidence.ts','lib/paper-evidence-index.ts','lib/paper-intake-quality.ts','lib/paper-intake-runner.ts','lib/paper-intake-pdf.ts','lib/research-paper-breakdown.ts','scripts/lib/paper-intake-cases.mjs','scripts/lib/paper-intake-quality-case.mjs','scripts/lib/paper-dependency-case.mjs','scripts/lib/paper-intake-quality-checks.mjs','tests/support/paper-evidence-fixture.mjs','package-lock.json'];
  return {...git,node:process.version,source_hashes:Object.fromEntries(files.map(path=>[path,sha256(readFileSync(path))]))};
 }
 const failures=[];

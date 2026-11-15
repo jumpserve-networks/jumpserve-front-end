@@ -3,9 +3,10 @@
 The original private-view and prompt-history restrictions below are superseded
 by the user-authorized [shared assessment details amendment](shared-assessment-details-v1.md).
 The original status projection and its recorded verification remain preserved;
-the current interface embeds the queue in `/research-verification/assessment/<id>`
-and redirects saved queue URLs there. It has one shared assessment view, including model turns and
-research records. Credentials, personal account data and original file downloads
+the user has since removed the inline queue and record controls from
+`/research-verification/assessment/<id>`. Saved queue URLs still resolve to that
+assessment's wizard. The earlier interface below is historical; public APIs for
+model turns and research records remain available. Credentials, personal account data and original file downloads
 remain protected, and writes still require the authenticated owner.
 
 Opening `/research-verification/experiment-queue?study=<id>` is public and

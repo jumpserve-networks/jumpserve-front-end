@@ -1,7 +1,7 @@
-import { PublishedStudies } from "@/app/components/research-workflow/published-studies";
+import { AssessmentResults } from "@/app/components/research-workflow/assessment-results";
 
 export const dynamic = "force-dynamic";
 
 export default function Results() {
-  return <PublishedStudies kind="idea" />;
+  return <AssessmentResults kind="idea" />;
 }

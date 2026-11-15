@@ -62,7 +62,7 @@ const writes = action => calls.filter(call => call.body?.action === action);
 
 test('idea intake confirms both saved identities before navigating and preserves the owner question', async () => {
   await show(IdeaIntake); change('Idea title', 'Owner idea'); change('Research domain', 'Networking'); change('Research question', 'What changes the measured outcome?'); change('Proposed hypothesis, if you have one', 'Untested prospective hypothesis');
-  await submit(screen.getByRole('form', {name: 'New unpublished research idea'}));
+  await submit(screen.getByRole('form', {name: 'New research idea'}));
   assert.equal(calls.length, 3); const create = calls[1].body, save = calls[2].body;
   assert.equal(create.paper.study_kind, 'idea'); assert.equal(create.paper.paper_url, null); assert.equal(save.document.question, 'What changes the measured outcome?'); assert.equal(save.document.protocol, null); assert.equal(save.document.hypothesis, 'Untested prospective hypothesis'); assert.equal(save.supersedes_id, null);
   assert.deepEqual(pushes, ['/research-ideas/ideas/' + create.request_id]); assert.equal(screen.getByRole('link', {name: 'Resume this workspace'}).getAttribute('href'), pushes[0]); assert.equal(screen.getByRole('textbox', {name: 'Idea title'}).disabled, true);
@@ -70,13 +70,13 @@ test('idea intake confirms both saved identities before navigating and preserves
 
 test('interrupted initial save keeps its stable packet identity and saved-study link without creating a replacement study', async () => {
   const original = request; let failures = 1; request = async (...args) => args[2]?.action === 'save' && failures-- > 0 ? {id: uid(999), study_id: ID} : original(...args);
-  await show(IdeaIntake); change('Idea title', 'Preserved idea'); change('Research domain', 'Networks'); change('Research question', 'Original question'); const form = screen.getByRole('form', {name: 'New unpublished research idea'});
+  await show(IdeaIntake); change('Idea title', 'Preserved idea'); change('Research domain', 'Networks'); change('Research question', 'Original question'); const form = screen.getByRole('form', {name: 'New research idea'});
   await submit(form); assert.match(screen.getByRole('alert').textContent, /persistence was not confirmed/); const firstCreate = calls.find(call => call.body?.paper).body.request_id, firstSave = writes('save')[0].body.request_id; assert.deepEqual(pushes, []);
   await submit(form); assert.equal(calls.filter(call => call.body?.paper).at(-1).body.request_id, firstCreate); assert.equal(writes('save').at(-1).body.request_id, firstSave); assert.equal(pushes[0], '/research-ideas/ideas/' + firstCreate);
 });
 
 test('unsupported capabilities and unconfirmed study origin stop intake before any packet save', async () => {
-  capabilities.ideas.version = 'older'; await show(IdeaIntake); change('Research question', 'Keep my unsaved question'); const form = screen.getByRole('form', {name: 'New unpublished research idea'});
+  capabilities.ideas.version = 'older'; await show(IdeaIntake); change('Research question', 'Keep my unsaved question'); const form = screen.getByRole('form', {name: 'New research idea'});
   await submit(form); assert.match(screen.getByRole('alert').textContent, /does not yet support/); assert.equal(calls.length, 1);
   capabilities.ideas.version = IDEA_VERSION; const original = request; request = async (...args) => args[2]?.paper ? {id: args[2].request_id, study_kind: 'paper', paper_url: 'https://synthetic.invalid'} : original(...args);
   await submit(form); assert.match(screen.getByRole('alert').textContent, /identity or origin was not confirmed/); assert.equal(writes('save').length, 0); assert.equal(screen.getByRole('textbox', {name: 'Research question'}).value, 'Keep my unsaved question'); assert.deepEqual(pushes, []);

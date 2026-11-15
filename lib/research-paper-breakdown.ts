@@ -1,4 +1,5 @@
 export const PAPER_BREAKDOWN_VERSION = "paper-breakdown-v1";
+import { validPaperDependencies } from "./paper-detail-dependencies";
 export const PAPER_BREAKDOWN_SECTIONS = [
   { id: "access", title: "Access", description: "Resources, devices, software, datasets and permissions described in the paper." },
   { id: "experiment", title: "Experiment", description: "Procedures, configurations, comparisons, repetitions and stopping conditions." },
@@ -57,6 +58,7 @@ export function validatePaperBreakdown(value: unknown): PaperBreakdown {
       if (entry.kind && (id === "experiment" && entry.kind !== "experiment_specification" || entry.kind === "experiment_specification" && id !== "experiment" || entry.kind === "claim" && id !== "validate" || entry.kind === "reported_result" && id !== "data")) throw failure();
       ids.add(entry.id);
     }
+    if (!validPaperDependencies(entries as PaperBreakdownItem[])) throw new Error("Paper detail dependencies must be unique, acyclic and refer to items in the same section.");
   }
   if (ids.size > 200 || ids.size > (value.extraction_version ? 32 : value.cursor * 8)) throw failure();
   return value as PaperBreakdown;

@@ -4,7 +4,7 @@ import { requireAccessToken } from "@/lib/browser-auth";
 
 const PAPER_WORKFLOW_STATUSES = ["running", "completed", "completed-with-blockers", "deadline", "budget", "cancelled"] as const;
 export type PaperWorkflowStatus = typeof PAPER_WORKFLOW_STATUSES[number];
-export type PaperAssessment = { id: string; title: string | null; authors?: string[] | null; initiated_by?: string | null; created_at: string; workflow_status: PaperWorkflowStatus | null; published: boolean };
+export type PaperAssessment = { id: string; title: string | null; authors?: string[] | null; initiated_by?: string | null; created_at: string; workflow_status: PaperWorkflowStatus | null };
 export type PaperMetadata = { title: string; authors: string[] | null };
 export type PaperCatalog = { version: "research-paper-catalog-v1"; access: "public-read-only" | "owner-read-only"; papers: PaperAssessment[]; coverage: { papers: number }; next_cursor: string | null };
 export type PaperDetail = { version: "research-paper-detail-v1"; access: "public-read-only"; paper: PaperAssessment; preparation_status: "preparing" | "ready" | "failed" | "confirmed" | null };
@@ -21,11 +21,17 @@ export function validatePaperCatalog(value: unknown, access: PaperCatalog["acces
       (q.next_cursor !== null && (!cursor(q.next_cursor) || q.papers.length !== 10))) fail();
   for (const p of q.papers) {
     if (!fields(p, ["id", "title", "authors", "initiated_by", "created_at", "workflow_status", "published"]) || !isResearchId(p.id) || (p.authors != null && !validPaperAuthors(p.authors)) || (p.initiated_by != null && (typeof p.initiated_by !== "string" || !p.initiated_by.trim() || [...p.initiated_by].length > 201 || /[\p{Cc}<>@]/u.test(p.initiated_by))) ||
-        (p.title !== null && !title(p.title)) || typeof p.created_at !== "string" || !Number.isFinite(Date.parse(p.created_at)) || typeof p.published !== "boolean" ||
+        (p.title !== null && !title(p.title)) || typeof p.created_at !== "string" || !Number.isFinite(Date.parse(p.created_at)) || ("published" in p && typeof p.published !== "boolean") ||
         (p.workflow_status !== null && !PAPER_WORKFLOW_STATUSES.includes(p.workflow_status))) fail();
   }
   if (new Set(q.papers.map(p => p.id)).size !== q.papers.length) fail();
-  return q;
+  // Older services still include this retired field. It is accepted at the
+  // boundary and removed before assessments enter the application model.
+  return { ...q, papers: q.papers.map(paper => {
+    const assessment = { ...paper } as PaperAssessment & { published?: boolean };
+    delete assessment.published;
+    return assessment;
+  }) };
 }
 
 // Catalogue metadata only. Public reads omit credentials; personal reads use
@@ -116,8 +122,8 @@ export async function loadPaperDetail(id: string, signal?: AbortSignal, fetcher:
   const result = await read(`/papers/${id}`, signal, fetcher) as PaperDetail;
   if (!fields(result, ["version", "access", "paper", "preparation_status"]) || result.version !== "research-paper-detail-v1" || result.access !== "public-read-only" ||
       !result.paper || result.paper.id !== id || ![null, "preparing", "ready", "failed", "confirmed"].includes(result.preparation_status)) fail();
-  validatePaperCatalog({ version: "research-paper-catalog-v1", access: "public-read-only", papers: [result.paper], coverage: { papers: 1 }, next_cursor: null });
-  return result;
+  const validated = validatePaperCatalog({ version: "research-paper-catalog-v1", access: "public-read-only", papers: [result.paper], coverage: { papers: 1 }, next_cursor: null });
+  return { ...result, paper: validated.papers[0] };
 }
 
 export async function loadPaperMetadata(id: string, signal?: AbortSignal, fetcher: typeof fetch = fetch): Promise<PaperMetadata> {

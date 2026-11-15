@@ -87,8 +87,10 @@ test('name filtering resolves missing bibliography and reports failures instead 
   await assert.rejects(()=>loadAssessmentList({name:'x'.repeat(201)},undefined,()=>assert.fail('No request')),/200 characters/);
  }finally{if(old===undefined)delete process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL;else process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL=old;}
 });
-test('unpublished paper metadata and null titles remain distinct from published results',()=>{
- const q=validatePaperCatalog(fixture());assert.equal(q.papers[0].title,null);assert.equal(q.papers[0].published,false);
+test('paper metadata and null titles do not require or retain a publication state',()=>{
+ const original=fixture(),q=validatePaperCatalog(original);assert.equal(q.papers[0].title,null);assert.equal('published' in q.papers[0],false);assert.equal(original.papers[0].published,false);
+ const modern=fixture();delete modern.papers[0].published;assert.deepEqual(validatePaperCatalog(modern),q);
+ const old=fixture();old.papers[0].published=true;assert.deepEqual(validatePaperCatalog(old),q);
  assert.equal(paperWorkflowLabel('budget'),'Spending limit reached');assert.equal(paperWorkflowLabel('completed-with-blockers'),'Finished with gaps');assert.equal(paperWorkflowLabel(null),'Submitted');
 });
 test('private fields, duplicate identities, invalid states and incorrect coverage fail closed',()=>{

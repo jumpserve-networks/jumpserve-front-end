@@ -7,11 +7,13 @@ import {act, cleanup, fireEvent, render, screen, waitFor} from '@testing-library
 
 globalThis.__assessmentReact = React;
 const listURL = new URL('../lib/research-assessment-list.ts', import.meta.url).href;
+const progressURL = new URL('../lib/assessment-wizard-progress.ts', import.meta.url).href;
 const sources = {
   'next/link': `export default function Link({href,scroll,prefetch,replace,...props}) {return globalThis.__assessmentReact.createElement('a',{...props,href});}`,
   'next/form': `export default function Form({action,...props}) {return globalThis.__assessmentReact.createElement('form',{...props,action});}`,
   '@/app/components/user-preferences': `export const useUserPreferences=()=>globalThis.__assessmentPreferences; export const LocalDateTime=({value})=>globalThis.__assessmentReact.createElement('time',{},value);`,
   '@/lib/research-assessment-list': `export {assessmentListPath} from ${JSON.stringify(listURL)};export const loadAssessmentList=(...args)=>globalThis.__assessmentLoad(...args);`,
+  '@/lib/assessment-wizard-progress': `export {assessmentStepLabel} from ${JSON.stringify(progressURL)};export const loadAssessmentWizardProgress=(...args)=>globalThis.__assessmentProgress(...args);`,
   '@/lib/research-assessment-delete': `export const deleteAssessment=(...args)=>globalThis.__assessmentDelete(...args);`,
 };
 const hook = registerHooks({resolve(specifier, context, next) {
@@ -20,7 +22,7 @@ const hook = registerHooks({resolve(specifier, context, next) {
 }});
 const {Assessments} = await import('../app/components/research-workflow/assessments.tsx');
 hook.deregister();
-afterEach(() => {cleanup(); delete globalThis.__assessmentPreferences; delete globalThis.__assessmentLoad; delete globalThis.__assessmentDelete;});
+afterEach(() => {cleanup(); delete globalThis.__assessmentPreferences; delete globalThis.__assessmentLoad; delete globalThis.__assessmentDelete; delete globalThis.__assessmentProgress;});
 
 const id = '91169871-14c2-4bde-a0a5-50bf78403d86';
 const paper = change => ({id, title: 'Synthetic networking paper', authors: ['Fixture Author'], initiated_by: 'Fixture Initiator',
@@ -28,6 +30,7 @@ const paper = change => ({id, title: 'Synthetic networking paper', authors: ['Fi
 const catalog = (papers, next_cursor = null) => ({version: 'research-paper-catalog-v1', access: 'public-read-only', papers, coverage: {papers: papers.length}, next_cursor});
 function show(props = {}, value = catalog([paper()])) {
   globalThis.__assessmentLoad ??= async () => value;
+  globalThis.__assessmentProgress ??= async ids => ({assessments: ids.map(id=>({id,step:2}))});
   return render(React.createElement(Assessments, props));
 }
 
@@ -35,13 +38,38 @@ test('table is the default view and recorded title, initiator, stage and detail 
   show();
   const table = await screen.findByRole('table');
   assert.match(table.textContent, /Fixture Initiator/);
-  assert.match(table.textContent, /In progress/);
-  assert.match(table.textContent, /Not published/);
+  await screen.findByText('Step 2 · Initial Assessment');assert.equal(screen.queryByText('In progress'),null);
+  assert.equal(screen.queryByText('Not published'),null);
   assert.equal(screen.getByRole('link', {name: 'Synthetic networking paper'}).getAttribute('href'), `/research-verification/assessment/${id}`);
   assert.equal(screen.getByRole('button', {name: 'Table'}).getAttribute('aria-current'), 'page');
   assert.equal(screen.getByRole('button', {name: 'All Assessments'}).getAttribute('aria-current'), 'page');
   assert.equal(screen.getByLabelText('Filter by name').getAttribute('type'), 'search');
   assert.equal(screen.queryByRole('button',{name:/Delete assessment/}),null);
+});
+test('each table row shows its saved wizard step instead of a shared workflow status',async()=>{
+ const ids=Array.from({length:4},(_,i)=>`00000000-0000-4000-8000-${String(i+1).padStart(12,'0')}`);let reads=0;
+ globalThis.__assessmentProgress=async requested=>{reads++;assert.deepEqual(requested,ids);return{assessments:ids.map((id,i)=>({id,step:i+1}))};};
+ show({},catalog(ids.map((id,i)=>paper({id,title:'Paper '+(i+1)}))));
+ for(const label of ['Step 1 · Paper Upload','Step 2 · Initial Assessment','Step 3 · Experiment Steps','Step 4 · Run Experiments'])await screen.findByText(label);
+ assert.equal(reads,1);assert.equal(screen.queryByText('In progress'),null);
+});
+test('unavailable progress keeps the assessment list usable and retries without guessing a step',async()=>{
+ let calls=0;globalThis.__assessmentProgress=async ids=>{if(++calls===1)throw new Error('Explicit outage');return{assessments:ids.map(id=>({id,step:3}))};};
+ show();await screen.findByText('Step unavailable');assert.ok(screen.getByRole('link',{name:'Synthetic networking paper'}));assert.equal(screen.queryByText('Step 1 · Paper Upload'),null);
+ assert.match(screen.getByRole('alert').textContent,/steps could not be refreshed/);fireEvent.click(screen.getByRole('button',{name:'Retry steps'}));
+ await screen.findByText('Step 3 · Experiment Steps');assert.equal(screen.queryByRole('alert'),null);assert.equal(calls,2);
+});
+test('progress refreshes serially and stale status remains labeled until a successful retry',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});let calls=0;
+ globalThis.__assessmentProgress=async ids=>{calls++;if(calls===2)throw new Error('Explicit outage');return{assessments:ids.map(id=>({id,step:calls===1?2:4}))};};
+ await act(async()=>{show();});assert.ok(screen.getByText('Step 2 · Initial Assessment'));
+ await act(async()=>{t.mock.timers.tick(10000);});assert.ok(screen.getByText('Step 2 · Initial Assessment'));assert.match(screen.getByRole('alert').textContent,/may be stale/);
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Retry steps'}));});assert.ok(screen.getByText('Step 4 · Run Experiments'));assert.equal(screen.queryByRole('alert'),null);
+});
+test('unmount aborts a pending progress read and ignores its late response',async()=>{
+ let signal,resolve;globalThis.__assessmentProgress=(_ids,value)=>{signal=value;return new Promise(done=>{resolve=done;});};
+ const {unmount}=show();await screen.findByRole('table');await waitFor(()=>assert.equal(signal?.aborted,false));unmount();assert.equal(signal.aborted,true);
+ await act(async()=>{resolve({assessments:[{id,step:4}]});});assert.equal(screen.queryByText('Step 4 · Run Experiments'),null);
 });
 test('owner deletion requires confirmation and refreshes the personal list only after persistence succeeds',async()=>{
  globalThis.__assessmentPreferences={userId:'owner'};let deleted=false;const calls=[];
@@ -71,7 +99,7 @@ test('the first catalogue page offers an older page without a redundant newest-p
  show({},catalog([paper()],'next'));await screen.findByRole('link',{name:'Older assessments'});assert.equal(screen.queryByRole('link',{name:'Newest assessments'}),null);
 });
 test('missing catalogue bibliography remains loading until its own metadata arrives and records missing initiator names',async t=>{
- const prior=process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL;process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL='https://catalog.example.test';t.after(()=>{if(prior===undefined)delete process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL;else process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL=prior;});let resolve;t.mock.method(globalThis,'fetch',()=>new Promise(done=>{resolve=done;}));show({before:'older'},catalog([paper({title:null,authors:null,initiated_by:null})]));await screen.findByText('Reading paper title…');assert.ok(screen.getByText('Name unavailable'));assert.ok(screen.getByRole('link',{name:'Newest assessments'}));assert.equal(screen.queryByRole('link',{name:'Older assessments'}),null);resolve(Response.json({version:'research-paper-catalog-v1',access:'public-read-only',id,title:'Retained metadata title',authors:['Retained Author']}));await screen.findByRole('link',{name:'Retained metadata title'});assert.ok(screen.getByText('Retained Author'));
+ const prior=process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL;process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL='https://catalog.example.test';t.after(()=>{if(prior===undefined)delete process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL;else process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL=prior;});let resolve;t.mock.method(globalThis,'fetch',()=>new Promise(done=>{resolve=done;}));show({before:'older'},catalog([paper({title:null,authors:null,initiated_by:null})]));await screen.findByText('Reading paper title…');assert.ok(screen.getByText('Name unavailable'));assert.ok(screen.getByRole('link',{name:'Newest assessments'}));assert.equal(screen.queryByRole('link',{name:'Older assessments'}),null);await waitFor(()=>assert.equal(typeof resolve,'function'));resolve(Response.json({version:'research-paper-catalog-v1',access:'public-read-only',id,title:'Retained metadata title',authors:['Retained Author']}));await screen.findByRole('link',{name:'Retained metadata title'});assert.ok(screen.getByText('Retained Author'));
 });
 
 test('card view, personal scope and name filters survive view and pagination links', async () => {
@@ -82,8 +110,8 @@ test('card view, personal scope and name filters survive view and pagination lin
   await screen.findByRole('article');
   assert.equal(screen.queryByRole('table'), null);
   assert.match(screen.getByRole('article').textContent, /Initiated by: Name unavailable/);
-  assert.equal(container.querySelectorAll('[data-slot="badge"]').length, 1); // No synthetic stage badge.
-  assert.ok(screen.getByText('Published assessment'));
+  await screen.findByText('Step 2 · Initial Assessment');assert.equal(container.querySelectorAll('[data-slot="badge"]').length, 1);
+  assert.equal(screen.queryByText('Published assessment'),null);
   const older = new URL(screen.getByRole('link', {name: 'Older assessments'}).href);
   assert.equal(older.searchParams.get('mine'), '1'); assert.equal(older.searchParams.get('view'), 'card');
   assert.equal(older.searchParams.get('name'), 'Fixture'); assert.equal(older.searchParams.get('before'), 'next-page');

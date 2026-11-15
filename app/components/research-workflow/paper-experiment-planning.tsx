@@ -10,8 +10,6 @@ import { PaperBreakdownPanel } from "./paper-breakdown";
 import { PaperAssessmentSteps, PaperWizardRoute, type PaperWizardNavigation } from "./paper-assessment-steps";
 import { PAPER_ASSESSMENT_STEPS } from "@/lib/paper-assessment-wizard";
 import { PaperExperimentPlanOutline } from "./paper-experiment-plan-outline";
-import Link from "next/link";
-import { NEW_ASSESSMENT_PATH } from "@/lib/test-modules";
 
 async function planFetch(id: string, ownerId: string, options: RequestInit = {}) {
   const token = await requireAccessToken(RESEARCH_SIGN_IN_REQUIRED, ownerId);
@@ -21,14 +19,15 @@ async function planFetch(id: string, ownerId: string, options: RequestInit = {})
   return validateExperimentPlanView(result, id);
 }
 
-type PlanningProps = { assessmentId: string; ownerId: string; breakdown: PaperBreakdown; preparation?: ReactNode };
+type PlanningProps = { assessmentId: string; ownerId: string; breakdown: PaperBreakdown; header?: ReactNode };
 export function PaperExperimentPlanning({ wizard = false, ...props }: PlanningProps & { wizard?: boolean }) {
   return wizard ? <PaperWizardRoute>{navigation => <PaperPlanningView {...props} wizard={navigation} />}</PaperWizardRoute> : <PaperPlanningView {...props} />;
 }
 
-function PaperPlanningView({ assessmentId, ownerId, breakdown, wizard, preparation }: PlanningProps & { wizard?: PaperWizardNavigation }) {
+function PaperPlanningView({ assessmentId, ownerId, breakdown, header, wizard }: PlanningProps & { wizard?: PaperWizardNavigation }) {
   const [view, setView] = useState<ExperimentPlanView | null>(null);
   const [review, setReview] = useState<ReviewedSections>(() => reviewedSections(breakdown));
+  const [editingDetail, setEditingDetail] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
@@ -53,7 +52,7 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, wizard, preparati
     return () => { active = false; controller.abort(); clearTimeout(timer); };
   }, [assessmentId, ownerId, revision]);
   async function action(action: "confirm" | "cancel") {
-    if (!view || busy || action === "confirm" && (invalidReview || view.stage !== "awaiting_confirmation")) return;
+    if (!view || busy || action === "confirm" && (invalidReview || editingDetail || view.stage !== "awaiting_confirmation")) return;
     setBusy(true); setError("");
     try {
       const payload = action === "confirm" ? { action, study_id: assessmentId, intake_revision: view.intake_revision, sections: review } : { action, study_id: assessmentId };
@@ -74,34 +73,30 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, wizard, preparati
   const isWizard = Boolean(wizard);
   useEffect(() => { if (isWizard) stepPanel.current?.focus(); }, [step, isWizard]);
   const feedback = error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null;
-  const confirmation = <div className="space-y-4">
-        <p className="text-sm">Review Access, Experiment, Data and Validate above. Correct descriptions or exclude details before confirming. Source quotes and PDF pages stay with the original evidence.</p>
-        <p className="text-sm text-muted-foreground">Confirmation saves this version and generates implementation steps.</p>
-        <Button disabled={busy || invalidReview} onClick={() => void action("confirm")}>{busy ? "Saving confirmation…" : wizard ? "Confirm and continue" : "Confirm phase one and create experiment steps"}</Button>
+  const confirmation = <div className="flex justify-end">
+        <Button disabled={busy || invalidReview || editingDetail} onClick={() => void action("confirm")}>{busy ? "Saving confirmation…" : wizard ? "Continue to Step 3" : "Confirm phase one and create experiment steps"}</Button>
       </div>;
-  const breakdownPanel = <PaperBreakdownPanel version={PAPER_BREAKDOWN_VERSION} value={saved} preparing={false} busy={busy} review={awaiting ? review : undefined} onReviewChange={awaiting ? edit : undefined} />;
+  const breakdownPanel = <PaperBreakdownPanel key={`${saved.source_id}:${saved.policy_sha256}:${awaiting ? "review" : "confirmed"}`} version={PAPER_BREAKDOWN_VERSION} value={saved} preparing={false} busy={busy} review={awaiting ? review : undefined} onReviewChange={awaiting ? edit : undefined} onEditingChange={setEditingDetail} />;
   const implementationPanel = <section aria-labelledby="experiment-planning-title" className="space-y-5">
       <h2 id="experiment-planning-title" className="text-lg font-semibold">{wizard ? "Experiment Steps" : "Phase 2 · Experiment implementation steps"}</h2>
       {feedback}
       {!view ? <p role="status" className="text-sm">Checking phase-one confirmation…</p> : awaiting ? confirmation : <>
-        <p className="text-sm">Phase one confirmed {new Date(view.confirmed_at!).toLocaleString()}.</p>
-        <p role="status" className="text-sm font-medium">{view.stage === "ready" ? "Experiment steps ready" : view.stage === "cancelled" ? "Experiment planning cancelled" : view.stage === "failed" ? "Experiment planning needs attention" : view.stage === "uncertain" ? "Planning submission needs reconciliation" : "Preparing experiment implementation steps…"}</p>
+        {view.stage !== "ready" ? <p role="status" className="text-sm font-medium">{view.stage === "cancelled" ? "Experiment planning cancelled" : view.stage === "failed" ? "Experiment planning needs attention" : view.stage === "uncertain" ? "Planning submission needs reconciliation" : "Preparing experiment implementation steps…"}</p> : null}
         {view.reason ? <p className="text-sm text-muted-foreground">{view.reason}</p> : null}
         {view.stage === "processing" ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void action("cancel")}>Cancel planning</Button> : null}
         {view.plan ? <PaperExperimentPlanOutline plan={view.plan} breakdown={saved} /> : null}
       </>}
       <Button size="sm" variant="outline" disabled={busy} onClick={() => setRevision(value => value + 1)}>Check planning status</Button>
     </section>;
-  if (!wizard) return <>{breakdownPanel}{implementationPanel}</>;
+  if (!wizard) return <>{header}{breakdownPanel}{implementationPanel}</>;
   return <>
-    <PaperAssessmentSteps current={step} assessment implementation={hasConfirmation} execution={view?.stage === "ready"} busy={busy} onStep={wizard.navigate} />
+    <PaperAssessmentSteps current={step} assessment implementation={hasConfirmation} execution={view?.stage === "ready"} busy={busy || editingDetail} onStep={wizard.navigate} />
+    {header}
     <section ref={stepPanel} tabIndex={-1} aria-label={`${PAPER_ASSESSMENT_STEPS.find(s => s.id === step)!.title} step`} className="scroll-mt-24 space-y-6 outline-none">
       {step === "breakdown" ? <>
         <h2 className="text-lg font-semibold">Initial Assessment</h2>
-        {preparation}{breakdownPanel}{feedback}
-        {!view ? <p role="status" className="text-sm">Checking phase-one confirmation…</p> : awaiting ? confirmation : <div className="space-y-3 border-t pt-4"><p className="text-sm">Phase one confirmed {new Date(view.confirmed_at!).toLocaleString()}.</p><Button disabled={busy} onClick={() => wizard.navigate("implementation")}>Next: Experiment Steps</Button></div>}
-        {(!view || awaiting) ? <Button size="sm" variant="outline" disabled={busy} onClick={() => setRevision(value => value + 1)}>Check confirmation status</Button> : null}
-        <div className="border-t pt-4"><Button variant="outline" disabled={busy} nativeButton={false} render={<Link href={NEW_ASSESSMENT_PATH} />}>Back to Paper Upload</Button></div>
+        {breakdownPanel}{feedback}
+        {!view ? <p role="status" className="text-sm">Checking phase-one confirmation…</p> : awaiting ? confirmation : <div className="border-t pt-4"><Button disabled={busy} onClick={() => wizard.navigate("implementation")}>Next: Experiment Steps</Button></div>}
       </> : step === "implementation" ? <>
         {implementationPanel}
         <div className="flex flex-wrap justify-between gap-3 border-t pt-4"><Button variant="outline" disabled={busy} onClick={() => wizard.navigate("breakdown")}>Back to Initial Assessment</Button><Button disabled={busy || view?.stage !== "ready"} onClick={() => wizard.navigate("execution")}>Next: Run Experiments</Button></div>
