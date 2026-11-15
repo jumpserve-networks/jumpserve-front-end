@@ -81,7 +81,7 @@ test('paper intake reports provider errors and retries status and individual fai
   ]});
   const mounted = render(React.createElement(PaperIntake)); assert.equal(screen.getByRole('button', {name: 'Checking sign-in…'}).disabled, true);
   assert.ok(screen.getByText('Waiting for upload')); assert.ok(screen.getByText('Sending original bytes')); assert.ok(screen.getByText('Ready to review')); assert.ok(screen.getByText('Assessment started')); assert.ok(screen.getByText('Paper preparation needs attention.'));
-  assert.equal(screen.getByRole('link', {name: 'Review paper'}).getAttribute('href'), '/research-verification/new-assessment/r');
+  assert.equal(screen.getByRole('link', {name: 'Review paper'}).getAttribute('href'), '/research-verification/assessment/r');
   assert.equal(screen.getAllByRole('link', {name: 'View paper preparation'}).length, 2);
   fireEvent.click(screen.getByRole('button', {name: 'Retry status'})); fireEvent.click(screen.getByRole('button', {name: 'Retry upload'})); assert.equal(refreshed, 1); assert.deepEqual(retries, ['f']);
   globalThis.__workspaceUploads.error = ''; mounted.rerender(React.createElement(PaperIntake)); assert.ok(screen.getByText(/Local persistence unavailable/));
@@ -95,14 +95,14 @@ test('paper intake retains an enqueue error and a non-Error failure without rese
 test('wizard uploads link each retained paper to its own initial assessment screen',()=>{
  Object.assign(globalThis.__workspaceUploads,{uploads:[{id:uid(31),title:'First paper',phase:'preparing'},{id:uid(32),title:'Second paper',phase:'ready'}]});
  render(React.createElement(PaperIntake,{wizard:true}));
- assert.deepEqual(screen.getAllByRole('link',{name:'Continue to Initial Assessment'}).map(a=>a.getAttribute('href')),['/research-verification/new-assessment/'+uid(31)+'?step=breakdown','/research-verification/new-assessment/'+uid(32)+'?step=breakdown']);
+ assert.deepEqual(screen.getAllByRole('link',{name:'Continue to Initial Assessment'}).map(a=>a.getAttribute('href')),['/research-verification/assessment/'+uid(31)+'?step=breakdown','/research-verification/assessment/'+uid(32)+'?step=breakdown']);
 });
 
 test('owner studies filters paper and idea pathways and resolves author fallbacks without mixing routes', async () => {
   studies = [snapshot.study, {...snapshot.study, id: uid(20), title: 'Explicit paper authors', authors: ['Recorded Author']}, {...snapshot.study, id: uid(21), title: 'Ready paper', paper_review_status: 'ready'}, {...snapshot.study, id: uid(22), study_kind: 'idea', title: 'Private idea'}];
   globalThis.__workspaceBibliography = {[ID]: {authors: ['Bibliography Author']}};
   await act(async () => {render(React.createElement(OwnerStudies));}); assert.ok(screen.getByText('Bibliography Author')); assert.ok(screen.getByText('Recorded Author')); assert.ok(screen.getByText('Loading authors')); assert.equal(screen.queryByText('Private idea'), null);
-  assert.equal(screen.getByRole('link', {name: 'Ready paper'}).getAttribute('href'), '/research-verification/new-assessment/' + uid(21)); assert.equal(globalThis.__workspaceBibliographyInput.length, 3);
+  assert.equal(screen.getByRole('link', {name: 'Ready paper'}).getAttribute('href'), '/research-verification/assessment/' + uid(21)); assert.equal(globalThis.__workspaceBibliographyInput.length, 3);
   cleanup(); await act(async () => {render(React.createElement(OwnerStudies, {kind: 'idea'}));}); assert.equal(screen.queryByText('Recorded Author'), null); assert.equal(globalThis.__workspaceBibliographyInput, undefined); assert.equal(screen.getByRole('link', {name: 'Private idea'}).getAttribute('href'), '/research-ideas/ideas/' + uid(22));
 });
 
@@ -202,10 +202,13 @@ test('campaign files preserve BOM and whitespace and reject oversized or invalid
   await act(async () => fireEvent.change(input, {target: {files: [new File([new Uint8Array([255])], 'invalid.json')]}})); await waitFor(() => assert.ok(screen.getByText(/encoded data was not valid/i))); assert.equal(screen.getByLabelText('Original input text').value, text); assert.deepEqual(writes(), []);
 });
 
-test('publication uses only passed scoped reviews and keeps the same request until confirmed or edited', async () => {
-  await show(); open('research-publication'); await select('scientific review', 'Recorded ' + STAMP + ' · Passed scientific scope'); await select('software review', 'Recorded ' + STAMP + ' · Passed software scope'); change('Publication rationale and scope', 'Bounded reviewed snapshot');
-  const original = request; request = (path, options) => options.method === 'POST' ? Promise.reject(Error('Publication acknowledgement unknown')) : original(path, options); await submit('Publish reviewed snapshot'); const first = writes()[0].body;
-  assert.equal(first.scientific_review_id, uid(9)); assert.equal(first.software_review_id, uid(10)); assert.equal(first.reason, 'Bounded reviewed snapshot'); assert.ok(screen.getByText('Publication acknowledgement unknown'));
-  request = original; await submit('Publish reviewed snapshot'); assert.deepEqual(writes()[1].body, first); assert.ok(screen.getByText('A fixed snapshot is now public. Later records remain private until separately reviewed and published.'));
-  change('Publication rationale and scope', 'New reviewed rationale'); await submit('Publish reviewed snapshot'); assert.notEqual(writes()[2].body.request_id, first.request_id);
+test('owner workspaces have no publishing action or publication-dependent assessment link',async()=>{
+ for(const kind of ['paper','idea']){
+  snapshot.study.study_kind=kind;await show({kind});
+  assert.equal(document.querySelector('#research-publication'),null);
+  assert.equal(screen.queryByRole('button',{name:/Publish/}),null);
+  assert.equal(screen.queryByText('View published snapshot'),null);
+  assert.equal(screen.getByRole('link',{name:'View assessment evidence'}).getAttribute('href'),kind==='paper'?'/research-verification/assessment/'+ID:'/research-ideas/studies/'+ID);
+  assert.deepEqual(writes(),[]);cleanup();
+ }
 });

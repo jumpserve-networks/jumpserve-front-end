@@ -1,7 +1,7 @@
 import type { Response } from "openai/resources/responses/responses";
 import { extractionBreakdown, validatePaperExtraction, type PaperText } from "./paper-intake-model";
 import { paperIntakePending, type PaperIntakeStage } from "./paper-intake";
-import { PAPER_SOURCE_FORMAT, PAPER_SOURCE_FORMAT_V3, PAPER_SOURCE_FORMAT_V4, PAPER_SOURCE_FORMAT_V5, resolvePaperSources } from "./paper-source-references";
+import { PAPER_SOURCE_FORMAT, PAPER_SOURCE_FORMAT_V3, PAPER_SOURCE_FORMAT_V4, PAPER_SOURCE_FORMAT_V5, PAPER_SOURCE_FORMAT_V6, resolvePaperSources } from "./paper-source-references";
 import { assertPaperIntakeQuality } from "./paper-intake-quality";
 
 export type IntakeRecord = {
@@ -14,15 +14,22 @@ export type IntakeRecord = {
   revision?: number; review_revision?: number;
 };
 
+const sourceFormats: string[] = [PAPER_SOURCE_FORMAT, PAPER_SOURCE_FORMAT_V3, PAPER_SOURCE_FORMAT_V4, PAPER_SOURCE_FORMAT_V5, PAPER_SOURCE_FORMAT_V6];
+const unsupportedSourceFormat = (format: unknown): format is string => typeof format === "string" && format.startsWith("paper_breakdown_sources_") && !sourceFormats.includes(format);
+export class UnsupportedPaperSourceFormat extends Error {
+  constructor(format: string) { super(`The retained response uses ${format}, which needs a compatible paper reader. The original response is preserved.`); }
+}
+
 export function readPaperExtraction(response: Response, paper: PaperText) {
   if (response.status !== "completed") throw new Error(String(response.error?.code) === "credit_balance_exhausted" ? "The OpenAI API project has no credits remaining. Add credits before submitting a new assessment. This request is retained and will not be repeated automatically." : `OpenAI returned ${response.status ?? "an unknown status"}. The original response is retained.`);
   if (response.output.some(item => item.type === "message" && item.content.some(part => part.type === "refusal"))) throw new Error("The model declined to prepare this breakdown.");
+  const format = response.text?.format?.type === "json_schema" ? response.text.format.name : null;
+  if (unsupportedSourceFormat(format)) throw new UnsupportedPaperSourceFormat(format);
   const output = response.output.filter(item => item.type === "message").flatMap(item => item.content).filter(part => part.type === "output_text").map(part => part.text).join("");
   const parsed = JSON.parse(output);
-  const format = response.text?.format?.type === "json_schema" ? response.text.format.name : null;
-  const referenced = format === PAPER_SOURCE_FORMAT || format === PAPER_SOURCE_FORMAT_V3 || format === PAPER_SOURCE_FORMAT_V4 || format === PAPER_SOURCE_FORMAT_V5;
-  const extraction = validatePaperExtraction(referenced ? resolvePaperSources(parsed, paper, format !== PAPER_SOURCE_FORMAT, format === PAPER_SOURCE_FORMAT_V5) : parsed, paper);
-  if (format === PAPER_SOURCE_FORMAT_V4 || format === PAPER_SOURCE_FORMAT_V5) assertPaperIntakeQuality(extraction, paper);
+  const referenced = sourceFormats.includes(format ?? "");
+  const extraction = validatePaperExtraction(referenced ? resolvePaperSources(parsed, paper, format !== PAPER_SOURCE_FORMAT, format === PAPER_SOURCE_FORMAT_V5 || format === PAPER_SOURCE_FORMAT_V6, format === PAPER_SOURCE_FORMAT_V6) : parsed, paper);
+  if (format === PAPER_SOURCE_FORMAT_V4 || format === PAPER_SOURCE_FORMAT_V5 || format === PAPER_SOURCE_FORMAT_V6) assertPaperIntakeQuality(extraction, paper);
   return extraction;
 }
 export type IntakeOperations = {
@@ -41,6 +48,10 @@ export async function refreshPaperIntake(row: IntakeRecord, ops: IntakeOperation
     const response = await ops.cancel(row.provider_response_id);
     return ops.save("failed", row, { token: row.submit_token, response, reason: "The original paper preparation deadline expired." });
   }
+  const requestFormat = (row.request as { text?: { format?: { name?: unknown } } } | null)?.text?.format?.name;
+  // Shared notification polling can reach a request made by a newer app version.
+  // An older reader must leave it for a compatible reader instead of failing it.
+  if (unsupportedSourceFormat(requestFormat)) return row;
   const response = await ops.retrieve(row.provider_response_id);
   if (response.id !== row.provider_response_id) throw new Error("The model response identity does not match this paper.");
   if (["queued", "in_progress"].includes(response.status ?? "")) return row;
@@ -51,6 +62,7 @@ export async function refreshPaperIntake(row: IntakeRecord, ops: IntakeOperation
     if (!row.request || typeof row.request !== "object" || !("instructions" in row.request) || typeof row.request.instructions !== "string" || !row.request.instructions.trim()) throw new Error("The original paper assessment prompt is missing.");
     instructions = row.request.instructions;
   } catch (error) {
+    if (error instanceof UnsupportedPaperSourceFormat) return row;
     return ops.save("failed", row, { token: row.submit_token, response, reason: error instanceof Error ? error.message : "The model output could not be verified." });
   }
   // Saving can be retried by retrieving this same response; no new inference.

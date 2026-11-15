@@ -7,7 +7,7 @@ import { getTestModuleForPath, LEGACY_MODULE_ROUTES, RESEARCH_IDEAS_MODULE, RESE
 const hook = registerHooks({ resolve(specifier, context, nextResolve) {
   return nextResolve(specifier === "./test-modules" ? new URL("../lib/test-modules.ts", import.meta.url).href : specifier, context);
 } });
-const { assessmentQueueQuery, researchExportPath, researchPublishedPath, researchModulePath, researchSearchSuffix, researchStudyKind, researchWorkspacePath, studiesForPathway } = await import("../lib/research-pathways.ts");
+const { assessmentQueueQuery, researchExportPath, researchResultsPath, researchModulePath, researchSearchSuffix, researchStudyKind, researchWorkspacePath, studiesForPathway } = await import("../lib/research-pathways.ts");
 hook.deregister();
 
 test("paper and idea modules keep every sidebar section within their own namespace", () => {
@@ -65,9 +65,9 @@ test("paper experiment designs resume their own workspace without relabeling the
 });
 
 test("paper detail and export paths use assessments while idea URLs retain their own namespace", () => {
-  assert.equal(researchPublishedPath("paper", "id"), "/research-verification/assessments/id");
+  assert.equal(researchResultsPath("paper", "id"), "/research-verification/assessment/id");
   assert.equal(researchExportPath("paper", "id"), "/research-verification/api/assessments/id/export");
-  assert.equal(researchPublishedPath("idea", "id"), "/research-ideas/studies/id");
+  assert.equal(researchResultsPath("idea", "id"), "/research-ideas/studies/id");
   assert.equal(researchExportPath("idea", "id"), "/research-ideas/api/studies/id/export");
   for (const prefix of ["", "/module", "/modules"]) for (const [suffix, target] of [["/studies", "/assessments"], ["/api/studies", "/api/assessments"]]) {
     assert.equal(LEGACY_MODULE_ROUTES.find(r => r.source === prefix + RESEARCH_VERIFICATION_MODULE.href + suffix)?.destination, RESEARCH_VERIFICATION_MODULE.href + target);

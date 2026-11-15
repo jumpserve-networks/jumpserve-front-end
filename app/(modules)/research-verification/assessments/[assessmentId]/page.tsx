@@ -1,10 +1,14 @@
-import { PublishedStudy } from "@/app/components/research-workflow/published-studies";
+import { notFound, permanentRedirect } from "next/navigation";
+import { isResearchId } from "@/lib/research-experiment-queue";
+import { researchAssessmentPath, researchSearchSuffix } from "@/lib/research-pathways";
 
 export const dynamic = "force-dynamic";
 
-export default function Assessment({ params, searchParams }: {
+export default async function Assessment({ params, searchParams }: {
   params: Promise<{ assessmentId: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  return <PublishedStudy params={params.then(({ assessmentId }) => ({ studyId: assessmentId }))} searchParams={searchParams} kind="paper" />;
+  const [{ assessmentId }, query] = await Promise.all([params, searchParams]);
+  if (!isResearchId(assessmentId)) notFound();
+  permanentRedirect(researchAssessmentPath(assessmentId) + researchSearchSuffix(query));
 }

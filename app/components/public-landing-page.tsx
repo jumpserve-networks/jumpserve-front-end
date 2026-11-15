@@ -20,7 +20,7 @@ const PATHWAYS = [
     title: "Develop a New Idea",
     accent: "border-home-idea-border border-t-home-idea bg-home-idea-surface hover:border-home-idea focus-within:border-home-idea [&_h2]:text-home-idea",
     buttonAccent: "bg-home-idea hover:bg-home-idea/90 focus-visible:ring-home-idea dark:bg-primary dark:hover:bg-primary/90 dark:focus-visible:ring-ring/50",
-    description: "Start with a question or unpublished hypothesis. Work with the AI guide to shape a research plan and define how to test it.",
+    description: "Start with a question or research hypothesis. Work with the AI guide to shape a research plan and define how to test it.",
     href: `${RESEARCH_IDEAS_MODULE_PATH}/new-idea`,
     action: "Start developing",
   },

@@ -33,14 +33,14 @@ const replacements = {
   ...Object.fromEntries([['delay','StudyDashboard'],['leo','LeoDashboard'],['http2','Http2Dashboard'],['ipv6','IPv6Dashboard'],['reliable','ReliableDashboard']].map(([kind,name])=>['@/app/components/'+kind+'-study/dashboard',boundary(name)])),
   '@/app/components/research-workflow/assessments': boundary('Assessments'),
   '@/app/components/research-workflow/assessment-detail': boundary('AssessmentDetail'),
-  '@/app/components/research-workflow/paper-assessment': "export function PaperAssessment(props){globalThis.__routeState.captures.push({name:'PaperAssessment',props});return props.children;}",
+  '@/app/components/research-workflow/paper-assessment': "export function PaperAssessment(props){globalThis.__routeState.captures.push({name:'PaperAssessment',props});return globalThis.__routeReact.createElement(globalThis.__routeReact.Fragment,null,props.header,props.children);}",
   '@/app/components/research-workflow/paper-assessment-steps': boundary('PaperAssessmentSteps'),
   '@/app/components/research-workflow/paper-review': boundary('PaperReviewPanel'),
   '@/app/components/research-workflow/claim-designer': boundary('ClaimDesigner'),
   '@/app/components/research-workflow/design-claim': boundary('DesignClaim'),
   '@/app/components/research-workflow/workspace': ['PaperIntake', 'OwnerStudies', 'StudyWorkspace'].map(boundary).join('\n'),
   '@/app/components/research-ideas/idea-workspace': ['IdeaIntake', 'IdeaWorkspace'].map(boundary).join('\n'),
-  '@/app/components/research-workflow/published-studies': boundary('PublishedStudy')+boundary('PublishedStudies'),
+  '@/app/components/research-workflow/assessment-results': boundary('AssessmentResult')+boundary('AssessmentResults'),
   '@/app/components/research-workflow/study-panel': 'export function studyView(value){globalThis.__routeState.views.push(value);return globalThis.__routeState.selectedView;}',
   '@/app/components/user-preferences': "export function LocalDateTime({value,fallback}){return globalThis.__routeReact.createElement('time',{dateTime:value},value??fallback);}",
 };
@@ -49,7 +49,7 @@ const paths = {
   home: 'app/page.tsx', module: 'app/(modules)/[moduleId]/page.tsx', login: 'app/login/page.tsx', profile: 'app/profile/page.tsx',
   prompts: 'app/prompts/page.tsx', prompt: 'app/prompts/[versionId]/page.tsx',
   lookup: 'app/(modules)/congestion-control-emulated/test-lookup/page.tsx', benchmark: 'app/(modules)/congestion-control-emulated/benchmarks/page.tsx', benchmarkRun: 'app/(modules)/congestion-control-emulated/benchmarks/[jobId]/page.tsx',
-  assessments: 'app/(modules)/research-verification/assessments/page.tsx', assessment: 'app/(modules)/research-verification/assessment/[assessmentId]/page.tsx', review: 'app/(modules)/research-verification/new-assessment/[assessmentId]/page.tsx', newPaper: 'app/(modules)/research-verification/new-assessment/page.tsx',
+  assessments: 'app/(modules)/research-verification/assessments/page.tsx', review: 'app/(modules)/research-verification/assessment/[assessmentId]/page.tsx', newPaper: 'app/(modules)/research-verification/new-assessment/page.tsx',
   design: 'app/(modules)/research-verification/experiment-design/[studyId]/page.tsx', designClaim: 'app/(modules)/research-verification/design-claim/[studyId]/[claimId]/page.tsx', workspace: 'app/(modules)/research-verification/workspace/[studyId]/page.tsx', ideaEvidence: 'app/(modules)/research-ideas/workspace/[studyId]/page.tsx',
   newIdea: 'app/(modules)/research-ideas/new-idea/page.tsx', ideas: 'app/(modules)/research-ideas/workspace/page.tsx', idea: 'app/(modules)/research-ideas/ideas/[studyId]/page.tsx', publishedPaper: 'app/(modules)/research-verification/assessments/[assessmentId]/page.tsx', publishedIdea: 'app/(modules)/research-ideas/studies/[studyId]/page.tsx',
   oldAssessments: 'app/(modules)/research-verification/previous-assessments/page.tsx', oldWorkspace: 'app/(modules)/research-verification/workspace/page.tsx', oldNewStudy: 'app/(modules)/research-verification/new-study/page.tsx', oldQueue: 'app/(modules)/research-verification/experiment-queue/page.tsx',
@@ -113,9 +113,9 @@ test('platform pages authenticate the exact task and keep unavailable data disti
 });
 
 test('research result redirects preserve queries and methods explain frozen evidence boundaries',async()=>{
-  await assert.rejects(pages.legacyStudy.default(props({studyId:ID},{view:'protocol'})),{code:'NEXT_REDIRECT',url:BASE+'/assessments/'+ID+'?view=protocol'});
+  await assert.rejects(pages.legacyStudy.default(props({studyId:ID},{view:'protocol'})),{code:'NEXT_REDIRECT',url:BASE+'/assessment/'+ID+'?view=protocol'});
   await assert.rejects(pages.legacyResults.default(props({},{name:'A & B'})),{code:'NEXT_REDIRECT',url:BASE+'/assessments?name=A+%26+B'});
-  await renderPage('ideaResults');assert.equal(capture('PublishedStudies').kind,'idea');
+  await renderPage('ideaResults');assert.equal(capture('AssessmentResults').kind,'idea');
   for(const name of ['paperMethods','ideaMethods']){const document=await renderPage(name);assert.match(document.body.textContent,/protocol/);assert.match(document.body.textContent,/evidence/);}
   assert.deepEqual(state.authPaths,[]);
 });
@@ -201,28 +201,33 @@ test('assessment list passes safe cursor and trimmed name with table as the defa
   assert.deepEqual(state.authPaths, []);
 });
 
-test('public assessment detail validates every queue identity and gates gap work before rendering', async () => {
-  await renderPage('assessment', props({assessmentId: ID}, {job: OTHER})); assert.deepEqual(capture('AssessmentDetail'), {assessmentId: ID, jobId: OTHER, gapId: undefined, launchId: undefined}); assert.deepEqual(state.authPaths, []);
-  assert.equal(state.captures.some(item=>item.name==='PaperAssessment'),false,'Shared queue rendering must not depend on private intake status');
-  await renderPage('assessment', props({assessmentId: ID}, {gap: OTHER, run: ID})); assert.deepEqual(state.authPaths, [BASE + '/assessment/' + ID + '?gap=' + OTHER + '&run=' + ID]);
+test('canonical assessment validates saved queue identities while showing the owner wizard', async () => {
+  await renderPage('review', props({assessmentId: ID}, {job: OTHER}));
+  assert.deepEqual(capture('AssessmentDetail'), {assessmentId: ID, gapId: undefined, launchId: undefined, embedded: true}); assert.deepEqual(state.authPaths, []);
+  const assessment=capture('PaperAssessment');assert.equal(assessment.wizard,true);assert.equal(assessment.ownerOnly,true);assert.equal(assessment.embedded,true);assert.equal(assessment.header.props.assessmentId,ID);
+  await renderPage('review', props({assessmentId: ID}, {gap: OTHER, run: ID, step: 'implementation', tag: ['a&b', 'second']}));
+  assert.deepEqual(state.authPaths, [BASE + '/assessment/' + ID + '?gap=' + OTHER + '&run=' + ID + '&step=implementation&tag=a%26b&tag=second']);
   for (const [id, query] of [['invalid', {}], [ID, {job: 'invalid'}], [ID, {gap: ['invalid']}], [ID, {run: 'invalid'}], [ID, {run: OTHER}]]) {
-    state.authPaths.length = 0; await assertNotFound(() => pages.assessment.default(props({assessmentId: id}, query))); assert.deepEqual(state.authPaths, []);
+    state.authPaths.length = 0; await assertNotFound(() => pages.review.default(props({assessmentId: id}, query))); assert.deepEqual(state.authPaths, []);
   }
 });
 
-test('paper review enables the wizard and preserves a validated step through sign-in', async () => {
-  const page = await pages.review.default(props({assessmentId:ID},{step:'implementation'}));
-  assert.equal(page.props.wizard,true);assert.deepEqual(state.authPaths,[BASE+'/new-assessment/'+ID+'?step=implementation']);
-  for(const [requested,canonical]of [['execution','execution'],['queue','execution'],['upload','upload']]){state.authPaths=[];await pages.review.default(props({assessmentId:ID},{step:requested}));assert.deepEqual(state.authPaths,[BASE+'/new-assessment/'+ID+'?step='+canonical]);}
-  for(const step of [['queue'],'https://example.test','unknown']){state.authPaths=[];await pages.review.default(props({assessmentId:ID},{step}));assert.deepEqual(state.authPaths,[BASE+'/new-assessment/'+ID]);}
+test('paper wizard step links remain publicly readable and cannot authorize an action', async () => {
+  for(const step of ['implementation','execution','queue','upload',['queue'],'https://example.test','unknown']) {
+    const page = await pages.review.default(props({assessmentId:ID},{step}));
+    assert.equal(page.props.children.props.wizard,true);assert.equal(page.props.children.props.ownerOnly,true);assert.deepEqual(state.authPaths,[]);
+  }
+  state.authError = Object.assign(new Error('Synthetic required login'), {code:'AUTH_REQUIRED'});
+  await assert.rejects(pages.review.default(props({assessmentId: ID}, {gap: OTHER})), {code:'AUTH_REQUIRED'});
 });
 test('the upload route starts the four-step wizard before an assessment identity exists',async()=>{
- await renderPage('newPaper',props({}, {step:'execution'}));
+ const document=await renderPage('newPaper',props({}, {step:'execution'}));
  assert.deepEqual(capture('PaperAssessmentSteps'),{current:'upload'});assert.equal(capture('PaperIntake').wizard,true);
+ assert.equal(document.querySelector('main').firstElementChild.getAttribute('data-boundary'),'PaperAssessmentSteps');
 });
 
 test('paper review and experiment design validate frozen identities before requesting authorization', async () => {
-  for (const [name, params, path, control] of [['review', {assessmentId: ID}, BASE + '/new-assessment/' + ID, 'PaperReviewPanel'], ['design', {studyId: ID}, BASE + '/experiment-design/' + ID, 'ClaimDesigner'], ['designClaim', {studyId: ID, claimId: OTHER}, BASE + '/design-claim/' + ID + '/' + OTHER, 'DesignClaim']]) {
+  for (const [name, params, path, control] of [['design', {studyId: ID}, BASE + '/experiment-design/' + ID, 'ClaimDesigner'], ['designClaim', {studyId: ID, claimId: OTHER}, BASE + '/design-claim/' + ID + '/' + OTHER, 'DesignClaim']]) {
     state.authPaths.length = 0; await renderPage(name, props(params)); assert.deepEqual(state.authPaths, [path]); assert.ok(capture(control));
     for (const field of Object.keys(params)) {
       state.authPaths.length = 0; await assertNotFound(() => pages[name].default(props({...params, [field]: 'invalid'}))); assert.deepEqual(state.authPaths, []);
@@ -243,11 +248,12 @@ test('workspace routes retain the selected view and reject malformed UUIDs befor
   }
 });
 
-test('idea and published assessment wrappers keep their module identity and unchanged query promises', async () => {
+test('idea result wrappers retain identity and old paper reports redirect into the same assessment', async () => {
   const options = props({studyId: ID}, {view: 'sources'}); await renderPage('idea', options);
   assert.equal(capture('IdeaWorkspace').studyId, ID); assert.equal(state.authPaths.at(-1), '/research-ideas/ideas/' + ID + '?view=sources');
-  await renderPage('publishedPaper', props({assessmentId: ID}, {view: 'protocol'})); let published = capture('PublishedStudy'); assert.equal(published.kind, 'paper'); assert.deepEqual(await published.params, {studyId: ID}); assert.deepEqual(await published.searchParams, {view: 'protocol'});
-  await renderPage('publishedIdea', options); published = capture('PublishedStudy'); assert.equal(published.kind, 'idea'); assert.equal(published.params, options.params); assert.equal(published.searchParams, options.searchParams);
+  await assert.rejects(pages.publishedPaper.default(props({assessmentId: ID}, {view: 'protocol',tag:['a&b','second']})),{code:'NEXT_REDIRECT',url:BASE+'/assessment/'+ID+'?view=protocol&tag=a%26b&tag=second'});
+  await assertNotFound(()=>pages.publishedPaper.default(props({assessmentId:'invalid'})));
+  await renderPage('publishedIdea', options); const result = capture('AssessmentResult'); assert.equal(result.kind, 'idea'); assert.equal(result.params, options.params); assert.equal(result.searchParams, options.searchParams);
 });
 
 test('legacy routes preserve ordinary query parameters and queue job identities in their canonical redirect', async () => {

@@ -4,6 +4,7 @@ import {execFileSync} from 'node:child_process';
 import {createRequire} from 'node:module';
 import {dirname,join} from 'node:path';
 import {privateJSON} from './paper-evaluation-store.mjs';
+import {paperIntakeRevalidationSQL} from './paper-intake-revalidation-sql.mjs';
 const require=createRequire(import.meta.url);
 const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value);
 const sql=value=>"'"+String(value).replaceAll("'","''")+"'";
@@ -66,6 +67,11 @@ export async function connectPaperMCP(projectRef,traceDirectory){
    if(!['reserve','begin','submitted','uncertain','failed','finish','cancel'].includes(operation)||!uuid(row.study_id)||!uuid(row.owner_id))throw new Error('Unsupported paper-intake operation or owner identity.');
    const result=await rows(`select public.research_paper_intake(${sql(operation)},${sql(row.owner_id)}::uuid,${sql(row.study_id)}::uuid,${sql(JSON.stringify(payload))}::jsonb) as intake`,false);
    if(result.length!==1||result[0].intake?.study_id!==row.study_id||result[0].intake?.owner_id!==row.owner_id)throw new Error('The saved intake identity does not match its owner.');return result[0].intake;
+  },
+  async revalidate(row,payload){
+   const result=await rows(paperIntakeRevalidationSQL(row,payload),false);
+   if(result.length!==1||result[0].intake?.study_id!==row.study_id||result[0].intake?.status!=='ready')throw new Error('The assessment changed or is no longer eligible; no replacement model call was made.');
+   return result[0].intake;
   },
   async evidence(id){
    if(!uuid(id))throw new Error('A valid paper identity is required.');

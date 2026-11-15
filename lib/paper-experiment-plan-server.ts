@@ -3,11 +3,12 @@ import { intakeDatabase, modelClient } from "./paper-intake-server";
 import { confirmPaperSections, EXPERIMENT_PLAN_VERSION, type ExperimentPlanView } from "./paper-experiment-plan";
 import { experimentPlanRequest } from "./paper-experiment-plan-model";
 import { confirmAndPlan, refreshExperimentPlan, cancelExperimentPlan, type ExperimentPlanRecord } from "./paper-experiment-plan-runner";
-import { validatePaperBreakdown } from "./research-paper-breakdown";
+import { validatePaperBreakdown, type PaperBreakdown } from "./research-paper-breakdown";
 import type { IntakeRecord } from "./paper-intake-runner";
 
 export class ExperimentPlanError extends Error {
-  constructor(message: string, public status: number) { super(message); }
+  public status: number;
+  constructor(message: string, status: number) { super(message); this.status = status; }
 }
 function databaseFailure(error: { code?: string; message: string }): never {
   if (["42P01", "PGRST205", "PGRST202"].includes(error.code ?? "")) throw new ExperimentPlanError("Experiment planning needs the phase-two database update.", 424);
@@ -22,7 +23,11 @@ function operations(study: string, actor: string) {
   return {
     save: async (operation: string, payload: Record<string, unknown>) => {
       const { data, error } = await (await intakeDatabase()).rpc("research_experiment_plan", { p_operation: operation, p_actor: actor, p_study: study, p_payload: payload });
-      if (error && operation === "confirm" && error.message === "Plan only from the exact confirmed sections") throw new ExperimentPlanError("Experiment planning needs the hierarchical-steps database update. Your paper has not been confirmed and no model call was sent.", 424);
+      if (error && operation === "confirm" && error.message === "Plan only from the exact confirmed sections") {
+        const confirmed = payload.confirmed_breakdown as PaperBreakdown;
+        const dependencies = Object.values(confirmed.sections).some(items => items.some(item => item.depends_on !== undefined));
+        throw new ExperimentPlanError(`Experiment planning needs the ${dependencies ? "paper-dependencies" : "hierarchical-steps"} database update. Your paper has not been confirmed and no model call was sent.`, 424);
+      }
       if (error) databaseFailure(error);
       return data as ExperimentPlanRecord;
     },

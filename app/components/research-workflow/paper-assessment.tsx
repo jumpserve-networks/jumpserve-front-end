@@ -11,12 +11,13 @@ import { paperIntakeFetch } from "@/lib/paper-intake-client";
 import { ResearchRequestError } from "@/lib/research-workflow-api";
 import { paperIntakePending, validatePaperIntake, type PaperIntakeView } from "@/lib/paper-intake";
 
-export function PaperAssessment({ assessmentId, children, allowResume = false, wizard = false }: { assessmentId: string; children: ReactNode; allowResume?: boolean; wizard?: boolean }) {
+export function PaperAssessment({ assessmentId, children, header, allowResume = false, wizard = false, embedded = false, ownerOnly = false }: { assessmentId: string; children: ReactNode; header?: ReactNode; allowResume?: boolean; wizard?: boolean; embedded?: boolean; ownerOnly?: boolean }) {
   const ownerId = useUserPreferences()?.userId ?? undefined;
-  return <PaperAssessmentView key={`${assessmentId}:${ownerId ?? "public"}`} assessmentId={assessmentId} ownerId={ownerId} allowResume={allowResume} wizard={wizard}>{children}</PaperAssessmentView>;
+  if (ownerOnly && !ownerId) return header ?? null;
+  return <PaperAssessmentView key={`${assessmentId}:${ownerId ?? "public"}`} assessmentId={assessmentId} ownerId={ownerId} allowResume={allowResume} wizard={wizard} embedded={embedded} ownerOnly={ownerOnly} header={header}>{children}</PaperAssessmentView>;
 }
 
-function PaperAssessmentView({ assessmentId, ownerId, children, allowResume, wizard }: { assessmentId: string; ownerId?: string; children: ReactNode; allowResume: boolean; wizard: boolean }) {
+function PaperAssessmentView({ assessmentId, ownerId, children, header, allowResume, wizard, embedded, ownerOnly }: { assessmentId: string; ownerId?: string; children: ReactNode; header?: ReactNode; allowResume: boolean; wizard: boolean; embedded: boolean; ownerOnly: boolean }) {
   const [view, setView] = useState<PaperIntakeView | null>(null);
   const [legacy, setLegacy] = useState(false);
   const [error, setError] = useState("");
@@ -57,17 +58,20 @@ function PaperAssessmentView({ assessmentId, ownerId, children, allowResume, wiz
           {view.owner && view.stage === "uploaded" ? <Button size="sm" disabled={busy} onClick={() => void action("prepare")}>Prepare breakdown</Button> : null}
           {view.owner && ["uploaded", "processing", "uncertain"].includes(view.stage) ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void action("cancel")}>Cancel preparation</Button> : null}</div>
       </section> : null;
-  if (legacy) return <>{allowResume && ownerId ? <div className="mx-auto max-w-5xl space-y-2 px-4 pt-6"><Button disabled={busy} onClick={() => void action("resume")}>Prepare paper in Next.js</Button>{error ? <p role="alert">{error}</p> : null}</div> : null}{children}</>;
+  if (ownerOnly && view && !view.owner) return header ?? null;
+  if (legacy) return <>{header}{allowResume && ownerId ? <div className={embedded ? "space-y-2" : "mx-auto max-w-5xl space-y-2 px-4 pt-6"}><Button disabled={busy} onClick={() => void action("resume")}>Prepare paper in Next.js</Button>{error ? <p role="alert">{error}</p> : null}</div> : null}{children}</>;
   const showWizard = Boolean(wizard && view?.owner && ownerId);
-  return <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6">
-    <ResearchHeader title={view?.title ?? "Paper assessment"} showModuleLabel={false} />
-    {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
-    {!view ? <>{wizard ? <PaperAssessmentSteps current="breakdown" assessment /> : null}<p role="status">Loading paper preparation status…</p></> : showWizard && ownerId && view.stage === "ready" && view.breakdown ? <PaperExperimentPlanning key={`${assessmentId}:${view.breakdown.review?.id ?? view.breakdown.policy_sha256}`} assessmentId={assessmentId} ownerId={ownerId} breakdown={view.breakdown} wizard preparation={preparation} /> : <>
+  const Container = embedded ? "section" : "main";
+  const pageHeader = header ?? (!embedded ? <ResearchHeader title={view?.title ?? "Paper assessment"} showModuleLabel={false} /> : null);
+  const feedback = error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null;
+  return <Container className={embedded ? "space-y-6" : "mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6"}>
+    {!view ? <>{wizard ? <PaperAssessmentSteps current="breakdown" assessment /> : null}{pageHeader}{feedback}<p role="status">Loading paper preparation status…</p></> : showWizard && ownerId && view.stage === "ready" && view.breakdown ? <PaperExperimentPlanning key={`${assessmentId}:${view.breakdown.review?.id ?? view.breakdown.policy_sha256}`} assessmentId={assessmentId} ownerId={ownerId} breakdown={view.breakdown} header={error ? <>{pageHeader}{feedback}</> : pageHeader} wizard /> : <>
       {showWizard ? <PaperAssessmentSteps current="breakdown" assessment /> : null}
+      {pageHeader}{feedback}
       {showWizard ? <h2 className="text-lg font-semibold">Initial Assessment</h2> : null}
       {preparation}
       {view.owner && ownerId && view.stage === "ready" && view.breakdown ? <PaperExperimentPlanning key={`${assessmentId}:${view.breakdown.review?.id ?? view.breakdown.policy_sha256}`} assessmentId={assessmentId} ownerId={ownerId} breakdown={view.breakdown} /> : view.owner && view.stage !== "uploaded" ? <PaperBreakdownPanel version="paper-breakdown-v1" value={view.breakdown} preparing={paperIntakePending(view.stage)} busy={busy} /> : !view.owner ? <p className="text-sm text-muted-foreground">The paper breakdown and source quotes are available to the paper’s owner.</p> : null}
       {!showWizard ? <section aria-labelledby="phase-one-queue" className="content-panel space-y-2 rounded-lg border p-4"><h2 id="phase-one-queue" className="text-lg font-semibold">Experiment Queue</h2><p className="text-sm">{view.experiment_jobs === 0 ? "No experiments have been queued." : `${view.experiment_jobs} recorded experiment jobs.`}</p></section> : null}
     </>}
-  </main>;
+  </Container>;
 }

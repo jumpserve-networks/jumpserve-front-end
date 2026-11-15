@@ -15,6 +15,7 @@
     "verify:http2": "node scripts/verify-http2-study.mjs",
     "ui:add": "shadcn add",
     "verify:research:public-queue": "node scripts/verify-public-experiment-queue.mjs",
+    "verify:research:assessment-routes": "node scripts/verify-assessment-routes.mjs",
     "verify:profile": "node scripts/verify-profile.mjs",
     "verify:auth": "node scripts/verify-browser-auth.mjs",
     "verify:paper-uploads": "node scripts/verify-paper-uploads.mjs",
@@ -24,7 +25,8 @@
     "eval:paper": "node --import ./scripts/lib/register-typescript.mjs scripts/evaluate-paper-intake.mjs",
     "eval:experiment-plan": "node --import ./scripts/lib/register-typescript.mjs scripts/evaluate-experiment-plan.mjs",
     "verify:paper": "node --import ./scripts/lib/register-typescript.mjs scripts/verify-paper-intake.mjs",
-    "review:paper": "node --import ./scripts/lib/register-typescript.mjs scripts/review-paper-breakdown.mjs"
+    "review:paper": "node --import ./scripts/lib/register-typescript.mjs scripts/review-paper-breakdown.mjs",
+    "revalidate:paper": "node --import ./scripts/lib/register-typescript.mjs scripts/revalidate-paper-intake.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "3.1132.0",

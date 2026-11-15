@@ -1,11 +1,24 @@
 # Shared assessment details v1
 
 The user authorized making recorded paper-assessment content readable by everyone.
-Each `/research-verification/assessment/<id>` page includes its **Experiment Queue**
-section at `#experiment-queue`. The overview and queue share one serial status
-refresh every ten seconds. Saved `/experiment-queue` and module queue links with
+Assessments no longer have a publication state, publishing action or separate
+publication-dependent page. The four wizard steps describe their progress.
+Historical report URLs under `/research-verification/assessments/<id>` and
+`/research-verification/studies/<id>` redirect to the canonical assessment,
+preserving queries. Older API responses may still carry a `published` field;
+the client accepts and strips it, so it cannot affect rendering, navigation or
+progress. The owner workspace no longer exposes a publish operation. Historical
+records and API contracts are retained for compatibility; this change adds no
+database grants or access to private files, ideas or owner editing controls.
+Each `/research-verification/assessment/<id>` page shows paper metadata and the
+owner's assessment wizard. The user removed Assessment status, Claim progress,
+the assessment-record controls and Experiment Queue from this page. Queue data
+is no longer requested or polled there. Public data APIs remain unchanged. The old
+`/research-verification/new-assessment/<id>` route is a permanent redirect to this
+canonical URL, preserving query parameters and historical job anchors. Paper metadata
+refreshes every ten seconds. Saved `/experiment-queue` and module queue links with
 `assessment=<id>` or `study=<id>` permanently redirect to that page. `job=<id>`
-links preserve the focused job and its anchor; repeated unrelated query values
+links preserve their job identity and anchor, but no longer display or focus a queue; repeated unrelated query values
 are retained. Conflicting, repeated or malformed identities return 404 without
 reading assessment data. The standalone queue page and sidebar entry are retired;
 queue links without an assessment open `/research-verification/assessments?mine=1`.
@@ -24,7 +37,7 @@ an action after sign-in.
 
 After an authorized deployment, run
 `npm run verify:research:assessments:production -- <merge-revision>` to check the
-exact production version, Table/Card views, inline queue, saved-link redirects,
+exact production version, Table/Card views, assessment metadata, saved-link redirects,
 sign-in return paths and desktop/mobile themes using public reads only.
 
 The inventory at `/research-verification/assessments` defaults to Table view,
@@ -37,6 +50,19 @@ It searches successive catalogue pages rather than only the displayed page.
 choices survive pagination and scope changes; changing the name or scope resets
 the cursor. These query parameters are shareable and survive reload/back.
 
+The status field shows only the saved wizard step, without publication badges:
+**Step 1 · Paper Upload** for an
+upload reservation, **Step 2 · Initial Assessment** while preparing or reviewing
+the breakdown, **Step 3 · Experiment Steps** after confirmation while a plan is
+pending or needs attention, and **Step 4 · Run Experiments** when the plan is ready
+or an older experiment workflow exists. Step four names the next available
+stage; it does not assert that experiments ran. Returning to an earlier wizard
+screen does not undo saved progress. A single anonymous, bounded GET to
+`/research-verification/api/assessment-progress?id=...` refreshes the displayed
+page every ten seconds using only saved statuses. It reads no source text or
+model responses and triggers no work. Deleted papers, ideas, unknown progress
+and failed reads never receive an invented step; stale retained steps are labeled.
+
 Filtered pages retain ten matches and use the last displayed match as their
 keyset boundary; lookahead cannot skip matches on the same underlying page.
 Missing bibliography uses the existing bounded metadata endpoint with two
@@ -44,19 +70,19 @@ concurrent reads. Filtering is bounded to 100 catalogue pages and 30 seconds;
 failed or incomplete reads show an error, never an incomplete "no matches" result.
 This adds no database grants, model calls, assessment changes or write endpoints.
 
-The assessment overview shows **Choose central claims and testable findings**
-when the saved paper preparation status is `ready`. It opens the existing
-`/research-verification/new-assessment/<id>` review for that assessment. Preparing,
-failed, confirmed and unknown preparation states do not show this action; polling
-removes it once scope is confirmed. The destination retains Google sign-in and
-owner checks, and sign-in preserves the exact review URL. The link does not
-select claims, confirm scope or start experiments automatically.
+The same page embeds the four-step wizard for the authenticated paper owner,
+including the saved breakdown, confirmation and hierarchical implementation
+plan. Signed-out readers skip private intake reads; other signed-in readers
+receive no owner controls. Public paper metadata remains available independently of
+private intake loading or errors. Historical papers retain the existing review
+and resume path. Viewing any step does not confirm scope or start experiments;
+the execution step remains a placeholder. All writes retain Google/owner checks.
 
-Signed-out readers can inspect task prompts, responses, evidence, usage and failed
-calls through **View prompts and responses**. **View assessment records** exposes
-the initial paper request, task context, sources, protocols, configurations,
+The retained public APIs expose task prompts, responses, evidence, usage, failed
+calls, initial paper requests, task context, sources, protocols, configurations,
 campaigns, checks, jobs, events, runs, published values, measurements, summaries,
 scientific assessments, gaps, reviews, publication history and artifact metadata.
+Their controls are no longer mounted on the assessment page.
 Original private file downloads, account data, access credentials and private
 storage locations remain protected. All mutations retain Google/owner checks.
 
@@ -86,7 +112,12 @@ arbitrary text. Original records remain unchanged; displayed hashes refer to
 those originals, not transformed JSON or text. UI strings are escaped JSX and
 plain JSON, never interpreted as HTML, instructions or executable experiments.
 
-## Development verification protocol
+## Historical v9 development verification protocol
+
+The browser campaign below records the earlier queue-based interface. Its page
+assertions are historical after the user removed these sections. Current UI
+checks use the assessment component tests and browser-free route verifier;
+public queue and record components retain separate regression coverage.
 
 Before the v9 browser campaign, require:
 
@@ -109,6 +140,10 @@ Before the v9 browser campaign, require:
 
 Commands: `npm test`, `npm run lint`, `npm run verify:research:public-queue`, and
 `python3 -B -m unittest discover -s research_workflow/tests -v` in the backend.
+For browser-free local routing checks, start Next and run
+`npm run verify:research:assessment-routes -- http://localhost:6001`. This checks
+legacy redirects, repeated queries, public metadata rendering without the removed sections, invalid identities
+and exact follow-up sign-in destinations without fetching paper data or calling models.
 Reports and failed attempts remain in `.test-artifacts/`. The implementer is an
 AI reviewer, not an independent or human reviewer. No new scientific experiment
 or model call is part of these checks; measured local charges are unavailable.

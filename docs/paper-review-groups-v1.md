@@ -1,6 +1,6 @@
 # Central claims and testable findings
 
-`/research-verification/new-assessment/<id>` now separates **Central Claims**
+`/research-verification/assessment/<id>` now separates **Central Claims**
 from **Testable Findings**. Neither group is checked by default. Users select
 individual statements or a whole group, move items between sections, and add
 retained statements from the searchable **Other extracted statements** list.

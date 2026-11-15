@@ -9,7 +9,8 @@ import { researchRequest } from "@/lib/research-workflow-api";
 import { ideaModelRequest } from "@/lib/research-idea-api";
 import { CLAIM_DESIGN_VERSION, CLAIM_DESIGN_RESPONSE_VERSION, consumeClaimDesignIntent, validateClaimDesign, type ClaimDesignState } from "@/lib/research-claim-design";
 import { experimentQueuePath } from "@/lib/research-experiment-queue";
-import { ASSESSMENTS_PATH, RESEARCH_WORKFLOW_MODULE_PATH as PATH } from "@/lib/test-modules";
+import { RESEARCH_WORKFLOW_MODULE_PATH as PATH } from "@/lib/test-modules";
+import { researchAssessmentPath } from "@/lib/research-pathways";
 
 const errorText = (value: unknown) => value instanceof Error ? value.message : "Request was not confirmed. Your saved history remains available.";
 async function verifiedState(value: unknown, studyId: string) {
@@ -99,7 +100,7 @@ export function ClaimDesigner({ studyId }: { studyId: string }) {
       <p className="break-all text-xs text-muted-foreground">Source SHA256: {origin.source.sha256 ?? "Unavailable; original bytes must be identified before automatic execution."}</p>
       <p className="text-sm text-muted-foreground">Proposals use the recorded claim and source metadata.</p>
       <p className="text-sm text-muted-foreground">Descriptive pilots only. Inferential conclusions require a separately reviewed analysis design.</p>
-      <div className="flex flex-wrap gap-4 text-sm"><Link className="underline" href={`${ASSESSMENTS_PATH}/${origin.study.id}?view=gaps`}>Original assessment</Link><Link className="underline" href={experimentQueuePath(studyId)}>Experiment Queue</Link><Link className="underline" href={`${PATH}/workspace/${studyId}`}>Evidence workspace</Link></div>
+      <div className="flex flex-wrap gap-4 text-sm"><Link className="underline" href={`${researchAssessmentPath(origin.study.id)}?view=gaps`}>Original assessment</Link><Link className="underline" href={experimentQueuePath(studyId)}>Experiment Queue</Link><Link className="underline" href={`${PATH}/workspace/${studyId}`}>Evidence workspace</Link></div>
       <Button size="sm" variant="outline" onClick={() => void download(state)}>Download experiment design</Button>
     </section>
     {error ? <p role="alert" className="content-panel rounded-md border p-3 text-sm text-destructive">{error}</p> : null}

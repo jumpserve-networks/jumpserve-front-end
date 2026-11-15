@@ -4,22 +4,64 @@ can be corrected and details excluded. Source quotes, PDF pages and the original
 phase-one extraction remain unchanged. The confirmation button saves the current
 reviewed version; there is no separate review checkbox.
 
+Each detail initially displays text with its inclusion checkbox on the left.
+Edit opens one description editor at a time. Save applies the edited description
+to the current review; Cancel discards that draft. Excluding and reincluding a
+detail retains its saved description. Continuing to step three persists the
+reviewed sections in the existing confirmation record and creates the plan;
+per-detail Save does not start planning. Confirmation and wizard navigation are
+disabled until the active editor is saved or cancelled. Original quotes,
+citations, criteria and confirmed sections remain read-only.
+
 The owner flow shows four wizard steps starting at
 `/research-verification/new-assessment`: Paper Upload, Initial Assessment,
-Experiment Steps, and Run Experiments. Upload remains batch-capable; each
+Experiment Steps, and Run Experiments. Upload remains batch-capable. Each
+screen places the wizard navigation before its heading and paper metadata.
+Public readers retain the paper metadata without private wizard controls. Each
 retained paper links to its own Initial Assessment screen at
-`/research-verification/new-assessment/<id>?step=breakdown`. The upload route
+`/research-verification/assessment/<id>?step=breakdown`. The upload route
 cannot open later stages without a selected assessment. A preparing paper stays
 on step two. Confirmation advances to step three; a verified ready plan enables
 step four. Run Experiments is currently a placeholder with a disabled execution
-button, without queue polling or launch actions. Back navigation keeps the saved confirmation.
+button and no launch actions. Back navigation keeps the saved confirmation.
 The `step` query parameter preserves the selected screen through refresh,
 browser history and Google sign-in. Direct links cannot bypass confirmation or
 plan readiness. Historical `step=queue` wizard URLs open the execution placeholder.
 The Paper Upload step links back to the upload route without changing the
 original paper, confirmation or implementation plan.
-The shared `/research-verification/assessment/<id>` page retains its combined
-view and existing public queue access.
+Step two shows the four section descriptions and source evidence.
+Implementation choices are retained for planning and omitted from this screen.
+The experiment summary and its Setup, Procedure, Conditions and Comparisons
+remain in the retained planning input. Step three displays the generated
+implementation stages and actions without repeating that standalone specification,
+including while planning is pending. Generated actions keep their supporting
+evidence, validation criteria and unresolved decisions.
+The step-two breakdown is a numbered outline: Access, Experiment, Data and
+Validate are the top-level sections (1–4), with their recorded details nested as
+1.1, 1.2, 2.1 and so on. Sections start expanded and can be collapsed; source
+quotes and validation criteria remain beneath their own detail. This is a view
+of the retained extraction, without generating extra content or changing saved
+identities. Inclusion checkboxes and description editing work within the outline.
+New v6 extractions retain section-local `depends_on` identities. The first
+prerequisite determines the parent; additional prerequisites appear as numbered
+references. Nested numbering follows the tree, while evidence and edit identities
+stay unchanged. Selecting a dependent also selects all prerequisites; excluding
+any prerequisite excludes all direct and indirect dependents. A prerequisite
+cannot be excluded while a descendant is being edited. Confirmation rejects
+orphaned dependencies, and step-three input remaps them to its current source refs.
+Legacy records without dependency metadata remain flat within their sections;
+viewing them does not infer relationships or invoke a model.
+
+Before releasing dependency-enabled extraction, apply infrastructure migration
+`202611140001_paper_detail_dependencies.sql`. It guards intake, reviewed and
+confirmed graphs, allows dependency fields in versioned reviews, and updates the
+exact SQL planning projection to match JavaScript. It changes no historical
+records, credentials, owner rules or public grants. The matching local regression
+is `test/check_paper_dependencies_database.py` in `jumpserve-infra`.
+The canonical `/research-verification/assessment/<id>` page shows the
+owner wizard and public paper metadata. Status, records and queue sections have
+been removed from that page. The retired
+`/research-verification/new-assessment/<id>` URL permanently redirects there.
 
 The explicit “Confirm phase one and create experiment steps” action atomically
 records the phase-one revision, reviewed snapshot, owner, timestamp, exact request,
@@ -46,11 +88,22 @@ Stage labels organize the work; they do not claim paper support. The provider
 schema constrains references to confirmed details. Client/server and SQL guards
 allow up to eight stages, eight actions per stage and twenty-four actions total
 per experiment. Stage/action titles are bounded to 160 characters and action
-instructions to 800. Exactly one action checks each structured claim across the
+instructions to 800 for historical v3 compatibility. Current provider requests
+cap instructions at 400 characters and ask for one independently implementable
+operation plus its completion artifact/check, usually in one or two sentences.
+A complete network reproduction normally needs about 20–24 focused actions;
+sparse scopes can use fewer. Configuration, connectivity checks, rate/RTT
+calibration, trial scheduling, collection, raw uploads and normalized ingestion
+should be separate actions when they have separate completion checks. This
+refinement changes future generation without rewriting confirmed saved plans.
+Exactly one action checks each structured claim across the
 whole hierarchy. Flat v1/v2 plans retain their original twelve-step/1200-character
 bounds and remain readable.
 
 The view numbers experiments, stages and actions as `1`, `1.2` and `1.2.1`.
+Instructions, claim criteria, source details, PDF quotes and unresolved decisions
+remain with the item they support. More granular generated work receives its own
+action number, rather than being packed into a single long instruction.
 Stages start expanded and can be collapsed with native keyboard-accessible
 controls. Evidence, PDF pages and claim criteria stay with their action. This
 changes local presentation without sending requests or editing the saved plan.
@@ -64,6 +117,15 @@ or admitting a model call, and the interface explains the required update.
 Existing confirmations, responses and plans are unchanged. Test new generation
 with an unconfirmed assessment after that migration, or an isolated CLI input
 snapshot; the CLI does not confirm or modify the source assessment.
+
+The finer-action prompt was exercised through the browser-free evaluator on an
+exposed synthetic case. The final low-reasoning run produced one experiment,
+five stages and 23 actions, passing the hierarchy, action-count, instruction-length
+and source-reference checks. Its broader frozen content rubric still flagged
+full-grid wording, uncertainty wording, provenance separation and burst units;
+these results remain recorded for further review. This is evidence of a more
+granular plan, not a complete scientific-quality pass. The retained run is
+`granular-actions-20261114-v3` under `.test-artifacts/experiment-plan-evaluations`.
 
 The earlier flat-plan prompt candidate was exercised against an exposed synthetic
 manuscript without modifying its assessment. That run produced a structurally valid
@@ -120,14 +182,19 @@ validates the expectation format without evaluating generated content. For examp
 ```json
 {
   "experiment_count": 1,
-  "minimum_stages": 3,
-  "minimum_steps": 6,
+  "minimum_stages": 5,
+  "minimum_steps": 16,
+  "max_instruction_characters": 400,
   "required_source_refs": ["experiment-1", "data-1", "validate-1"],
   "details": [
     {
+      "name": "receiver measurement collection",
+      "mentions": [["receiver"], ["raw JSON", "raw logs"]]
+    },
+    {
       "name": "measurement persistence",
       "basis": "proposed",
-      "mentions": [["receiver"], ["raw JSON"], ["Supabase"]]
+      "mentions": [["Supabase"], ["trial"], ["configuration"]]
     },
     {
       "name": "unresolved acceptance",

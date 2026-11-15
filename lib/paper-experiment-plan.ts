@@ -1,6 +1,7 @@
 import { PAPER_BREAKDOWN_SECTIONS, validatePaperBreakdown, type PaperBreakdown, type PaperBreakdownSection } from "./research-paper-breakdown";
 import { RESEARCH_WORKFLOW_MODULE_PATH } from "./test-modules";
 import type { PaperCitation, PaperCriterion, PaperExperimentSpecification } from "./paper-breakdown-evidence";
+import { validPaperDependencies } from "./paper-detail-dependencies";
 
 export const EXPERIMENT_PLAN_VERSION = "paper-experiment-plan-v1";
 export const EXPERIMENT_PLAN_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/api/experiment-plan`;
@@ -39,13 +40,19 @@ export function confirmPaperSections(original: PaperBreakdown, value: unknown): 
       return { ...source, description: entry.description.trim() };
     })];
   })) as PaperBreakdown["sections"];
+  if (Object.values(sections).some(items => !validPaperDependencies(items))) throw new Error("Include prerequisites or exclude their dependent details before continuing.");
   return validatePaperBreakdown({ ...original, sections });
 }
 
+export type PaperPlanningSource = { ref: string; description: string; quote: string; page: number; citations?: PaperCitation[]; kind?: string; label?: string | null; criterion?: PaperCriterion | null; specification?: PaperExperimentSpecification | null; depends_on?: string[] };
 export function planningSources(breakdown: PaperBreakdown) {
-  return Object.fromEntries(PAPER_BREAKDOWN_SECTIONS.map(({ id }) => [id, breakdown.sections[id].map((item, index) => ({ ref: `${id}-${index + 1}`, description: item.description, quote: item.quote, page: item.page,
-    ...(item.citations ? { citations: item.citations, kind: item.kind, label: item.label, criterion: item.criterion, specification: item.specification } : {}),
-  }))])) as Record<PaperBreakdownSection, { ref: string; description: string; quote: string; page: number; citations?: PaperCitation[]; kind?: string; label?: string | null; criterion?: PaperCriterion | null; specification?: PaperExperimentSpecification | null }[]>;
+  return Object.fromEntries(PAPER_BREAKDOWN_SECTIONS.map(({ id }) => {
+    const refs = new Map(breakdown.sections[id].map((item, index) => [item.id, `${id}-${index + 1}`]));
+    return [id, breakdown.sections[id].map(item => ({ ref: refs.get(item.id)!, description: item.description, quote: item.quote, page: item.page,
+      ...(item.citations ? { citations: item.citations, kind: item.kind, label: item.label, criterion: item.criterion, specification: item.specification } : {}),
+      ...(item.depends_on ? { depends_on: item.depends_on.map(ref => refs.get(ref)!) } : {}),
+    }))];
+  })) as Record<PaperBreakdownSection, PaperPlanningSource[]>;
 }
 
 export function planningInput(breakdown: PaperBreakdown) {

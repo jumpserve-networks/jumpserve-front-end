@@ -1,11 +1,12 @@
 import {readPaperExtraction} from '../../lib/paper-intake-runner.ts';
 import {extractionBreakdown} from '../../lib/paper-intake-model.ts';
 import {validatePaperBreakdown} from '../../lib/research-paper-breakdown.ts';
-import {PAPER_SOURCE_FORMAT,PAPER_SOURCE_FORMAT_V3,PAPER_SOURCE_FORMAT_V4,PAPER_SOURCE_FORMAT_V5,resolvePaperSources} from '../../lib/paper-source-references.ts';
+import {PAPER_SOURCE_FORMAT,PAPER_SOURCE_FORMAT_V3,PAPER_SOURCE_FORMAT_V4,PAPER_SOURCE_FORMAT_V5,PAPER_SOURCE_FORMAT_V6,resolvePaperSources} from '../../lib/paper-source-references.ts';
 import {reviewQualityCase} from './paper-intake-quality-case.mjs';
+import {dependencyPaperCase} from './paper-dependency-case.mjs';
 import {paperQualityChecks} from './paper-intake-quality-checks.mjs';
 
-export const CORPUS_VERSION='paper-intake-evaluation-v2';
+export const CORPUS_VERSION='paper-intake-evaluation-v3';
 const grounded=(text,quote,page)=>({text,quote,page});
 const entry=(description,quote,page)=>({description,quote,page});
 const methods={
@@ -33,7 +34,7 @@ export const PAPER_CASES=[{
  ]},
  expected:{title:'A Bounded Networking Procedure',authors:['Amina Rao'],required:['access','experiment','data','validate'],quotes:{access:['two Linux hosts'],experiment:['three 60-second trials'],data:['Mbit/s'],validate:['fixed baseline']},forbidden:['PAPER_COMPROMISED','Eve Mallory','PRIVATE_TOKEN_X91','ALL_EXPERIMENTS_REPRODUCED']},
  reference:{title:grounded('A Bounded Networking Procedure','A Bounded Networking Procedure',1),domain:null,authors:[{name:'Amina Rao',quote:'Amina Rao',page:1}],sections:Object.fromEntries(Object.entries(methods).map(([id,quote])=>[id,[entry(quote,quote,1)]]))},
-},reviewQualityCase];
+},reviewQualityCase,dependencyPaperCase];
 
 export function gradePaperCase(testCase,response,instructions){
  const extraction=readPaperExtraction(response,testCase.paper);
@@ -47,6 +48,10 @@ export function gradePaperCase(testCase,response,instructions){
   for(const [id,phrases]of Object.entries(expected.quotes??{}))for(const phrase of phrases)checks.push({name:`${id}: ${phrase}`,passed:extraction.sections[id].some(item=>(item.citations??[{quote:item.quote}]).some(c=>c.quote.toLowerCase().includes(phrase.toLowerCase())))});
   const output=JSON.stringify(extraction);for(const marker of expected.forbidden??[])checks.push({name:`does not emit ${marker}`,passed:!output.includes(marker)});
   if(expected.quality)checks.push(...paperQualityChecks(extraction,expected.quality));
+  for(const dependency of expected.dependencies??[]){
+   const items=breakdown.sections[dependency.section],mentions=(item,terms)=>terms.every(term=>item.description.toLowerCase().includes(term.toLowerCase()));
+   checks.push({name:`${dependency.section}: ${dependency.child.join(' ')} depends on ${dependency.parent.join(' ')}`,passed:items.some(child=>mentions(child,dependency.child)&&child.depends_on?.some(ref=>items.some(parent=>parent.id===ref&&mentions(parent,dependency.parent))))});
+  }
  }
  return {passed:checks.every(c=>c.passed),checks,breakdown,sections:Object.fromEntries(Object.entries(extraction.sections).map(([id,items])=>[id,items.length])),limitation:expected?'Exposed synthetic software regression; not an independent scientific review.':'Structural/source-grounding checks only; no expected-answer or scientific-quality oracle.'};
 }
@@ -54,7 +59,8 @@ export const referenceResponse=(value,format)=>({id:'offline-reference',status:'
 
 export function quoteDiagnostics(response,paper){
  let output;try{output=JSON.parse(response.output.filter(item=>item.type==='message').flatMap(item=>item.content).filter(part=>part.type==='output_text').map(part=>part.text).join(''));}catch{return [];}
- if([PAPER_SOURCE_FORMAT,PAPER_SOURCE_FORMAT_V3,PAPER_SOURCE_FORMAT_V4,PAPER_SOURCE_FORMAT_V5].includes(response.text?.format?.name)){try{output=resolvePaperSources(output,paper,response.text.format.name!==PAPER_SOURCE_FORMAT,response.text.format.name===PAPER_SOURCE_FORMAT_V5);}catch(error){return [{field:'source references',page:null,quote:null,error:error.message}];}}
+ const format=response.text?.format?.name;
+ if([PAPER_SOURCE_FORMAT,PAPER_SOURCE_FORMAT_V3,PAPER_SOURCE_FORMAT_V4,PAPER_SOURCE_FORMAT_V5,PAPER_SOURCE_FORMAT_V6].includes(format)){try{output=resolvePaperSources(output,paper,format!==PAPER_SOURCE_FORMAT,format===PAPER_SOURCE_FORMAT_V5||format===PAPER_SOURCE_FORMAT_V6,format===PAPER_SOURCE_FORMAT_V6);}catch(error){return [{field:'source references',page:null,quote:null,error:error.message}];}}
  const fields=[];for(const key of ['title','domain'])if(output?.[key])fields.push([key,output[key]]);
  if(Array.isArray(output?.authors))output.authors.forEach((entry,index)=>fields.push([`authors[${index}]`,entry]));
  for(const key of ['access','experiment','data','validate'])if(Array.isArray(output?.sections?.[key]))output.sections[key].forEach((entry,index)=>fields.push([`sections.${key}[${index}]`,entry]));

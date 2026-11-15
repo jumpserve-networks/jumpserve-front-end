@@ -1,3 +1,7 @@
+// Historical queue UI campaign: the current assessment page no longer renders
+// status, record controls or an Experiment Queue. Its DOM assertions below
+// describe the earlier layout; current checks use component tests and
+// verify-assessment-routes.mjs. Public API regressions remain separate.
 // Fixed local campaign: actual Next page -> actual Python handler -> synthetic
 // store records. No real login, database, models, experiment launches or writes.
 import assert from 'node:assert/strict';
@@ -13,7 +17,7 @@ const target='/research-verification/assessment/'+study;
 const paperTitle='Making Congestion Control Algorithms Insensitive to Underlying Propagation Delays';
 const directory='.test-artifacts/public-experiment-queue/'+new Date().toISOString().replaceAll(':','-');await mkdir(directory,{recursive:true});
 const report={protocol:'public-experiment-queue-v9',started_at:new Date().toISOString(),checks:[],requests:[],browser_errors:[],source_sha256:{},reviewer:{identity:'Primary Codex AI implementer',type:'AI',independent:false},conditional_gaps:['Production anonymous status and deployed private API denials','Actual Supabase reads and RLS; store fixture is synthetic','Actual authenticated owner session','Title extraction accuracy across arbitrary PDF layouts','Format-based diagnostic redaction is not a complete privacy review of arbitrary text'],new_model_calls:0,new_experiment_launches:0,measured_charges_usd:null};
-for(const path of ['app/(modules)/research-verification/new-assessment/page.tsx','app/(modules)/research-verification/new-study/page.tsx','app/components/public-landing-page.tsx','app/components/research-workflow/experiment-queue.tsx','app/components/research-workflow/published-studies.tsx','app/components/research-workflow/workspace.tsx','lib/research-pathways.ts','lib/auth.ts','lib/auth-redirect.ts','next.config.ts'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
+for(const path of ['app/(modules)/research-verification/new-assessment/page.tsx','app/(modules)/research-verification/new-study/page.tsx','app/components/public-landing-page.tsx','app/components/research-workflow/experiment-queue.tsx','app/components/research-workflow/assessment-results.tsx','app/components/research-workflow/workspace.tsx','lib/research-pathways.ts','lib/auth.ts','lib/auth-redirect.ts','next.config.ts'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
 for(const path of ['app/(modules)/research-verification/experiment-queue/page.tsx','app/(modules)/research-verification/assessments/page.tsx','app/components/research-workflow/assessments.tsx','lib/research-paper-catalog.ts','lib/test-modules.ts','app/components/research-workflow/public-experiment-queue.tsx','app/components/research-workflow/autonomous-assessments.tsx','lib/research-public-queue.ts','../jumpserve-back-end/research_workflow/api.py','../jumpserve-back-end/research_workflow/paper_catalog.py','../jumpserve-back-end/research_workflow/scheduler.py','../jumpserve-back-end/research_workflow/paper_titles.py','../jumpserve-back-end/research_workflow/intake.py','../jumpserve-back-end/research_workflow/tests/public_queue_fixture.py','../jumpserve-back-end/research_workflow/tests/test_paper_titles.py','scripts/verify-public-experiment-queue.mjs'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
 for(const path of ['app/(modules)/research-verification/assessments/[assessmentId]/page.tsx','app/(modules)/research-verification/studies/[studyId]/page.tsx','app/(modules)/research-verification/api/assessments/[assessmentId]/export/route.ts','app/(modules)/research-verification/api/studies/[studyId]/export/route.ts','lib/research-export.ts','lib/research-experiment-queue.ts','lib/research-workflow-server.ts','app/components/research-workflow/study-panel.tsx'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
 for(const path of ['app/components/research-ideas/idea-workspace.tsx','app/components/research-ideas/network-protocol-editor.tsx','lib/network-execution.ts','lib/research-workflow.ts','lib/research-workflow-api.ts','lib/browser-auth.ts','app/components/research-workflow/claim-designer.tsx','app/components/research-workflow/claim-queue.tsx','app/components/research-workflow/evidence-methods.tsx','app/components/research-workflow/network-job-cancel.tsx','app/components/research-workflow/queue-example.tsx','app/components/research-workflow/run-gap-experiment.tsx'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
@@ -21,6 +25,8 @@ for(const path of ['app/(modules)/research-verification/assessments/page.tsx','a
 for(const path of ['app/(modules)/research-verification/assessment/[assessmentId]/page.tsx','app/components/research-workflow/assessment-detail.tsx','lib/research-assessment-progress.ts','lib/research-paper-catalog.ts'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
 for(const path of ['app/components/research-workflow/shared-assessment-records.tsx','app/components/research-workflow/autonomous-assessments.tsx','lib/research-pathways.ts','tests/research-shared-details.test.mjs','../jumpserve-back-end/research_workflow/tests/test_shared_details.py'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
 for(const path of ['lib/research-autonomy.ts','../jumpserve-back-end/research_workflow/autonomous_repair.py','../jumpserve-back-end/research_workflow/repair_validation.py'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
+for(const path of ['lib/assessment-wizard-progress.ts','lib/assessment-wizard-progress-server.ts','app/(modules)/research-verification/api/assessment-progress/route.ts'])report.source_sha256[path]=createHash('sha256').update(await readFile(path)).digest('hex');
+report.conditional_gaps.push('Wizard steps in this browser campaign use an explicit fixture; the actual projection is covered by API regressions with synthetic database records.');
 let python,build,app,browser,pythonLog='',buildLog='',appLog='',fixtureOrigin;
 async function check(name,action){try{report.checks.push({name,passed:true,evidence:await action()});console.log('PASS '+name);}catch(e){report.checks.push({name,passed:false,error:e.message});throw e;}}
 async function fixtureMode(mode){const r=await fetch(fixtureOrigin+'/fixture/mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});assert.equal(r.status,200);}
@@ -44,6 +50,10 @@ try{
  const context=await browser.newContext({viewport:{width:1365,height:900}});
  await context.route('**/*',async route=>{const req=route.request(),u=new URL(req.url());
   const ownerStatus=u.pathname==='/research/studies'&&u.search==='?mine=1&status=1';
+  if(u.origin===origin&&u.pathname==='/research-verification/api/assessment-progress'){
+   // Explicit wizard-progress fixture; this campaign never queries live Supabase.
+   return route.fulfill({json:{version:'assessment-wizard-progress-v1',access:'public-read-only',assessments:u.searchParams.getAll('id').map((id,index)=>({id,step:index%4+1}))}});
+  }
   if(ownerStatus||(u.pathname.startsWith('/research/studies/')&&['/queue','/autonomy'].some(suffix=>u.pathname.endsWith(suffix))&&u.searchParams.get('public')==='1')||u.pathname==='/research/papers'||/^\/research\/papers\/[a-f0-9-]+(?:\/title)?$/.test(u.pathname)){
    const headers=await req.allHeaders();report.requests.push({path:u.pathname+u.search,method:req.method(),authorization_present:!!headers.authorization,cookie_present:!!headers.cookie});assert.equal(req.method(),'GET');assert.equal(headers.cookie,undefined);
    const personal=ownerStatus||u.pathname==='/research/papers'&&u.searchParams.get('mine')==='1';
@@ -165,7 +175,9 @@ try{
   await page.goto(origin+'/');await page.getByRole('link',{name:'View assessments',exact:true}).click();await page.waitForURL(origin+'/research-verification/assessments');
   await page.getByRole('heading',{name:'Assessments',exact:true}).waitFor();await page.getByRole('link',{name:paperTitle,exact:true}).waitFor();
   assert.equal(await page.locator('tr[data-paper-id]').count(),10);assert.equal(await page.getByRole('link',{name:'View experiment queue',exact:true}).count(),0);
-  const body=await page.locator('main').innerText();for(const label of ['In progress','Cancelled','Spending limit reached','Finished with gaps','Time limit reached','Published assessment','Not published'])assert.ok(body.includes(label),label);
+  await page.getByText('Step 4 · Run Experiments',{exact:true}).first().waitFor();
+  const body=await page.locator('main').innerText();for(const label of ['Step 1 · Paper Upload','Step 2 · Initial Assessment','Step 3 · Experiment Steps','Step 4 · Run Experiments'])assert.ok(body.includes(label),label);
+  for(const label of ['Published assessment','Not published'])assert.ok(!body.includes(label),label);
   assert.ok(!body.includes('PRIVATE-CANARY'));assert.ok(!body.includes('ProxyDelay_Nines_CameraReady'));
   await page.locator(`tr[data-paper-id="${study}"] [data-paper-authors]`).filter({hasText:'Cyrus Illick, Michael Roger'}).waitFor();
   await page.locator(`tr[data-paper-id="${study}"]`).getByText('Casey Researcher',{exact:true}).waitFor();
@@ -200,20 +212,21 @@ try{
   await page.goto(origin+'/research-verification/assessment/00000000-0000-4000-8000-000000000001');await page.getByRole('alert').filter({hasText:'Assessment details are unavailable'}).waitFor();
   return {public:true,stage_visible:true,claim_findings_retained:true,metadata:true,stale_progress_labeled:true,invalid_and_missing_ids_explicit:true,desktop_mobile_themes:true};
  });
- await check('finished paper preparation links to claim selection until scope is confirmed',async()=>{
-  const path='/research-verification/assessment/'+study,review='/research-verification/new-assessment/'+study;
-  const name='Choose central claims and testable findings';
-  for(const mode of ['normal','review-preparing','review-failed','review-confirmed']){
-   await fixtureMode(mode);await page.goto(origin+path);await page.getByText('Initiated by: Casey Researcher',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name,exact:true}).count(),0);
+ await check('the canonical assessment keeps public progress available across preparation states',async()=>{
+  const path='/research-verification/assessment/'+study;
+  for(const mode of ['normal','review-preparing','review-failed','review-confirmed','review-ready']){
+   await fixtureMode(mode);await page.goto(origin+path);await page.getByText('Initiated by: Casey Researcher',{exact:true}).waitFor();
+   await page.getByRole('region',{name:'Experiment Queue',exact:true}).waitFor();assert.equal(new URL(page.url()).pathname,path);
+   assert.equal(await page.getByRole('button',{name:'Choose central claims and testable findings',exact:true}).count(),0);
+   assert.equal(await page.getByRole('form',{name:'Confirm paper information'}).count(),0);
   }
-  await fixtureMode('review-ready');await page.goto(origin+path);const choose=page.getByRole('button',{name,exact:true});await choose.waitFor();assert.equal(await choose.getAttribute('href'),review);
   for(const width of [1365,390]){
-   await page.setViewportSize({width,height:900});await page.evaluate(()=>window.scrollTo(0,0));await page.clock.runFor(100);assert.equal(await page.locator('[data-testid="assessment-detail"]').count(),1);assert.equal(await page.locator('[data-slot="site-header"]').count(),1);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);await page.screenshot({path:directory+`/assessment-choose-claims-${width}.png`,fullPage:true});
+   await page.setViewportSize({width,height:900});await page.evaluate(()=>window.scrollTo(0,0));await page.clock.runFor(100);
+   assert.equal(await page.locator('[data-testid="assessment-detail"]').count(),1);assert.equal(await page.locator('[data-slot="site-header"]').count(),1);
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);await page.screenshot({path:directory+`/assessment-canonical-${width}.png`,fullPage:true});
   }
-  await fixtureMode('review-confirmed');await page.clock.runFor(10100);await choose.waitFor({state:'hidden'});
-  await fixtureMode('review-ready');await page.clock.runFor(10100);await choose.waitFor();await choose.click();await page.waitForURL(url=>url.pathname==='/login');assert.equal(new URL(page.url()).searchParams.get('next'),review);
   await fixtureMode('normal');await page.setViewportSize({width:1365,height:900});
-  return {ready_only:true,preparing_failed_confirmed_and_unknown_hidden:true,polling_removes_confirmed_link:true,exact_assessment_identity:true,sign_in_resumes_review:true,mobile_no_overflow:true,automatic_confirmation:false};
+  return {public_progress:true,exact_assessment_identity:true,no_owner_controls:true,mobile_no_overflow:true,automatic_confirmation:false};
  });
  await check('a recorded initiator with blank profile names uses their Google display name',async()=>{
   await fixtureMode('catalog-google');await page.goto(origin+'/research-verification/assessments');

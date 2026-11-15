@@ -1,13 +1,24 @@
 # Paper breakdown, phase one
 
+New extractions use `paper_breakdown_sources_v6` and include direct dependencies
+between details in the same section. The model returns one-based prerequisite
+positions; the server rejects invalid or cyclic graphs, then retains stable item
+IDs in `depends_on`. Step two nests each item under its first prerequisite and
+shows any additional prerequisite references. Independent details stay at the
+section root. Exact quotes, PDF pages and the consolidated experiment design are
+preserved. Older v1–v5 responses retain their original readers and meaning.
+Apply `jumpserve-infra/database/202611140001_paper_detail_dependencies.sql` before
+deploying this extraction update; no saved assessments are rewritten.
+
 Repeatable CLI evaluation, replay and operator verification are documented in
 [Browser-free paper prompt testing](paper-intake-testing.md).
 
 Uploading a PDF at `/research-verification/new-assessment` prepares Access,
 Experiment, Data and Validate in the Next.js Node server. It does not create an
-experiment workflow, autonomy task or worker dispatch. Both the review URL and
-`/research-verification/assessment/<id>` show the saved breakdown to its owner.
-Historical experiment assessments retain their existing detail and queue views.
+experiment workflow, autonomy task or worker dispatch. The canonical
+`/research-verification/assessment/<id>` page shows the saved breakdown to its
+owner, alongside public paper metadata. Historical
+experiment assessments retain their review path and existing public data APIs.
 
 Access describes resources and permissions reported in the paper. Experiment
 covers procedures, configurations, comparisons and repetitions. Data covers

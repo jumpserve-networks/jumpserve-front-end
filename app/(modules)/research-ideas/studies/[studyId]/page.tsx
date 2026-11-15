@@ -1,7 +1,7 @@
-import { PublishedStudy, type PublishedStudyProps } from "@/app/components/research-workflow/published-studies";
+import { AssessmentResult, type AssessmentResultProps } from "@/app/components/research-workflow/assessment-results";
 
 export const dynamic = "force-dynamic";
 
-export default function Study(props: PublishedStudyProps) {
-  return <PublishedStudy {...props} kind="idea" />;
+export default function Study(props: AssessmentResultProps) {
+  return <AssessmentResult {...props} kind="idea" />;
 }

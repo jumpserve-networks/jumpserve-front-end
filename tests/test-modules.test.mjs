@@ -106,7 +106,7 @@ test("paper assessments have a canonical route with direct legacy aliases", () =
   }
   assert.equal(getTestModule("research-ideas").sections[2].href, "/research-ideas/test-results");
 });
-test("new paper assessment route is canonical and old intake links remain usable", () => {
+test("paper upload stays on new-assessment while saved detail links resolve to assessment", () => {
   const paperModule = getTestModule("research-verification");
   assert.equal(NEW_ASSESSMENT_PATH, "/research-verification/new-assessment");
   assert.equal(paperModule.sections[0].href, NEW_ASSESSMENT_PATH);
@@ -116,6 +116,9 @@ test("new paper assessment route is canonical and old intake links remain usable
     const old = `${prefix}/research-verification/new-study`;
     assert.equal(LEGACY_MODULE_ROUTES.find(r => r.source === old)?.destination, NEW_ASSESSMENT_PATH);
     assert.equal(getTestModuleForPath(old), paperModule);
+    for (const path of ["new-assessment", "new-study"]) {
+      assert.equal(LEGACY_EXACT_MODULE_ROUTES.find(r => r.source === `${prefix}/research-verification/${path}/:assessmentId`)?.destination, "/research-verification/assessment/:assessmentId");
+    }
   }
 });
 
@@ -126,7 +129,8 @@ test("one Assessments section owns both list scopes and private assessment detai
   assert.equal(MY_ASSESSMENTS_PATH, "/research-verification/assessments?mine=1");
   assert.equal(isModuleSectionActive(assessments, ASSESSMENTS_PATH), true);
   assert.equal(isModuleSectionActive(assessments, ASSESSMENTS_PATH + "/paper-id"), true);
-  assert.equal(isModuleSectionActive(assessments, "/research-verification/assessment/paper-id"), true);
+  assert.equal(isModuleSectionActive(assessments, "/research-verification/assessment/paper-id"), false);
+  assert.equal(isModuleSectionActive(paperModule.sections[0], "/research-verification/assessment/paper-id"), true);
   for (const suffix of ["workspace", "experiment-design", "design-claim"]) {
     assert.equal(isModuleSectionActive(assessments, `/research-verification/${suffix}/paper-id`), true);
   }
