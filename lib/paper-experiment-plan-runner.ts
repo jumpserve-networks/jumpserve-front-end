@@ -9,6 +9,7 @@ export type ExperimentPlanRecord = {
   intake_revision: number; confirmed_at: string; confirmed_breakdown: PaperBreakdown;
   submit_token: string | null; provider_response_id: string | null; request: unknown;
   deadline_at: string; updated_at: string; plan: ExperimentPlan | null; reason: string | null; admitted?: boolean;
+  link_review?: { id: string; original_revision: number; reviewed_at: string; reviewer_type: "AI" | "human" };
 };
 export type PlanOperations = {
   save: (operation: string, payload: Record<string, unknown>) => Promise<ExperimentPlanRecord>;

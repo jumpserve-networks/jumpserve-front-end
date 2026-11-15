@@ -17,6 +17,7 @@ export type PlanStage = "awaiting_confirmation" | "submitting" | "processing" | 
 export type ExperimentPlanView = {
   version: typeof EXPERIMENT_PLAN_VERSION; study_id: string; stage: PlanStage; intake_revision: number;
   confirmed_at: string | null; confirmed_breakdown: PaperBreakdown | null; plan: ExperimentPlan | null; reason: string | null;
+  link_review?: { id: string; original_revision: number; reviewed_at: string; reviewer_type: "AI" | "human" };
 };
 export const planPending = (stage: PlanStage) => stage === "submitting" || stage === "processing";
 export const reviewedSections = (breakdown: PaperBreakdown): ReviewedSections => Object.fromEntries(PAPER_BREAKDOWN_SECTIONS.map(({ id }) => [id, breakdown.sections[id].map(({ id, description }) => ({ id, description }))])) as ReviewedSections;
@@ -93,7 +94,8 @@ export function validateExperimentPlan(value: unknown, breakdown: PaperBreakdown
       if (!object(step) || !exact(step, ["title", "instructions", "basis", "source_refs", ...(hierarchical || "validation_ref" in step ? ["validation_ref"] : [])]) || !text(step.title, 160) || !text(step.instructions, hierarchical ? 800 : 1200) || !["paper", "proposed"].includes(String(step.basis)) || !refList(step.source_refs, refs, step.basis === "paper" ? 1 : 0) ||
         hierarchical && step.validation_ref !== null && typeof step.validation_ref !== "string") throw fail();
       if (step.validation_ref != null) {
-        if (typeof step.validation_ref !== "string" || !claims.has(step.validation_ref) || checked.has(step.validation_ref) || !step.source_refs.includes(step.validation_ref)) throw fail();
+        if (typeof step.validation_ref !== "string" || !claims.has(step.validation_ref) || !step.source_refs.includes(step.validation_ref)) throw fail();
+        if (checked.has(step.validation_ref)) throw new Error(`More than one step is assigned to ${step.validation_ref}. Measurement and calibration steps may cite a claim, but only its final evaluation should use validation_ref. The original response is retained.`);
         checked.add(step.validation_ref);
       }
     }
@@ -115,5 +117,6 @@ export function validateExperimentPlanView(value: unknown, id: string): Experime
     if (v.plan !== null) validateExperimentPlan(v.plan, v.confirmed_breakdown!);
     if (v.stage === "ready" && v.plan === null) throw new Error("The recorded experiment plan is missing.");
   }
+  if (v.link_review !== undefined && (v.stage !== "ready" || !object(v.link_review) || !text(v.link_review.id, 100) || !Number.isSafeInteger(v.link_review.original_revision) || v.link_review.original_revision < 1 || !Number.isFinite(Date.parse(v.link_review.reviewed_at)) || !["AI", "human"].includes(v.link_review.reviewer_type))) throw new Error("The recorded plan review could not be verified.");
   return v;
 }

@@ -14,7 +14,7 @@ const request=ids=>new Request('https://example.test/research-verification/api/a
 let records,calls,override;
 beforeEach(()=>{
   calls=[];override=()=>null;
-  records={research_studies:[{id:uid(1),study_kind:'paper',deleted_at:null}],research_paper_intakes:[],research_experiment_plans:[],research_paper_reviews:[],research_autonomy_workflows:[]};
+  records={research_studies:[{id:uid(1),study_kind:'paper',deleted_at:null}],research_paper_intakes:[],research_experiment_plans:[],research_paper_reviews:[],research_autonomy_workflows:[],research_experiment_plan_link_reviews:[]};
   globalThis.__wizardProgressDatabase={from(table){
     assert.ok(Object.hasOwn(records,table));const query={table,filters:[]};calls.push(query);
     const builder={select(columns,options){query.columns=columns;query.count=options.count;return builder;},in(key,values){query.filters.push([key,'in',values]);return builder;},eq(key,value){query.filters.push([key,'eq',value]);return builder;},is(key,value){query.filters.push([key,'is',value]);return builder;},limit(value){query.limit=value;return builder;},then(resolve,reject){
@@ -48,6 +48,16 @@ test('ideas deleted papers missing records and unknown progress never reveal a g
   const response=await GET(request([uid(1),uid(2),uid(3),uid(4)]));assert.equal(response.status,200);
   assert.deepEqual((await response.json()).assessments.map(item=>item.step),[null,null,null,null]);
   assert.ok(calls.slice(1).every(query=>JSON.stringify(query.filters)==JSON.stringify([['study_id','in',[uid(1)]]])));
+});
+test('an immutable reviewed projection advances progress only for its exact original plan revision',async()=>{
+  records.research_experiment_plans=[{study_id:uid(1),status:'failed',revision:4}];
+  records.research_experiment_plan_link_reviews=[{study_id:uid(1),base_revision:4}];
+  assert.equal((await(await GET(request([uid(1)]))).json()).assessments[0].step,4);
+  records.research_experiment_plan_link_reviews[0].base_revision=3;
+  assert.equal((await GET(request([uid(1)]))).status,503);
+  records.research_experiment_plan_link_reviews=[];
+  override=query=>query.table==='research_experiment_plan_link_reviews'?{data:null,count:null,error:{code:'PGRST205'}}:null;
+  assert.equal((await(await GET(request([uid(1)]))).json()).assessments[0].step,3);
 });
 test('invalid duplicate excess or arbitrary query inputs do not access the database',async()=>{
   for(const ids of [[],['bad'],[uid(1),uid(1)],Array.from({length:11},(_,i)=>uid(i+1))])assert.equal((await GET(request(ids))).status,400);

@@ -73,6 +73,15 @@ export async function connectPaperMCP(projectRef,traceDirectory){
    if(result.length!==1||result[0].intake?.study_id!==row.study_id||result[0].intake?.status!=='ready')throw new Error('The assessment changed or is no longer eligible; no replacement model call was made.');
    return result[0].intake;
   },
+  async experimentPlan(id,owner){
+   if(!uuid(id)||!uuid(owner))throw new Error('Valid paper and owner identities required.');
+   const result=await rows(`select to_jsonb(p) as plan from public.research_experiment_plans p where study_id=${sql(id)}::uuid and owner_id=${sql(owner)}::uuid`);return result[0]?.plan??null;
+  },
+  async reviewExperimentPlanLinks(row,payload){
+   if(!uuid(row.study_id)||!uuid(row.owner_id)||!uuid(payload.review_id))throw new Error('Valid review and owner identities required.');
+   const result=await rows(`select public.research_review_experiment_plan_links(${sql(row.owner_id)}::uuid,${sql(row.study_id)}::uuid,${sql(JSON.stringify(payload))}::jsonb) as review`,false);
+   if(result.length!==1||result[0].review?.study_id!==row.study_id||result[0].review?.id!==payload.review_id)throw new Error('Saved experiment-plan review identity mismatch.');return result[0].review;
+  },
   async evidence(id){
    if(!uuid(id))throw new Error('A valid paper identity is required.');
    const result=await rows(`select jsonb_build_object('intake',(select to_jsonb(i) from public.research_paper_intakes i where study_id=${sql(id)}::uuid),'events',(select coalesce(jsonb_agg(jsonb_build_object('revision',revision,'status',snapshot->>'status','created_at',created_at) order by revision),'[]') from public.research_paper_intake_events where study_id=${sql(id)}::uuid),'workflow',(select jsonb_build_object('status',status,'deadline_at',deadline_at,'committed_cents',committed_cents) from public.research_autonomy_workflows where study_id=${sql(id)}::uuid),'tasks',(select count(*) from public.research_autonomy_tasks where study_id=${sql(id)}::uuid),'dispatches',(select count(*) from public.research_model_dispatches where study_id=${sql(id)}::uuid),'jobs',(select count(*) from public.research_queue_jobs where study_id=${sql(id)}::uuid),'artifacts',(select coalesce(jsonb_agg(jsonb_build_object('id',id,'sha256',sha256,'byte_count',byte_count)),'[]') from public.research_artifacts where study_id=${sql(id)}::uuid)) as evidence`);return result[0].evidence;
