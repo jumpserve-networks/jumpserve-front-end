@@ -126,12 +126,13 @@ each stage contains its actionable `steps`. Each action keeps its own instructio
 paper/proposed basis, source references and nullable claim-validation reference.
 Stage labels organize the work; they do not claim paper support. The provider
 schema constrains references to confirmed details. Client/server and SQL guards
-allow up to eight stages, eight actions per stage and twenty-four actions total
-per experiment. Stage/action titles are bounded to 160 characters and action
+allow up to eight stages and eight actions per stage: sixty-four actions total
+per experiment. This matches the provider schema without forcing independently
+implementable work into combined actions. Stage/action titles are bounded to 160 characters and action
 instructions to 800 for historical v3 compatibility. Current provider requests
 cap instructions at 400 characters and ask for one independently implementable
 operation plus its completion artifact/check, usually in one or two sentences.
-A complete network reproduction normally needs about 20–24 focused actions;
+A complete network reproduction can need more than twenty-four focused actions;
 sparse scopes can use fewer. Configuration, connectivity checks, rate/RTT
 calibration, trial scheduling, collection, raw uploads and normalized ingestion
 should be separate actions when they have separate completion checks. This
@@ -139,6 +140,17 @@ refinement changes future generation without rewriting confirmed saved plans.
 Exactly one action checks each structured claim across the
 whole hierarchy. Flat v1/v2 plans retain their original twelve-step/1200-character
 bounds and remain readable.
+
+Apply `202611160002_granular_experiment_plan_capacity.sql` before deploying this
+capacity change. It updates the SQL validators without rewriting saved plans,
+calls, responses, prompt uses or confirmation records. Spending, call-count,
+output-token and original deadline limits stay unchanged. Qualify it with
+`test/check_granular_experiment_plan_capacity_database.py` in `jumpserve-infra`;
+the regression includes a 30-action failed response, immutable duplicate-link
+review, and command admission against the exact reviewed plan revision.
+Existing failed calls remain failed until their retained output is explicitly
+reviewed through the operator workflow above. Merely raising the layout limit
+does not accept duplicated final claim assignments or retry inference.
 
 The view numbers experiments, stages and actions as `1`, `1.2` and `1.2.1`.
 Instructions, claim criteria, source details, PDF quotes and unresolved decisions

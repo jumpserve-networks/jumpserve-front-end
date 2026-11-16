@@ -1,5 +1,5 @@
 import type { ResponseCreateParamsNonStreaming } from "openai/resources/responses/responses";
-import { planningInput, planningSources } from "./paper-experiment-plan";
+import { MAX_EXPERIMENT_ACTIONS, MAX_EXPERIMENT_STAGES, MAX_STAGE_ACTIONS, planningInput, planningSources } from "./paper-experiment-plan";
 import type { PaperBreakdown } from "./research-paper-breakdown";
 export const PAPER_EXPERIMENT_PLAN_MODEL = "gpt-5.4-mini-2026-03-17";
 
@@ -20,7 +20,7 @@ ACTION GRANULARITY
 Make each numbered action small enough to implement and verify independently. Its title starts with a concrete verb and names one operation. Give the exact relevant settings or selection procedure, followed by one completion artifact or check. Split independently executable operations even when they use the same host or tool; do not hide a checklist inside one instructions paragraph.
 The following must be distinct numbered actions when applicable: install tools; capture versions; configure rate; configure delay; configure loss; check connectivity; calibrate rate; measure idle RTT; generate the schedule; assign loss seeds; reset a trial; collect measurements; upload raw artifacts; ingest normalized rows; compute condition means; calculate uncertainty. Do not combine any of these pairs merely to fit them into a short paragraph. A verification that checks the action's own setting may remain with that action. Use only operations needed by the supplied scope.
 For example, "configure the path, check reachability, measure idle RTT, run trials and save results" must become separate numbered actions. Separate topology creation from address assignment; tool installation from version capture; rate shaping from delay configuration and forward-loss configuration; reachability checks from rate and RTT calibration; trial scheduling from loss-seed assignment; trial reset from data collection; raw-artifact upload from normalized Supabase ingestion; condition summaries from uncertainty estimation. Resolve queue limits and burst settings separately when they have different checks. Preserve dependency order and each action's source attribution.
-A complete network reproduction with a condition grid, technical choices, calibration, seeded trials, persistence, uncertainty and claim validation will usually need about 20–24 actions across its stages, often 2–6 per stage. Use the scope's actual needs, not filler or duplicated requirements, to determine the count. Sparse or genuinely simpler scopes may use fewer. Keep each claim's dedicated validation action intact; supporting data preparation can be separate actions with validation_ref=null.
+A complete network reproduction with a condition grid, technical choices, calibration, seeded trials, persistence, uncertainty and claim validation may need more than twenty-four actions. Use the scope's actual needs, not filler or duplicated requirements, to determine the count, within ${MAX_EXPERIMENT_STAGES} stages of at most ${MAX_STAGE_ACTIONS} actions each (${MAX_EXPERIMENT_ACTIONS} actions total). Do not merge independently executable actions or omit required operations to meet an obsolete twenty-four-action target. Sparse or genuinely simpler scopes may use fewer. Keep each claim's dedicated validation action intact; supporting data preparation can be separate actions with validation_ref=null.
 Granularity must not remove required content. State the computed total explicitly as a number of trials, retain the separate independent-measurement provenance, and name the actual uncertainty calculation. Descriptive-only reporting still needs a named dispersion statistic, such as sample variance or standard deviation, and its small-sample limitations.
 Give document provenance its own preparation action: explicitly preserve any supplied synthetic/fabricated classification and require fabricated paper-reported values to stay separate from independent measurements. In analysis, state the replication unit explicitly as the whole trial and keep uncertainty estimation separate from means/statistic calculations.
 
@@ -39,7 +39,7 @@ Claim references in source_refs describe supporting context; validation_ref assi
 If acceptance=needs_definition, explicitly name the claim and missing operational agreement rule in its own open_question. Begin that question with "Before observing results" and require the rule to be frozen at that time. "Before scoring", "before judging" or "before validation" is too late and is not a substitute. State that numerical agreement stays unresolved until then. Never invent a tolerance or treat printed decimals as exact acceptance. Legacy Validate descriptions still need appropriate validation actions and unresolved criteria.
 
 OUTPUT CONTRACT
-Return the required structured object only: at most eight experiments, each with one to eight stages, one to eight substeps per stage, at most twenty-four substeps in total per experiment, and at most twelve open_questions. Every stage has a title and a steps array. Every actionable substep has title, instructions, basis, source_refs and validation_ref. Stage labels are organizational; evidence and scientific criteria belong on the substeps. No deeper nesting, empty stages or mixed flat/hierarchical layouts are allowed.
+Return the required structured object only: at most eight experiments, each with one to ${MAX_EXPERIMENT_STAGES} stages, one to ${MAX_STAGE_ACTIONS} substeps per stage, at most ${MAX_EXPERIMENT_ACTIONS} substeps in total per experiment, and at most twelve open_questions. Every stage has a title and a steps array. Every actionable substep has title, instructions, basis, source_refs and validation_ref. Stage labels are organizational; evidence and scientific criteria belong on the substeps. No deeper nesting, empty stages or mixed flat/hierarchical layouts are allowed.
 Each substep needs a concrete action and a completion artifact, plus its experiment ref and specific supporting source_refs. Refer to earlier stage/action titles for dependencies. Do not invent source refs, commands supposedly from the author, runtime host IDs, credentials, installed state or completed results.
 Use basis=paper only if EVERY operative requirement is supported by the cited confirmed details. Any new configuration, logging, provenance-storage, instrumentation, analysis or persistence design makes the whole step basis=proposed; retain refs for its paper-supported context. Supabase is a platform requirement, not something the paper specified.
 Stage and substep titles: at most 160 characters; new substep instructions: at most 400; experiment titles: at most 200; questions: at most 400. Aim for 100–300 characters in one or two short sentences per action. Split compound work into separate actions rather than compressing several operations, cutting sentences or dropping settings. Before returning, check independent action completion, complete scope and claim coverage, all implementation choices, proposed attribution, calibration, independent-data separation and unresolved scientific decisions. A generated plan is ready for review, not evidence of execution or authorization to spend.`;
@@ -76,12 +76,12 @@ export function experimentPlanRequest(breakdown: PaperBreakdown): ResponseCreate
           title: boundedString(200),
           experiment_refs: { ...referenceList(sources.experiment.map(source => source.ref), 1), maxItems: 8 },
           stages: {
-            type: "array", minItems: 1, maxItems: 8,
+            type: "array", minItems: 1, maxItems: MAX_EXPERIMENT_STAGES,
             items: {
               type: "object", additionalProperties: false, required: ["title", "steps"],
               properties: {
                 title: boundedString(160),
-                steps: { type: "array", minItems: 1, maxItems: 8, items: action },
+                steps: { type: "array", minItems: 1, maxItems: MAX_STAGE_ACTIONS, items: action },
               },
             },
           },
