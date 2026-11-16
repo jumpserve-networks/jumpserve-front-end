@@ -1,9 +1,10 @@
+"use client";
 import { useId } from "react";
 import { ChevronRight } from "lucide-react";
 import { planningSources, type ExperimentPlan, type ExperimentStep } from "@/lib/paper-experiment-plan";
 import type { PaperBreakdown } from "@/lib/research-paper-breakdown";
 import { PaperClaimCriterion } from "./paper-evidence";
-import { PaperTerminalActionCommands, PaperTerminalCommands } from "./paper-terminal-commands";
+import { PaperStepCommand, PaperStepCommands } from "./paper-step-commands";
 
 type Source = ReturnType<typeof planningSources>["access"][number];
 
@@ -11,12 +12,14 @@ function PlanAction({ step, number, sources, nested }: { step: ExperimentStep; n
   const Heading = nested ? "h5" : "h4";
   const claim = step.validation_ref ? sources.get(step.validation_ref) : undefined;
   return <li className="space-y-2 text-sm [overflow-wrap:anywhere]">
-    <Heading className="flex items-baseline gap-2 font-medium">
+    <PaperStepCommand number={number}>{({ button, result }) => <>
+    <div className="flex flex-wrap items-start justify-between gap-3"><Heading className="flex min-w-0 flex-1 items-baseline gap-2 font-medium">
       <span className="shrink-0 tabular-nums text-muted-foreground">{number}</span>
       <span>{step.title}{step.basis === "proposed" ? " · Proposed implementation" : ""}</span>
-    </Heading>
+    </Heading>{button}</div>
     <p className="whitespace-pre-wrap">{step.instructions}</p>
-    <PaperTerminalActionCommands number={number} />
+    {result}
+    </>}</PaperStepCommand>
     {claim?.criterion ? <div className="space-y-1">
       <p className="font-medium">Validation check: {claim.label ?? step.validation_ref}</p>
       <PaperClaimCriterion criterion={claim.criterion} />
@@ -57,7 +60,7 @@ export function PaperExperimentPlanOutline({ plan, breakdown, assessmentId, owne
       return <li key={experiment.experiment_refs.join("|")}>
         <section aria-labelledby={`${id}-experiment-${index}`} className="space-y-5">
           <h3 id={`${id}-experiment-${index}`} className="font-semibold [overflow-wrap:anywhere]">{number}. {experiment.title}</h3>
-          {assessmentId && ownerId ? <PaperTerminalCommands key={`${assessmentId}:${ownerId}:${number}`} assessmentId={assessmentId} ownerId={ownerId} index={number} plan={plan} breakdown={breakdown}>{body}</PaperTerminalCommands> : body}
+          {assessmentId && ownerId ? <PaperStepCommands key={`${assessmentId}:${ownerId}:${number}`} assessmentId={assessmentId} ownerId={ownerId} index={number} plan={plan} breakdown={breakdown}>{body}</PaperStepCommands> : body}
         </section>
       </li>;
     })}

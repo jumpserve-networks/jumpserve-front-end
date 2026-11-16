@@ -23,11 +23,11 @@ export function terminalSyntaxChecks(blocks,study,index,layout=TERMINAL_COMMAND_
  }
  return{passed:syntax.every(check=>check.passed)&&python_syntax.every(check=>check.passed),syntax,python_syntax};
 }
-export function terminalCommandText(set,source,index,layout=TERMINAL_COMMAND_LAYOUT){
- const refs=terminalActionRefs(source.plan,index),actions=experimentActions(source.plan.experiments[index-1]);
+export function terminalCommandText(set,source,index,layout=TERMINAL_COMMAND_LAYOUT,selectedRef){
+ const allRefs=terminalActionRefs(source.plan,index),refs=selectedRef?[selectedRef]:allRefs,actions=experimentActions(source.plan.experiments[index-1]);
  const lines=['Generated terminal commands — Ubuntu/Debian Linux, Bash',`Assessment: ${source.study_id}`,`Experiment ${index}: ${source.plan.experiments[index-1].title}`,'Review before running. This evaluation parsed code without executing generated commands.',''];
  if(set.inputs.length){lines.push('INPUTS TO SET IN THE SAME BASH TERMINAL',...set.inputs.map(i=>`${i.name}: ${i.description}${i.secret?' (private value)':''}`),'',terminalInputsClipboard(set.inputs),'');}
- for(const [label,block] of [...(terminalSetupRequired(set)?[['SAVED SETUP',set.setup]]:[]),...refs.map((ref,i)=>[`${ref} ${actions[i].title}`,set.actions[ref]]),['EXPERIMENT CLEANUP',set.cleanup]]){
+ for(const [label,block] of [...(terminalSetupRequired(set)?[['SAVED SETUP',set.setup]]:[]),...refs.map(ref=>[`${ref} ${actions[allRefs.indexOf(ref)].title}`,set.actions[ref]]),[selectedRef?'STEP CLEANUP':'EXPERIMENT CLEANUP',set.cleanup]]){
   lines.push(label,`Type: ${block.kind}${block.needs_sudo?' — uses sudo':''}`,block.notes,...(block.prerequisites.length?[`Prerequisites: ${block.prerequisites.join(', ')}`]:[]),`Completion check: ${block.verification}`,'');
   if(block.kind==='terminal')lines.push(terminalClipboard(block,source.study_id,index,layout));lines.push('');
  }

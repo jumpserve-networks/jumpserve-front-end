@@ -7,6 +7,7 @@ export const TERMINAL_COMMANDS_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/api/term
 export const TERMINAL_TARGET = "ubuntu-debian";
 export const TERMINAL_COMMAND_LAYOUT = "per-step-v1";
 export const LEGACY_TERMINAL_LAYOUT = "shared-setup-v1";
+export const INDIVIDUAL_TERMINAL_LAYOUT = "action-v1";
 export type TerminalBlock = { kind: "terminal" | "manual" | "blocked"; commands: string | null; prerequisites: string[]; verification: string; notes: string; needs_sudo: boolean };
 export type TerminalCommandSet = { setup: TerminalBlock; actions: Record<string, TerminalBlock>; cleanup: TerminalBlock; inputs: { name: string; description: string; secret: boolean }[] };
 export type TerminalStage = "not_generated" | "submitting" | "processing" | "uncertain" | "ready" | "failed" | "cancelled";
@@ -30,7 +31,7 @@ const exact = (v: Record<string, unknown>, keys: string[]) => Object.keys(v).sor
 export function terminalSetupRequired(set: TerminalCommandSet) {
   return set.setup.kind !== "manual" || [...Object.values(set.actions), set.cleanup].some(block => block.prerequisites.includes("setup"));
 }
-export function validateTerminalCommandSet(value: unknown, refs: string[], blockedRefs: string[] = [], standalone = false): TerminalCommandSet {
+export function validateTerminalCommandSet(value: unknown, refs: string[], blockedRefs: string[] = [], standalone = false, earlierRefs: string[] = []): TerminalCommandSet {
   const fail = () => new Error("The terminal commands do not match the saved experiment steps.");
   if (!object(value) || !exact(value, ["setup", "actions", "cleanup", "inputs"]) || !object(value.actions) || !exact(value.actions, refs) || !Array.isArray(value.inputs) || value.inputs.length > 16) throw fail();
   const inputs = new Set<string>();
@@ -38,7 +39,7 @@ export function validateTerminalCommandSet(value: unknown, refs: string[], block
     if (!object(input) || !exact(input, ["name", "description", "secret"]) || typeof input.name !== "string" || !/^JUMPSERVE_[A-Z][A-Z0-9_]{0,63}$/.test(input.name) || inputs.has(input.name) || !text(input.description, 600) || typeof input.secret !== "boolean") throw fail();
     inputs.add(input.name);
   }
-  const allowed: string[] = [];
+  const allowed: string[] = [...earlierRefs];
   for (const [ref, block] of [["setup", value.setup], ...refs.map(ref => [ref, (value.actions as Record<string, unknown>)[ref]]), ["cleanup", value.cleanup]] as [string, unknown][]) {
     if (!object(block) || !exact(block, ["kind", "commands", "prerequisites", "verification", "notes", "needs_sudo"]) || !["terminal", "manual", "blocked"].includes(String(block.kind)) || typeof block.needs_sudo !== "boolean" || !text(block.verification, 800) || !text(block.notes, 1200) || !Array.isArray(block.prerequisites) || block.prerequisites.length > 24 || new Set(block.prerequisites).size !== block.prerequisites.length || block.prerequisites.some(r => typeof r !== "string" || !allowed.includes(r))) throw fail();
     if (block.kind === "terminal" ? !text(block.commands, ref === "setup" ? 64000 : 16000) || block.commands.includes("\u0000") : block.commands !== null || block.needs_sudo) throw fail();
@@ -63,11 +64,11 @@ export function validateTerminalCommandsView(value: unknown, study: string, inde
 }
 
 /** Copyable Bash wrapper. No server execution; source bodies remain unchanged. */
-export function terminalClipboard(block: TerminalBlock, study: string, index: number, layout: typeof TERMINAL_COMMAND_LAYOUT | typeof LEGACY_TERMINAL_LAYOUT = TERMINAL_COMMAND_LAYOUT) {
+export function terminalClipboard(block: TerminalBlock, study: string, index: number, layout: typeof TERMINAL_COMMAND_LAYOUT | typeof LEGACY_TERMINAL_LAYOUT | typeof INDIVIDUAL_TERMINAL_LAYOUT = TERMINAL_COMMAND_LAYOUT) {
   if (block.kind !== "terminal" || !block.commands || !/^[a-f0-9-]{36}$/i.test(study) || !Number.isSafeInteger(index) || index < 1 || index > 8) throw new Error("A saved terminal command block is required.");
   let delimiter = "JUMPSERVE_COMMAND_BLOCK";
   while (block.commands.split(/\r?\n/).includes(delimiter)) delimiter += "_END";
-  return [`bash <<'${delimiter}'`, "set -euo pipefail", "umask 077", '[ "$(uname -s)" = Linux ] || { printf >&2 "Run this block on the Ubuntu/Debian Linux research host.\\n"; exit 1; }', `export JUMPSERVE_WORKSPACE="$HOME/.local/share/jumpserve/${study}/experiment-${index}${layout === TERMINAL_COMMAND_LAYOUT ? "/per-step-v1" : ""}"`, `export JUMPSERVE_NAMESPACE_PREFIX="${layout === TERMINAL_COMMAND_LAYOUT ? "p" : "j"}${study.replaceAll("-", "").slice(0, 7)}${index}"`, 'mkdir -p "$JUMPSERVE_WORKSPACE"', 'chmod 700 "$JUMPSERVE_WORKSPACE"', 'cd "$JUMPSERVE_WORKSPACE"', block.commands, delimiter].join("\n") + "\n";
+  return [`bash <<'${delimiter}'`, "set -euo pipefail", "umask 077", '[ "$(uname -s)" = Linux ] || { printf >&2 "Run this block on the Ubuntu/Debian Linux research host.\\n"; exit 1; }', `export JUMPSERVE_WORKSPACE="$HOME/.local/share/jumpserve/${study}/experiment-${index}${layout === LEGACY_TERMINAL_LAYOUT ? "" : "/" + layout}"`, `export JUMPSERVE_NAMESPACE_PREFIX="${layout === INDIVIDUAL_TERMINAL_LAYOUT ? "a" : layout === TERMINAL_COMMAND_LAYOUT ? "p" : "j"}${study.replaceAll("-", "").slice(0, 7)}${index}"`, 'mkdir -p "$JUMPSERVE_WORKSPACE"', 'chmod 700 "$JUMPSERVE_WORKSPACE"', 'cd "$JUMPSERVE_WORKSPACE"', block.commands, delimiter].join("\n") + "\n";
 }
 export function terminalInputsClipboard(inputs: TerminalCommandSet["inputs"]) {
   return ["# Paste in the same Bash terminal used for the experiment blocks.", ...inputs.flatMap(input => {

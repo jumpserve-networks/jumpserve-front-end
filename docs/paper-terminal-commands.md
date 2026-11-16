@@ -1,14 +1,25 @@
 # Step 3 terminal commands
 
-Step 3 automatically prepares terminal commands for each experiment as soon as
-its saved plan is ready. No separate generation button or disclosure is required.
-Opening or refreshing Step 3 first checks saved status, reuses existing commands
-and resumes polling an existing request. Only an experiment with no command
-request for the current format starts generation. Generation makes one bounded server-side OpenAI call
-for that experiment and format
-and saves its exact source plan, confirmed sections, prompt, response, commands
-and event history in private Supabase records. Existing flat plans and reviewed
-hierarchical plans are supported without rewriting their originals.
+Step 3 shows the saved numbered experiment outline immediately. Each action has
+its own **Generate Terminal Commands** button. Only clicking that button admits
+an asynchronous server-side OpenAI request for that action; opening, refreshing,
+expanding stages or navigating the wizard never generates commands. Other actions
+remain usable while one is processing. The step displays its own progress,
+cancellation, result, inputs and copy controls. Saved results load on demand.
+
+One bounded status read per experiment restores summaries without downloading
+command bodies or prompts. Pending actions poll their original saved response;
+failed or uncertain submissions can be checked without replaying inference.
+Duplicate clicks and concurrent callers reuse the same action admission. Each
+request retains its exact confirmed sections, complete experiment context,
+selected action, prompt, provider response, commands and immutable event history.
+The output contains exactly one numbered action, plus non-executable setup
+metadata, action-specific cleanup and required environment-input descriptions.
+Whole-experiment context never authorizes generating the other steps.
+
+Commands are optional aids within Step 3. They do not delay showing the outline
+or gate navigation to the Step 4 execution placeholder. Public outlines have no
+generation controls. No generated command is executed by this feature.
 
 Commands target a **Ubuntu/Debian Linux research host with Bash**. Each numbered
 action supplies its own complete commands/scripts, dependency checks and local
@@ -23,8 +34,8 @@ model or database. Commands are generated text, not an execution or validation
 result. Step 4 remains a stub and this feature does not start workers or hosts.
 
 The command profile uses pinned `gpt-5.4-2026-03-05`, medium reasoning and a
-64,000-token reasoning/output bound. A 200-cent reservation must fit within the
-original assessment limits; generation never enlarges those limits. All code
+16,000-token reasoning/output bound for each selected action. Each action has a 200-cent reservation that must fit within the
+original assessment limits, including earlier whole-experiment and individual calls; generation never enlarges those limits. All code
 required by an action must be included in that action's block; shared helper
 launchers and setup dependencies are rejected. Network changes must be namespace-scoped; obvious bare
 host `tc` mutations are rejected. Names and files derive from the assessment and
@@ -45,25 +56,33 @@ remain separate from independently collected data.
 
 ## Persistence and authorization
 
-Apply `jumpserve-infra/database/202611150002_paper_terminal_commands.sql`, followed
-by `202611160001_standalone_terminal_commands.sql`, before deploying the frontend.
-The current layout is `per-step-v1`; earlier packages remain stored as
-`shared-setup-v1`. Each layout has its own request, response, token and immutable
-history. The new layout uses a separate workspace and namespace prefix so it
-does not overwrite an older recipe's artifacts. The top-level `setup` field
-remains as non-executable metadata for wire compatibility and is hidden in the
-new layout. All code lives under the numbered actions and cleanup.
+Apply the existing terminal-command migrations, then
+`jumpserve-infra/database/202611160003_individual_step_commands.sql`, before
+deploying this frontend. It adds private `research_step_commands`,
+`research_step_command_events` and `research_step_command_prompt_uses` records.
+Their identity includes assessment, experiment and exact action reference.
+Earlier whole-experiment requests and command packages remain unchanged.
+New whole-experiment admissions are disabled; their existing calls can still be
+reconciled, completed or cancelled with the original identity. An earlier pending
+or uncertain experiment-wide call blocks overlapping individual admissions.
 
-Step 3 prepares the new layout automatically within the original limits, keeping
-older packages unchanged. An earlier pending call is reconciled first; uncertain
-submissions block a replacement rather than being replayed. All command tables are private with RLS and no anonymous
-or authenticated SQL access. Every API read/write verifies Google authentication
-and assessment ownership, requires a ready saved plan, and accepts only an
-experiment index and operation; callers cannot supply model prompts or scripts.
-The SQL RPC independently derives the original or reviewed plan and requires
-the exact request input. It admits one call per assessment/experiment/layout,
-accounts for intake, planning and prior reservations across all layouts, and retains the
-original assessment deadline and spending limits.
+The current individual layout is `action-v1`, in a separate workspace and
+namespace prefix from older `per-step-v1` and `shared-setup-v1` recipes. It does
+not overwrite their artifacts. Every generated action supplies its own complete
+program and checks actual prerequisite data/resources at runtime. The shared
+`step-manifest-v1` data contract describes output paths, roles, media types,
+column types/units and owned resources. Consumers inspect and validate actual
+manifests; they never import another step's code or assume prior execution.
+Cleanup covers only resources created by the selected step and preserves data.
+
+All three tables have RLS and no anonymous/authenticated SQL access or direct
+service-role writes. The owner-only API accepts a numbered step and operation,
+never caller prompts, scripts or requester identity. The SQL RPC independently
+selects the saved original/reviewed plan, validates the exact input and single-key
+output schema, locks admission, applies original budgets/deadlines, and admits
+one call per action. Atomic reservations include intake, planning, previous
+whole-experiment packages and every individual call. Frozen scientific acceptance
+criteria and source evidence remain unchanged. Viewing statuses never starts work.
 
 Duplicate generations reuse the same call. Unknown submissions are never replayed.
 Polling retrieves the saved response; cancellation reconciles that identity.
@@ -77,9 +96,9 @@ responses remain linked to the command record.
 ## Browser-free checks
 
 ```sh
-npm run eval:terminal-commands
-npm run eval:terminal-commands -- --live --run candidate-01 --assessment UUID
-npm run eval:terminal-commands -- --live --run candidate-02 --from-plan FILE --experiment 1
+npm run eval:terminal-commands -- --step 1.2.3
+npm run eval:terminal-commands -- --live --run candidate-01 --assessment UUID --step 1.2.3
+npm run eval:terminal-commands -- --live --run candidate-02 --from-plan FILE --experiment 1 --step 1.2.3
 npm run eval:terminal-commands -- --replay candidate-01
 ```
 
@@ -129,7 +148,7 @@ reads in acquisition/cleanup. The prompt now explicitly requires sudo for these
 reads, and TypeScript/Postgres guards reject the observed pattern. Static replay
 retains that failure; it is not a qualified experiment recipe.
 
-Run `test/check_terminal_commands_database.py` in the infrastructure repository
+Run `test/check_step_commands_database.py` in the infrastructure repository
 for the isolated Postgres flow, role/owner restrictions, exact source and action
 parity, concurrent admission, aggregate budget checks, original call identity,
-response-bound command storage, immutable history and deletion behavior.
+response-bound single-action storage, legacy reconciliation, aggregate budgets, immutable history and deletion behavior. The earlier whole-experiment regression remains available as `test/check_terminal_commands_database.py`.
