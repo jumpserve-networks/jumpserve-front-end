@@ -4,6 +4,9 @@ import type { PaperCitation, PaperCriterion, PaperExperimentSpecification } from
 import { validPaperDependencies } from "./paper-detail-dependencies";
 
 export const EXPERIMENT_PLAN_VERSION = "paper-experiment-plan-v1";
+export const MAX_EXPERIMENT_STAGES = 8;
+export const MAX_STAGE_ACTIONS = 8;
+export const MAX_EXPERIMENT_ACTIONS = MAX_EXPERIMENT_STAGES * MAX_STAGE_ACTIONS;
 export const EXPERIMENT_PLAN_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/api/experiment-plan`;
 export type ReviewedSections = Record<PaperBreakdownSection, { id: string; description: string }[]>;
 export type ExperimentStep = { title: string; instructions: string; basis: "paper" | "proposed"; source_refs: string[]; validation_ref?: string | null };
@@ -78,13 +81,13 @@ export function validateExperimentPlan(value: unknown, breakdown: PaperBreakdown
       !Array.isArray(experiment.open_questions) || experiment.open_questions.length > 12 || !experiment.open_questions.every(q => text(q, 400))) throw fail();
     let steps: unknown[];
     if (hierarchical) {
-      if (!Array.isArray(experiment.stages) || !experiment.stages.length || experiment.stages.length > 8) throw fail();
+      if (!Array.isArray(experiment.stages) || !experiment.stages.length || experiment.stages.length > MAX_EXPERIMENT_STAGES) throw fail();
       steps = [];
       for (const stage of experiment.stages) {
-        if (!object(stage) || !exact(stage, ["title", "steps"]) || !text(stage.title, 160) || !Array.isArray(stage.steps) || !stage.steps.length || stage.steps.length > 8) throw fail();
+        if (!object(stage) || !exact(stage, ["title", "steps"]) || !text(stage.title, 160) || !Array.isArray(stage.steps) || !stage.steps.length || stage.steps.length > MAX_STAGE_ACTIONS) throw fail();
         steps.push(...stage.steps);
       }
-      if (steps.length > 24) throw fail();
+      if (steps.length > MAX_EXPERIMENT_ACTIONS) throw fail();
     } else {
       if (!Array.isArray(experiment.steps) || !experiment.steps.length || experiment.steps.length > 12) throw fail();
       steps = experiment.steps;

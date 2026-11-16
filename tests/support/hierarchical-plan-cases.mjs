@@ -2,14 +2,11 @@ import {hierarchicalImplementationPlan,implementationBreakdown} from './implemen
 import {evidencePlan} from './paper-evidence-fixture.mjs';
 
 export const hierarchyBreakdown = implementationBreakdown;
-export function maximumHierarchyPlan() {
+export function maximumHierarchyPlan(count=24) {
  const plan=hierarchicalImplementationPlan(),experiment=plan.experiments[0];
  const action=experiment.stages[0].steps[0],claims=experiment.stages.at(-1).steps;
- experiment.stages=[
-  {title:'Setup actions',steps:Array.from({length:8},()=>structuredClone(action))},
-  {title:'Collection actions',steps:Array.from({length:8},()=>structuredClone(action))},
-  {title:'Analysis and claim actions',steps:[...Array.from({length:5},()=>structuredClone(action)),...claims]},
- ];return plan;
+ const actions=[...Array.from({length:count-claims.length},()=>structuredClone(action)),...claims];
+ experiment.stages=Array.from({length:Math.ceil(count/8)},(_,index)=>({title:`Stage ${index+1}`,steps:actions.slice(index*8,index*8+8)}));return plan;
 }
 export function hierarchyPlanCases() {
  const cases=[{name:'legacy flat claim checks',valid:true,plan:evidencePlan()},{name:'stages and actions',valid:true,plan:hierarchicalImplementationPlan()},{name:'24 actions preserve distinct claims',valid:true,plan:maximumHierarchyPlan()}];
@@ -30,6 +27,7 @@ export function hierarchyPlanCases() {
  bad('unlinked claim source',e=>e.stages.at(-1).steps[0].source_refs=['experiment-1']);
  bad('nine stages',e=>{const first=e.stages[0],last=e.stages.at(-1);e.stages=[...Array.from({length:8},()=>structuredClone(first)),last];});
  bad('nine actions in a stage',e=>{const a=e.stages[0].steps[0];e.stages[0].steps=Array.from({length:9},()=>structuredClone(a));});
- bad('25 total actions',e=>e.stages.push({title:'One extra action',steps:[structuredClone(e.stages[0].steps[0])]}),maximumHierarchyPlan);
+ for(const count of [25,30,64])cases.push({name:`${count} granular actions preserve distinct claims`,valid:true,requiresExpandedLimit:true,plan:maximumHierarchyPlan(count)});
+ bad('65 total actions',e=>e.stages.push({title:'One extra action',steps:[structuredClone(e.stages[0].steps[0])]}),()=>maximumHierarchyPlan(64));
  return cases;
 }

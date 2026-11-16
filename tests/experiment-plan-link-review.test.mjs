@@ -6,6 +6,8 @@ import {validateExperimentPlan,validateExperimentPlanView} from '../lib/paper-ex
 import {experimentPlanRequest} from '../lib/paper-experiment-plan-model.ts';
 import {implementationBreakdown} from './support/implementation-plan-fixture.mjs';
 import {duplicatedClaimFixture} from './support/experiment-plan-link-review-fixture.mjs';
+import {maximumHierarchyPlan} from './support/hierarchical-plan-cases.mjs';
+import {terminalActionRefs,terminalBlockedActionRefs,terminalCommandsInput} from '../lib/paper-terminal-commands.ts';
 test('review removes only the explicitly selected duplicate annotations and keeps every original action and source',()=>{
  const {row,keep,plan}=duplicatedClaimFixture(),original=structuredClone(row);
  assert.throws(()=>validateExperimentPlan(plan,row.confirmed_breakdown),/More than one step is assigned to validate-3/);
@@ -27,4 +29,18 @@ test('planning prompt and schema distinguish measuring a claim from its one fina
  const request=experimentPlanRequest(implementationBreakdown());
  assert.match(request.instructions,/"Measure idle RTT" cites validate-3 with validation_ref=null/);assert.match(request.instructions,/across ALL experiments and stages/);
  assert.match(request.text.format.schema.properties.experiments.items.properties.stages.items.properties.steps.items.properties.validation_ref.description,/Use null for measurement, calibration/);
+});
+test('a thirty-action response can be reviewed without dropping or merging actions or changing scientific criteria',()=>{
+ const {row}=duplicatedClaimFixture(),plan=maximumHierarchyPlan(30);
+ const measurement=plan.experiments[0].stages[0].steps[0];
+ Object.assign(measurement,{title:'Measure idle RTT',instructions:'Measure and retain idle RTT samples before the final H3 evaluation.',source_refs:['validate-3','experiment-1'],validation_ref:'validate-3'});
+ row.response.output[0].content[0].text=JSON.stringify(plan);
+ const original=structuredClone(row),keep=[{claim_ref:'validate-3',experiment:1,stage:4,step:6}];
+ assert.throws(()=>validateExperimentPlan(plan,row.confirmed_breakdown),/More than one step is assigned to validate-3/);
+ const reviewed=reviewExperimentPlanLinks(row,keep),expected=structuredClone(plan);expected.experiments[0].stages[0].steps[0].validation_ref=null;
+ assert.deepEqual(reviewed.plan,expected);assert.deepEqual(row,original);
+ assert.equal(terminalActionRefs(reviewed.plan,1).length,30);
+ assert.deepEqual(terminalCommandsInput(row.study_id,1,reviewed.plan,row.confirmed_breakdown).experiment,expected.experiments[0]);
+ const blocked=terminalBlockedActionRefs(reviewed.plan,1,row.confirmed_breakdown);
+ assert.ok(blocked.includes('1.4.4'));assert.ok(blocked.includes('1.4.6'));
 });

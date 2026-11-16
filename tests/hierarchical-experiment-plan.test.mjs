@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {experimentActions,validateExperimentPlan} from '../lib/paper-experiment-plan.ts';
+import {MAX_EXPERIMENT_ACTIONS,MAX_EXPERIMENT_STAGES,MAX_STAGE_ACTIONS,experimentActions,validateExperimentPlan} from '../lib/paper-experiment-plan.ts';
+import {experimentPlanRequest} from '../lib/paper-experiment-plan-model.ts';
 import {readExperimentPlan} from '../lib/paper-experiment-plan-runner.ts';
 import {hierarchyBreakdown,hierarchyPlanCases} from './support/hierarchical-plan-cases.mjs';
 import {hierarchicalImplementationPlan} from './support/implementation-plan-fixture.mjs';
@@ -11,6 +12,13 @@ test('hierarchy guards preserve legacy plans and bound stage/action depth, size 
   if(item.valid)assert.equal(validateExperimentPlan(item.plan,hierarchyBreakdown()),item.plan,item.name);
   else assert.throws(()=>validateExperimentPlan(item.plan,hierarchyBreakdown()),undefined,item.name);
  }
+});
+test('prompt, provider schema and local validation share the same bounded action capacity',()=>{
+ const request=experimentPlanRequest(hierarchyBreakdown()),stages=request.text.format.schema.properties.experiments.items.properties.stages;
+ assert.equal(stages.maxItems,MAX_EXPERIMENT_STAGES);assert.equal(stages.items.properties.steps.maxItems,MAX_STAGE_ACTIONS);
+ assert.equal(MAX_EXPERIMENT_ACTIONS,64);assert.equal(stages.maxItems*stages.items.properties.steps.maxItems,MAX_EXPERIMENT_ACTIONS);
+ assert.match(request.instructions,/at most 64 substeps in total per experiment/);
+ assert.equal(request.max_output_tokens,16000);
 });
 test('hierarchical provider output cannot be replaced by a flat plan and every claim remains linked',()=>{
  const response=plan=>({id:'resp_hierarchy',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(plan)}]}]});
