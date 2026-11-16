@@ -2,12 +2,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/app/components/ui/button";
 import { requireAccessToken } from "@/lib/browser-auth";
-import { TERMINAL_COMMANDS_PATH, TERMINAL_TARGET, terminalActionRefs, terminalBlockedActionRefs, terminalClipboard, terminalInputsClipboard, terminalSetupRequired, validateTerminalCommandsView, type TerminalBlock, type TerminalCommandSet, type TerminalCommandsView } from "@/lib/paper-terminal-commands";
+import { INDIVIDUAL_TERMINAL_LAYOUT, TERMINAL_COMMANDS_PATH, TERMINAL_TARGET, terminalActionRefs, terminalBlockedActionRefs, terminalClipboard, terminalInputsClipboard, terminalSetupRequired, validateTerminalCommandsView, type TerminalBlock, type TerminalCommandSet, type TerminalCommandsView } from "@/lib/paper-terminal-commands";
 import type { ExperimentPlan } from "@/lib/paper-experiment-plan";
 import type { PaperBreakdown } from "@/lib/research-paper-breakdown";
 
 const CommandContext = createContext<{ set: TerminalCommandSet; study: string; index: number } | null>(null);
-function TerminalInputs({ inputs }: { inputs: TerminalCommandSet["inputs"] }) {
+export function TerminalInputs({ inputs }: { inputs: TerminalCommandSet["inputs"] }) {
   const [message, setMessage] = useState("");const commands = terminalInputsClipboard(inputs);
   async function copy() { try { await navigator.clipboard.writeText(commands);setMessage("Input commands copied."); } catch { setMessage("Select and copy the input commands below."); } }
   return <div className="space-y-2">
@@ -18,9 +18,9 @@ function TerminalInputs({ inputs }: { inputs: TerminalCommandSet["inputs"] }) {
     <pre tabIndex={0} className="overflow-auto bg-muted/40 p-3 font-mono text-xs whitespace-pre"><code>{commands}</code></pre>
   </div>;
 }
-function CommandBlock({ block, label, study, index }: { block: TerminalBlock; label: string; study: string; index: number }) {
+export function CommandBlock({ block, label, study, index, individual = false }: { block: TerminalBlock; label: string; study: string; index: number; individual?: boolean }) {
   const [message, setMessage] = useState("");
-  const commands = block.kind === "terminal" ? terminalClipboard(block, study, index) : null;
+  const commands = block.kind === "terminal" ? terminalClipboard(block, study, index, individual ? INDIVIDUAL_TERMINAL_LAYOUT : undefined) : null;
   async function copy() {
     try { await navigator.clipboard.writeText(commands!);setMessage("Commands copied."); }
     catch { setMessage("Copy failed. Select and copy the command text below."); }

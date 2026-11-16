@@ -279,7 +279,7 @@ The existing schema depends on infrastructure migrations
 Ordinary feature work does not apply production schema changes. No existing
 assessment is automatically confirmed.
 Automatic Ubuntu/Debian command generation in Step 3 is documented
-in [Step 3 terminal commands](paper-terminal-commands.md), including its separate
+in [Step 3 terminal commands](paper-terminal-commands.md), including its per-action, explicitly requested
 database migration and browser-free evaluation workflow.
 The isolated database regression is
 `python3 -B test/check_hierarchical_experiment_plans_database.py` in
