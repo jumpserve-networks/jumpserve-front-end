@@ -8,7 +8,7 @@ import env from '@next/env';
 import OpenAI from 'openai';
 import {terminalCommandsRequest} from '../lib/paper-terminal-commands-model.ts';
 import {readTerminalCommands} from '../lib/paper-terminal-commands-runner.ts';
-import {terminalActionRefs} from '../lib/paper-terminal-commands.ts';
+import {TERMINAL_COMMAND_LAYOUT,LEGACY_TERMINAL_LAYOUT,terminalActionRefs} from '../lib/paper-terminal-commands.ts';
 import {validateExperimentPlan} from '../lib/paper-experiment-plan.ts';
 import {applyExperimentPlanLinkReview} from '../lib/paper-experiment-plan-review.ts';
 import {sha256} from '../lib/paper-intake-model.ts';
@@ -18,17 +18,19 @@ import {RUN_NAME,privateDirectory,privateJSON,readJSON,lockRun} from './lib/pape
 import {terminalCommandFixture,terminalFixtureRecord} from '../tests/support/terminal-command-fixture.mjs';
 import {terminalSyntaxChecks,terminalCommandText} from './lib/terminal-command-checks.mjs';
 const uuid=value=>/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value??'');
-const identity=run=>sha256(JSON.stringify({source:run.source,index:run.index,request:run.request}));
+const identity=run=>sha256(JSON.stringify({source:run.source,index:run.index,request:run.request,...(run.command_layout?{command_layout:run.command_layout}:{})}));
+const layout=run=>{const value=run.command_layout??LEGACY_TERMINAL_LAYOUT;if(![TERMINAL_COMMAND_LAYOUT,LEGACY_TERMINAL_LAYOUT].includes(value))throw new Error('Unknown saved command layout.');return value;};
 function grade(run){
  if(run.identity!==identity(run))throw new Error('The saved command-generation inputs changed.');
  validateExperimentPlan(run.source.plan,run.source.confirmed_breakdown);
- const set=readTerminalCommands(run.response,{source_plan:run.source.plan,confirmed_breakdown:run.source.confirmed_breakdown,experiment_index:run.index}),refs=terminalActionRefs(run.source.plan,run.index);
+ let set;try{set=readTerminalCommands(run.response,{source_plan:run.source.plan,confirmed_breakdown:run.source.confirmed_breakdown,experiment_index:run.index,command_layout:layout(run)});}catch(error){return{passed:false,command_layout:layout(run),validation_error:error instanceof Error?error.message:'Command validation failed.',commands_executed:0,experiments_started:0};}
+ const refs=terminalActionRefs(run.source.plan,run.index);
  const blocks=[['setup',set.setup],...refs.map(ref=>[ref,set.actions[ref]]),['cleanup',set.cleanup]];
- return{...terminalSyntaxChecks(blocks,run.source.study_id,run.index),actions:refs.length,terminal_actions:refs.filter(ref=>set.actions[ref].kind==='terminal').length,manual_actions:refs.filter(ref=>set.actions[ref].kind==='manual').length,blocked_actions:refs.filter(ref=>set.actions[ref].kind==='blocked').length,commands_executed:0,experiments_started:0,limitation:'Exposed schema, Bash/Python parsing and known local-helper keyword checks only. No generated commands, network setup, experiments, or measurement ingestion were executed.'};
+ return{...terminalSyntaxChecks(blocks,run.source.study_id,run.index,layout(run)),command_layout:layout(run),actions:refs.length,terminal_actions:refs.filter(ref=>set.actions[ref].kind==='terminal').length,manual_actions:refs.filter(ref=>set.actions[ref].kind==='manual').length,blocked_actions:refs.filter(ref=>set.actions[ref].kind==='blocked').length,commands_executed:0,experiments_started:0,limitation:'Exposed schema, Bash/Python parsing and known local-helper keyword checks only. No generated commands, network setup, experiments, or measurement ingestion were executed.'};
 }
 async function saveCommands(directory,run){
- const set=readTerminalCommands(run.response,{source_plan:run.source.plan,confirmed_breakdown:run.source.confirmed_breakdown,experiment_index:run.index});
- await privateJSON(join(directory,'commands.json'),set);await writeFile(join(directory,'commands.txt'),terminalCommandText(set,run.source,run.index),{mode:0o600});
+ const set=readTerminalCommands(run.response,{source_plan:run.source.plan,confirmed_breakdown:run.source.confirmed_breakdown,experiment_index:run.index,command_layout:layout(run)});
+ await privateJSON(join(directory,'commands.json'),set);await writeFile(join(directory,'commands.txt'),terminalCommandText(set,run.source,run.index,layout(run)),{mode:0o600});
 }
 async function main(){
  const {values}=parseArgs({options:{live:{type:'boolean'},run:{type:'string'},replay:{type:'string'},assessment:{type:'string'},'from-plan':{type:'string'},experiment:{type:'string'},prompt:{type:'string'},help:{type:'boolean'}}});
@@ -41,7 +43,7 @@ async function main(){
  }
  if(!values.live){
   if(name||values.assessment||values['from-plan']||values.prompt||values.experiment)throw new Error('Use --live for an intentional new provider evaluation.');
-  const fixture=terminalFixtureRecord(),source={study_id:fixture.study_id,plan:fixture.source_plan,confirmed_breakdown:fixture.confirmed_breakdown},request=terminalCommandsRequest(source.study_id,1,source.plan,source.confirmed_breakdown),saved={source,index:1,request,response:{id:'resp_fixture',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(terminalCommandFixture())}]}]}};saved.identity=identity(saved);console.log(JSON.stringify({mode:'offline',...grade(saved),model_calls:0}));return;
+  const fixture=terminalFixtureRecord(),source={study_id:fixture.study_id,plan:fixture.source_plan,confirmed_breakdown:fixture.confirmed_breakdown},request=terminalCommandsRequest(source.study_id,1,source.plan,source.confirmed_breakdown),saved={source,index:1,request,command_layout:TERMINAL_COMMAND_LAYOUT,response:{id:'resp_fixture',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(terminalCommandFixture())}]}]}};saved.identity=identity(saved);console.log(JSON.stringify({mode:'offline',...grade(saved),model_calls:0}));return;
  }
  if(!directory)throw new Error('Name every intentional live evaluation with --run.');
  if(values.assessment&&values['from-plan'])throw new Error('Choose one source.');
@@ -66,7 +68,7 @@ async function main(){
    if(!uuid(source.study_id))throw new Error('The source assessment identity is invalid.');validateExperimentPlan(source.plan,source.confirmed_breakdown);
    let request=terminalCommandsRequest(source.study_id,index,source.plan,source.confirmed_breakdown);
    if(values.prompt){const instructions=await readFile(values.prompt,'utf8');if(!instructions.trim()||instructions.length>40000)throw new Error('Use bounded prompt instructions.');request={...request,instructions};}
-   saved={source,index,request,status:'prepared',token:randomUUID(),created_at:new Date().toISOString()};saved.identity=identity(saved);await privateJSON(join(directory,'run.json'),saved);
+   saved={source,index,request,command_layout:TERMINAL_COMMAND_LAYOUT,status:'prepared',token:randomUUID(),created_at:new Date().toISOString()};saved.identity=identity(saved);await privateJSON(join(directory,'run.json'),saved);
   }
   if(!saved.response_id&&saved.status!=='prepared')throw new Error('The original submission is retained and will not be repeated automatically.');
   const model=new OpenAI({apiKey:process.env.OPENAI_API_KEY,maxRetries:0,timeout:25000});

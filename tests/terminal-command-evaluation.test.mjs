@@ -6,11 +6,12 @@ import {join} from 'node:path';
 import {privateDirectory,privateJSON} from '../scripts/lib/paper-evaluation-store.mjs';
 import {sha256} from '../lib/paper-intake-model.ts';
 import {terminalCommandsRequest} from '../lib/paper-terminal-commands-model.ts';
-import {terminalCommandFixture,terminalFixtureRecord} from './support/terminal-command-fixture.mjs';
+import {TERMINAL_COMMAND_LAYOUT} from '../lib/paper-terminal-commands.ts';
+import {terminalBlock,terminalCommandFixture,terminalFixtureRecord} from './support/terminal-command-fixture.mjs';
 import {terminalSyntaxChecks} from '../scripts/lib/terminal-command-checks.mjs';
 const args=['--import','./scripts/lib/register-typescript.mjs','scripts/evaluate-terminal-commands.mjs'];
 test('Python heredocs are parsed as code without running their top-level statements',()=>{
- const block=terminalCommandFixture().setup;block.commands="cat > helper.py <<'PY'\nraise RuntimeError('This must never execute')\nPY\n";
+ const block=terminalBlock();block.commands="cat > helper.py <<'PY'\nraise RuntimeError('This must never execute')\nPY\n";
  const valid=terminalSyntaxChecks([['setup',block]],'11111111-1111-4111-8111-111111111111',1);assert.equal(valid.passed,true);assert.equal(valid.python_syntax.length,1);
  block.commands="cat > helper.py <<'PY'\nif invalid syntax\nPY\n";const invalid=terminalSyntaxChecks([['setup',block]],'11111111-1111-4111-8111-111111111111',1);assert.equal(invalid.syntax[0].passed,true);assert.equal(invalid.python_syntax[0].passed,false);assert.equal(invalid.passed,false);
  block.commands="cat > \"$HELPER\" <<'PY'\n#!/usr/bin/env python3\nraise RuntimeError('Do not run helper')\nPY\npython3 - <<'PY'\nraise RuntimeError('Do not run inline Python')\nPY\n";
@@ -22,7 +23,7 @@ test('Python heredocs are parsed as code without running their top-level stateme
 });
 test('browser-free command evaluations replay frozen provider output and syntax-check without a model or execution',async()=>{
  const fixture=terminalFixtureRecord(),source={study_id:fixture.study_id,plan:fixture.source_plan,confirmed_breakdown:fixture.confirmed_breakdown},request=terminalCommandsRequest(source.study_id,1,source.plan,source.confirmed_breakdown);
- const saved={source,index:1,request,response:{id:'resp_evaluation_fixture',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(terminalCommandFixture())}]}]}};saved.identity=sha256(JSON.stringify({source,index:1,request}));
+ const saved={source,index:1,request,command_layout:TERMINAL_COMMAND_LAYOUT,response:{id:'resp_evaluation_fixture',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(terminalCommandFixture())}]}]}};saved.identity=sha256(JSON.stringify({source,index:1,request,command_layout:TERMINAL_COMMAND_LAYOUT}));
  const name='unit-terminal-'+randomUUID(),directory=join('.test-artifacts/terminal-command-evaluations',name);await privateDirectory(directory);await privateJSON(join(directory,'run.json'),saved);
  const result=spawnSync(process.execPath,[...args,'--replay',name],{encoding:'utf8',timeout:10000});assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);assert.equal(report.model_calls,0);assert.equal(report.commands_executed,0);assert.equal(report.passed,true);
  saved.source.plan.experiments[0].title='Tampered';await privateJSON(join(directory,'run.json'),saved);

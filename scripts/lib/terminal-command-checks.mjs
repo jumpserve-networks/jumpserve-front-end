@@ -1,14 +1,14 @@
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {terminalClipboard,terminalInputsClipboard,terminalActionRefs} from '../../lib/paper-terminal-commands.ts';
+import {TERMINAL_COMMAND_LAYOUT,terminalClipboard,terminalInputsClipboard,terminalActionRefs,terminalSetupRequired} from '../../lib/paper-terminal-commands.ts';
 import {experimentActions} from '../../lib/paper-experiment-plan.ts';
 
 /** Parse only. Neither Bash nor Python executes the generated program. */
-export function terminalSyntaxChecks(blocks,study,index){
+export function terminalSyntaxChecks(blocks,study,index,layout=TERMINAL_COMMAND_LAYOUT){
  const syntax=[],python_syntax=[];
  for(const [ref,block] of blocks){
   if(block.kind!=='terminal')continue;
-  const result=spawnSync('/bin/bash',['--noprofile','--norc','-n'],{input:terminalClipboard(block,study,index),encoding:'utf8',timeout:5000,env:{PATH:process.env.PATH}});
+  const result=spawnSync('/bin/bash',['--noprofile','--norc','-n'],{input:terminalClipboard(block,study,index,layout),encoding:'utf8',timeout:5000,env:{PATH:process.env.PATH}});
   syntax.push({ref,passed:result.status===0,error:result.stderr?.trim()||result.error?.message||null});
   const lines=block.commands.split(/\r?\n/);
   for(let i=0;i<lines.length;i++){
@@ -23,13 +23,13 @@ export function terminalSyntaxChecks(blocks,study,index){
  }
  return{passed:syntax.every(check=>check.passed)&&python_syntax.every(check=>check.passed),syntax,python_syntax};
 }
-export function terminalCommandText(set,source,index){
+export function terminalCommandText(set,source,index,layout=TERMINAL_COMMAND_LAYOUT){
  const refs=terminalActionRefs(source.plan,index),actions=experimentActions(source.plan.experiments[index-1]);
  const lines=['Generated terminal commands — Ubuntu/Debian Linux, Bash',`Assessment: ${source.study_id}`,`Experiment ${index}: ${source.plan.experiments[index-1].title}`,'Review before running. This evaluation parsed code without executing generated commands.',''];
  if(set.inputs.length){lines.push('INPUTS TO SET IN THE SAME BASH TERMINAL',...set.inputs.map(i=>`${i.name}: ${i.description}${i.secret?' (private value)':''}`),'',terminalInputsClipboard(set.inputs),'');}
- for(const [label,block] of [['SHARED SETUP',set.setup],...refs.map((ref,i)=>[`${ref} ${actions[i].title}`,set.actions[ref]]),['EXPERIMENT CLEANUP',set.cleanup]]){
+ for(const [label,block] of [...(terminalSetupRequired(set)?[['SAVED SETUP',set.setup]]:[]),...refs.map((ref,i)=>[`${ref} ${actions[i].title}`,set.actions[ref]]),['EXPERIMENT CLEANUP',set.cleanup]]){
   lines.push(label,`Type: ${block.kind}${block.needs_sudo?' — uses sudo':''}`,block.notes,...(block.prerequisites.length?[`Prerequisites: ${block.prerequisites.join(', ')}`]:[]),`Completion check: ${block.verification}`,'');
-  if(block.kind==='terminal')lines.push(terminalClipboard(block,source.study_id,index));lines.push('');
+  if(block.kind==='terminal')lines.push(terminalClipboard(block,source.study_id,index,layout));lines.push('');
  }
  return lines.join('\n');
 }

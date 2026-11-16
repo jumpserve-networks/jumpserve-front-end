@@ -1,8 +1,8 @@
 "use client";
-import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/app/components/ui/button";
 import { requireAccessToken } from "@/lib/browser-auth";
-import { TERMINAL_COMMANDS_PATH, TERMINAL_TARGET, terminalActionRefs, terminalBlockedActionRefs, terminalClipboard, terminalInputsClipboard, validateTerminalCommandsView, type TerminalBlock, type TerminalCommandSet, type TerminalCommandsView } from "@/lib/paper-terminal-commands";
+import { TERMINAL_COMMANDS_PATH, TERMINAL_TARGET, terminalActionRefs, terminalBlockedActionRefs, terminalClipboard, terminalInputsClipboard, terminalSetupRequired, validateTerminalCommandsView, type TerminalBlock, type TerminalCommandSet, type TerminalCommandsView } from "@/lib/paper-terminal-commands";
 import type { ExperimentPlan } from "@/lib/paper-experiment-plan";
 import type { PaperBreakdown } from "@/lib/research-paper-breakdown";
 
@@ -43,50 +43,52 @@ export function PaperTerminalActionCommands({ number }: { number: string }) {
   return context && block ? <CommandBlock block={block} label={`step ${number}`} study={context.study} index={context.index} /> : null;
 }
 export function PaperTerminalCommands({ assessmentId, ownerId, index, plan, breakdown, children }: { assessmentId: string; ownerId: string; index: number; plan: ExperimentPlan; breakdown: PaperBreakdown; children: ReactNode }) {
-  const [open, setOpen] = useState(false),[view, setView] = useState<TerminalCommandsView | null>(null),[busy, setBusy] = useState(false),[error, setError] = useState<string | null>(null);
-  const regionId = useId(),sequence = useRef(0),controller = useRef<AbortController | null>(null);
+  const [view, setView] = useState<TerminalCommandsView | null>(null),[busy, setBusy] = useState(false),[error, setError] = useState<string | null>(null);
+  const sequence = useRef(0),controller = useRef<AbortController | null>(null);
   const refs = useMemo(() => terminalActionRefs(plan, index), [plan, index]);
   const blockedRefs = useMemo(() => terminalBlockedActionRefs(plan, index, breakdown), [plan, index, breakdown]);
-  const perform = useCallback(async (action?: "generate" | "cancel") => {
+  const perform = useCallback(async (action?: "cancel") => {
     const current = ++sequence.current;controller.current?.abort();const request = new AbortController();controller.current = request;setBusy(true);setError(null);
     try {
       const token = await requireAccessToken("Sign in to generate terminal commands.", ownerId);
       if (request.signal.aborted) return;
-      const response = await fetch(`${TERMINAL_COMMANDS_PATH}?id=${assessmentId}&experiment=${index}`, { method: action ? "POST" : "GET", cache: "no-store", signal: AbortSignal.any([request.signal, AbortSignal.timeout(110000)]), headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, ...(action ? { body: JSON.stringify({ action, study_id: assessmentId, experiment_index: index, target: TERMINAL_TARGET }) } : {}) });
-      const value = await response.json();if (!response.ok) throw new Error(value.error ?? `Terminal commands are unavailable (HTTP ${response.status}).`);
-      const saved = validateTerminalCommandsView(value, assessmentId, index, refs, blockedRefs);
+      const signal = AbortSignal.any([request.signal, AbortSignal.timeout(110000)]);
+      async function send(operation?: "generate" | "cancel") {
+        const response = await fetch(`${TERMINAL_COMMANDS_PATH}?id=${assessmentId}&experiment=${index}`, { method: operation ? "POST" : "GET", cache: "no-store", signal, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, ...(operation ? { body: JSON.stringify({ action: operation, study_id: assessmentId, experiment_index: index, target: TERMINAL_TARGET }) } : {}) });
+        const value = await response.json();if (!response.ok) throw new Error(value.error ?? `Terminal commands are unavailable (HTTP ${response.status}).`);
+        return validateTerminalCommandsView(value, assessmentId, index, refs, blockedRefs);
+      }
+      let saved = await send(action);
+      // Leaving Step 3 must also fence a late read from starting generation.
+      if (sequence.current !== current || request.signal.aborted) return;
+      if (!action && saved.stage === "not_generated") saved = await send("generate");
       if (sequence.current === current) setView(saved);
     } catch (failure) { if (sequence.current === current && !request.signal.aborted) setError(failure instanceof Error ? failure.message : "Terminal commands are unavailable."); }
     finally { if (sequence.current === current) setBusy(false); }
   }, [assessmentId, ownerId, index, refs, blockedRefs]);
   const cancelPending = useCallback(() => { sequence.current++;controller.current?.abort(); }, []);
   useEffect(() => {
-    if (!open) return;
     void perform();return cancelPending;
-  }, [open, perform, cancelPending]);
+  }, [perform, cancelPending]);
   useEffect(() => {
-    if (!open || busy || !view || !["submitting", "processing"].includes(view.stage)) return;
+    if (busy || !view || !["submitting", "processing"].includes(view.stage)) return;
     const timer = setTimeout(() => void perform(), 5000);return () => clearTimeout(timer);
-  }, [open, busy, view, perform]);
-  const commandSet = open ? view?.command_set : null;
+  }, [busy, view, perform]);
+  const commandSet = view?.command_set;
   return <CommandContext.Provider value={commandSet ? { set: commandSet, study: assessmentId, index } : null}>
-    <div className="space-y-3">
-      <Button size="sm" variant="outline" aria-expanded={open} aria-controls={regionId} onClick={() => setOpen(value => !value)}>Terminal commands</Button>
-      {open ? <section id={regionId} aria-label={`Terminal commands for experiment ${index}`} className="space-y-3 text-sm">
+      <section aria-label={`Terminal commands for experiment ${index}`} className="space-y-3 text-sm">
         <p className="text-xs text-muted-foreground">Ubuntu/Debian Linux research host · Review generated commands before running. JumpServe does not execute them.</p>
         {error ? <p role="alert">{error}</p> : null}
-        {!view && busy ? <p role="status">Loading saved commands…</p> : null}
+        {!view && busy ? <p role="status">Preparing terminal commands…</p> : null}
         {view?.reason ? <p className="text-xs text-muted-foreground">{view.reason}</p> : null}
-        {view?.stage === "not_generated" ? <Button size="sm" disabled={busy} onClick={() => void perform("generate")}>{busy ? "Generating…" : "Generate terminal commands"}</Button> : null}
-        {view && ["submitting", "processing"].includes(view.stage) ? <p role="status">Generating the shared setup and commands for each numbered step…</p> : null}
+        {view && ["submitting", "processing"].includes(view.stage) ? <p role="status">Generating commands for each numbered step…</p> : null}
         {view?.stage === "processing" ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void perform("cancel")}>Cancel command generation</Button> : null}
         {error || view && ["failed", "uncertain", "cancelled"].includes(view.stage) ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void perform()}>Check saved command status</Button> : null}
         {commandSet ? <>
           {commandSet.inputs.length ? <TerminalInputs inputs={commandSet.inputs} /> : null}
-          <CommandBlock block={commandSet.setup} label="shared setup" study={assessmentId} index={index} />
+          {terminalSetupRequired(commandSet) ? <CommandBlock block={commandSet.setup} label="saved setup" study={assessmentId} index={index} /> : null}
         </> : null}
-      </section> : null}
-    </div>
+      </section>
     {children}
     {commandSet ? <CommandBlock block={commandSet.cleanup} label="experiment cleanup" study={assessmentId} index={index} /> : null}
   </CommandContext.Provider>;
