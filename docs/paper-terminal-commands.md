@@ -1,24 +1,32 @@
 # Step 3 terminal commands
 
-The owner can expand **Terminal commands** beneath each experiment, then choose
-**Generate terminal commands**. Opening or refreshing the screen only reads saved
-status. Generation makes one bounded server-side OpenAI call for that experiment
+Step 3 automatically prepares terminal commands for each experiment as soon as
+its saved plan is ready. No separate generation button or disclosure is required.
+Opening or refreshing Step 3 first checks saved status, reuses existing commands
+and resumes polling an existing request. Only an experiment with no command
+request for the current format starts generation. Generation makes one bounded server-side OpenAI call
+for that experiment and format
 and saves its exact source plan, confirmed sections, prompt, response, commands
 and event history in private Supabase records. Existing flat plans and reviewed
 hierarchical plans are supported without rewriting their originals.
 
-Commands target a **Ubuntu/Debian Linux research host with Bash**. Shared setup,
-numbered actions and cleanup use a consistent private workspace. Each actionable
-step has a command block with copy control, prerequisites, sudo indication and
-completion check, or an explicit manual/blocking explanation. Environment inputs
+Commands target a **Ubuntu/Debian Linux research host with Bash**. Each numbered
+action supplies its own complete commands/scripts, dependency checks and local
+functions. There is no shared setup script or helper program. A block can use
+configuration, resource ownership or measurements produced by an earlier action;
+these data dependencies are listed and checked without running earlier scripts.
+Each action has copy controls, a sudo indication and completion check, or an
+explicit manual/blocking explanation. Cleanup includes its own code too.
+The copied blocks use one private workspace for consistent data paths. Environment inputs
 are entered in that host's terminal; their values never pass through the browser,
 model or database. Commands are generated text, not an execution or validation
 result. Step 4 remains a stub and this feature does not start workers or hosts.
 
 The command profile uses pinned `gpt-5.4-2026-03-05`, medium reasoning and a
 64,000-token reasoning/output bound. A 200-cent reservation must fit within the
-original assessment limits; generation never enlarges those limits. It favors a complete shared helper program over ad hoc
-cross-step shell state. Network changes must be namespace-scoped; obvious bare
+original assessment limits; generation never enlarges those limits. All code
+required by an action must be included in that action's block; shared helper
+launchers and setup dependencies are rejected. Network changes must be namespace-scoped; obvious bare
 host `tc` mutations are rejected. Names and files derive from the assessment and
 experiment identity. The copied Bash wrapper checks Linux and preserves quoted
 heredocs. This is not a sandbox or a proof that generated code is correct: host
@@ -37,14 +45,24 @@ remain separate from independently collected data.
 
 ## Persistence and authorization
 
-Apply `jumpserve-infra/database/202611150002_paper_terminal_commands.sql` before
-deploying the frontend. All command tables are private with RLS and no anonymous
+Apply `jumpserve-infra/database/202611150002_paper_terminal_commands.sql`, followed
+by `202611160001_standalone_terminal_commands.sql`, before deploying the frontend.
+The current layout is `per-step-v1`; earlier packages remain stored as
+`shared-setup-v1`. Each layout has its own request, response, token and immutable
+history. The new layout uses a separate workspace and namespace prefix so it
+does not overwrite an older recipe's artifacts. The top-level `setup` field
+remains as non-executable metadata for wire compatibility and is hidden in the
+new layout. All code lives under the numbered actions and cleanup.
+
+Step 3 prepares the new layout automatically within the original limits, keeping
+older packages unchanged. An earlier pending call is reconciled first; uncertain
+submissions block a replacement rather than being replayed. All command tables are private with RLS and no anonymous
 or authenticated SQL access. Every API read/write verifies Google authentication
 and assessment ownership, requires a ready saved plan, and accepts only an
 experiment index and operation; callers cannot supply model prompts or scripts.
 The SQL RPC independently derives the original or reviewed plan and requires
-the exact request input. It admits one call per assessment/experiment/profile,
-accounts for intake, planning and prior command reservations, and retains the
+the exact request input. It admits one call per assessment/experiment/layout,
+accounts for intake, planning and prior reservations across all layouts, and retains the
 original assessment deadline and spending limits.
 
 Duplicate generations reuse the same call. Unknown submissions are never replayed.
@@ -97,8 +115,19 @@ still contained cross-helper call errors. The larger live draft covered all 23
 actions (19 terminal, four blocked) and passed its initial parsing checks; content
 review then found missing-value formatting and interrupted-cleanup limitations.
 The instructions now address those cases, and the missing-value branch fails
-the strengthened static replay. The latest instructions remain unqualified on
-an actual Ubuntu/Debian host. No experimental measurement was produced.
+the strengthened static replay. Those earlier evaluations used the shared-program
+layout. The per-step prompt embeds code separately in each action and cleanup,
+while retaining real data dependencies, and is evaluated under new frozen run
+names. Linux execution remains unqualified until explicitly tested on a suitable
+host. No experimental measurement was produced by the evaluation workflow.
+
+The first retained per-step draft covers 23 actions: 19 terminal and four blocked.
+All 19 terminal actions and cleanup include their own inline Python programs and
+passed initial Bash/Python parsing, without an executable setup block or shared
+code imports. Content review then caught unprivileged root-process identity
+reads in acquisition/cleanup. The prompt now explicitly requires sudo for these
+reads, and TypeScript/Postgres guards reject the observed pattern. Static replay
+retains that failure; it is not a qualified experiment recipe.
 
 Run `test/check_terminal_commands_database.py` in the infrastructure repository
 for the isolated Postgres flow, role/owner restrictions, exact source and action

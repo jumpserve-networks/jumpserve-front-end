@@ -57,7 +57,7 @@ export function PaperExperimentPlanOutline({ plan, breakdown, assessmentId, owne
       return <li key={experiment.experiment_refs.join("|")}>
         <section aria-labelledby={`${id}-experiment-${index}`} className="space-y-5">
           <h3 id={`${id}-experiment-${index}`} className="font-semibold [overflow-wrap:anywhere]">{number}. {experiment.title}</h3>
-          {assessmentId && ownerId ? <PaperTerminalCommands assessmentId={assessmentId} ownerId={ownerId} index={number} plan={plan} breakdown={breakdown}>{body}</PaperTerminalCommands> : body}
+          {assessmentId && ownerId ? <PaperTerminalCommands key={`${assessmentId}:${ownerId}:${number}`} assessmentId={assessmentId} ownerId={ownerId} index={number} plan={plan} breakdown={breakdown}>{body}</PaperTerminalCommands> : body}
         </section>
       </li>;
     })}

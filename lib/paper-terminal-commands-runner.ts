@@ -2,17 +2,17 @@ import OpenAI from "openai";
 import type { Response } from "openai/resources/responses/responses";
 import type { ExperimentPlan } from "./paper-experiment-plan";
 import type { PaperBreakdown } from "./research-paper-breakdown";
-import { terminalActionRefs, terminalBlockedActionRefs, validateTerminalCommandSet, type TerminalCommandSet, type TerminalStage } from "./paper-terminal-commands";
+import { TERMINAL_COMMAND_LAYOUT, terminalActionRefs, terminalBlockedActionRefs, validateTerminalCommandSet, type TerminalCommandSet, type TerminalStage } from "./paper-terminal-commands";
 import { TERMINAL_COMMANDS_FORMAT, terminalCommandsRequest } from "./paper-terminal-commands-model";
 
-export type TerminalCommandsRecord = { study_id: string; owner_id: string; experiment_index: number; status: Exclude<TerminalStage, "not_generated">; source_plan: ExperimentPlan; confirmed_breakdown: PaperBreakdown; request: unknown; response?: Response | null; provider_response_id: string | null; submit_token: string; updated_at: string; deadline_at: string; command_set: TerminalCommandSet | null; reason: string | null; generated_at: string | null; admitted?: boolean };
+export type TerminalCommandsRecord = { study_id: string; owner_id: string; experiment_index: number; command_layout?: string; status: Exclude<TerminalStage, "not_generated">; source_plan: ExperimentPlan; confirmed_breakdown: PaperBreakdown; request: unknown; response?: Response | null; provider_response_id: string | null; submit_token: string; updated_at: string; deadline_at: string; command_set: TerminalCommandSet | null; reason: string | null; generated_at: string | null; admitted?: boolean };
 export type TerminalOperations = { save: (operation: string, payload: Record<string, unknown>) => Promise<TerminalCommandsRecord>; create: (request: ReturnType<typeof terminalCommandsRequest>, token: string) => Promise<Response>; retrieve: (id: string) => Promise<Response>; cancel: (id: string) => Promise<Response> };
-export function readTerminalCommands(response: Response, row: Pick<TerminalCommandsRecord, "source_plan" | "confirmed_breakdown" | "experiment_index">) {
+export function readTerminalCommands(response: Response, row: Pick<TerminalCommandsRecord, "source_plan" | "confirmed_breakdown" | "experiment_index" | "command_layout">) {
   if (response.status !== "completed") throw new Error(`OpenAI returned ${response.status ?? "an unknown status"}. The original command-generation response is retained.`);
   if (response.text?.format?.type === "json_schema" && response.text.format.name !== TERMINAL_COMMANDS_FORMAT) throw new Error("The response does not match the retained command format.");
   if (response.output.some(item => item.type === "message" && item.content.some(part => part.type === "refusal"))) throw new Error("The model declined to generate terminal commands.");
   const raw = response.output.filter(item => item.type === "message").flatMap(item => item.content).filter(part => part.type === "output_text").map(part => part.text).join("");
-  return validateTerminalCommandSet(JSON.parse(raw), terminalActionRefs(row.source_plan, row.experiment_index), terminalBlockedActionRefs(row.source_plan, row.experiment_index, row.confirmed_breakdown));
+  return validateTerminalCommandSet(JSON.parse(raw), terminalActionRefs(row.source_plan, row.experiment_index), terminalBlockedActionRefs(row.source_plan, row.experiment_index, row.confirmed_breakdown), row.command_layout === TERMINAL_COMMAND_LAYOUT);
 }
 export async function generateTerminalCommands(request: ReturnType<typeof terminalCommandsRequest>, ops: TerminalOperations) {
   const row = await ops.save("generate", { request });

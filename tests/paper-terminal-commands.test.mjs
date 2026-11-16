@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {spawnSync} from 'node:child_process';
-import {terminalActionRefs,terminalBlockedActionRefs,terminalCommandsInput,validateTerminalCommandSet,validateTerminalCommandsView,terminalClipboard,terminalInputsClipboard} from '../lib/paper-terminal-commands.ts';
+import {TERMINAL_COMMAND_LAYOUT,LEGACY_TERMINAL_LAYOUT,terminalActionRefs,terminalBlockedActionRefs,terminalCommandsInput,validateTerminalCommandSet,validateTerminalCommandsView,terminalClipboard,terminalInputsClipboard,terminalSetupRequired} from '../lib/paper-terminal-commands.ts';
 import {terminalCommandsRequest} from '../lib/paper-terminal-commands-model.ts';
 import {readTerminalCommands,generateTerminalCommands,refreshTerminalCommands,cancelTerminalCommands} from '../lib/paper-terminal-commands-runner.ts';
-import {terminalCommandFixture,terminalBlock,terminalFixtureRecord,hierarchicalImplementationPlan,implementationBreakdown} from './support/terminal-command-fixture.mjs';
+import {terminalCommandFixture,legacyTerminalCommandFixture,terminalBlock,terminalFixtureRecord,hierarchicalImplementationPlan,implementationBreakdown} from './support/terminal-command-fixture.mjs';
 const study='11111111-1111-4111-8111-111111111111';
 test('command generation uses the exact saved scope, target and action identities without changing the original plan',()=>{
  const plan=hierarchicalImplementationPlan(),before=structuredClone(plan),breakdown=implementationBreakdown(),request=terminalCommandsRequest(study,1,plan,breakdown),input=JSON.parse(request.input);
@@ -12,12 +12,24 @@ test('command generation uses the exact saved scope, target and action identitie
  assert.match(request.instructions,/Never change the host's default routes/);assert.match(request.instructions,/no selected owner measurement-ingestion contract/);assert.throws(()=>terminalCommandsRequest(study,2,plan,breakdown));
  const blocked=terminalBlockedActionRefs(plan,1,breakdown);assert.deepEqual(blocked,['1.4.1','1.4.3']);assert.deepEqual(request.text.format.schema.properties.actions.properties[blocked[0]].properties.commands,{type:'null'});
  const unsafe=terminalCommandFixture();unsafe.actions[blocked[0]]=terminalBlock(['setup']);assert.throws(()=>validateTerminalCommandSet(unsafe,terminalActionRefs(plan,1),blocked),/undefined scientific/);
+ const schema=request.text.format.schema.properties;assert.deepEqual(schema.setup.properties.commands,{type:'null'});assert.deepEqual(schema.setup.properties.kind.enum,['manual']);assert.equal(schema.setup.properties.prerequisites.maxItems,0);
+ for(const block of [...Object.values(schema.actions.properties),schema.cleanup])assert.equal(block.properties.prerequisites.items.enum.includes('setup'),false);
+});
+test('standalone packages reject shared setup and helper dependencies while retaining original legacy packages',()=>{
+ const row=terminalFixtureRecord(),refs=terminalActionRefs(row.source_plan,1),set=terminalCommandFixture(),legacy=legacyTerminalCommandFixture();
+ assert.equal(validateTerminalCommandSet(set,refs,[],true),set);assert.equal(terminalSetupRequired(set),false);assert.equal(terminalSetupRequired(legacy),true);
+ for(const change of [c=>c.setup=terminalBlock(),c=>c.actions[refs[0]].prerequisites=['setup'],c=>c.actions[refs[0]].commands='python3 "$HELPER" run',c=>c.actions[refs[0]].commands='python3 experiment_helper.py run',c=>c.cleanup.commands='source "$JUMPSERVE_WORKSPACE/common.sh"',c=>c.actions[refs[0]].commands="os.readlink(f'/proc/{pid}/exe')"]){const bad=structuredClone(set);change(bad);assert.throws(()=>validateTerminalCommandSet(bad,refs,[],true),/shared|Privileged/);}
+ const original={id:'resp_legacy',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(legacy)}]}]};assert.deepEqual(readTerminalCommands(original,{...row,command_layout:LEGACY_TERMINAL_LAYOUT}),legacy);assert.throws(()=>readTerminalCommands(original,row),/shared setup/);
+ const local=structuredClone(set);local.actions[refs[0]].commands="python3 - <<'PY'\nfrom pathlib import Path\nPath('own-step.txt').write_text('own inline program')\nPY\n";assert.equal(validateTerminalCommandSet(local,refs,[],true),local);
+ const modern=terminalClipboard(local.actions[refs[0]],study,1),old=terminalClipboard(legacy.actions[refs[0]],study,1,LEGACY_TERMINAL_LAYOUT);assert.match(modern,/experiment-1\/per-step-v1/);assert.doesNotMatch(old,/per-step-v1/);assert.match(modern,/PREFIX="p/);assert.match(old,/PREFIX="j/);
+ assert.equal(row.command_layout,TERMINAL_COMMAND_LAYOUT);
 });
 test('all steps are covered and command kinds, input names and prerequisite ordering are validated',()=>{
  const plan=hierarchicalImplementationPlan(),refs=terminalActionRefs(plan,1),commands=terminalCommandFixture();assert.equal(validateTerminalCommandSet(commands,refs),commands);
  for(const change of [c=>delete c.actions[refs[0]],c=>c.actions.extra=terminalBlock(),c=>c.actions[refs[0]].prerequisites=[refs.at(-1)],c=>c.setup.prerequisites=['setup'],c=>c.actions[refs[0]].prerequisites=['setup','setup'],c=>c.actions[refs[0]].commands=null,c=>c.actions[refs[1]].commands='echo invalid',c=>c.actions[refs[1]].needs_sudo=true,c=>c.inputs[0].name='HOME',c=>c.inputs.push(c.inputs[0]),c=>c.setup.commands='x'.repeat(64001),c=>c.actions[refs[0]].commands='sudo tc qdisc replace dev eth0 root netem delay 10ms']){const bad=structuredClone(commands);change(bad);assert.throws(()=>validateTerminalCommandSet(bad,refs));}
  const flat={experiments:[{title:'Legacy',experiment_refs:['experiment-1'],steps:[{}],open_questions:[]}]};assert.deepEqual(terminalActionRefs(flat,1),['1.1']);
- const view={version:'paper-terminal-commands-v1',study_id:study,experiment_index:1,target:'ubuntu-debian',stage:'ready',command_set:commands,reason:null,generated_at:'2026-11-15T00:00:00Z'};assert.equal(validateTerminalCommandsView(view,study,1,refs),view);assert.throws(()=>validateTerminalCommandsView({...view,stage:'processing'},study,1,refs));
+ const view={version:'paper-terminal-commands-v1',study_id:study,experiment_index:1,target:'ubuntu-debian',command_layout:'per-step-v1',stage:'ready',command_set:commands,reason:null,generated_at:'2026-11-15T00:00:00Z'};assert.equal(validateTerminalCommandsView(view,study,1,refs),view);assert.throws(()=>validateTerminalCommandsView({...view,stage:'processing'},study,1,refs));
+ assert.throws(()=>validateTerminalCommandsView({...view,command_layout:LEGACY_TERMINAL_LAYOUT},study,1,refs),/earlier format/);assert.throws(()=>validateTerminalCommandsView({...view,command_layout:undefined},study,1,refs),/earlier format/);
 });
 test('clipboard blocks keep quoted scripts intact, isolate workspace names and pass Bash syntax checking without execution',()=>{
  const block=terminalBlock();block.commands="cat <<'JUMPSERVE_COMMAND_BLOCK'\nLiteral $HOME and `not-a-command`\nJUMPSERVE_COMMAND_BLOCK\nprintf '%s\\n' done\n";

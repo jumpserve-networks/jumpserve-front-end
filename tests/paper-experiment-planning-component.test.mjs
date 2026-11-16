@@ -13,14 +13,23 @@ const navigation=`const subscribe=callback=>{globalThis.__planComponent.listener
 const hook=registerHooks({resolve(specifier,context,next){if(specifier==='next/link')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('export default function Link({prefetch,...props}){return globalThis.__planReact.createElement("a",props);}')};if(specifier==='next/navigation')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent(navigation)};if(specifier==='@/lib/browser-auth')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('export const requireAccessToken=(...args)=>globalThis.__planComponent.token(...args);')};if(specifier==='@/lib/research-workflow-api')return{shortCircuit:true,url:'data:text/javascript,export const RESEARCH_SIGN_IN_REQUIRED="Sign in";'};return next(specifier,context);}});
 const {PaperExperimentPlanning}=await import('../app/components/research-workflow/paper-experiment-planning.tsx');hook.deregister();
 const id='11111111-1111-4111-8111-111111111111';
-let calls,view,post,originalFetch;
+let calls,terminalCalls,terminalViews,view,post,originalFetch;
 beforeEach(()=>{
- calls=[];originalFetch=globalThis.fetch;globalThis.__planComponent.token=async(_message,owner)=>{assert.equal(owner,'owner');return 'verified-owner';};
+ calls=[];terminalCalls=[];terminalViews=new Map();originalFetch=globalThis.fetch;globalThis.__planComponent.token=async(_message,owner)=>{assert.equal(owner,'owner');return 'verified-owner';};
  globalThis.__planComponent.search='';globalThis.__planComponent.listeners=new Set();globalThis.__planComponent.pushes=[];
  globalThis.__planComponent.push=(url,options)=>{globalThis.__planComponent.pushes.push({url,options});globalThis.__planComponent.search=new URL(url,'https://example.test').search.slice(1);for(const callback of globalThis.__planComponent.listeners)callback();};
  view={version:'paper-experiment-plan-v1',study_id:id,stage:'awaiting_confirmation',intake_revision:4,confirmed_at:null,confirmed_breakdown:null,plan:null,reason:null};
  post=async body=>{const b=breakdownFixture();for(const section of Object.keys(b.sections))b.sections[section]=body.sections[section].map(item=>({...b.sections[section].find(s=>s.id===item.id),description:item.description}));return view={...view,stage:'processing',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:b};};
- globalThis.fetch=async(url,options)=>{assert.match(url,/api\/experiment-plan\?id=/);assert.equal(options.headers.Authorization,'Bearer verified-owner');calls.push({url,options});return Response.json(options.method==='POST'?await post(JSON.parse(options.body)):view);};
+ globalThis.fetch=async(url,options)=>{
+  assert.equal(options.headers.Authorization,'Bearer verified-owner');
+  if(url.includes('/api/terminal-commands?')){
+   terminalCalls.push({url,options});const index=Number(new URL(url,'https://example.test').searchParams.get('experiment'));
+   let saved=terminalViews.get(index)??{version:'paper-terminal-commands-v1',study_id:id,experiment_index:index,target:'ubuntu-debian',command_layout:'per-step-v1',stage:'not_generated',command_set:null,reason:null,generated_at:null};
+   if(options.method==='POST'){assert.equal(JSON.parse(options.body).action,'generate');saved={...saved,stage:'processing'};terminalViews.set(index,saved);}
+   return Response.json(saved);
+  }
+  assert.match(url,/api\/experiment-plan\?id=/);calls.push({url,options});return Response.json(options.method==='POST'?await post(JSON.parse(options.body)):view);
+ };
 });
 afterEach(()=>{cleanup();globalThis.fetch=originalFetch;});
 async function show(options={}){await act(async()=>{render(React.createElement(PaperExperimentPlanning,{assessmentId:id,ownerId:'owner',breakdown:breakdownFixture(),...options}));});}
@@ -28,7 +37,7 @@ async function click(name){await act(async()=>{fireEvent.click(screen.getByRole(
 async function check(name){await act(async()=>{fireEvent.click(screen.getByRole('checkbox',{name}));});}
 async function editDetail(label,text){await click('Edit '+label);fireEvent.change(screen.getByRole('textbox',{name:label+' description'}),{target:{value:text}});await click('Save '+label);}
 test('opening phase one does not start planning; the button confirms valid edits and exclusions without a review checkbox',async()=>{
- await show();assert.equal(calls.length,1);assert.equal(calls[0].options.method,undefined);assert.equal(screen.getByRole('button',{name:'Confirm phase one and create experiment steps'}).disabled,false);assert.equal(screen.queryByLabelText(/I have reviewed all four sections/),null);
+ await show();assert.equal(calls.length,1);assert.equal(terminalCalls.length,0);assert.equal(calls[0].options.method,undefined);assert.equal(screen.getByRole('button',{name:'Confirm phase one and create experiment steps'}).disabled,false);assert.equal(screen.queryByLabelText(/I have reviewed all four sections/),null);
  assert.equal(screen.queryByRole('textbox'),null);await click('Edit Experiment detail 1');const description=screen.getByRole('textbox',{name:'Experiment detail 1 description'});
  fireEvent.change(description,{target:{value:'  '}});assert.equal(screen.getByRole('button',{name:'Confirm phase one and create experiment steps'}).disabled,true);await click('Confirm phase one and create experiment steps');assert.equal(calls.filter(c=>c.options.method==='POST').length,0);
  assert.equal(screen.getByRole('button',{name:'Save Experiment detail 1'}).disabled,true);
@@ -81,6 +90,7 @@ test('ready plans show generated stages and actions without repeating source exp
  for(const item of breakdown.sections.experiment)for(const detail of Object.values(item.specification))assert.equal(screen.queryByText(detail),null);
  for(const label of ['Setup','Procedure','Conditions','Comparisons'])assert.equal(screen.queryByText(label,{exact:true}),null);
  assert.ok(screen.getAllByText('Confirmed supporting details').length>0);assert.equal(calls.filter(c=>c.options.method==='POST').length,0);
+ assert.deepEqual(terminalCalls.filter(c=>c.options.method==='POST').map(c=>JSON.parse(c.options.body).experiment_index),[1,2]);
 });
 test('stages collapse and expand locally without new planning requests or changing the saved hierarchy',async()=>{
  const plan=hierarchicalImplementationPlan();view={...view,stage:'ready',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:implementationBreakdown(),plan};await wizard();
@@ -92,12 +102,18 @@ test('lost confirmation response preserves edits and status reload discovers the
  await show();await editDetail('Data detail 1','Keep this reviewed measurement');const actual=post;post=async body=>{await actual(body);throw new Error('Lost confirmation response');};await click('Confirm phase one and create experiment steps');assert.ok(screen.getByText('Lost confirmation response'));assert.ok(screen.getByText('Keep this reviewed measurement'));await click('Check planning status');assert.ok(screen.getByText('Keep this reviewed measurement'));assert.equal(calls.filter(c=>c.options.method==='POST').length,1);
 });
 test('processing polls only the original plan, then stops polling when ready',async t=>{
- t.mock.timers.enable({apis:['setTimeout']});view={...view,stage:'processing',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture()};await show();assert.equal(calls.length,1);view={...view,stage:'ready',plan:planFixture()};await act(async()=>{t.mock.timers.tick(5000);});assert.equal(calls.length,2);await act(async()=>{t.mock.timers.tick(15000);});assert.equal(calls.length,2);
+ t.mock.timers.enable({apis:['setTimeout']});view={...view,stage:'processing',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture()};await show();assert.equal(calls.length,1);assert.equal(terminalCalls.length,0);view={...view,stage:'ready',plan:planFixture()};await act(async()=>{t.mock.timers.tick(5000);});assert.equal(calls.length,2);assert.equal(terminalCalls.filter(c=>c.options.method==='POST').length,1);await act(async()=>{t.mock.timers.tick(15000);});assert.equal(calls.length,2);assert.equal(terminalCalls.filter(c=>c.options.method==='POST').length,1);
 });
 test('failed status reads leave confirmation disabled and can be checked again',async()=>{
  globalThis.fetch=async()=>Response.json({error:'Database update required'},{status:424});await show();assert.ok(screen.getByText('Database update required'));assert.equal(screen.queryByRole('button',{name:/Confirm phase one/}),null);
 });
 const wizard=()=>show({wizard:true});
+test('saved Step 2 and Step 4 views do not generate commands; entering Step 3 prepares each missing package once',async()=>{
+ view={...view,stage:'ready',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture(),plan:planFixture()};globalThis.__planComponent.search='step=breakdown';await wizard();assert.equal(terminalCalls.length,0);
+ await click('Next: Experiment Steps');assert.deepEqual(terminalCalls.map(c=>c.options.method),['GET','POST']);assert.equal(screen.queryByRole('button',{name:'Generate terminal commands'}),null);
+ await click('Next: Run Experiments');assert.equal(terminalCalls.length,2);await click('Back to Experiment Steps');assert.deepEqual(terminalCalls.map(c=>c.options.method),['GET','POST','GET']);
+ await click('Step 2: Initial Assessment');assert.equal(terminalCalls.filter(c=>c.options.method==='POST').length,1);
+});
 test('wizard shows only the breakdown before confirmation and guards direct future-step URLs',async()=>{
  globalThis.__planComponent.search='step=execution&from=retained';await wizard();
  assert.ok(screen.getByRole('heading',{name:'Paper breakdown'}));assert.equal(screen.queryByRole('heading',{name:'Experiment Steps'}),null);assert.equal(screen.queryByText('Experiment execution is coming soon.'),null);
@@ -121,7 +137,7 @@ test('failed and uncertain planning stay on implementation and cannot advance to
  for(const stage of ['failed','uncertain','cancelled']){view={...view,stage,confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture()};globalThis.__planComponent.search='step=queue';await wizard();assert.ok(screen.getByRole('heading',{name:'Experiment Steps'}));assert.equal(screen.getByRole('button',{name:'Next: Run Experiments'}).disabled,true);assert.equal(screen.getByRole('button',{name:'Step 4: Run Experiments'}).disabled,true);cleanup();}
  assert.equal(calls.filter(c=>c.options.method==='POST').length,0);
 });
-test('the wizard stays above the paper header across steps without remounting metadata or sending new model requests',async()=>{
+test('the wizard stays above the paper header across steps without remounting metadata or repeating planning requests',async()=>{
  let mounts=0;
  function PaperHeader(){React.useEffect(()=>{mounts++;},[]);return React.createElement('header',null,React.createElement('h1',null,'Retained paper heading'));}
  view={...view,stage:'ready',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture(),plan:planFixture()};await show({wizard:true,header:React.createElement(PaperHeader)});
