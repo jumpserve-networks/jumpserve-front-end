@@ -266,6 +266,9 @@ The existing schema depends on infrastructure migrations
 `202611120001_hierarchical_experiment_plans.sql` for hierarchical generation.
 Ordinary feature work does not apply production schema changes. No existing
 assessment is automatically confirmed.
+Optional Ubuntu/Debian command generation for each saved experiment is documented
+in [Step 3 terminal commands](paper-terminal-commands.md), including its separate
+database migration and browser-free evaluation workflow.
 The isolated database regression is
 `python3 -B test/check_hierarchical_experiment_plans_database.py` in
 `jumpserve-infra`. It exercises the earlier review regression and then verifies

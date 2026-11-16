@@ -27,7 +27,8 @@
     "verify:paper": "node --import ./scripts/lib/register-typescript.mjs scripts/verify-paper-intake.mjs",
     "review:paper": "node --import ./scripts/lib/register-typescript.mjs scripts/review-paper-breakdown.mjs",
     "revalidate:paper": "node --import ./scripts/lib/register-typescript.mjs scripts/revalidate-paper-intake.mjs",
-    "review:experiment-plan-links": "node --import ./scripts/lib/register-typescript.mjs scripts/review-experiment-plan-links.mjs"
+    "review:experiment-plan-links": "node --import ./scripts/lib/register-typescript.mjs scripts/review-experiment-plan-links.mjs",
+    "eval:terminal-commands": "node --import ./scripts/lib/register-typescript.mjs scripts/evaluate-terminal-commands.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "3.1132.0",

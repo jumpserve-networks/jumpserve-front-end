@@ -77,6 +77,10 @@ export async function connectPaperMCP(projectRef,traceDirectory){
    if(!uuid(id)||!uuid(owner))throw new Error('Valid paper and owner identities required.');
    const result=await rows(`select to_jsonb(p) as plan from public.research_experiment_plans p where study_id=${sql(id)}::uuid and owner_id=${sql(owner)}::uuid`);return result[0]?.plan??null;
   },
+  async experimentPlanLinkReview(id,owner){
+   if(!uuid(id)||!uuid(owner))throw new Error('Valid paper and owner identities required.');
+   const result=await rows(`select to_jsonb(r) as review from public.research_experiment_plan_link_reviews r where study_id=${sql(id)}::uuid and owner_id=${sql(owner)}::uuid`);return result[0]?.review??null;
+  },
   async reviewExperimentPlanLinks(row,payload){
    if(!uuid(row.study_id)||!uuid(row.owner_id)||!uuid(payload.review_id))throw new Error('Valid review and owner identities required.');
    const result=await rows(`select public.research_review_experiment_plan_links(${sql(row.owner_id)}::uuid,${sql(row.study_id)}::uuid,${sql(JSON.stringify(payload))}::jsonb) as review`,false);

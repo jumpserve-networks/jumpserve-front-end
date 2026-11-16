@@ -84,7 +84,7 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, header, wizard }:
         {view.stage !== "ready" ? <p role="status" className="text-sm font-medium">{view.stage === "cancelled" ? "Experiment planning cancelled" : view.stage === "failed" ? "Experiment planning needs attention" : view.stage === "uncertain" ? "Planning submission needs reconciliation" : "Preparing experiment implementation steps…"}</p> : null}
         {view.reason ? <p className="text-sm text-muted-foreground">{view.reason}</p> : null}
         {view.stage === "processing" ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void action("cancel")}>Cancel planning</Button> : null}
-        {view.plan ? <PaperExperimentPlanOutline plan={view.plan} breakdown={saved} /> : null}
+        {view.plan ? <PaperExperimentPlanOutline plan={view.plan} breakdown={saved} assessmentId={assessmentId} ownerId={ownerId} /> : null}
       </>}
       <Button size="sm" variant="outline" disabled={busy} onClick={() => setRevision(value => value + 1)}>Check planning status</Button>
     </section>;
