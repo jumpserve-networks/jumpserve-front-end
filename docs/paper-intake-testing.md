@@ -86,8 +86,9 @@ their original schemas and raw responses. See
 [`paper-source-citations-v2.md`](paper-source-citations-v2.md) for the protocol and
 the rejected prompt-only comparison.
 
-Step one is pinned to `gpt-5.4-2026-03-05` with low reasoning; phase-two planning
-keeps its independent mini profile. To compare the previous pinned mini model
+Paper breakdown, experiment planning and shared script generation are pinned to
+`gpt-5.4-2026-03-05` with medium reasoning. Breakdown and planning each allow
+32,768 reasoning/output tokens; shared scripts allow 64,000. To compare the previous pinned mini model
 without changing the app, use `--model gpt-5.4-mini-2026-03-17` in a new live run.
 Only these two pinned profiles are accepted, and the selected model is part of
 the frozen request identity. A comparison never activates a model automatically.

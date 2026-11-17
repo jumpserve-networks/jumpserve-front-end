@@ -2,7 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/app/components/ui/button";
 import { requireAccessToken } from "@/lib/browser-auth";
-import { INDIVIDUAL_TERMINAL_LAYOUT, TERMINAL_COMMANDS_PATH, TERMINAL_TARGET, terminalActionRefs, terminalBlockedActionRefs, terminalClipboard, terminalInputsClipboard, terminalSetupRequired, validateTerminalCommandsView, type TerminalBlock, type TerminalCommandSet, type TerminalCommandsView } from "@/lib/paper-terminal-commands";
+import { INDIVIDUAL_TERMINAL_LAYOUT, SHARED_TERMINAL_LAYOUT, TERMINAL_COMMANDS_PATH, TERMINAL_TARGET, terminalActionRefs, terminalBlockedActionRefs, terminalClipboard, terminalInputsClipboard, terminalSetupRequired, validateTerminalCommandsView, type TerminalBlock, type TerminalCommandSet, type TerminalCommandsView } from "@/lib/paper-terminal-commands";
 import type { ExperimentPlan } from "@/lib/paper-experiment-plan";
 import type { PaperBreakdown } from "@/lib/research-paper-breakdown";
 
@@ -18,14 +18,14 @@ export function TerminalInputs({ inputs }: { inputs: TerminalCommandSet["inputs"
     <pre tabIndex={0} className="overflow-auto bg-muted/40 p-3 font-mono text-xs whitespace-pre"><code>{commands}</code></pre>
   </div>;
 }
-export function CommandBlock({ block, label, study, index, individual = false }: { block: TerminalBlock; label: string; study: string; index: number; individual?: boolean }) {
+export function CommandBlock({ block, label, study, index, individual = false, layout, initiallyOpen = false }: { block: TerminalBlock; label: string; study: string; index: number; individual?: boolean; layout?: typeof SHARED_TERMINAL_LAYOUT; initiallyOpen?: boolean }) {
   const [message, setMessage] = useState("");
-  const commands = block.kind === "terminal" ? terminalClipboard(block, study, index, individual ? INDIVIDUAL_TERMINAL_LAYOUT : undefined) : null;
+  const commands = block.kind === "terminal" ? terminalClipboard(block, study, index, layout ?? (individual ? INDIVIDUAL_TERMINAL_LAYOUT : undefined)) : null;
   async function copy() {
     try { await navigator.clipboard.writeText(commands!);setMessage("Commands copied."); }
     catch { setMessage("Copy failed. Select and copy the command text below."); }
   }
-  return <details className="space-y-2 text-sm">
+  return <details open={initiallyOpen} className="space-y-2 text-sm">
     <summary className="cursor-pointer text-xs font-medium focus-visible:outline-2 focus-visible:outline-offset-2">{commands ? `Terminal commands · ${label}` : `${block.kind === "manual" ? "Manual action" : "Commands blocked"} · ${label}`}</summary>
     <div className="space-y-2 pt-2">
       <p className="text-xs text-muted-foreground">{block.notes}</p>

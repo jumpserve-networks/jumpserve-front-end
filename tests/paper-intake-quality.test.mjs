@@ -9,10 +9,10 @@ import {paperModelRequest,PAPER_INTAKE_MODEL} from '../lib/paper-intake-model.ts
 import {experimentPlanRequest,PAPER_EXPERIMENT_PLAN_MODEL} from '../lib/paper-experiment-plan-model.ts';
 import {evidenceBreakdown} from './support/paper-evidence-fixture.mjs';
 const response=(value=fixture.reference,format=PAPER_SOURCE_FORMAT_V5)=>referenceResponse(value,format);
-test('step-one model qualification does not change the phase-two planning model',()=>{
+test('paper breakdown and planning use the requested GPT-5.4 model',()=>{
  assert.equal(paperModelRequest(fixture.paper).model,PAPER_INTAKE_MODEL);
  assert.equal(experimentPlanRequest(evidenceBreakdown()).model,PAPER_EXPERIMENT_PLAN_MODEL);
- assert.notEqual(PAPER_INTAKE_MODEL,PAPER_EXPERIMENT_PLAN_MODEL);
+ assert.equal(PAPER_INTAKE_MODEL,PAPER_EXPERIMENT_PLAN_MODEL);
 });
 
 test('v5 retains three distinct hypotheses, collection requirements, fabricated results and setup/uncertainty checks',()=>{

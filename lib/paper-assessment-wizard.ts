@@ -2,7 +2,7 @@ export const PAPER_ASSESSMENT_STEPS = [
   { id: "upload", title: "Paper Upload" },
   { id: "breakdown", title: "Initial Assessment" },
   { id: "implementation", title: "Experiment Steps" },
-  { id: "execution", title: "Run Experiments" },
+  { id: "execution", title: "Setup & Run Commands" },
 ] as const;
 export type PaperAssessmentStep = typeof PAPER_ASSESSMENT_STEPS[number]["id"];
 export function parsePaperAssessmentStep(value: unknown): PaperAssessmentStep | undefined {

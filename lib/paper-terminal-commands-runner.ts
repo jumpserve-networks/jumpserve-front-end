@@ -5,14 +5,18 @@ import type { PaperBreakdown } from "./research-paper-breakdown";
 import { TERMINAL_COMMAND_LAYOUT, terminalActionRefs, terminalBlockedActionRefs, validateTerminalCommandSet, type TerminalCommandSet, type TerminalStage } from "./paper-terminal-commands";
 import { TERMINAL_COMMANDS_FORMAT, terminalCommandsRequest } from "./paper-terminal-commands-model";
 import { STEP_COMMANDS_FORMAT, validateStepCommandSet } from "./paper-step-commands";
+import { SHARED_TERMINAL_LAYOUT } from "./paper-terminal-commands";
+import { EXPERIMENT_SCRIPTS_FORMAT, validateExperimentScripts } from "./paper-experiment-scripts";
+import { parsePaperModelOutput } from "./paper-model-output";
 
 export type TerminalCommandsRecord = { study_id: string; owner_id: string; experiment_index: number; command_layout?: string; action_ref?: string; status: Exclude<TerminalStage, "not_generated">; source_plan: ExperimentPlan; confirmed_breakdown: PaperBreakdown; request: unknown; response?: Response | null; provider_response_id: string | null; submit_token: string; updated_at: string; deadline_at: string; command_set: TerminalCommandSet | null; reason: string | null; generated_at: string | null; admitted?: boolean };
 export type TerminalOperations = { save: (operation: string, payload: Record<string, unknown>) => Promise<TerminalCommandsRecord>; create: (request: ReturnType<typeof terminalCommandsRequest>, token: string) => Promise<Response>; retrieve: (id: string) => Promise<Response>; cancel: (id: string) => Promise<Response> };
 export function readTerminalCommands(response: Response, row: Pick<TerminalCommandsRecord, "source_plan" | "confirmed_breakdown" | "experiment_index" | "command_layout" | "action_ref">) {
-  if (response.status !== "completed") throw new Error(`OpenAI returned ${response.status ?? "an unknown status"}. The original command-generation response is retained.`);
-  if (response.text?.format?.type === "json_schema" && response.text.format.name !== (row.action_ref ? STEP_COMMANDS_FORMAT : TERMINAL_COMMANDS_FORMAT)) throw new Error("The response does not match the retained command format.");
+  if (response.status !== "completed") throw new Error(response.status === "incomplete" && response.incomplete_details?.reason === "max_output_tokens" ? "OpenAI exhausted the reasoning/output allowance before finishing the scripts. The original response is retained." : `OpenAI returned ${response.status ?? "an unknown status"}. The original command-generation response is retained.`);
+  if (response.text?.format?.type === "json_schema" && response.text.format.name !== (row.command_layout === SHARED_TERMINAL_LAYOUT ? EXPERIMENT_SCRIPTS_FORMAT : row.action_ref ? STEP_COMMANDS_FORMAT : TERMINAL_COMMANDS_FORMAT)) throw new Error("The response does not match the retained command format.");
   if (response.output.some(item => item.type === "message" && item.content.some(part => part.type === "refusal"))) throw new Error("The model declined to generate terminal commands.");
   const raw = response.output.filter(item => item.type === "message").flatMap(item => item.content).filter(part => part.type === "output_text").map(part => part.text).join("");
+  if (row.command_layout === SHARED_TERMINAL_LAYOUT) return validateExperimentScripts(parsePaperModelOutput(raw), row.source_plan, row.confirmed_breakdown, row.experiment_index);
   if (row.action_ref) return validateStepCommandSet(JSON.parse(raw), row.source_plan, row.confirmed_breakdown, row.experiment_index, row.action_ref);
   return validateTerminalCommandSet(JSON.parse(raw), terminalActionRefs(row.source_plan, row.experiment_index), terminalBlockedActionRefs(row.source_plan, row.experiment_index, row.confirmed_breakdown), row.command_layout === TERMINAL_COMMAND_LAYOUT);
 }

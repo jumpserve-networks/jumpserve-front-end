@@ -3,6 +3,7 @@ import type { Response } from "openai/resources/responses/responses";
 import { experimentPlanRequest, PAPER_EXPERIMENT_PLAN_FORMAT } from "./paper-experiment-plan-model";
 import { validateExperimentPlan, type ExperimentPlan, type PlanStage } from "./paper-experiment-plan";
 import type { PaperBreakdown } from "./research-paper-breakdown";
+import { parsePaperModelOutput } from "./paper-model-output";
 
 export type ExperimentPlanRecord = {
   study_id: string; owner_id: string; status: Exclude<PlanStage, "awaiting_confirmation">;
@@ -21,7 +22,7 @@ export function readExperimentPlan(response: Response, breakdown: PaperBreakdown
   if (response.status !== "completed") throw new Error(`OpenAI returned ${response.status ?? "an unknown planning status"}. The original response is retained.`);
   if (response.output.some(item => item.type === "message" && item.content.some(part => part.type === "refusal"))) throw new Error("The model declined to prepare experiment steps.");
   const output = response.output.filter(item => item.type === "message").flatMap(item => item.content).filter(part => part.type === "output_text").map(part => part.text).join("");
-  const plan = validateExperimentPlan(JSON.parse(output), breakdown);
+  const plan = validateExperimentPlan(parsePaperModelOutput(output), breakdown);
   if (format === PAPER_EXPERIMENT_PLAN_FORMAT && plan.experiments.some(experiment => !experiment.stages)) throw new Error("The experiment plan is missing its stages and actionable substeps.");
   if (["paper_experiment_steps_v1", "paper_experiment_steps_v2"].includes(format ?? "") && plan.experiments.some(experiment => experiment.stages)) throw new Error("The response does not match the original flat planning format.");
   return plan;

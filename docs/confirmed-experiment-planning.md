@@ -55,18 +55,18 @@ citations, criteria and confirmed sections remain read-only.
 
 The owner flow shows four wizard steps starting at
 `/research-verification/new-assessment`: Paper Upload, Initial Assessment,
-Experiment Steps, and Run Experiments. Upload remains batch-capable. Each
+Experiment Steps, and Setup & Run Commands. Upload remains batch-capable. Each
 screen places the wizard navigation before its heading and paper metadata.
 Public readers retain the paper metadata without private wizard controls. Each
 retained paper links to its own Initial Assessment screen at
 `/research-verification/assessment/<id>?step=breakdown`. The upload route
 cannot open later stages without a selected assessment. A preparing paper stays
 on step two. Confirmation advances to step three; a verified ready plan enables
-step four. Run Experiments is currently a placeholder with a disabled execution
-button and no launch actions. Back navigation keeps the saved confirmation.
+step four, which generates shared setup and numbered run commands. Back
+navigation keeps the saved confirmation.
 The `step` query parameter preserves the selected screen through refresh,
 browser history and Google sign-in. Direct links cannot bypass confirmation or
-plan readiness. Historical `step=queue` wizard URLs open the execution placeholder.
+plan readiness. Historical `step=queue` wizard URLs open Step 4 shared setup and commands.
 The Paper Upload step links back to the upload route without changing the
 original paper, confirmation or implementation plan.
 Step two shows the four section descriptions and source evidence.
@@ -111,8 +111,8 @@ references, proposed choices and missing information. Each confirmed Experiment 
 be covered exactly once. An empty confirmed Experiment section saves an empty
 plan without a model call.
 
-Step three uses the pinned `gpt-5.4-mini-2026-03-17` model with low reasoning
-effort and medium output detail. Its prompt requires
+Step three uses pinned `gpt-5.4-2026-03-05` with medium reasoning, a
+32,768-token reasoning/output allowance and medium output detail. Its prompt requires
 sufficient scope for the confirmed claims, prerequisites, concrete configuration
 proposals, calibration, measurement collection and Supabase persistence, analysis,
 and a distinct validation action for each structured claim. It addresses every
@@ -185,9 +185,10 @@ manuscript without modifying its assessment. That run produced a structurally va
 coverage checks failed. Manual review also found technical choices that still
 need more precise operational settings. These are prompt-review limitations,
 not evidence that the experiment is execution-ready. Failed candidates remain
-in the private evaluation history. Medium reasoning exhausted the output budget
-in one candidate, so the current configuration retains low reasoning. This is
-an implementation for review and testing; Step 4 remains a stub.
+in the private evaluation history. Medium reasoning exhausted the smaller output budget in one historical
+candidate. The current profile uses full GPT-5.4 medium with a larger allowance.
+Step 4 now generates a shared setup script and numbered run commands; see
+[`paper-terminal-commands.md`](paper-terminal-commands.md).
 
 The hierarchical candidate was also exercised with one browser-free live call
 against an exposed synthetic fixture. It returned six stages and fifteen actions,
@@ -278,9 +279,9 @@ The existing schema depends on infrastructure migrations
 `202611120001_hierarchical_experiment_plans.sql` for hierarchical generation.
 Ordinary feature work does not apply production schema changes. No existing
 assessment is automatically confirmed.
-Automatic Ubuntu/Debian command generation in Step 3 is documented
-in [Step 3 terminal commands](paper-terminal-commands.md), including its per-action, explicitly requested
-database migration and browser-free evaluation workflow.
+Ubuntu/Debian shared command generation in Step 4 is documented in
+[Shared setup and run commands](paper-terminal-commands.md), including its
+database migrations and browser-free evaluation workflow.
 The isolated database regression is
 `python3 -B test/check_hierarchical_experiment_plans_database.py` in
 `jumpserve-infra`. It exercises the earlier review regression and then verifies
@@ -289,3 +290,12 @@ bounded nesting, source/claim coverage, original responses, owner/RLS checks,
 budgets, concurrent admission, prompt privacy, history, deletion and no worker
 dispatch. The earlier `check_experiment_plan_database.py` remains a fixed legacy
 schema regression.
+
+## Shared setup release
+
+Apply `202611170001_paper_assessment_model_profile.sql` and
+`202611170002_shared_experiment_scripts.sql` before the matching frontend. Step 3
+retains the numbered plan without per-action command controls. Continue to Step 4
+generates the shared implementation and commands. Existing confirmations, plans,
+model responses and command history are preserved. All new assessment requests
+use full GPT-5.4 medium; historical evaluations above describe their frozen profiles.

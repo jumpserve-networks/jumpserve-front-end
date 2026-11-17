@@ -1,154 +1,110 @@
-# Step 3 terminal commands
+# Step 4 shared setup and run commands
 
-Step 3 shows the saved numbered experiment outline immediately. Each action has
-its own **Generate Terminal Commands** button. Only clicking that button admits
-an asynchronous server-side OpenAI request for that action; opening, refreshing,
-expanding stages or navigating the wizard never generates commands. Other actions
-remain usable while one is processing. The step displays its own progress,
-cancellation, result, inputs and copy controls. Saved results load on demand.
+Step 3 shows the saved hierarchical experiment plan without generating terminal
+commands. **Continue to Step 4** opens **Setup & Run Commands**. Each experiment
+gets one asynchronous package containing a complete shared setup/helper script,
+commands under its original numbered actions, cleanup, and required environment
+inputs. Opening Step 4 first reads saved status and explicitly POSTs generation
+only when no package exists. GET requests never admit inference. No generated
+command is executed by the application.
 
-One bounded status read per experiment restores summaries without downloading
-command bodies or prompts. Pending actions poll their original saved response;
-failed or uncertain submissions can be checked without replaying inference.
-Duplicate clicks and concurrent callers reuse the same action admission. Each
-request retains its exact confirmed sections, complete experiment context,
-selected action, prompt, provider response, commands and immutable event history.
-The output contains exactly one numbered action, plus non-executable setup
-metadata, action-specific cleanup and required environment-input descriptions.
-Whole-experiment context never authorizes generating the other steps.
+Run the shared setup first on an Ubuntu/Debian Linux research host using Bash,
+then follow the numbered commands. The setup supplies the reusable program;
+actions call its subcommands and check their prerequisite data and resources.
+Each executable action and cleanup declares the setup prerequisite. Manual or
+blocked operations retain their explanation and have no executable command.
+Copy controls include a private workspace and an experiment-specific namespace
+prefix. Environment values are entered in the host terminal and never sent to
+the browser, database or model.
 
-Commands are optional aids within Step 3. They do not delay showing the outline
-or gate navigation to the Step 4 execution placeholder. Public outlines have no
-generation controls. No generated command is executed by this feature.
+All assessment generation now uses pinned `gpt-5.4-2026-03-05` with **medium**
+reasoning. Step 2 breakdown and Step 3 planning each allow 32,768 reasoning/output
+tokens. Step 4 allows 64,000 tokens for the entire package. The setup body permits
+200,000 characters, action/cleanup bodies 16,000 each, and the whole saved package
+250,000 UTF-8 bytes. These character bounds are structured-output/storage limits,
+separate from the token allowance. The shared setup targets compact reusable code without repeating a large
+program inside each action. A live 41-action draft hit an exact 64,000-character
+setup cut; that failed original response is retained. The new 200,000-character
+setup bound is separate from historical 64,000-character recipes. Incomplete heredocs and the observed unsafe
+unprivileged process-identity reads are rejected before a package becomes ready.
+Static checks do not establish runtime correctness or scientific validity.
 
-Commands target a **Ubuntu/Debian Linux research host with Bash**. Each numbered
-action supplies its own complete commands/scripts, dependency checks and local
-functions. There is no shared setup script or helper program. A block can use
-configuration, resource ownership or measurements produced by an earlier action;
-these data dependencies are listed and checked without running earlier scripts.
-Each action has copy controls, a sudo indication and completion check, or an
-explicit manual/blocking explanation. Cleanup includes its own code too.
-The copied blocks use one private workspace for consistent data paths. Environment inputs
-are entered in that host's terminal; their values never pass through the browser,
-model or database. Commands are generated text, not an execution or validation
-result. Step 4 remains a stub and this feature does not start workers or hosts.
+Frozen scientific acceptance criteria, exact confirmed evidence, trial scope,
+measurement endpoints and uncertainty rules remain unchanged. Dedicated claim
+actions with undefined acceptance criteria stay blocked. No authenticated manual
+measurement-ingestion contract has been selected for this flow, so raw upload
+and normalized Supabase ingestion actions remain blocked with a precise reason.
+Local acquisition and analysis can still be implemented. Generated code must
+retain measurements, provenance, failures and invalid/missing reasons; cleanup
+removes only verified owned runtime resources.
 
-The command profile uses pinned `gpt-5.4-2026-03-05`, medium reasoning and a
-16,000-token reasoning/output bound for each selected action. Each action has a 200-cent reservation that must fit within the
-original assessment limits, including earlier whole-experiment and individual calls; generation never enlarges those limits. All code
-required by an action must be included in that action's block; shared helper
-launchers and setup dependencies are rejected. Network changes must be namespace-scoped; obvious bare
-host `tc` mutations are rejected. Names and files derive from the assessment and
-experiment identity. The copied Bash wrapper checks Linux and preserves quoted
-heredocs. This is not a sandbox or a proof that generated code is correct: host
-capabilities and the generated instructions still require review before use.
+## Persistence and release order
 
-Unspecified scientific acceptance criteria stay unresolved. Their dedicated
-claim actions are forced to blocked/null commands by the provider schema and by
-both TypeScript and Postgres validation; a user cannot define a post-hoc rule
-through the generated final evaluation. The manual flow has
-no selected owner measurement-upload contract, so upload/ingestion actions are
-explicitly blocked while raw and normalized local files are retained. No API,
-database relation, uploaded result or credential is invented to conceal that
-integration gap. Installing ordinary packages and writing instrumentation are
-generation work, not questions for the user. Reported/fabricated paper values
-remain separate from independently collected data.
+After the existing terminal-command and individual-command migrations, apply:
 
-## Persistence and authorization
+1. `jumpserve-infra/database/202611170001_paper_assessment_model_profile.sql`
+2. `jumpserve-infra/database/202611170002_shared_experiment_scripts.sql`
+3. Deploy the matching frontend.
 
-Apply the existing terminal-command migrations, then
-`jumpserve-infra/database/202611160003_individual_step_commands.sql`, before
-deploying this frontend. It adds private `research_step_commands`,
-`research_step_command_events` and `research_step_command_prompt_uses` records.
-Their identity includes assessment, experiment and exact action reference.
-Earlier whole-experiment requests and command packages remain unchanged.
-New whole-experiment admissions are disabled; their existing calls can still be
-reconciled, completed or cancelled with the original identity. An earlier pending
-or uncertain experiment-wide call blocks overlapping individual admissions.
+The model migration adds full GPT-5.4 planning admission while preserving older
+pinned requests during rollout/rollback. It does not rewrite historical calls.
+The shared migration adds private `research_experiment_scripts`,
+`research_experiment_script_events` and `research_experiment_script_prompt_uses`.
+Each assessment/experiment/target admits one package. Source plan revision,
+confirmed sections, exact prompt/request, original provider identity, response,
+commands, reservations and event history are retained. Generic templates and
+model configuration appear in the existing `/prompts` catalogue; private paper
+content stays in the owner-only request history.
 
-The current individual layout is `action-v1`, in a separate workspace and
-namespace prefix from older `per-step-v1` and `shared-setup-v1` recipes. It does
-not overwrite their artifacts. Every generated action supplies its own complete
-program and checks actual prerequisite data/resources at runtime. The shared
-`step-manifest-v1` data contract describes output paths, roles, media types,
-column types/units and owned resources. Consumers inspect and validate actual
-manifests; they never import another step's code or assume prior execution.
-Cleanup covers only resources created by the selected step and preserves data.
+All new tables have RLS, no anonymous/authenticated SQL access and no direct
+service-role writes. The owner-only API accepts assessment, experiment and
+operation; it never accepts caller-supplied prompts, scripts or owner identity.
+Admission locks and independently selects the saved original/reviewed source,
+checks exact request/schema bounds, and enforces the original assessment deadline
+and aggregate budget. A 200-cent package reservation includes earlier intake,
+planning, whole-experiment and individual-command calls; it is not a measured
+provider charge. Concurrent requests reuse one admission. Failed, cancelled or
+uncertain requests are not automatically replaced.
 
-All three tables have RLS and no anonymous/authenticated SQL access or direct
-service-role writes. The owner-only API accepts a numbered step and operation,
-never caller prompts, scripts or requester identity. The SQL RPC independently
-selects the saved original/reviewed plan, validates the exact input and single-key
-output schema, locks admission, applies original budgets/deadlines, and admits
-one call per action. Atomic reservations include intake, planning, previous
-whole-experiment packages and every individual call. Frozen scientific acceptance
-criteria and source evidence remain unchanged. Viewing statuses never starts work.
+Earlier shared, standalone and individual requests remain unchanged and can
+finish or be cancelled with their original provider identity. New individual
+admissions are retired. Pending or uncertain earlier calls fence overlapping
+shared generation. Unknown submissions require reconciliation rather than replay.
+Step 4 exposes cancellation for known pending calls. New shared workspaces use
+`shared-setup-v2` and an `s` namespace prefix, separate from earlier layouts.
+Pending shared calls block assessment deletion; completed private history is
+retained after deletion.
 
-Duplicate generations reuse the same call. Unknown submissions are never replayed.
-Polling retrieves the saved response; cancellation reconciles that identity.
-Completed outputs are immutable and bound to the original response JSON. Pending
-or uncertain generations block assessment deletion until cancelled/reconciled;
-deleting a completed assessment preserves its private command history.
-Generic templates/configuration are versioned in the existing prompt catalogue,
-without including private paper content. Prompt uses and original provider
-responses remain linked to the command record.
-
-## Browser-free checks
+## Browser-free prompt evaluation
 
 ```sh
-npm run eval:terminal-commands -- --step 1.2.3
-npm run eval:terminal-commands -- --live --run candidate-01 --assessment UUID --step 1.2.3
-npm run eval:terminal-commands -- --live --run candidate-02 --from-plan FILE --experiment 1 --step 1.2.3
-npm run eval:terminal-commands -- --replay candidate-01
+npm run eval:experiment-scripts
+npm run eval:experiment-scripts -- --live --run shared-candidate-01 --assessment UUID
+npm run eval:experiment-scripts -- --live --run shared-candidate-02 --from-plan FILE --experiment 1
+npm run eval:experiment-scripts -- --replay shared-candidate-01
 ```
 
-An optional `--prompt FILE` freezes a candidate prompt with a new live run.
-Each named run makes at most one model call; rerunning retrieves its response.
-Assessment reads use the project-scoped Supabase MCP. Evaluations write no
-database records and execute no generated commands. Private requests, original
-responses and reports stay under `.test-artifacts/terminal-command-evaluations`.
-The CLI checks full step coverage, ordered prerequisite identities, structured
-output bounds, Bash syntax using `bash -n`, and recognized Python heredocs using
-`ast.parse`, including embedded Python helper strings. It also checks known
-local helper calls for unsupported keyword arguments and known invalid
-conditional numeric formatting. It never imports or runs
-the generated Python. These checks do not
-establish runtime correctness or scientific validity. Keep failed evaluations and manual
-reviews rather than treating syntactic success as successful reproduction.
+`FILE` contains `study_id`, `plan` and `confirmed_breakdown`. An optional
+`--prompt FILE` freezes candidate instructions. Named runs make at most one model
+call. Shared packages poll for up to 15 minutes. Rerunning the same live command
+retrieves the original response when it is still pending after that window. Different inputs require
+a new name. Assessment reads use project-scoped Supabase MCP; evaluations make no
+database writes and execute no generated code. Private inputs, original responses
+and reports stay under `.test-artifacts/terminal-command-evaluations`.
 
-The initial mini-model trial for the current retained paper passed syntax checks
-but was rejected on review for inconsistent variables, unscoped traffic-control
-commands, trial conditions recorded without actual application, and cleanup that
-deleted metadata. A primary-model medium-reasoning trial exhausted its original
-20,000-token bound and was retained as incomplete. The strengthened low-reasoning
-profile and namespace guard addressed some observed failures. Further review
-rejected obsolete package requirements, post-hoc acceptance inputs, missing sudo
-handling, unsafe repeat behavior and a one-shot receiver consumed by its own
-readiness probe. The current instructions require a persistent receiver, passive
-listener checks, PID/starttime/namespace identity verification, a Python bootstrap,
-owned namespace probes and an exclusive acquisition marker. Rejected drafts and
-their content reviews remain private evaluation artifacts; syntax success alone
-never qualifies a draft as a working experiment. The current medium-reasoning
-profile has a larger reasoning/output allowance because low-reasoning drafts
-still contained cross-helper call errors. The larger live draft covered all 23
-actions (19 terminal, four blocked) and passed its initial parsing checks; content
-review then found missing-value formatting and interrupted-cleanup limitations.
-The instructions now address those cases, and the missing-value branch fails
-the strengthened static replay. Those earlier evaluations used the shared-program
-layout. The per-step prompt embeds code separately in each action and cleanup,
-while retaining real data dependencies, and is evaluated under new frozen run
-names. Linux execution remains unqualified until explicitly tested on a suitable
-host. No experimental measurement was produced by the evaluation workflow.
+The evaluator checks saved source coverage, ordered prerequisites, structured
+bounds, heredoc completeness, Bash parsing with `bash -n`, and recognized Python
+heredocs with `ast.parse`. It checks known local-helper keyword and formatting
+errors without importing generated Python. Keep failed responses and content
+reviews; syntactic success does not qualify an experiment for execution. Earlier
+individual/standalone evaluations remain replayable through
+`npm run eval:terminal-commands -- --replay NAME`; `--step` is retained only for
+explicit historical individual-profile comparisons.
 
-The first retained per-step draft covers 23 actions: 19 terminal and four blocked.
-All 19 terminal actions and cleanup include their own inline Python programs and
-passed initial Bash/Python parsing, without an executable setup block or shared
-code imports. Content review then caught unprivileged root-process identity
-reads in acquisition/cleanup. The prompt now explicitly requires sudo for these
-reads, and TypeScript/Postgres guards reject the observed pattern. Static replay
-retains that failure; it is not a qualified experiment recipe.
-
-Run `test/check_step_commands_database.py` in the infrastructure repository
-for the isolated Postgres flow, role/owner restrictions, exact source and action
-parity, concurrent admission, aggregate budget checks, original call identity,
-response-bound single-action storage, legacy reconciliation, aggregate budgets, immutable history and deletion behavior. The earlier whole-experiment regression remains available as `test/check_terminal_commands_database.py`.
+Run `test/check_shared_experiment_scripts_database.py` in the infrastructure
+repository for isolated Postgres checks covering the entire preceding migration
+chain, new full/medium planning, JS/SQL validator parity, old pending-call
+reconciliation, concurrent admission, aggregate budgets, private grants, prompt
+history, original-response binding, immutability and assessment deletion.
+Earlier evaluations and the 2026-11-16 model benchmark remain historical evidence
+for their frozen prompts and limits, rather than qualifications of this package.

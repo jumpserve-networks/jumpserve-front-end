@@ -15,11 +15,11 @@ afterEach(cleanup);
 test('upload starts at step one with all four stages visible and later stages disabled',()=>{
  const selected=[];render(React.createElement(PaperAssessmentSteps,{onStep:step=>selected.push(step)}));
  const upload=screen.getByRole('button',{name:'Step 1: Paper Upload'});assert.equal(upload.getAttribute('href'),'/research-verification/new-assessment');assert.equal(upload.getAttribute('aria-current'),'step');
- for(const name of ['Step 2: Initial Assessment','Step 3: Experiment Steps','Step 4: Run Experiments']){const button=screen.getByRole('button',{name});assert.equal(button.disabled,true);fireEvent.click(button);}
+ for(const name of ['Step 2: Initial Assessment','Step 3: Experiment Steps','Step 4: Setup & Run Commands']){const button=screen.getByRole('button',{name});assert.equal(button.disabled,true);fireEvent.click(button);}
  assert.deepEqual(selected,[]);
 });
 test('a ready plan enables step four navigation while upload remains a separate route',()=>{
  const selected=[];render(React.createElement(PaperAssessmentSteps,{current:'implementation',assessment:true,implementation:true,execution:true,onStep:step=>selected.push(step)}));
- assert.equal(screen.getByRole('button',{name:'Step 3: Experiment Steps'}).getAttribute('aria-current'),'step');fireEvent.click(screen.getByRole('button',{name:'Step 4: Run Experiments'}));assert.deepEqual(selected,['execution']);
+ assert.equal(screen.getByRole('button',{name:'Step 3: Experiment Steps'}).getAttribute('aria-current'),'step');fireEvent.click(screen.getByRole('button',{name:'Step 4: Setup & Run Commands'}));assert.deepEqual(selected,['execution']);
  assert.equal(screen.getByRole('button',{name:'Step 1: Paper Upload'}).getAttribute('href'),'/research-verification/new-assessment');
 });

@@ -4,13 +4,14 @@ import { PAPER_SOURCE_FORMAT_V6, paperSources, sourceLabeledPages } from "./pape
 import { validPaperDependencies } from "./paper-detail-dependencies";
 import { validDocumentEvidence, validItemEvidence, type PaperDocumentEvidence, type PaperItemEvidence } from "./paper-breakdown-evidence";
 import { paperSourceNavigation } from "./paper-evidence-index";
+import { PAPER_ASSESSMENT_MODEL, PAPER_ASSESSMENT_REASONING } from "./paper-assessment-model";
 
-export const PAPER_INTAKE_MODEL = "gpt-5.4-2026-03-05";
+export const PAPER_INTAKE_MODEL = PAPER_ASSESSMENT_MODEL;
 export const PAPER_INTAKE_SUPPORTED_MODELS = [PAPER_INTAKE_MODEL, "gpt-5.4-mini-2026-03-17"] as const;
 export const PAPER_INTAKE_POLICY_VERSION = "paper-intake-one-pass-v1";
 export const PAPER_INTAKE_MAX_TEXT_BYTES = 200_000;
 export const PAPER_INTAKE_MAX_PAGES = 200;
-export const PAPER_INTAKE_MAX_OUTPUT_TOKENS = 12_000;
+export const PAPER_INTAKE_MAX_OUTPUT_TOKENS = 32_768;
 export const PAPER_INTAKE_RESERVATION_CENTS = 100;
 export const sha256 = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 export type PaperText = { pages: { page: number; text: string }[]; totalPages: number };
@@ -93,7 +94,7 @@ export function paperModelRequest(paper: PaperText) {
   const input = JSON.stringify({ source: "Original PDF text, in PDF page order", pages });
   if (Buffer.byteLength(input) > PAPER_INTAKE_MAX_TEXT_BYTES) throw new Error("The paper exceeds the phase-one text limit. No pages were truncated or sent to the model.");
   const schema = { ...PAPER_INTAKE_SCHEMA, $defs: { source_reference: { type: "string", enum: sources.map(source => source.ref) } } };
-  return { model: PAPER_INTAKE_MODEL, instructions: PAPER_INTAKE_INSTRUCTIONS, input, background: true as const, store: true, reasoning: { effort: "low" as const }, max_output_tokens: PAPER_INTAKE_MAX_OUTPUT_TOKENS, text: { format: { type: "json_schema" as const, name: PAPER_SOURCE_FORMAT_V6, strict: true, schema } } };
+  return { model: PAPER_INTAKE_MODEL, instructions: PAPER_INTAKE_INSTRUCTIONS, input, background: true as const, store: true, reasoning: { ...PAPER_ASSESSMENT_REASONING }, max_output_tokens: PAPER_INTAKE_MAX_OUTPUT_TOKENS, text: { format: { type: "json_schema" as const, name: PAPER_SOURCE_FORMAT_V6, strict: true, schema } } };
 }
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const text = (v: unknown, max: number): v is string => typeof v === "string" && v.trim().length > 0 && [...v].length <= max;
