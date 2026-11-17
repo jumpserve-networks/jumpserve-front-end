@@ -6,7 +6,7 @@ import React from 'react';
 import {act,cleanup,fireEvent,render,screen,within} from '@testing-library/react';
 import {breakdownFixture,planFixture} from './support/experiment-plan-fixture.mjs';
 import {implementationBreakdown,hierarchicalImplementationPlan,granularImplementationPlan} from './support/implementation-plan-fixture.mjs';
-import {stepSummary} from './support/step-command-fixture.mjs';
+import {experimentScriptsView} from './support/experiment-scripts-fixture.mjs';
 import {confirmPaperSections} from '../lib/paper-experiment-plan.ts';
 globalThis.__planComponent={};
 globalThis.__planReact=React;
@@ -23,10 +23,9 @@ beforeEach(()=>{
  post=async body=>{const b=breakdownFixture();for(const section of Object.keys(b.sections))b.sections[section]=body.sections[section].map(item=>({...b.sections[section].find(s=>s.id===item.id),description:item.description}));return view={...view,stage:'processing',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:b};};
  globalThis.fetch=async(url,options)=>{
   assert.equal(options.headers.Authorization,'Bearer verified-owner');
-  if(url.includes('/api/step-commands?')){
+  if(url.includes('/api/experiment-scripts?')){
    terminalCalls.push({url,options});const index=Number(new URL(url,'https://example.test').searchParams.get('experiment'));
-   assert.notEqual(options.method,'POST','Planning and navigation must never generate commands');
-   return Response.json(stepSummary(id,new Map(),view.plan,index));
+   const saved=experimentScriptsView(id,'processing');saved.experiment_index=index;return Response.json(saved);
   }
   assert.match(url,/api\/experiment-plan\?id=/);calls.push({url,options});return Response.json(options.method==='POST'?await post(JSON.parse(options.body)):view);
  };
@@ -90,7 +89,7 @@ test('ready plans show generated stages and actions without repeating source exp
  for(const item of breakdown.sections.experiment)for(const detail of Object.values(item.specification))assert.equal(screen.queryByText(detail),null);
  for(const label of ['Setup','Procedure','Conditions','Comparisons'])assert.equal(screen.queryByText(label,{exact:true}),null);
  assert.ok(screen.getAllByText('Confirmed supporting details').length>0);assert.equal(calls.filter(c=>c.options.method==='POST').length,0);
- assert.deepEqual(terminalCalls.map(c=>Number(new URL(c.url,'https://example.test').searchParams.get('experiment'))),[1,2]);assert.equal(terminalCalls.filter(c=>c.options.method==='POST').length,0);
+ assert.deepEqual(terminalCalls,[]);assert.equal(terminalCalls.filter(c=>c.options.method==='POST').length,0);
 });
 test('stages collapse and expand locally without new planning requests or changing the saved hierarchy',async()=>{
  const plan=hierarchicalImplementationPlan();view={...view,stage:'ready',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:implementationBreakdown(),plan};await wizard();
@@ -108,33 +107,33 @@ test('failed status reads leave confirmation disabled and can be checked again',
  globalThis.fetch=async()=>Response.json({error:'Database update required'},{status:424});await show();assert.ok(screen.getByText('Database update required'));assert.equal(screen.queryByRole('button',{name:/Confirm phase one/}),null);
 });
 const wizard=()=>show({wizard:true});
-test('wizard navigation reads saved per-step statuses without starting any command generation',async()=>{
+test('Step 3 never requests scripts; Step 4 reads its saved packages',async()=>{
  view={...view,stage:'ready',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture(),plan:planFixture()};globalThis.__planComponent.search='step=breakdown';await wizard();assert.equal(terminalCalls.length,0);
- await click('Next: Experiment Steps');assert.deepEqual(terminalCalls.map(c=>c.options.method),[undefined]);assert.equal(screen.queryByRole('button',{name:'Generate terminal commands'}),null);
- await click('Next: Run Experiments');assert.equal(terminalCalls.length,1);await click('Back to Experiment Steps');assert.deepEqual(terminalCalls.map(c=>c.options.method),[undefined,undefined]);
+ await click('Next: Experiment Steps');assert.deepEqual(terminalCalls,[]);assert.equal(screen.queryByRole('button',{name:'Generate terminal commands'}),null);
+ await click('Continue to Step 4');assert.deepEqual(terminalCalls.map(c=>c.options.method),['GET']);await click('Back to Experiment Steps');assert.equal(terminalCalls.length,1);
  await click('Step 2: Initial Assessment');assert.equal(terminalCalls.filter(c=>c.options.method==='POST').length,0);
 });
 test('wizard shows only the breakdown before confirmation and guards direct future-step URLs',async()=>{
  globalThis.__planComponent.search='step=execution&from=retained';await wizard();
  assert.ok(screen.getByRole('heading',{name:'Paper breakdown'}));assert.equal(screen.queryByRole('heading',{name:'Experiment Steps'}),null);assert.equal(screen.queryByText('Experiment execution is coming soon.'),null);
- assert.equal(screen.getByRole('button',{name:'Step 2: Initial Assessment'}).getAttribute('aria-current'),'step');assert.equal(screen.getByRole('button',{name:'Step 3: Experiment Steps'}).disabled,true);assert.equal(screen.getByRole('button',{name:'Step 4: Run Experiments'}).disabled,true);assert.equal(screen.getByRole('button',{name:'Continue to Step 3'}).disabled,false);
+ assert.equal(screen.getByRole('button',{name:'Step 2: Initial Assessment'}).getAttribute('aria-current'),'step');assert.equal(screen.getByRole('button',{name:'Step 3: Experiment Steps'}).disabled,true);assert.equal(screen.getByRole('button',{name:'Step 4: Setup & Run Commands'}).disabled,true);assert.equal(screen.getByRole('button',{name:'Continue to Step 3'}).disabled,false);
  await click('Edit Data detail 1');assert.equal(screen.getByRole('button',{name:'Continue to Step 3'}).disabled,true);assert.equal(screen.getByRole('button',{name:'Step 1: Paper Upload'}).getAttribute('aria-disabled'),'true');fireEvent.change(screen.getByRole('textbox',{name:'Data detail 1 description'}),{target:{value:'Reviewed measurement'}});await click('Save Data detail 1');
  await act(async()=>{globalThis.__planComponent.push('?step=implementation');});assert.ok(screen.getByText('Reviewed measurement'));assert.equal(screen.queryByRole('textbox'),null);assert.equal(calls.filter(c=>c.options.method==='POST').length,0);
 });
 test('confirmation advances to implementation; back navigation retains the confirmed snapshot without another submission',async()=>{
  globalThis.__planComponent.search='from=retained';await wizard();await editDetail('Data detail 1','Confirmed edited measurement');await click('Continue to Step 3');
- assert.ok(screen.getByRole('heading',{name:'Experiment Steps'}));assert.equal(screen.queryByRole('heading',{name:'Paper breakdown'}),null);assert.equal(screen.queryByText('Experiment execution is coming soon.'),null);assert.equal(screen.getByRole('button',{name:'Next: Run Experiments'}).disabled,true);
+ assert.ok(screen.getByRole('heading',{name:'Experiment Steps'}));assert.equal(screen.queryByRole('heading',{name:'Paper breakdown'}),null);assert.equal(screen.queryByText('Experiment execution is coming soon.'),null);assert.equal(screen.getByRole('button',{name:'Continue to Step 4'}).disabled,true);
  assert.match(globalThis.__planComponent.pushes.at(-1).url,/from=retained&step=implementation/);assert.deepEqual(globalThis.__planComponent.pushes.at(-1).options,{scroll:false});assert.equal(document.activeElement,screen.getByRole('region',{name:'Experiment Steps step'}));
  await click('Back to Initial Assessment');assert.ok(screen.getByText('Confirmed edited measurement'));assert.equal(screen.queryByText(/^Phase one confirmed/),null);assert.equal(screen.queryByRole('textbox'),null);assert.equal(screen.queryByRole('button',{name:'Continue to Step 3'}),null);await click('Next: Experiment Steps');assert.equal(calls.filter(c=>c.options.method==='POST').length,1);
 });
-test('ready wizard resumes implementation and visits the execution placeholder without any launch or queue request',async()=>{
- view={...view,stage:'ready',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture(),plan:planFixture()};await wizard();assert.ok(screen.getByRole('heading',{name:'Experiment Steps'}));assert.equal(screen.queryByRole('heading',{name:'Paper breakdown'}),null);await click('Next: Run Experiments');assert.ok(screen.getByText('Experiment execution is coming soon.'));assert.equal(screen.queryByRole('heading',{name:'Experiment Steps'}),null);assert.equal(screen.queryByRole('heading',{name:'Paper breakdown'}),null);assert.equal(screen.getByRole('button',{name:'Step 4: Run Experiments'}).getAttribute('aria-current'),'step');assert.equal(screen.getByRole('button',{name:'Run experiments',exact:true}).disabled,true);await click('Back to Experiment Steps');await click('Step 2: Initial Assessment');assert.ok(screen.getByRole('heading',{name:'Paper breakdown'}));assert.equal(calls.filter(c=>c.options.method==='POST').length,0);
+test('ready wizard resumes implementation and opens shared setup without a launch request',async()=>{
+ view={...view,stage:'ready',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture(),plan:planFixture()};await wizard();assert.ok(screen.getByRole('heading',{name:'Experiment Steps'}));assert.equal(screen.queryByRole('heading',{name:'Paper breakdown'}),null);await click('Continue to Step 4');assert.ok(screen.getByRole('heading',{name:'Setup & Run Commands'}));assert.equal(screen.queryByRole('heading',{name:'Experiment Steps'}),null);assert.equal(screen.queryByRole('heading',{name:'Paper breakdown'}),null);assert.equal(screen.getByRole('button',{name:'Step 4: Setup & Run Commands'}).getAttribute('aria-current'),'step');assert.equal(screen.queryByRole('button',{name:'Run experiments',exact:true}),null);await click('Back to Experiment Steps');await click('Step 2: Initial Assessment');assert.ok(screen.getByRole('heading',{name:'Paper breakdown'}));assert.equal(calls.filter(c=>c.options.method==='POST').length,0);
 });
-test('retired queue URLs open the placeholder and survive reload and browser back selects a prior step without new writes',async()=>{
- view={...view,stage:'ready',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture(),plan:planFixture()};globalThis.__planComponent.search='step=queue';await wizard();assert.ok(screen.getByText('Experiment execution is coming soon.'));await act(async()=>{globalThis.__planComponent.search='step=breakdown';for(const callback of globalThis.__planComponent.listeners)callback();});assert.ok(screen.getByRole('heading',{name:'Paper breakdown'}));assert.equal(screen.queryByText('Experiment execution is coming soon.'),null);assert.equal(calls.length,1);
+test('retired queue URLs open shared setup and survive reload and browser back selects a prior step without new writes',async()=>{
+ view={...view,stage:'ready',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture(),plan:planFixture()};globalThis.__planComponent.search='step=queue';await wizard();assert.ok(screen.getByRole('heading',{name:'Setup & Run Commands'}));await act(async()=>{globalThis.__planComponent.search='step=breakdown';for(const callback of globalThis.__planComponent.listeners)callback();});assert.ok(screen.getByRole('heading',{name:'Paper breakdown'}));assert.equal(screen.queryByText('Experiment execution is coming soon.'),null);assert.equal(calls.length,1);
 });
 test('failed and uncertain planning stay on implementation and cannot advance to the execution placeholder',async()=>{
- for(const stage of ['failed','uncertain','cancelled']){view={...view,stage,confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture()};globalThis.__planComponent.search='step=queue';await wizard();assert.ok(screen.getByRole('heading',{name:'Experiment Steps'}));assert.equal(screen.getByRole('button',{name:'Next: Run Experiments'}).disabled,true);assert.equal(screen.getByRole('button',{name:'Step 4: Run Experiments'}).disabled,true);cleanup();}
+ for(const stage of ['failed','uncertain','cancelled']){view={...view,stage,confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture()};globalThis.__planComponent.search='step=queue';await wizard();assert.ok(screen.getByRole('heading',{name:'Experiment Steps'}));assert.equal(screen.getByRole('button',{name:'Continue to Step 4'}).disabled,true);assert.equal(screen.getByRole('button',{name:'Step 4: Setup & Run Commands'}).disabled,true);cleanup();}
  assert.equal(calls.filter(c=>c.options.method==='POST').length,0);
 });
 test('the wizard stays above the paper header across steps without remounting metadata or repeating planning requests',async()=>{
@@ -142,7 +141,7 @@ test('the wizard stays above the paper header across steps without remounting me
  function PaperHeader(){React.useEffect(()=>{mounts++;},[]);return React.createElement('header',null,React.createElement('h1',null,'Retained paper heading'));}
  view={...view,stage:'ready',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture(),plan:planFixture()};await show({wizard:true,header:React.createElement(PaperHeader)});
  const checkOrder=()=>{const nav=screen.getByRole('navigation',{name:'Assessment steps'}),header=screen.getByRole('heading',{name:'Retained paper heading'});assert.ok(nav.compareDocumentPosition(header)&Node.DOCUMENT_POSITION_FOLLOWING);assert.equal(screen.getAllByRole('navigation',{name:'Assessment steps'}).length,1);assert.equal(screen.getAllByRole('heading',{level:1}).length,1);};
- checkOrder();await click('Next: Run Experiments');checkOrder();await click('Step 2: Initial Assessment');checkOrder();assert.ok(screen.getByRole('heading',{name:'Paper breakdown'}));assert.equal(mounts,1);assert.equal(calls.length,1);assert.equal(calls.filter(c=>c.options.method==='POST').length,0);
+ checkOrder();await click('Continue to Step 4');checkOrder();await click('Step 2: Initial Assessment');checkOrder();assert.ok(screen.getByRole('heading',{name:'Paper breakdown'}));assert.equal(mounts,1);assert.equal(calls.length,1);assert.equal(calls.filter(c=>c.options.method==='POST').length,0);
 });
 test('granular actions keep experiment, stage and action numbering with independent instructions and original evidence',async()=>{
  const breakdown=implementationBreakdown(),plan=granularImplementationPlan();

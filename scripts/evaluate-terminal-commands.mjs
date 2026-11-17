@@ -8,9 +8,11 @@ import env from '@next/env';
 import OpenAI from 'openai';
 import {terminalCommandsRequest} from '../lib/paper-terminal-commands-model.ts';
 import {stepCommandsRequest} from '../lib/paper-step-commands-model.ts';
+import {experimentScriptsRequest} from '../lib/paper-experiment-scripts-model.ts';
+import {experimentScriptsFixture} from '../tests/support/experiment-scripts-fixture.mjs';
 import {stepCommandFixture} from '../tests/support/step-command-fixture.mjs';
 import {readTerminalCommands} from '../lib/paper-terminal-commands-runner.ts';
-import {TERMINAL_COMMAND_LAYOUT,LEGACY_TERMINAL_LAYOUT,INDIVIDUAL_TERMINAL_LAYOUT,terminalActionRefs} from '../lib/paper-terminal-commands.ts';
+import {TERMINAL_COMMAND_LAYOUT,LEGACY_TERMINAL_LAYOUT,INDIVIDUAL_TERMINAL_LAYOUT,SHARED_TERMINAL_LAYOUT,terminalActionRefs} from '../lib/paper-terminal-commands.ts';
 import {validateExperimentPlan} from '../lib/paper-experiment-plan.ts';
 import {applyExperimentPlanLinkReview} from '../lib/paper-experiment-plan-review.ts';
 import {sha256} from '../lib/paper-intake-model.ts';
@@ -21,7 +23,7 @@ import {terminalCommandFixture,terminalFixtureRecord} from '../tests/support/ter
 import {terminalSyntaxChecks,terminalCommandText} from './lib/terminal-command-checks.mjs';
 const uuid=value=>/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value??'');
 const identity=run=>sha256(JSON.stringify({source:run.source,index:run.index,request:run.request,...(run.command_layout?{command_layout:run.command_layout}:{}),...(run.action_ref?{action_ref:run.action_ref}:{})}));
-const layout=run=>{const value=run.command_layout??LEGACY_TERMINAL_LAYOUT;if(![TERMINAL_COMMAND_LAYOUT,LEGACY_TERMINAL_LAYOUT,INDIVIDUAL_TERMINAL_LAYOUT].includes(value))throw new Error('Unknown saved command layout.');return value;};
+const layout=run=>{const value=run.command_layout??LEGACY_TERMINAL_LAYOUT;if(![TERMINAL_COMMAND_LAYOUT,LEGACY_TERMINAL_LAYOUT,INDIVIDUAL_TERMINAL_LAYOUT,SHARED_TERMINAL_LAYOUT].includes(value))throw new Error('Unknown saved command layout.');return value;};
 function grade(run){
  if(run.identity!==identity(run))throw new Error('The saved command-generation inputs changed.');
  validateExperimentPlan(run.source.plan,run.source.confirmed_breakdown);
@@ -35,17 +37,20 @@ async function saveCommands(directory,run){
  await privateJSON(join(directory,'commands.json'),set);await writeFile(join(directory,'commands.txt'),terminalCommandText(set,run.source,run.index,layout(run),run.action_ref),{mode:0o600});
 }
 async function main(){
- const {values}=parseArgs({options:{live:{type:'boolean'},run:{type:'string'},replay:{type:'string'},assessment:{type:'string'},'from-plan':{type:'string'},experiment:{type:'string'},step:{type:'string'},prompt:{type:'string'},help:{type:'boolean'}}});
- if(values.help){console.log('npm run eval:terminal-commands\nnpm run eval:terminal-commands -- --live --run NAME --assessment UUID [--experiment 1] [--step 1.2.3] [--prompt FILE]\nnpm run eval:terminal-commands -- --live --run NAME --from-plan FILE [--experiment 1] [--step 1.2.3]\nnpm run eval:terminal-commands -- --replay NAME\nOffline by default; at most one model call per frozen run. Assessment reads use Supabase MCP, output stays private on disk, and no database writes or generated command execution occur.');return;}
+ const {values}=parseArgs({options:{live:{type:'boolean'},run:{type:'string'},replay:{type:'string'},assessment:{type:'string'},'from-plan':{type:'string'},experiment:{type:'string'},step:{type:'string'},shared:{type:'boolean'},prompt:{type:'string'},help:{type:'boolean'}}});
+ if(values.help){console.log('npm run eval:experiment-scripts\nnpm run eval:experiment-scripts -- --live --run NAME --from-plan FILE [--experiment 1]\nnpm run eval:experiment-scripts -- --replay NAME\nnpm run eval:terminal-commands\nnpm run eval:terminal-commands -- --live --run NAME --assessment UUID [--experiment 1] [--step 1.2.3] [--prompt FILE]\nnpm run eval:terminal-commands -- --live --run NAME --from-plan FILE [--experiment 1] [--step 1.2.3]\nnpm run eval:terminal-commands -- --replay NAME\nOffline by default; at most one model call per frozen run. Assessment reads use Supabase MCP, output stays private on disk, and no database writes or generated command execution occur.');return;}
+ if(values.shared&&values.step)throw new Error('Choose shared Step 4 scripts or a historical individual step, not both.');
+ const commandLayout=values.shared?SHARED_TERMINAL_LAYOUT:values.step?INDIVIDUAL_TERMINAL_LAYOUT:TERMINAL_COMMAND_LAYOUT;
+ const buildRequest=(source,index)=>values.shared?experimentScriptsRequest(source.study_id,index,source.plan,source.confirmed_breakdown):values.step?stepCommandsRequest(source.study_id,index,values.step,source.plan,source.confirmed_breakdown):terminalCommandsRequest(source.study_id,index,source.plan,source.confirmed_breakdown);
  const name=values.replay??values.run;if(name&&!RUN_NAME.test(name))throw new Error('Use a bounded run name with letters, numbers, dots, underscores or hyphens.');
  const directory=name?resolve('.test-artifacts/terminal-command-evaluations',name):null;
  if(values.replay){
   if(values.live||values.run||values.assessment||values['from-plan']||values.prompt||values.experiment||values.step)throw new Error('Replay uses only frozen inputs and the saved response.');
-  const saved=await readJSON(join(directory,'run.json'));if(!saved?.response)throw new Error('No saved command response exists.');const report={mode:'replay',...grade(saved),model_calls:0};await privateJSON(join(directory,'replay-'+Date.now()+'.json'),report);if(report.passed)await saveCommands(directory,saved);console.log(JSON.stringify(report));if(!report.passed)process.exitCode=1;return;
+  const saved=await readJSON(join(directory,'run.json'));if(!saved?.response)throw new Error('No saved command response exists.');if(values.shared&&layout(saved)!==SHARED_TERMINAL_LAYOUT)throw new Error('This frozen run uses an earlier command layout.');const report={mode:'replay',...grade(saved),model_calls:0};await privateJSON(join(directory,'replay-'+Date.now()+'.json'),report);if(report.passed)await saveCommands(directory,saved);console.log(JSON.stringify(report));if(!report.passed)process.exitCode=1;return;
  }
  if(!values.live){
   if(name||values.assessment||values['from-plan']||values.prompt||values.experiment)throw new Error('Use --live for an intentional new provider evaluation.');
-  const fixture=terminalFixtureRecord(),source={study_id:fixture.study_id,plan:fixture.source_plan,confirmed_breakdown:fixture.confirmed_breakdown},request=values.step?stepCommandsRequest(source.study_id,1,values.step,source.plan,source.confirmed_breakdown):terminalCommandsRequest(source.study_id,1,source.plan,source.confirmed_breakdown),saved={source,index:1,request,command_layout:values.step?INDIVIDUAL_TERMINAL_LAYOUT:TERMINAL_COMMAND_LAYOUT,...(values.step?{action_ref:values.step}:{}),response:{id:'resp_fixture',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(values.step?stepCommandFixture(values.step,source.plan,source.confirmed_breakdown):terminalCommandFixture())}]}]}};saved.identity=identity(saved);console.log(JSON.stringify({mode:'offline',...grade(saved),model_calls:0}));return;
+  const fixture=terminalFixtureRecord(),source={study_id:fixture.study_id,plan:fixture.source_plan,confirmed_breakdown:fixture.confirmed_breakdown},request=buildRequest(source,1),saved={source,index:1,request,command_layout:commandLayout,...(values.step?{action_ref:values.step}:{}),response:{id:'resp_fixture',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(values.shared?experimentScriptsFixture():values.step?stepCommandFixture(values.step,source.plan,source.confirmed_breakdown):terminalCommandFixture())}]}]}};saved.identity=identity(saved);console.log(JSON.stringify({mode:'offline',...grade(saved),model_calls:0}));return;
  }
  if(!directory)throw new Error('Name every intentional live evaluation with --run.');
  if(values.assessment&&values['from-plan'])throw new Error('Choose one source.');
@@ -54,6 +59,7 @@ async function main(){
  try{
   env.loadEnvConfig(process.cwd());let saved=await readJSON(join(directory,'run.json'));
   if(saved){
+   if(values.shared&&layout(saved)!==SHARED_TERMINAL_LAYOUT)throw new Error('The saved run uses an earlier command layout.');
    if(saved.identity!==identity(saved)||saved.index!==index||(saved.action_ref??null)!==(values.step??null)||values.assessment&&values.assessment!==saved.source.study_id)throw new Error('Saved run inputs conflict with this invocation.');
    if(values['from-plan']){const current=JSON.parse(await readFile(values['from-plan'],'utf8'));if(!isDeepStrictEqual({study_id:current.study_id,plan:current.plan,confirmed_breakdown:current.confirmed_breakdown},saved.source))throw new Error('The supplied source differs from the frozen evaluation. Use a new run name.');}
    if(values.prompt&&await readFile(values.prompt,'utf8')!==saved.request.instructions)throw new Error('The candidate prompt differs from the frozen evaluation. Use a new run name.');
@@ -68,9 +74,9 @@ async function main(){
    }else if(values['from-plan']){const value=JSON.parse(await readFile(values['from-plan'],'utf8'));source={study_id:value.study_id,plan:value.plan,confirmed_breakdown:value.confirmed_breakdown};}
    else throw new Error('Choose --assessment or --from-plan.');
    if(!uuid(source.study_id))throw new Error('The source assessment identity is invalid.');validateExperimentPlan(source.plan,source.confirmed_breakdown);
-   let request=values.step?stepCommandsRequest(source.study_id,index,values.step,source.plan,source.confirmed_breakdown):terminalCommandsRequest(source.study_id,index,source.plan,source.confirmed_breakdown);
+   let request=buildRequest(source,index);
    if(values.prompt){const instructions=await readFile(values.prompt,'utf8');if(!instructions.trim()||instructions.length>40000)throw new Error('Use bounded prompt instructions.');request={...request,instructions};}
-   saved={source,index,request,command_layout:values.step?INDIVIDUAL_TERMINAL_LAYOUT:TERMINAL_COMMAND_LAYOUT,...(values.step?{action_ref:values.step}:{}),status:'prepared',token:randomUUID(),created_at:new Date().toISOString()};saved.identity=identity(saved);await privateJSON(join(directory,'run.json'),saved);
+   saved={source,index,request,command_layout:commandLayout,...(values.step?{action_ref:values.step}:{}),status:'prepared',token:randomUUID(),created_at:new Date().toISOString()};saved.identity=identity(saved);await privateJSON(join(directory,'run.json'),saved);
   }
   if(!saved.response_id&&saved.status!=='prepared')throw new Error('The original submission is retained and will not be repeated automatically.');
   const model=new OpenAI({apiKey:process.env.OPENAI_API_KEY,maxRetries:0,timeout:25000});
@@ -79,7 +85,7 @@ async function main(){
    try{const response=await model.responses.create(saved.request,{headers:{'X-Client-Request-Id':saved.token}});saved={...saved,response_id:response.id,response,status:response.status};await privateJSON(join(directory,'run.json'),saved);}
    catch(error){saved.status='uncertain';await privateJSON(join(directory,'run.json'),saved);throw error;}
   }
-  const end=Date.now()+180000;
+  const end=Date.now()+(layout(saved)===SHARED_TERMINAL_LAYOUT?900000:180000);
   while(['queued','in_progress'].includes(saved.response?.status)&&Date.now()<end){await delay(2000);const response=await model.responses.retrieve(saved.response_id);if(response.id!==saved.response_id)throw new Error('The response identity changed.');saved={...saved,response,status:response.status};await privateJSON(join(directory,'run.json'),saved);}
   if(['queued','in_progress'].includes(saved.response?.status))throw new Error('The original response is pending. Rerun this named evaluation to retrieve it; no new call will be made.');
   const report={mode:'live',...grade(saved),model_calls:1,response_id:saved.response_id,usage:saved.response.usage??null};await privateJSON(join(directory,'report.json'),report);if(report.passed)await saveCommands(directory,saved);console.log(JSON.stringify(report));if(!report.passed)process.exitCode=1;

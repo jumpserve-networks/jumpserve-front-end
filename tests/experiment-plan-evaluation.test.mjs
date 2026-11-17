@@ -51,7 +51,7 @@ test('expectation files are bounded data with no executable graders or invalid s
 });
 test('frozen browser-free replay checks content, fails deficient plans, and detects changed expectations',async()=>{
  const breakdown=implementationBreakdown(),request=experimentPlanRequest(breakdown),expectations=implementationExpectations();
- assert.equal(request.model,'gpt-5.4-mini-2026-03-17');assert.equal(request.text.format.name,'paper_experiment_steps_v3');assert.equal(JSON.stringify(request).includes('full-grid trial scope'),false);
+ assert.equal(request.model,'gpt-5.4-2026-03-05');assert.equal(request.text.format.name,'paper_experiment_steps_v3');assert.equal(JSON.stringify(request).includes('full-grid trial scope'),false);
  const directory=join(process.cwd(),'.test-artifacts','experiment-plan-evaluations','unit-content-'+randomUUID());await privateDirectory(directory);
  const saved={breakdown,request,expectations,identity:sha256(JSON.stringify({breakdown,request,expectations})),response:{id:'resp_fixture',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(hierarchicalImplementationPlan())}]}]}};
  const args=['--import','./scripts/lib/register-typescript.mjs','scripts/evaluate-experiment-plan.mjs','--replay',directory.split('/').at(-1)];

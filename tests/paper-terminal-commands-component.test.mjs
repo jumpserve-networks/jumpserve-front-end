@@ -6,7 +6,8 @@ import React from 'react';
 import {act,cleanup,fireEvent,render,screen} from '@testing-library/react';
 import {stepView,stepSummary,stepPlan,stepBreakdown} from './support/step-command-fixture.mjs';
 const hook=registerHooks({resolve(name,context,next){if(name==='@/lib/browser-auth')return{shortCircuit:true,url:'data:text/javascript,export const requireAccessToken=async(message,owner)=>{if(owner!=="owner")throw new Error("Wrong owner");return "verified-owner";};'};return next(name,context);}});
-const {PaperExperimentPlanOutline}=await import('../app/components/research-workflow/paper-experiment-plan-outline.tsx');hook.deregister();
+const {PaperExperimentPlanOutline}=await import('../app/components/research-workflow/paper-experiment-plan-outline.tsx');
+const {PaperStepCommands,PaperStepCommand}=await import('../app/components/research-workflow/paper-step-commands.tsx');hook.deregister();
 const id='11111111-1111-4111-8111-111111111111';let originalFetch,clipboardDescriptor,calls,copied,views,read,write,list;
 beforeEach(()=>{
  calls=[];copied=[];views=new Map();originalFetch=globalThis.fetch;clipboardDescriptor=Object.getOwnPropertyDescriptor(navigator,'clipboard');Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>copied.push(text)}});
@@ -15,9 +16,9 @@ beforeEach(()=>{
  globalThis.fetch=async(url,options={})=>{assert.match(url,/api\/step-commands/);assert.equal(options.headers.Authorization,'Bearer verified-owner');calls.push({url,options});const ref=new URL(url,'https://example.test').searchParams.get('step');return Response.json(options.method==='POST'?await write(JSON.parse(options.body)):ref?await read(ref):await list());};
 });
 afterEach(()=>{cleanup();globalThis.fetch=originalFetch;if(clipboardDescriptor)Object.defineProperty(navigator,'clipboard',clipboardDescriptor);else delete navigator.clipboard;});
-const show=async(strict=false,owner=true)=>{await act(async()=>{const outline=React.createElement(PaperExperimentPlanOutline,{plan:stepPlan(),breakdown:stepBreakdown(),...(owner?{assessmentId:id,ownerId:'owner'}:{})});render(strict?React.createElement(React.StrictMode,null,outline):outline);});};
+const show=async(strict=false,owner=true)=>{await act(async()=>{const plan=stepPlan(),breakdown=stepBreakdown();const body=React.createElement(PaperExperimentPlanOutline,{plan,breakdown,renderCommands:number=>React.createElement(PaperStepCommand,{number},({button,result})=>React.createElement(React.Fragment,null,button,result))});const outline=owner?React.createElement(PaperStepCommands,{assessmentId:id,ownerId:'owner',index:1,plan,breakdown},body):body;render(strict?React.createElement(React.StrictMode,null,outline):outline);});};
 const click=async name=>{await act(async()=>{fireEvent.click(screen.getByRole('button',{name}));});};
-test('opening Step 3 displays its outline and per-step Generate buttons without creating any commands',async()=>{
+test('historical individual-command components retain their saved-call controls',async()=>{
  await show();assert.equal(calls.length,1);assert.equal(calls[0].options.method,undefined);assert.ok(screen.getByRole('list',{name:'Experiments'}));assert.equal(screen.getAllByRole('button',{name:/^Generate Terminal Commands for step/}).length,6);assert.equal(calls.filter(c=>c.options.method==='POST').length,0);
  await click('Generate Terminal Commands for step 1.1.1');assert.equal(calls.filter(c=>c.options.method==='POST').length,1);const body=JSON.parse(calls.at(-1).options.body);assert.deepEqual(body,{action:'generate',study_id:id,experiment_index:1,action_ref:'1.1.1',target:'ubuntu-debian'});
  assert.ok(screen.getByRole('button',{name:'Generate Terminal Commands for step 1.2.1'}));assert.equal(screen.queryByRole('button',{name:'Copy commands for step 1.2.1'}),null);

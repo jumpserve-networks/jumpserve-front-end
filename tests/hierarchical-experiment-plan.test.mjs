@@ -18,7 +18,7 @@ test('prompt, provider schema and local validation share the same bounded action
  assert.equal(stages.maxItems,MAX_EXPERIMENT_STAGES);assert.equal(stages.items.properties.steps.maxItems,MAX_STAGE_ACTIONS);
  assert.equal(MAX_EXPERIMENT_ACTIONS,64);assert.equal(stages.maxItems*stages.items.properties.steps.maxItems,MAX_EXPERIMENT_ACTIONS);
  assert.match(request.instructions,/at most 64 substeps in total per experiment/);
- assert.equal(request.max_output_tokens,16000);
+ assert.equal(request.max_output_tokens,32768);
 });
 test('hierarchical provider output cannot be replaced by a flat plan and every claim remains linked',()=>{
  const response=plan=>({id:'resp_hierarchy',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(plan)}]}]});

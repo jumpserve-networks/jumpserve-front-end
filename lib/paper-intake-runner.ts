@@ -3,6 +3,7 @@ import { extractionBreakdown, validatePaperExtraction, type PaperText } from "./
 import { paperIntakePending, type PaperIntakeStage } from "./paper-intake";
 import { PAPER_SOURCE_FORMAT, PAPER_SOURCE_FORMAT_V3, PAPER_SOURCE_FORMAT_V4, PAPER_SOURCE_FORMAT_V5, PAPER_SOURCE_FORMAT_V6, resolvePaperSources } from "./paper-source-references";
 import { assertPaperIntakeQuality } from "./paper-intake-quality";
+import { parsePaperModelOutput } from "./paper-model-output";
 
 export type IntakeRecord = {
   study_id: string; owner_id: string; filename: string; sha256: string; byte_count: number;
@@ -26,7 +27,7 @@ export function readPaperExtraction(response: Response, paper: PaperText) {
   const format = response.text?.format?.type === "json_schema" ? response.text.format.name : null;
   if (unsupportedSourceFormat(format)) throw new UnsupportedPaperSourceFormat(format);
   const output = response.output.filter(item => item.type === "message").flatMap(item => item.content).filter(part => part.type === "output_text").map(part => part.text).join("");
-  const parsed = JSON.parse(output);
+  const parsed = parsePaperModelOutput(output);
   const referenced = sourceFormats.includes(format ?? "");
   const extraction = validatePaperExtraction(referenced ? resolvePaperSources(parsed, paper, format !== PAPER_SOURCE_FORMAT, format === PAPER_SOURCE_FORMAT_V5 || format === PAPER_SOURCE_FORMAT_V6, format === PAPER_SOURCE_FORMAT_V6) : parsed, paper);
   if (format === PAPER_SOURCE_FORMAT_V4 || format === PAPER_SOURCE_FORMAT_V5 || format === PAPER_SOURCE_FORMAT_V6) assertPaperIntakeQuality(extraction, paper);

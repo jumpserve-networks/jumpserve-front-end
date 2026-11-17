@@ -10,6 +10,7 @@ import { PaperBreakdownPanel } from "./paper-breakdown";
 import { PaperAssessmentSteps, PaperWizardRoute, type PaperWizardNavigation } from "./paper-assessment-steps";
 import { PAPER_ASSESSMENT_STEPS } from "@/lib/paper-assessment-wizard";
 import { PaperExperimentPlanOutline } from "./paper-experiment-plan-outline";
+import { PaperExperimentScripts } from "./paper-experiment-scripts";
 
 async function planFetch(id: string, ownerId: string, options: RequestInit = {}) {
   const token = await requireAccessToken(RESEARCH_SIGN_IN_REQUIRED, ownerId);
@@ -84,7 +85,7 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, header, wizard }:
         {view.stage !== "ready" ? <p role="status" className="text-sm font-medium">{view.stage === "cancelled" ? "Experiment planning cancelled" : view.stage === "failed" ? "Experiment planning needs attention" : view.stage === "uncertain" ? "Planning submission needs reconciliation" : "Preparing experiment implementation steps…"}</p> : null}
         {view.reason ? <p className="text-sm text-muted-foreground">{view.reason}</p> : null}
         {view.stage === "processing" ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void action("cancel")}>Cancel planning</Button> : null}
-        {view.plan ? <PaperExperimentPlanOutline plan={view.plan} breakdown={saved} assessmentId={assessmentId} ownerId={ownerId} /> : null}
+        {view.plan ? <PaperExperimentPlanOutline plan={view.plan} breakdown={saved} /> : null}
       </>}
       <Button size="sm" variant="outline" disabled={busy} onClick={() => setRevision(value => value + 1)}>Check planning status</Button>
     </section>;
@@ -99,9 +100,11 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, header, wizard }:
         {!view ? <p role="status" className="text-sm">Checking phase-one confirmation…</p> : awaiting ? confirmation : <div className="border-t pt-4"><Button disabled={busy} onClick={() => wizard.navigate("implementation")}>Next: Experiment Steps</Button></div>}
       </> : step === "implementation" ? <>
         {implementationPanel}
-        <div className="flex flex-wrap justify-between gap-3 border-t pt-4"><Button variant="outline" disabled={busy} onClick={() => wizard.navigate("breakdown")}>Back to Initial Assessment</Button><Button disabled={busy || view?.stage !== "ready"} onClick={() => wizard.navigate("execution")}>Next: Run Experiments</Button></div>
+        <div className="flex flex-wrap justify-between gap-3 border-t pt-4"><Button variant="outline" disabled={busy} onClick={() => wizard.navigate("breakdown")}>Back to Initial Assessment</Button><Button disabled={busy || view?.stage !== "ready"} onClick={() => wizard.navigate("execution")}>Continue to Step 4</Button></div>
       </> : <>
-        <section aria-labelledby="experiment-execution-title" className="content-panel space-y-4 rounded-lg border p-4"><h2 id="experiment-execution-title" className="text-lg font-semibold">Run Experiments</h2><p className="text-sm text-muted-foreground">Experiment execution is coming soon.</p><Button disabled>Run experiments</Button></section>
+        <section aria-labelledby="experiment-execution-title" className="space-y-6"><h2 id="experiment-execution-title" className="text-lg font-semibold">Setup &amp; Run Commands</h2>
+          {view?.plan?.experiments.length === 0 ? <p>No experiments were included in the confirmed assessment.</p> : view?.plan?.experiments.map((_, index) => <PaperExperimentScripts key={`${assessmentId}:${ownerId}:${index + 1}`} assessmentId={assessmentId} ownerId={ownerId} index={index + 1} plan={view.plan!} breakdown={saved} />)}
+        </section>
         <div className="border-t pt-4"><Button variant="outline" onClick={() => wizard.navigate("implementation")}>Back to Experiment Steps</Button></div>
       </>}
     </section>

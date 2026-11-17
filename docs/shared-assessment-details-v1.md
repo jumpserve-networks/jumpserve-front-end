@@ -54,7 +54,7 @@ The status field shows only the saved wizard step, without publication badges:
 **Step 1 · Paper Upload** for an
 upload reservation, **Step 2 · Initial Assessment** while preparing or reviewing
 the breakdown, **Step 3 · Experiment Steps** after confirmation while a plan is
-pending or needs attention, and **Step 4 · Run Experiments** when the plan is ready
+pending or needs attention, and **Step 4 · Setup & Run Commands** when the plan is ready
 or an older experiment workflow exists. Step four names the next available
 stage; it does not assert that experiments ran. Returning to an earlier wizard
 screen does not undo saved progress. A single anonymous, bounded GET to
