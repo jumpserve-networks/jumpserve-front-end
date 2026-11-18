@@ -1,7 +1,8 @@
 import OpenAI from "openai";
 import type { Response, ResponseCreateParamsNonStreaming } from "openai/resources/responses/responses";
 import { deterministicQualityChecks } from "./paper-quality-checks";
-import { PAPER_QUALITY_VERSION, type PaperQualityChecks, type PaperQualityPhase, type PaperQualityReview, type PaperQualityStep, type PaperQualityProgress, type PaperQualityRound, type QualitySandboxArtifact } from "./paper-quality";
+import { PAPER_QUALITY_VERSION, type PaperQualityContext, type PaperQualityChecks, type PaperQualityPhase, type PaperQualityReview, type PaperQualityStep, type PaperQualityProgress, type PaperQualityRound, type QualitySandboxArtifact } from "./paper-quality";
+import { validateQualityContext } from "./paper-quality-context";
 import { qualityAttachment, qualityReviewRequest, qualityRepairRequest, readQualityReview, sandboxQualityChecks, type QualitySource } from "./paper-quality-model";
 
 export type QualityCall = {
@@ -15,7 +16,7 @@ export type QualityWorkflow = {
   original_request: ResponseCreateParamsNonStreaming; deadline_at: string; updated_at: string;
   review: PaperQualityReview | null; checks: PaperQualityChecks | null; reason: string | null;
   source_revision: number | null; source_provider_id: string | null;
-  call: QualityCall | null; admitted?: boolean;
+  call: QualityCall | null; admitted?: boolean; review_context?: PaperQualityContext;
 };
 export type QualityOperations = {
   save: (operation: string, payload: Record<string, unknown>) => Promise<QualityWorkflow>;
@@ -65,7 +66,7 @@ export async function advancePaperQuality(row: QualityWorkflow, ops: QualityOper
         if (!checks.passed) return fail(ops, row, checks.findings.map(f => f.evidence).join(" "), response);
         operation = "repaired";payload = { ...identity(row), response, candidate, checks };
       } else {
-      const review = readQualityReview(response), source = sourceFor(row), deterministic = deterministicQualityChecks(source);
+      const review = readQualityReview(response, frozenQualityContext(call.request)), source = sourceFor(row), deterministic = deterministicQualityChecks(source);
       const sandbox = row.step === 4 ? sandboxQualityChecks(response, source, artifact) : null;
       const checks: PaperQualityChecks = { ...deterministic, passed: deterministic.passed && (!sandbox || sandbox.passed), findings: [...deterministic.findings, ...(sandbox?.findings ?? [])], ...(sandbox?.sandbox ? { sandbox: sandbox.sandbox } : {}) };
       operation = "reviewed";payload = { ...identity(row), response, review, checks };
@@ -77,21 +78,26 @@ export async function advancePaperQuality(row: QualityWorkflow, ops: QualityOper
   }
   if (!admit) return row;
   if (Date.parse(row.deadline_at) <= now) return fail(ops, row, "The original assessment deadline expired before quality checking could continue.");
+  // Read-only capability/context check BEFORE reserving a call. The admission
+  // returns a fresh snapshot under the database lock; never submit stale history.
+  const contextRow = await ops.save("context", {});
+  validateQualityContext(contextRow.review_context!);
   let admitted: QualityWorkflow;
-  try { admitted = await ops.save("admit", { source_sha256: sourceKey(row) }); }
+  try { admitted = await ops.save("admit", { source_sha256: sourceKey(row), review_context_version: "paper-quality-context-v1" }); }
   catch (error) { if (error instanceof PaperQualityLimitError) return fail(ops, row, error.message);throw error; }
   if (!admitted.admitted) return admitted;
   let prepared = admitted;
   try {
     const source = sourceFor(admitted), call = admitted.call;
     if (!call || call.status !== "preparing") throw new Error("The reserved quality-call identity is missing.");
+    const context = validateQualityContext(admitted.review_context!);
     let request: ResponseCreateParamsNonStreaming;
     if (call.kind === "review") {
       const file = admitted.step === 4 ? await ops.upload(qualityAttachment(source)) : undefined;
-      request = qualityReviewRequest(source, file);
+      request = qualityReviewRequest(source, file, context);
     } else {
       if (!admitted.review || !admitted.checks) throw new Error("Repair requires the retained findings and checks.");
-      request = qualityRepairRequest(source, admitted.original_request, admitted.review, admitted.checks);
+      request = qualityRepairRequest(source, admitted.original_request, admitted.review, admitted.checks, context);
     }
     prepared = await ops.save("request", { ...identity(admitted), request });
     if (prepared.call?.status !== "submitting") throw new Error("The quality request was not frozen before submission.");
@@ -104,6 +110,13 @@ export async function advancePaperQuality(row: QualityWorkflow, ops: QualityOper
     if (rejected) return fail(ops, prepared, "OpenAI rejected the quality request (HTTP " + error.status + "). The original request is retained.");
     return ops.save("uncertain", { ...identity(prepared), reason: "The original attachment or model submission was not acknowledged. It will not be repeated automatically." });
   }
+}
+/** In-flight legacy calls keep their original format. New reviews are verified
+ * against the exact context frozen before their one provider submission. */
+export function frozenQualityContext(request: ResponseCreateParamsNonStreaming | null): PaperQualityContext | undefined {
+  if (request?.text?.format?.type !== "json_schema" || request.text.format.name !== "paper_quality_review_v2") return undefined;
+  if (typeof request.input !== "string") throw new Error("The original review context is missing.");
+  return validateQualityContext(JSON.parse(request.input).review_context);
 }
 export async function cancelPaperQuality(row: QualityWorkflow, ops: QualityOperations): Promise<QualityWorkflow> {
   if (["approved", "needs_attention", "cancelled"].includes(row.status)) return row;

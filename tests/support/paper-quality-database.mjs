@@ -19,12 +19,12 @@ if(input.mode==='initial'){
 }else{
  const w=input.workflow,source={...w.source_json,candidate:w.candidate};
  if(input.mode==='review'){
-  const report=input.revise?reviseReview():passReview(),response=qualityResponse(report,source);response.id=input.response_id;
+  const report=input.review??(input.revise?reviseReview():passReview());if(w.review_context&&!('resolutions' in report))report.resolutions=w.review_context.finding_ledger.map(e=>({key:e.key,status:report.decision==='pass'?'resolved':'open',evidence:'Synthetic current-candidate evidence for '+e.key}));const response=qualityResponse(report,source);response.id=input.response_id;
   const checks=deterministicQualityChecks(source);if(w.step===4){const sandbox=sandboxQualityChecks(response,source);checks.passed=checks.passed&&sandbox.passed;checks.sandbox=sandbox.sandbox;}
-  console.log(JSON.stringify({source_sha256:qualityAttachment(source).hash,request:qualityReviewRequest(source,w.step===4?'file-fixture':undefined),review:report,response,checks}));
+  console.log(JSON.stringify({source_sha256:qualityAttachment(source).hash,request:qualityReviewRequest(source,w.step===4?'file-fixture':undefined,w.review_context),review:report,response,checks}));
  }else if(input.mode==='repair'){
   const candidate=structuredClone(w.candidate);if(w.step===2)candidate.breakdown.sections.access[0].description+=' Reviewed.';else if(w.step===3)candidate.experiments[0].title+=' Reviewed.';else candidate.setup.notes+=' Reviewed.';
   const response={id:input.response_id,status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(candidate)}]}]};
-  console.log(JSON.stringify({source_sha256:qualityAttachment(source).hash,request:qualityRepairRequest(source,w.original_request,w.review,w.checks),candidate,response,checks:deterministicQualityChecks({...source,candidate})}));
+  console.log(JSON.stringify({source_sha256:qualityAttachment(source).hash,request:qualityRepairRequest(source,w.original_request,w.review,w.checks,w.review_context),candidate,response,checks:deterministicQualityChecks({...source,candidate})}));
  }else throw Error('Unknown fixed fixture operation');
 }
