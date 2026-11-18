@@ -1,4 +1,5 @@
 import "server-only";
+import { qualityPlan, stopPaperQuality } from "./paper-quality-server";
 import { intakeDatabase, modelClient } from "./paper-intake-server";
 import { confirmPaperSections, EXPERIMENT_PLAN_VERSION, type ExperimentPlanView } from "./paper-experiment-plan";
 import { experimentPlanRequest } from "./paper-experiment-plan-model";
@@ -18,7 +19,7 @@ function databaseFailure(error: { code?: string; message: string }): never {
 export async function loadExperimentPlan(study: string, actor: string) {
   const { data, error } = await (await intakeDatabase()).from("research_experiment_plans").select("*").eq("study_id", study).eq("owner_id", actor).maybeSingle();
   if (error) databaseFailure(error);
-  return data ? effectiveExperimentPlan(data as ExperimentPlanRecord) : null;
+  return data ? qualityPlan(await effectiveExperimentPlan(data as ExperimentPlanRecord)) : null;
 }
 /** Reviewed link corrections overlay the immutable failed call and its original evidence. */
 async function effectiveExperimentPlan(row: ExperimentPlanRecord) {
@@ -46,14 +47,17 @@ function operations(study: string, actor: string) {
 }
 export function experimentPlanView(row: ExperimentPlanRecord | null, intake: IntakeRecord & { revision?: number }): ExperimentPlanView {
   return { version: EXPERIMENT_PLAN_VERSION, study_id: intake.study_id, stage: row?.status ?? "awaiting_confirmation", intake_revision: row?.intake_revision ?? intake.revision!,
-    confirmed_at: row?.confirmed_at ?? null, confirmed_breakdown: row?.confirmed_breakdown ?? null, plan: row?.plan ?? null, reason: row?.reason ?? null, ...(row?.link_review ? { link_review: row.link_review } : {}) };
+    confirmed_at: row?.confirmed_at ?? null, confirmed_breakdown: row?.confirmed_breakdown ?? null, plan: row?.plan ?? null, reason: row?.reason ?? null, ...(row?.link_review ? { link_review: row.link_review } : {}), ...(row?.quality ? { quality: row.quality } : {}) };
 }
-export const refreshPlan = (row: ExperimentPlanRecord) => refreshExperimentPlan(row, operations(row.study_id, row.owner_id));
-export const cancelPlan = (row: ExperimentPlanRecord) => cancelExperimentPlan(row, operations(row.study_id, row.owner_id));
+export const refreshPlan = async (row: ExperimentPlanRecord) => row.quality ? (await loadExperimentPlan(row.study_id, row.owner_id))! : qualityPlan(await refreshExperimentPlan(row, operations(row.study_id, row.owner_id)));
+export const cancelPlan = async (row: ExperimentPlanRecord) => {
+  if (row.quality && row.quality.phase !== "approved") { await stopPaperQuality(row.study_id, row.owner_id, 3);return (await loadExperimentPlan(row.study_id, row.owner_id))!; }
+  return qualityPlan(await cancelExperimentPlan(row, operations(row.study_id, row.owner_id)));
+};
 export async function confirmPlan(intake: IntakeRecord, revision: number, sections: unknown) {
   let confirmed;
   try { confirmed = confirmPaperSections(validatePaperBreakdown(intake.breakdown), sections); }
   catch (error) { throw new ExperimentPlanError(error instanceof Error ? error.message : "Review all four paper sections before confirming.", 400); }
   const request = confirmed.sections.experiment.length ? experimentPlanRequest(confirmed) : null;
-  return confirmAndPlan({ intake_revision: revision, confirmed_breakdown: confirmed }, request, operations(intake.study_id, intake.owner_id));
+  return qualityPlan(await confirmAndPlan({ intake_revision: revision, confirmed_breakdown: confirmed }, request, operations(intake.study_id, intake.owner_id)));
 }

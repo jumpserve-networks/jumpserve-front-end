@@ -9,6 +9,7 @@ import { SHARED_TERMINAL_LAYOUT, TERMINAL_TARGET } from "@/lib/paper-terminal-co
 import { CommandBlock, TerminalInputs } from "./paper-terminal-commands";
 import { PaperExperimentPlanOutline } from "./paper-experiment-plan-outline";
 import { usePaperWork } from "./paper-work-provider";
+import { PaperQualityFeedback } from "./paper-quality-feedback";
 
 type Props = { assessmentId: string; ownerId: string; index: number; plan: ExperimentPlan; breakdown: PaperBreakdown; title?: string };
 export function PaperExperimentScripts({ assessmentId, ownerId, index, plan, breakdown, title = "Paper assessment" }: Props) {
@@ -49,8 +50,9 @@ export function PaperExperimentScripts({ assessmentId, ownerId, index, plan, bre
   const set = view?.command_set;
   const before = <section aria-label={`Shared setup for experiment ${index}`} className="space-y-3 text-sm" aria-busy={busy || view?.stage === "processing"}>
     {error ? <p role="alert" className="text-destructive">{error}</p> : null}
-    {!view && busy || view && ["submitting", "processing"].includes(view.stage) ? <p role="status">Generating shared setup and run commands…</p> : null}
-    {view?.reason ? <p className="text-muted-foreground">{view.reason}</p> : null}
+    <PaperQualityFeedback quality={view?.quality} step={4} />
+    {!view && busy || view && !view.quality && ["submitting", "processing"].includes(view.stage) ? <p role="status">Generating shared setup and run commands…</p> : null}
+    {view?.reason && !view.quality ? <p className="text-muted-foreground">{view.reason}</p> : null}
     {view?.stage === "processing" ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void perform("cancel")}>Cancel script generation</Button> : null}
     {view && view.prior_pending > 0 ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void perform("cancel_previous")}>Cancel earlier command generation</Button> : null}
     {error || view && ["failed", "uncertain", "cancelled", "not_generated"].includes(view.stage) ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void perform()}>Check saved scripts</Button> : null}

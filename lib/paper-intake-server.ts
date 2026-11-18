@@ -1,4 +1,5 @@
 import "server-only";
+import { qualityIntake, stopPaperQuality, qualityMetadataFor, qualityMetadataStage, qualityMetadataReason } from "./paper-quality-server";
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 import { sha256 } from "./paper-intake-model";
@@ -45,6 +46,7 @@ export async function loadIntake(id: string, actor?: string | null) {
 }
 /** A reviewed overlay never changes the frozen original model call or intake. */
 export async function effectiveIntake(row: IntakeRecord, actor: string) {
+  if (actor === row.owner_id) row = await qualityIntake(row);
   if (actor !== row.owner_id || row.status !== "ready" || row.review_revision) return row;
   const { data, error } = await (await intakeDatabase()).from("research_paper_breakdown_reviews").select("revision,breakdown").eq("study_id", row.study_id).eq("owner_id", actor).order("revision", { ascending: false }).limit(1).maybeSingle();
   if (error && ["PGRST205", "42P01"].includes(error.code)) return row;
@@ -61,17 +63,21 @@ async function save(operation: string, row: Pick<IntakeRecord, "study_id" | "own
   return data as IntakeRecord & { admitted?: boolean };
 }
 const operations = () => ({ save, retrieve: async (id: string) => (await modelClient()).responses.retrieve(id), cancel: async (id: string) => (await modelClient()).responses.cancel(id) });
-export const refreshIntake = (row: IntakeRecord) => refreshPaperIntake(row, operations());
-export const cancelIntake = (row: IntakeRecord) => cancelPaperIntake(row, operations());
+export const refreshIntake = async (row: IntakeRecord) => row.quality ? (await loadIntake(row.study_id, row.owner_id))! : effectiveIntake(await refreshPaperIntake(row, operations()), row.owner_id);
+export const cancelIntake = async (row: IntakeRecord) => {
+  if (row.quality && row.quality.phase !== "approved") { await stopPaperQuality(row.study_id, row.owner_id, 2);return (await loadIntake(row.study_id, row.owner_id))!; }
+  return cancelPaperIntake(row, operations());
+};
 
 export async function intakeView(row: IntakeRecord, actor?: string | null): Promise<PaperIntakeView> {
   const owner = actor === row.owner_id;
   if (owner) row = await effectiveIntake(row, actor!);
+  else row = await qualityIntake(row);
   const { count, error } = await (await intakeDatabase()).from("research_queue_jobs").select("id", { count: "exact", head: true }).eq("study_id", row.study_id);
   if (error || count === null) throw new Error("The recorded Experiment Queue could not be checked.");
   return { version: PAPER_INTAKE_VERSION, id: row.study_id, status: row.status === "ready" ? "ready" : paperIntakePending(row.status) ? "preparing" : "failed", review_version: "research-paper-review-v1", stage: row.status,
     title: owner ? row.title : null, authors: owner ? row.authors : null, domain: owner ? row.domain : null,
-    created_at: row.created_at, updated_at: row.updated_at, reason: owner ? row.reason : null, breakdown: owner ? row.breakdown as PaperIntakeView["breakdown"] : null, owner, experiment_jobs: count };
+    created_at: row.created_at, updated_at: row.updated_at, reason: owner ? row.reason : null, breakdown: owner ? row.breakdown as PaperIntakeView["breakdown"] : null, owner, experiment_jobs: count, ...(owner && row.quality ? { quality: row.quality } : {}) };
 }
 export async function reserveIntake(actor: string, id: string, metadata: Record<string, unknown>) {
   if (!await intakeConfigured()) throw new Error("Configure the server-side OpenAI and Supabase keys before uploading a paper.");
@@ -118,13 +124,19 @@ export async function ownerIntakes(actor: string) {
   const [studies, reviews, intakes, intakeStatuses] = await Promise.all([readWithAssessmentDeletion(filterDeleted => {
     const query = db.from("research_studies").select("id,title,study_kind,created_at").in("id", ids).order("created_at", { ascending: false });
     return filterDeleted ? query.is("deleted_at", null) : query;
-  }), db.from("research_paper_reviews").select("study_id,status,title").in("study_id", ids), db.from("research_paper_intakes").select("*").eq("owner_id", actor).in("study_id", ids).in("status", ["submitting", "processing"]).order("updated_at").limit(3), db.from("research_paper_intakes").select("study_id,status,title,reason").eq("owner_id", actor).in("study_id", ids).limit(1000)]);
+  }), db.from("research_paper_reviews").select("study_id,status,title").in("study_id", ids), db.from("research_paper_intakes").select("*").eq("owner_id", actor).in("study_id", ids).in("status", ["submitting", "processing"]).order("updated_at").limit(3), db.from("research_paper_intakes").select("study_id,status,title,reason,quality_required:policy_snapshot->>quality_review").eq("owner_id", actor).in("study_id", ids).limit(1000)]);
   if (studies.error || reviews.error || [intakes.error, intakeStatuses.error].some(error => error && !["PGRST205", "42P01"].includes(error.code))) throw new Error("Paper notification status could not be loaded.");
-  const recorded = (intakeStatuses.data ?? []) as Pick<IntakeRecord, "study_id" | "status" | "title" | "reason">[];
+  const recorded = (intakeStatuses.data ?? []) as (Pick<IntakeRecord, "study_id" | "status" | "title" | "reason"> & { quality_required?: string })[];
+  const quality = await qualityMetadataFor(actor, recorded.filter(r => r.quality_required === "true").map(r => r.study_id));
   const refreshed = await Promise.all(((intakes.data ?? []) as IntakeRecord[]).map(refreshIntake));
   return { access: "owner-drafts", studies: studies.data.map(study => {
     const review = reviews.data.find(r => r.study_id === study.id);
-    const current = refreshed.find(r => r.study_id === study.id) ?? recorded.find(r => r.study_id === study.id);
+    let current = refreshed.find(r => r.study_id === study.id) ?? recorded.find(r => r.study_id === study.id);
+    const raw = recorded.find(r => r.study_id === study.id);
+    if (current && raw?.quality_required === "true" && raw.status === "ready") {
+      const q = quality.find(q => q.study_id === study.id && q.step === 2);
+      current = { ...current, status: qualityMetadataStage(q), title: q?.status === "approved" ? q.candidate_title : null, reason: qualityMetadataReason(q, 2) };
+    }
     const status = review?.status === "confirmed" ? "confirmed" : current ? current.status === "ready" ? "ready" : paperIntakePending(current.status) ? "preparing" : "failed" : review?.status;
     return { ...study, title: current?.title ?? review?.title ?? study.title, ...(status ? { paper_review_status: status } : {}), ...(current ? { paper_intake_stage: current.status, paper_intake_reason: current.reason } : {}) };
   }) };

@@ -1,4 +1,5 @@
 import "server-only";
+import { qualityScripts, stopPaperQuality } from "./paper-quality-server";
 import { intakeDatabase, modelClient } from "./paper-intake-server";
 import { ExperimentPlanError } from "./paper-experiment-plan-server";
 import type { ExperimentPlanRecord } from "./paper-experiment-plan-runner";
@@ -15,7 +16,7 @@ function failed(error: { code?: string; message: string }): never {
 export async function loadExperimentScripts(study: string, owner: string, index: number) {
   const { data, error } = await (await intakeDatabase()).from("research_experiment_scripts").select("*").eq("study_id", study).eq("owner_id", owner).eq("experiment_index", index).eq("target", TERMINAL_TARGET).maybeSingle();
   if (error) failed(error);
-  return data as TerminalCommandsRecord | null;
+  return data ? qualityScripts(data as TerminalCommandsRecord) : null;
 }
 function operations(study: string, owner: string, index: number) {
   return { save: async (operation: string, payload: Record<string, unknown>) => {
@@ -24,7 +25,7 @@ function operations(study: string, owner: string, index: number) {
   }, create: async (request: ReturnType<typeof experimentScriptsRequest>, token: string) => (await modelClient()).responses.create(request, { headers: { "X-Client-Request-Id": token } }), retrieve: async (id: string) => (await modelClient()).responses.retrieve(id), cancel: async (id: string) => (await modelClient()).responses.cancel(id) };
 }
 export function experimentScriptsView(row: TerminalCommandsRecord | null, study: string, index: number, prior = 0): ExperimentScriptsView {
-  return { version: EXPERIMENT_SCRIPTS_VERSION, study_id: study, experiment_index: index, target: TERMINAL_TARGET, command_layout: SHARED_TERMINAL_LAYOUT, stage: row?.status ?? "not_generated", command_set: row?.command_set ?? null, reason: row?.reason ?? (prior ? "An earlier command request must finish or be cancelled before generating shared scripts. Uncertain submissions retain their original identity." : null), generated_at: row?.generated_at ?? null, prior_pending: prior };
+  return { version: EXPERIMENT_SCRIPTS_VERSION, study_id: study, experiment_index: index, target: TERMINAL_TARGET, command_layout: SHARED_TERMINAL_LAYOUT, stage: row?.status ?? "not_generated", command_set: row?.command_set ?? null, reason: row?.reason ?? (prior ? "An earlier command request must finish or be cancelled before generating shared scripts. Uncertain submissions retain their original identity." : null), generated_at: row?.generated_at ?? null, prior_pending: prior, ...(row?.quality ? { quality: row.quality } : {}) };
 }
 /** Reconcile exact earlier calls; these functions never submit inference. */
 export async function reconcileEarlierCommands(study: string, owner: string, index: number, cancel = false) {
@@ -44,7 +45,10 @@ export async function reconcileEarlierCommands(study: string, owner: string, ind
 }
 export async function prepareExperimentScripts(plan: ExperimentPlanRecord, index: number) {
   if (plan.status !== "ready" || !plan.plan) throw new ExperimentPlanError("Wait for the saved experiment plan before Step 4.", 409);
-  return generateTerminalCommands(experimentScriptsRequest(plan.study_id, index, plan.plan, plan.confirmed_breakdown), operations(plan.study_id, plan.owner_id, index));
+  return qualityScripts(await generateTerminalCommands(experimentScriptsRequest(plan.study_id, index, plan.plan, plan.confirmed_breakdown), operations(plan.study_id, plan.owner_id, index)));
 }
-export const refreshExperimentScripts = (row: TerminalCommandsRecord) => refreshTerminalCommands(row, operations(row.study_id, row.owner_id, row.experiment_index));
-export const cancelExperimentScripts = (row: TerminalCommandsRecord) => cancelTerminalCommands(row, operations(row.study_id, row.owner_id, row.experiment_index));
+export const refreshExperimentScripts = async (row: TerminalCommandsRecord) => row.quality ? (await loadExperimentScripts(row.study_id, row.owner_id, row.experiment_index))! : qualityScripts(await refreshTerminalCommands(row, operations(row.study_id, row.owner_id, row.experiment_index)));
+export const cancelExperimentScripts = async (row: TerminalCommandsRecord) => {
+  if (row.quality && row.quality.phase !== "approved") { await stopPaperQuality(row.study_id, row.owner_id, 4, row.experiment_index);return (await loadExperimentScripts(row.study_id, row.owner_id, row.experiment_index))!; }
+  return qualityScripts(await cancelTerminalCommands(row, operations(row.study_id, row.owner_id, row.experiment_index)));
+};

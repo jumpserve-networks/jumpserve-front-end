@@ -28,10 +28,12 @@ export class PaperWorkManager {
   private timer?: ReturnType<typeof setTimeout>;
   private refreshing: number | null = null;
   private cursor = 0;
+  private reviewCursor = 0;
+  private advanceReviews?: (cursor: number, signal: AbortSignal) => Promise<number>;
   readonly storageKey: string;
   readonly ownerId: string | null;
   private readStatus: (cursor: number, signal: AbortSignal) => Promise<PaperWorkListing>;
-  constructor(ownerId: string | null, readStatus: (cursor: number, signal: AbortSignal) => Promise<PaperWorkListing>) { this.ownerId = ownerId;this.readStatus = readStatus;this.storageKey = `jumpserve.paper-work.v1.${ownerId}`; }
+  constructor(ownerId: string | null, readStatus: (cursor: number, signal: AbortSignal) => Promise<PaperWorkListing>, advanceReviews?: (cursor: number, signal: AbortSignal) => Promise<number>) { this.ownerId = ownerId;this.readStatus = readStatus;this.advanceReviews = advanceReviews;this.storageKey = `jumpserve.paper-work.v1.${ownerId}`; }
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   getSnapshot = () => this.state;
   getServerSnapshot = () => EMPTY;
@@ -102,6 +104,13 @@ export class PaperWorkManager {
       }
       for (const [key, unit] of this.units) if (!listing.study_ids.includes(unit.id) && !this.inFlight.has(key) && versions.get(key) === this.versions.get(key)) this.units.delete(key);
       this.emit({ error: "" }); this.persist();
+      // Continuation is an explicit authenticated POST, separate from read-only
+      // status polling. The database admits only saved, bounded review intent.
+      if (listing.review_pending && this.advanceReviews) {
+        const next = await this.advanceReviews(this.reviewCursor, this.lifecycle.signal);
+        if (!this.active || generation !== this.generation) return;
+        this.reviewCursor = next;
+      }
       for (const resume of [...this.continuations.values()].slice(0, 2)) resume();
     } catch (error) { if (this.active && generation === this.generation) this.emit({ error: error instanceof Error ? error.message : "Background paper status is unavailable." }); }
     finally { if (this.refreshing === generation) this.refreshing = null; if (this.active && generation === this.generation) this.timer = setTimeout(() => void this.refresh(), 10000); }

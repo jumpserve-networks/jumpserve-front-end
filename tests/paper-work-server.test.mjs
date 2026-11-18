@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {beforeEach,test} from 'node:test';
+import {after,beforeEach,test} from 'node:test';
 import {registerHooks} from 'node:module';
 import OpenAI from 'openai';
 globalThis.__workServer={};
@@ -11,7 +11,7 @@ const hook=registerHooks({resolve(name,context,next){
   './paper-experiment-scripts-server':'export const loadExperimentScripts=(...a)=>globalThis.__workServer.loadScripts(...a);export const refreshExperimentScripts=(...a)=>globalThis.__workServer.refreshScripts(...a);',
  };return values[name]?{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent(values[name])}:next(name,context);
 }});
-const {ownerPaperWork}=await import('../lib/paper-work-server.ts');hook.deregister();
+const {ownerPaperWork}=await import('../lib/paper-work-server.ts');after(()=>hook.deregister());
 const id='11111111-1111-4111-8111-111111111111',second='22222222-2222-4222-8222-222222222222',third='33333333-3333-4333-8333-333333333333',stamp='2026-11-17T12:00:00Z';
 let s,tables,queries,polls,errorTable;
 const plan=(study=id,status='processing')=>({study_id:study,owner_id:'owner',status,updated_at:stamp,reason:null,revision:3,provider_response_id:'resp_'+study,experiment_0:status==='ready'?'Experiment 1':null});
@@ -44,4 +44,8 @@ test('reviewed original plans keep their ready status without rewriting a failed
 test('deleted assessments, ideas and read failures do not create misleading completion notices',async()=>{
  tables.research_study_owners[0].active_study.deleted_at=stamp;assert.deepEqual((await ownerPaperWork('owner',0)).units,[]);tables.research_study_owners[0].active_study.deleted_at=null;tables.research_studies[0].study_kind='idea';assert.deepEqual((await ownerPaperWork('owner',0)).units,[]);assert.deepEqual(polls,[]);
  tables.research_studies[0].study_kind='paper';errorTable='research_experiment_scripts';await assert.rejects(()=>ownerPaperWork('owner',0),e=>e.status===503);
+});
+test('new drafts remain processing in notification metadata until approval and repaired experiment counts are used',async()=>{
+ tables.research_experiment_plans=[{...plan(id,'ready'),quality_required:'true'}];tables.research_paper_quality_workflows=[{study_id:id,owner_id:'owner',step:3,experiment_index:0,status:'review_pending',phase:'reviewing',round:0}];let result=await ownerPaperWork('owner',0);assert.equal(result.units[0].stage,'processing');assert.equal(result.review_pending,true);
+ tables.research_paper_quality_workflows[0]={...tables.research_paper_quality_workflows[0],status:'approved',phase:'approved',experiment_0:'Reviewed one',experiment_1:'Reviewed two'};tables.research_experiment_scripts=[{study_id:id,owner_id:'owner',target:'ubuntu-debian',experiment_index:1,status:'ready',quality_required:'true',updated_at:stamp,plan_revision:3,link_review_id:null}];tables.research_paper_quality_workflows.push({study_id:id,owner_id:'owner',step:4,experiment_index:1,status:'needs_attention',phase:'needs_attention'});result=await ownerPaperWork('owner',0);assert.equal(result.units[0].stage,'ready');assert.equal(result.units.filter(u=>u.step===4).length,2);assert.equal(result.units.find(u=>u.step===4&&u.index===1).stage,'failed');assert.equal(result.units.find(u=>u.step===4&&u.index===2).stage,'not_generated');
 });

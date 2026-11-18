@@ -30,6 +30,7 @@
     "review:experiment-plan-links": "node --import ./scripts/lib/register-typescript.mjs scripts/review-experiment-plan-links.mjs",
     "eval:terminal-commands": "node --import ./scripts/lib/register-typescript.mjs scripts/evaluate-terminal-commands.mjs",
     "eval:experiment-scripts": "node --import ./scripts/lib/register-typescript.mjs scripts/evaluate-terminal-commands.mjs --shared",
+    "eval:paper-quality": "node --import ./scripts/lib/register-typescript.mjs scripts/evaluate-paper-quality.mjs",
     "eval:models": "node --import ./scripts/lib/register-typescript.mjs scripts/benchmark-paper-models.mjs"
   },
   "dependencies": {
