@@ -16,6 +16,25 @@ and repair reservations count toward the original assessment limits and deadline
 High reasoning and sandbox checks add latency and cost; they reduce errors but
 do not establish scientific truth or guarantee runtime correctness.
 
+Reviews and repairs receive the original generation instructions/input and an
+explicit one-based reference map. Opaque detail ID suffixes do not define plan
+aliases. Reviews distinguish paper-fixed requirements from mixed actions that
+also add proposed logging or platform persistence. Supabase storage remains a
+platform requirement alongside the paper's local artifacts. A genuinely undefined
+scientific rule may remain an actionable open question in the plan, with affected
+execution/scoring blocked until the rule is frozen before observation. A review
+must not invent a scientific criterion merely to approve a plan.
+
+The database derives a cumulative ledger from every completed review and its
+deterministic checks. It includes findings even after an earlier reviewer marked
+them resolved, the latest dispositions, and the candidate before the last repair.
+Each new review must account for every ledger key as resolved, open or dismissed,
+with evidence from the current candidate or specific counterevidence. Missing
+dispositions and open blocking findings prevent approval. Repairs preserve earlier
+valid fixes, add missing actions when necessary, and recheck cleanup, invalid-data
+branches and persistence. This makes regressions explicit; semantic evidence is
+still model-reviewed, not a formal proof that no requirement was lost.
+
 The Step 4 reviewer uses a network-disabled Linux Code Interpreter container.
 The exact source-bound checker parses every Bash block and embedded Python
 heredoc. Independent reviewer-authored unittest fixtures must exercise normal,
@@ -39,7 +58,13 @@ check evidence is retained in Postgres before anything is made ready.
 `202611180001_paper_quality_reviews.sql` adds private workflow, call, event and
 prompt-use relations. `202611180002_paper_quality_review_rounds.sql` widens the
 repair bound to three without rewriting or reopening terminal workflows. Pending
-work retains its current round and all earlier call identities. Original extraction, plan and command rows remain unchanged.
+work retains its current round and all earlier call identities.
+`202611180003_paper_quality_review_context.sql` adds database-owned context and
+evidence-backed prior-finding dispositions. The updated server marks its admissions
+as requiring the new structured review format. The old server remains compatible
+during a migration-first rollout; already-frozen legacy requests/responses retain
+their format and reconcile without replacement inference. The server checks migration
+availability before reserving another call. Original extraction, plan and command rows remain unchanged.
 Approved repairs are effective overlays, not rewrites. Requests, provider IDs,
 raw responses, findings, checks and repaired candidates are versioned. Shared
 `/prompts` entries contain generic templates; source text, findings, assessment
@@ -75,7 +100,7 @@ or database calls. A deliberate live evaluation uses a private source JSON in th
 `QualitySource` shape and a frozen run name:
 
 ```sh
-npm run eval:paper-quality -- --live --run NAME --from-source PRIVATE_JSON
+npm run eval:paper-quality -- --live --run NAME --from-source PRIVATE_JSON --from-context PRIVATE_CONTEXT_JSON
 npm run eval:paper-quality -- --replay NAME
 ```
 
@@ -83,6 +108,10 @@ Evidence remains under ignored `.test-artifacts/paper-quality-evaluations/NAME`.
 Reusing an uncertain name never submits another call. The identical live command
 can retrieve a saved provider ID; replay uses only retained local evidence.
 Never commit these private source/response artifacts.
+New live evaluations require a `PaperQualityContext` matching the saved original
+request and reference map; use the owner-only workflow context rather than
+inventing a generation contract. Replays validate the context frozen in the
+original request. These development evaluations do not reopen a failed assessment.
 
 The infrastructure test `test/check_paper_quality_database.py` runs the additive
 migration and actual RPC flows against the existing isolated native Postgres
@@ -93,9 +122,11 @@ Its `--reuse-base` option clones a fingerprinted pristine fixture for faster rer
 
 The additional `test/check_paper_quality_rounds_database.py` qualifies all seven
 call positions, early approval and exhaustion across Steps 2–4, immutable earlier
-rounds, concurrency and limits. It supports the same `--reuse-base` option.
+rounds, concurrency and limits. Add `--with-context` to qualify the context migration,
+legacy reconciliation, cumulative ledger, altered-context rejection and missing/open
+disposition rejection across all three stages. It supports the same `--reuse-base` option.
 
-Release order: qualify locally, apply the quality-gate and review-round migrations
+Release order: qualify locally, apply the quality-gate, review-round and review-context migrations
 in order after the existing shared script/model migrations, then deploy the matching
 frontend. Neither production
 migration application nor deployment is implied by a local implementation request.

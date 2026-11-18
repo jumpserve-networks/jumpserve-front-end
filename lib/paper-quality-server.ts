@@ -2,7 +2,7 @@ import "server-only";
 import { isDeepStrictEqual } from "node:util";
 import type { Response } from "openai/resources/responses/responses";
 import { PAPER_QUALITY_VERSION, qualityReason, validateQualityReview, type PaperQualityProgress, type PaperQualityStep } from "./paper-quality";
-import { advancePaperQuality, cancelPaperQuality, qualityProgress, PaperQualityLimitError, type QualityWorkflow } from "./paper-quality-runner";
+import { advancePaperQuality, cancelPaperQuality, qualityProgress, frozenQualityContext, PaperQualityLimitError, type QualityWorkflow } from "./paper-quality-runner";
 import { deterministicQualityChecks, type QualityIntakeCandidate } from "./paper-quality-checks";
 import { qualityAttachment, retrieveQualitySandboxArtifact, type QualitySource } from "./paper-quality-model";
 import { readPaperExtraction, type IntakeRecord } from "./paper-intake-runner";
@@ -29,6 +29,7 @@ function operations(row: QualityWorkflow) {
   return {
     save: async (operation: string, payload: Record<string, unknown>) => {
       const { data, error } = await (await database()).rpc("research_paper_quality_control", { p_operation: operation, p_actor: row.owner_id, p_workflow: row.id, p_payload: payload });
+      if (operation === "context" && error?.code === "P0001" && /Unknown quality operation|original quality call identity and token/.test(error.message)) throw new PaperQualityError("Paper quality checking needs the database review-context update.", 424);
       if (operation === "admit" && error?.code === "P0001" && /original assessment (budget|deadline)/i.test(error.message)) throw new PaperQualityLimitError("The original assessment budget or deadline does not allow another quality call. No replacement request was sent.");
       dbFailure(error);return data as QualityWorkflow;
     },
@@ -74,7 +75,7 @@ async function gate(row: { study_id: string; owner_id: string; status: string; p
   if (q.source_json && (!isDeepStrictEqual(q.source_json.candidate, original) || q.source_revision !== row.revision || q.source_provider_id !== row.provider_response_id || q.study_id !== row.study_id || q.owner_id !== row.owner_id || q.step !== step || q.experiment_index !== index || step === 2 && !isDeepStrictEqual(q.source_json.paper, row.paper_text) || step !== 2 && !isDeepStrictEqual(q.source_json.confirmed_breakdown, row.confirmed_breakdown) || step === 4 && !isDeepStrictEqual(q.source_json.plan, row.source_plan))) throw new PaperQualityError("The quality review belongs to a different original draft.");
   if (q.status === "approved") {
     const source = { ...q.source_json, candidate: q.candidate }, hash = qualityAttachment(source).hash;
-    if (!q.review || validateQualityReview(q.review).decision !== "pass" || q.checks?.passed !== true || q.checks.source_sha256 !== hash || !deterministicQualityChecks(source).passed || step === 4 && (q.checks.sandbox?.result.passed !== true || q.checks.sandbox.result.source_sha256 !== hash)) throw new PaperQualityError("The approved output no longer passes its source checks.");
+    if (!q.review || validateQualityReview(q.review, frozenQualityContext(q.call?.request ?? null)).decision !== "pass" || q.checks?.passed !== true || q.checks.source_sha256 !== hash || !deterministicQualityChecks(source).passed || step === 4 && (q.checks.sandbox?.result.passed !== true || q.checks.sandbox.result.source_sha256 !== hash)) throw new PaperQualityError("The approved output no longer passes its source checks.");
   }
   return q;
 }

@@ -1,6 +1,7 @@
 import {evidencePaper,evidenceBreakdown,evidencePlan} from './paper-evidence-fixture.mjs';
 import {experimentScriptsFixture,hierarchicalImplementationPlan,implementationBreakdown} from './experiment-scripts-fixture.mjs';
 import {qualityAttachment} from '../../lib/paper-quality-model.ts';
+import {qualityReferenceMap} from '../../lib/paper-quality-context.ts';
 import {qualitySandboxProgram,QUALITY_SANDBOX_MARKER} from '../../lib/paper-quality-sandbox.ts';
 const id='11111111-1111-4111-8111-111111111111';
 export const passReview=()=>({decision:'pass',summary:'Source and implementation checks passed.',findings:[]});
@@ -16,22 +17,24 @@ export function qualityResponse(review=passReview(),source){
  output.push({type:'message',content:[{type:'output_text',text:JSON.stringify(review)}]});return{id:'resp_quality_fixture',status:'completed',output};
 }
 export function qualityOperations(initial=qualityRow()){
- let current=structuredClone(initial),response=qualityResponse(),count=0;const events=[],requests=[];
+ let current=structuredClone(initial),response=qualityResponse(),count=0,previousCandidate=null;const events=[],requests=[],ledger=[];
+ const context=()=>({version:'paper-quality-context-v1',generation_instructions:current.original_request.instructions,generation_input:current.original_request.input,reference_map:qualityReferenceMap(current.source_json.confirmed_breakdown),finding_ledger:structuredClone(ledger),prior_resolutions:structuredClone(current.review?.resolutions??[]),previous_candidate:structuredClone(previousCandidate)});
  const ops={
   async save(operation,payload){events.push({operation,payload:structuredClone(payload)});
-   if(operation==='admit'){if(!['review_pending','repair_pending'].includes(current.status))return{...current,admitted:false};const kind=current.status==='repair_pending'?'repair':'review';current={...current,status:'running',phase:kind==='repair'?'repairing':'reviewing',call:{id:'call_'+ ++count,kind,status:'preparing',submit_token:'token_'+count,provider_response_id:null,request:null,updated_at:new Date().toISOString()}};return{...structuredClone(current),admitted:true};}
+   if(operation==='context')return{...structuredClone(current),review_context:context()};
+   if(operation==='admit'){if(!['review_pending','repair_pending'].includes(current.status))return{...current,admitted:false};const kind=current.status==='repair_pending'?'repair':'review';current={...current,status:'running',phase:kind==='repair'?'repairing':'reviewing',call:{id:'call_'+ ++count,kind,status:'preparing',submit_token:'token_'+count,provider_response_id:null,request:null,updated_at:new Date().toISOString()}};return{...structuredClone(current),review_context:context(),admitted:true};}
    if(operation==='request')current.call={...current.call,request:payload.request,status:'submitting'};
    if(operation==='submitted')current.call={...current.call,status:'processing',provider_response_id:payload.response_id};
    if(operation==='uncertain'){current.status='uncertain';current.phase='uncertain';current.call.status='uncertain';}
    if(operation==='failed'){current.status='needs_attention';current.phase='needs_attention';current.reason=payload.reason;}
-   if(operation==='reviewed'){current.review=payload.review;current.checks=payload.checks;current.call.status='completed';current.status=payload.review.decision==='pass'&&payload.checks.passed?'approved':current.round<3?'repair_pending':'needs_attention';current.phase=current.status==='repair_pending'?'repairing':current.status;}
-   if(operation==='repaired'){current.candidate=payload.candidate;current.checks=payload.checks;current.round++;current.status='review_pending';current.phase='reviewing';current.call.status='completed';}
+   if(operation==='reviewed'){for(const [kind,findings] of [['review',payload.review.findings],['check',payload.checks.findings]])for(const finding of findings)ledger.push({key:kind+'-'+count+':'+finding.id,finding:structuredClone(finding)});current.review=payload.review;current.checks=payload.checks;current.call.status='completed';current.status=payload.review.decision==='pass'&&payload.checks.passed?'approved':current.round<3?'repair_pending':'needs_attention';current.phase=current.status==='repair_pending'?'repairing':current.status;}
+   if(operation==='repaired'){previousCandidate=structuredClone(current.candidate);current.candidate=payload.candidate;current.checks=payload.checks;current.round++;current.status='review_pending';current.phase='reviewing';current.call.status='completed';}
    if(operation==='cancel'){current.status='cancelled';current.phase='cancelled';}
    return structuredClone(current);
   },
   upload:async()=> 'file-fixture',
   create:async(request,token)=>{if(current.call.request===null)throw Error('Request not saved');requests.push({request,token});return{id:'resp_call_'+count,status:'queued',output:[]};},
-  retrieve:async id=>({...response,id}),cancel:async id=>({id,status:'cancelled',output:[]}),parseRepair:()=>structuredClone(current.candidate),
+  retrieve:async id=>{const result=structuredClone({...response,id});if(current.call.kind==='review'&&current.call.request.text.format.name==='paper_quality_review_v2'){const c=JSON.parse(current.call.request.input).review_context;for(const item of result.output)if(item.type==='message')for(const part of item.content)if(part.type==='output_text'){const report=JSON.parse(part.text);if(!('resolutions' in report)){report.resolutions=c.finding_ledger.map(e=>({key:e.key,status:report.decision==='pass'?'resolved':'open',evidence:'Synthetic current-candidate evidence for '+e.key}));part.text=JSON.stringify(report);}}}return result;},cancel:async id=>({id,status:'cancelled',output:[]}),parseRepair:()=>structuredClone(current.candidate),
  };
  return{ops,events,requests,row:()=>structuredClone(current),response:value=>{response=value;}};
 }
