@@ -39,8 +39,8 @@ validation or an automatic choice of which action should decide a claim.
 ## Confirmation and planning
 
 New Step 2 breakdowns and Step 3 plans require a separate high-reasoning review
-before display or downstream use. One bounded medium repair may be followed by
-one high re-review. Originals remain unchanged; see
+before display or downstream use. Up to three bounded medium repairs may each be followed by
+a high re-review, stopping immediately on approval. Originals remain unchanged; see
 [Paper quality gates](paper-quality-reviews.md) for the complete gate and release order.
 
 Phase one extracts Access, Experiment, Data and Validate. Only the Google-linked

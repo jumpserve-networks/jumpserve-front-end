@@ -24,14 +24,14 @@ export function qualityOperations(initial=qualityRow()){
    if(operation==='submitted')current.call={...current.call,status:'processing',provider_response_id:payload.response_id};
    if(operation==='uncertain'){current.status='uncertain';current.phase='uncertain';current.call.status='uncertain';}
    if(operation==='failed'){current.status='needs_attention';current.phase='needs_attention';current.reason=payload.reason;}
-   if(operation==='reviewed'){current.review=payload.review;current.checks=payload.checks;current.call.status='completed';current.status=payload.review.decision==='pass'&&payload.checks.passed?'approved':current.round===0?'repair_pending':'needs_attention';current.phase=current.status==='repair_pending'?'repairing':current.status;}
-   if(operation==='repaired'){current.candidate=payload.candidate;current.checks=payload.checks;current.round=1;current.status='review_pending';current.phase='reviewing';current.call.status='completed';}
+   if(operation==='reviewed'){current.review=payload.review;current.checks=payload.checks;current.call.status='completed';current.status=payload.review.decision==='pass'&&payload.checks.passed?'approved':current.round<3?'repair_pending':'needs_attention';current.phase=current.status==='repair_pending'?'repairing':current.status;}
+   if(operation==='repaired'){current.candidate=payload.candidate;current.checks=payload.checks;current.round++;current.status='review_pending';current.phase='reviewing';current.call.status='completed';}
    if(operation==='cancel'){current.status='cancelled';current.phase='cancelled';}
    return structuredClone(current);
   },
   upload:async()=> 'file-fixture',
   create:async(request,token)=>{if(current.call.request===null)throw Error('Request not saved');requests.push({request,token});return{id:'resp_call_'+count,status:'queued',output:[]};},
-  retrieve:async id=>({...response,id}),cancel:async id=>({id,status:'cancelled',output:[]}),parseRepair:()=>structuredClone(current.source_json.candidate),
+  retrieve:async id=>({...response,id}),cancel:async id=>({id,status:'cancelled',output:[]}),parseRepair:()=>structuredClone(current.candidate),
  };
  return{ops,events,requests,row:()=>structuredClone(current),response:value=>{response=value;}};
 }
