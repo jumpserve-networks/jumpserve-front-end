@@ -13,10 +13,18 @@ class Manager{
  emit(patch){this.state={...this.state,...patch};for(const listener of this.listeners)listener();}
 }
 globalThis.__uploadManagerClass=Manager;
+class WorkManager{
+ constructor(ownerId){this.ownerId=ownerId;this.storageKey='synthetic-work-key';this.state={activity:[],error:'',persistenceError:''};this.listeners=new Set();}
+ subscribe=listener=>{this.listeners.add(listener);return()=>this.listeners.delete(listener);};getSnapshot=()=>this.state;getServerSnapshot=()=>this.state;
+ start=()=>{};stop=()=>{};refresh=()=>{};syncPreferences=()=>{};hasSubmissions=()=>false;
+}
+globalThis.__uploadWorkManagerClass=WorkManager;
+
 const replacements={
  'next/link':"export default function Link({prefetch,...props}){return globalThis.__uploadReact.createElement('a',props);}",
  '@/app/components/user-preferences':'export const useUserPreferences=()=>globalThis.__uploadPreferences;',
  '@/lib/paper-upload-manager':'export const PaperUploadManager=globalThis.__uploadManagerClass;',
+ '@/lib/paper-work-manager':'export const PaperWorkManager=globalThis.__uploadWorkManagerClass;',
  '@/lib/paper-intake-client':'export const paperIntakeRequest=(...args)=>globalThis.__uploadRequest(...args);',
  '@/lib/supabase/client':'export const createClient=()=>globalThis.__uploadClient;',
 };

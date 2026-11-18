@@ -264,6 +264,11 @@ test('legacy listings restore real assessment progress through the read-only que
   assert.deepEqual(calls.map(call => call.id), [first]); assert.ok(calls[0].signal instanceof AbortSignal);
   assert.equal(f.calls.filter(call => call.body).length, 0);
 });
+test('confirmed Next.js wizard papers do not restore legacy claim queue notices or poll the queue',async t=>{
+ let reads=0;
+ const f=fixture(t,{list:()=>({access:'owner-drafts',studies:[{id:first,title:'Wizard paper',paper_review_status:'confirmed',paper_intake_stage:'ready'}]}),readQueue:async()=>{reads++;throw Error('Wizard plans do not use the claim queue');}});
+ await delay(0);await f.manager.refresh();assert.equal(reads,0);assert.deepEqual(f.manager.getSnapshot().activity,[]);
+});
 
 test('a failed legacy queue read retains that paper progress while other papers can finish and recover independently', async t => {
   let failing = false;

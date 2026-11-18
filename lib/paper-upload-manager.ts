@@ -127,7 +127,7 @@ export class PaperUploadManager {
       if (submitted && (study.paper_review_status === "preparing" || study.paper_review_status === "ready")) { activity.push(submitted); continue; }
       const summary = study.assessment_status;
       const preparing = study.paper_review_status === "preparing";
-      const eligible = study.paper_review_status === "confirmed" || study.paper_review_status === undefined;
+      const eligible = study.paper_review_status === "confirmed" && (study.paper_intake_stage === undefined || summary != null) || study.paper_review_status === undefined;
       if (preparing || eligible && summary?.status === "running") this.preferences.activity.tracked = [...new Set([...this.preferences.activity.tracked, study.id])].slice(-200);
       if (!this.preferences.activity.tracked.includes(study.id)) continue;
       if (!preparing && !eligible) continue;
@@ -147,7 +147,7 @@ export class PaperUploadManager {
     // never private prompts, and never treat absent/partial records as zero.
     const ids = new Set(studies.map(study => study.id));
     for (const id of this.finishedStatuses.keys()) if (!ids.has(id)) this.finishedStatuses.delete(id);
-    const pending = studies.filter(study => study.assessment_status == null && study.paper_review_status === "confirmed");
+    const pending = studies.filter(study => study.assessment_status == null && study.paper_review_status === "confirmed" && study.paper_intake_stage === undefined);
     let index = 0;
     const worker = async () => {
       while (this.active && generation === this.generation && index < pending.length) {

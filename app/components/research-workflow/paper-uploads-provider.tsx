@@ -11,6 +11,9 @@ import { createClient } from "@/lib/supabase/client";
 import { researchAssessmentPath } from "@/lib/research-pathways";
 import { assessmentActivityHeading, type AssessmentActivity } from "@/lib/assessment-notifications";
 import { cn } from "@/lib/utils";
+import { PaperWorkManager } from "@/lib/paper-work-manager";
+import { paperWorkStatus } from "@/lib/paper-work-client";
+import { PaperWorkScope, PaperWorkNotices } from "./paper-work-provider";
 
 const Context = createContext<PaperUploadManager | null>(null);
 
@@ -38,22 +41,27 @@ export function PaperUploadsProvider({ children }: { children: ReactNode }) {
       if (error) throw new Error("The PDF upload response could not be confirmed.");
     }), [ownerId]);
   const state = useSyncExternalStore(manager.subscribe, manager.getSnapshot, manager.getServerSnapshot);
+  const work = useMemo(() => new PaperWorkManager(ownerId, (cursor, signal) => paperWorkStatus(cursor, ownerId!, signal)), [ownerId]);
+  const workState = useSyncExternalStore(work.subscribe, work.getSnapshot, work.getServerSnapshot);
   useEffect(() => {
     let storage: Storage | undefined;
     try { storage = window.localStorage; } catch { /* Server records still restore pending papers. */ }
-    manager.start(storage);
-    const online = () => { void manager.refresh(); };
-    const saved = (event: StorageEvent) => { if (event.key === manager.storageKey) manager.syncPreferences(); };
-    const leaving = (event: BeforeUnloadEvent) => { if (manager.hasTransfers()) { event.preventDefault(); event.returnValue = ""; } };
+    manager.start(storage);work.start(storage);
+    const online = () => { void manager.refresh();void work.refresh(); };
+    const visible = () => { if (document.visibilityState === "visible") online(); };
+    const saved = (event: StorageEvent) => { if (event.key === manager.storageKey) manager.syncPreferences();if (event.key === work.storageKey) work.syncPreferences(); };
+    const leaving = (event: BeforeUnloadEvent) => { if (manager.hasTransfers() || work.hasSubmissions()) { event.preventDefault(); event.returnValue = ""; } };
     window.addEventListener("online", online); window.addEventListener("storage", saved); window.addEventListener("beforeunload", leaving);
+    document.addEventListener("visibilitychange", visible);
     return () => {
-      manager.stop(); window.removeEventListener("online", online); window.removeEventListener("storage", saved); window.removeEventListener("beforeunload", leaving);
+      manager.stop();work.stop(); window.removeEventListener("online", online); window.removeEventListener("storage", saved); window.removeEventListener("beforeunload", leaving);document.removeEventListener("visibilitychange", visible);
     };
-  }, [manager]);
+  }, [manager, work]);
   const statusError = state.error && (state.uploads.some(u => u.phase === "preparing") || state.activity.length > 0);
-  return <Context.Provider value={manager}>
+  return <PaperWorkScope manager={work}><Context.Provider value={manager}>
     {children}
-    {state.activity.length || state.notices.length || statusError ? <aside aria-label="Paper notifications" className="fixed right-4 bottom-4 left-4 z-40 max-h-[70dvh] space-y-3 overflow-y-auto overscroll-contain sm:left-auto sm:w-96" aria-live="polite" aria-relevant="additions text">
+    {state.activity.length || state.notices.length || statusError || workState.activity.length || workState.persistenceError ? <aside aria-label="Paper notifications" className="fixed right-4 bottom-4 left-4 z-40 max-h-[70dvh] space-y-3 overflow-y-auto overscroll-contain sm:left-auto sm:w-96" aria-live="polite" aria-relevant="additions text">
+      <PaperWorkNotices />
       {state.activity.map(activity => <AssessmentNotice key={`${activity.id}:${activity.phase}`} activity={activity} stale={Boolean(state.error || activity.statusError)} onDismiss={() => manager.dismissActivity(activity.id, activity.phase)} />)}
       {state.notices.map(notice => {
         const upload = state.uploads.find(u => u.id === notice.id);
@@ -67,7 +75,7 @@ export function PaperUploadsProvider({ children }: { children: ReactNode }) {
       {statusError ? <div role="alert" className="content-panel space-y-2 rounded-xl border bg-card p-4 text-sm text-card-foreground"><p>Paper notifications are temporarily unavailable. Saved preparation work is retained.</p><Button size="sm" variant="outline" onClick={() => void manager.refresh()}>Retry status</Button></div> : null}
       {state.persistenceError ? <p className="content-panel rounded-lg border bg-card p-3 text-sm text-card-foreground">{state.persistenceError}</p> : null}
     </aside> : null}
-  </Context.Provider>;
+  </Context.Provider></PaperWorkScope>;
 }
 
 export function usePaperUploads() {
