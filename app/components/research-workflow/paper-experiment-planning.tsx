@@ -11,21 +11,27 @@ import { PaperAssessmentSteps, PaperWizardRoute, type PaperWizardNavigation } fr
 import { PAPER_ASSESSMENT_STEPS } from "@/lib/paper-assessment-wizard";
 import { PaperExperimentPlanOutline } from "./paper-experiment-plan-outline";
 import { PaperExperimentScripts } from "./paper-experiment-scripts";
+import { usePaperWork } from "./paper-work-provider";
 
 async function planFetch(id: string, ownerId: string, options: RequestInit = {}) {
   const token = await requireAccessToken(RESEARCH_SIGN_IN_REQUIRED, ownerId);
-  const response = await fetch(`${EXPERIMENT_PLAN_PATH}?id=${id}`, { ...options, cache: "no-store", signal: options.signal ?? AbortSignal.timeout(110_000), headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` } });
+  const signal = options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(110_000)]) : AbortSignal.timeout(110_000);
+  signal.throwIfAborted();
+  const response = await fetch(`${EXPERIMENT_PLAN_PATH}?id=${id}`, { ...options, cache: "no-store", signal, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` } });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error ?? `Experiment planning failed (HTTP ${response.status}).`);
   return validateExperimentPlanView(result, id);
 }
 
-type PlanningProps = { assessmentId: string; ownerId: string; breakdown: PaperBreakdown; header?: ReactNode };
+type PlanningProps = { assessmentId: string; ownerId: string; breakdown: PaperBreakdown; header?: ReactNode; title?: string };
 export function PaperExperimentPlanning({ wizard = false, ...props }: PlanningProps & { wizard?: boolean }) {
   return wizard ? <PaperWizardRoute>{navigation => <PaperPlanningView {...props} wizard={navigation} />}</PaperWizardRoute> : <PaperPlanningView {...props} />;
 }
 
-function PaperPlanningView({ assessmentId, ownerId, breakdown, header, wizard }: PlanningProps & { wizard?: PaperWizardNavigation }) {
+function PaperPlanningView({ assessmentId, ownerId, breakdown, header, wizard, title = "Paper assessment" }: PlanningProps & { wizard?: PaperWizardNavigation }) {
+  const work = usePaperWork();
+  const mounted = useRef(false);
+  useEffect(() => { mounted.current = true;return () => { mounted.current = false; }; }, []);
   const [view, setView] = useState<ExperimentPlanView | null>(null);
   const [review, setReview] = useState<ReviewedSections>(() => reviewedSections(breakdown));
   const [editingDetail, setEditingDetail] = useState(false);
@@ -57,11 +63,12 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, header, wizard }:
     setBusy(true); setError("");
     try {
       const payload = action === "confirm" ? { action, study_id: assessmentId, intake_revision: view.intake_revision, sections: review } : { action, study_id: assessmentId };
-      const result = await planFetch(assessmentId, ownerId, { method: "POST", body: JSON.stringify(payload) });
+      const result = await work.perform({ id: assessmentId, title, step: 3 }, signal => planFetch(assessmentId, ownerId, { method: "POST", body: JSON.stringify(payload), signal }));
+      if (!mounted.current) return;
       setView(result); setRevision(value => value + 1);
       if (action === "confirm" && result.stage !== "awaiting_confirmation") wizard?.navigate("implementation");
-    } catch (failure) { setError(failure instanceof Error ? failure.message : "The confirmation could not be saved. Check status before retrying."); }
-    finally { setBusy(false); }
+    } catch (failure) { if (mounted.current) setError(failure instanceof Error ? failure.message : "The confirmation could not be saved. Check status before retrying."); }
+    finally { if (mounted.current) setBusy(false); }
   }
   function edit(section: PaperBreakdownSection, id: string, description: string | null) {
     setReview(previous => ({ ...previous, [section]: description === null ? previous[section].filter(item => item.id !== id) : previous[section].some(item => item.id === id) ? previous[section].map(item => item.id === id ? { id, description } : item) : [...previous[section], { id, description }] }));
@@ -103,7 +110,7 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, header, wizard }:
         <div className="flex flex-wrap justify-between gap-3 border-t pt-4"><Button variant="outline" disabled={busy} onClick={() => wizard.navigate("breakdown")}>Back to Initial Assessment</Button><Button disabled={busy || view?.stage !== "ready"} onClick={() => wizard.navigate("execution")}>Continue to Step 4</Button></div>
       </> : <>
         <section aria-labelledby="experiment-execution-title" className="space-y-6"><h2 id="experiment-execution-title" className="text-lg font-semibold">Setup &amp; Run Commands</h2>
-          {view?.plan?.experiments.length === 0 ? <p>No experiments were included in the confirmed assessment.</p> : view?.plan?.experiments.map((_, index) => <PaperExperimentScripts key={`${assessmentId}:${ownerId}:${index + 1}`} assessmentId={assessmentId} ownerId={ownerId} index={index + 1} plan={view.plan!} breakdown={saved} />)}
+          {view?.plan?.experiments.length === 0 ? <p>No experiments were included in the confirmed assessment.</p> : view?.plan?.experiments.map((_, index) => <PaperExperimentScripts key={`${assessmentId}:${ownerId}:${index + 1}`} assessmentId={assessmentId} ownerId={ownerId} title={title} index={index + 1} plan={view.plan!} breakdown={saved} />)}
         </section>
         <div className="border-t pt-4"><Button variant="outline" onClick={() => wizard.navigate("implementation")}>Back to Experiment Steps</Button></div>
       </>}

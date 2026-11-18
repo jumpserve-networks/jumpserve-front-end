@@ -8,29 +8,35 @@ import { EXPERIMENT_SCRIPTS_PATH, validateExperimentScriptsView, type Experiment
 import { SHARED_TERMINAL_LAYOUT, TERMINAL_TARGET } from "@/lib/paper-terminal-commands";
 import { CommandBlock, TerminalInputs } from "./paper-terminal-commands";
 import { PaperExperimentPlanOutline } from "./paper-experiment-plan-outline";
+import { usePaperWork } from "./paper-work-provider";
 
-type Props = { assessmentId: string; ownerId: string; index: number; plan: ExperimentPlan; breakdown: PaperBreakdown };
-export function PaperExperimentScripts({ assessmentId, ownerId, index, plan, breakdown }: Props) {
+type Props = { assessmentId: string; ownerId: string; index: number; plan: ExperimentPlan; breakdown: PaperBreakdown; title?: string };
+export function PaperExperimentScripts({ assessmentId, ownerId, index, plan, breakdown, title = "Paper assessment" }: Props) {
+  const work = usePaperWork();
   const [view, setView] = useState<ExperimentScriptsView | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null);
   const sequence = useRef(0), controller = useRef<AbortController | null>(null);
   const perform = useCallback(async (action?: "generate" | "cancel" | "cancel_previous") => {
     const current = ++sequence.current;controller.current?.abort();const request = new AbortController();controller.current = request;setBusy(true);setError(null);
     try {
+      const saved = await work.perform({ id: assessmentId, title, step: 4, index, total: plan.experiments.length, resume: !action }, async lifecycle => {
       const token = await requireAccessToken("Sign in to generate experiment scripts.", ownerId);
-      if (request.signal.aborted) return;
-      const signal = AbortSignal.any([request.signal, AbortSignal.timeout(110000)]);
+      lifecycle.throwIfAborted();
+      const signal = AbortSignal.any([lifecycle, AbortSignal.timeout(110000)]);
       async function send(operation?: "generate" | "cancel" | "cancel_previous") {
+        signal.throwIfAborted();
         const response = await fetch(`${EXPERIMENT_SCRIPTS_PATH}?id=${assessmentId}&experiment=${index}`, { method: operation ? "POST" : "GET", cache: "no-store", signal, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, ...(operation ? { body: JSON.stringify({ action: operation, study_id: assessmentId, experiment_index: index, target: TERMINAL_TARGET }) } : {}) });
         const value = await response.json();if (!response.ok) throw new Error(value.error ?? `Experiment scripts are unavailable (HTTP ${response.status}).`);
+        signal.throwIfAborted();
         return validateExperimentScriptsView(value, assessmentId, index, plan, breakdown);
       }
       let saved = await send(action);
-      if (sequence.current !== current || request.signal.aborted) return;
       if (!action && saved.stage === "not_generated" && saved.prior_pending === 0) saved = await send("generate");
-      if (sequence.current === current) setView(saved);
+      return saved;
+      });
+      if (sequence.current === current && !request.signal.aborted) setView(saved);
     } catch (failure) { if (sequence.current === current && !request.signal.aborted) setError(failure instanceof Error ? failure.message : "Experiment scripts are unavailable."); }
     finally { if (sequence.current === current) setBusy(false); }
-  }, [assessmentId, ownerId, index, plan, breakdown]);
+  }, [assessmentId, ownerId, index, plan, breakdown, title, work]);
   useEffect(() => {
     const requests = sequence, activeController = controller;
     void perform();

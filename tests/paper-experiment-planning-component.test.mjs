@@ -7,15 +7,17 @@ import {act,cleanup,fireEvent,render,screen,within} from '@testing-library/react
 import {breakdownFixture,planFixture} from './support/experiment-plan-fixture.mjs';
 import {implementationBreakdown,hierarchicalImplementationPlan,granularImplementationPlan} from './support/implementation-plan-fixture.mjs';
 import {experimentScriptsView} from './support/experiment-scripts-fixture.mjs';
+import {PaperWorkManager} from '../lib/paper-work-manager.ts';
 import {confirmPaperSections} from '../lib/paper-experiment-plan.ts';
 globalThis.__planComponent={};
 globalThis.__planReact=React;
 const navigation=`const subscribe=callback=>{globalThis.__planComponent.listeners.add(callback);return()=>globalThis.__planComponent.listeners.delete(callback);};export const usePathname=()=>'/research-verification/assessment/11111111-1111-4111-8111-111111111111';export const useRouter=()=>({push:(...args)=>globalThis.__planComponent.push(...args)});export function useSearchParams(){const query=globalThis.__planReact.useSyncExternalStore(subscribe,()=>globalThis.__planComponent.search);return new URLSearchParams(query);}`;
 const hook=registerHooks({resolve(specifier,context,next){if(specifier==='next/link')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('export default function Link({prefetch,...props}){return globalThis.__planReact.createElement("a",props);}')};if(specifier==='next/navigation')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent(navigation)};if(specifier==='@/lib/browser-auth')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('export const requireAccessToken=(...args)=>globalThis.__planComponent.token(...args);')};if(specifier==='@/lib/research-workflow-api')return{shortCircuit:true,url:'data:text/javascript,export const RESEARCH_SIGN_IN_REQUIRED="Sign in";'};return next(specifier,context);}});
-const {PaperExperimentPlanning}=await import('../app/components/research-workflow/paper-experiment-planning.tsx');hook.deregister();
+const {PaperExperimentPlanning}=await import('../app/components/research-workflow/paper-experiment-planning.tsx');const {PaperWorkScope}=await import('../app/components/research-workflow/paper-work-provider.tsx');hook.deregister();
 const id='11111111-1111-4111-8111-111111111111';
-let calls,terminalCalls,view,post,originalFetch;
+let calls,terminalCalls,view,post,originalFetch,work;
 beforeEach(()=>{
+ work=new PaperWorkManager('owner',async()=>({version:'paper-work-status-v1',study_ids:[id],units:[],next_cursor:0}));work.start();
  calls=[];terminalCalls=[];originalFetch=globalThis.fetch;globalThis.__planComponent.token=async(_message,owner)=>{assert.equal(owner,'owner');return 'verified-owner';};
  globalThis.__planComponent.search='';globalThis.__planComponent.listeners=new Set();globalThis.__planComponent.pushes=[];
  globalThis.__planComponent.push=(url,options)=>{globalThis.__planComponent.pushes.push({url,options});globalThis.__planComponent.search=new URL(url,'https://example.test').search.slice(1);for(const callback of globalThis.__planComponent.listeners)callback();};
@@ -30,8 +32,8 @@ beforeEach(()=>{
   assert.match(url,/api\/experiment-plan\?id=/);calls.push({url,options});return Response.json(options.method==='POST'?await post(JSON.parse(options.body)):view);
  };
 });
-afterEach(()=>{cleanup();globalThis.fetch=originalFetch;});
-async function show(options={}){await act(async()=>{render(React.createElement(PaperExperimentPlanning,{assessmentId:id,ownerId:'owner',breakdown:breakdownFixture(),...options}));});}
+afterEach(()=>{cleanup();work.stop();globalThis.fetch=originalFetch;});
+async function show(options={}){await act(async()=>{render(React.createElement(PaperWorkScope,{manager:work},React.createElement(PaperExperimentPlanning,{assessmentId:id,ownerId:'owner',breakdown:breakdownFixture(),...options})));});}
 async function click(name){await act(async()=>{fireEvent.click(screen.getByRole('button',{name}));});}
 async function check(name){await act(async()=>{fireEvent.click(screen.getByRole('checkbox',{name}));});}
 async function editDetail(label,text){await click('Edit '+label);fireEvent.change(screen.getByRole('textbox',{name:label+' description'}),{target:{value:text}});await click('Save '+label);}
@@ -99,6 +101,16 @@ test('stages collapse and expand locally without new planning requests or changi
 });
 test('lost confirmation response preserves edits and status reload discovers the original call',async()=>{
  await show();await editDetail('Data detail 1','Keep this reviewed measurement');const actual=post;post=async body=>{await actual(body);throw new Error('Lost confirmation response');};await click('Confirm phase one and create experiment steps');assert.ok(screen.getByText('Lost confirmation response'));assert.ok(screen.getByText('Keep this reviewed measurement'));await click('Check planning status');assert.ok(screen.getByText('Keep this reviewed measurement'));assert.equal(calls.filter(c=>c.options.method==='POST').length,1);
+});
+test('leaving before confirmation is acknowledged preserves Step 3 submission without redirecting back',async()=>{
+ const actual=post;let finish;
+ post=body=>new Promise(resolve=>{finish=async()=>resolve(await actual(body));});
+ await show({wizard:true,title:'Background plan'});await click('Continue to Step 3');
+ const admission=calls.find(c=>c.options.method==='POST');assert.ok(admission);assert.equal(work.hasSubmissions(),true);
+ cleanup();assert.equal(admission.options.signal.aborted,false);
+ await act(async()=>finish());
+ assert.equal(calls.filter(c=>c.options.method==='POST').length,1);assert.equal(globalThis.__planComponent.pushes.length,0);
+ assert.equal(work.getSnapshot().activity[0].step,3);assert.equal(work.getSnapshot().activity[0].stage,'processing');assert.equal(work.hasSubmissions(),false);
 });
 test('processing polls only the original plan, then stops polling when ready',async t=>{
  t.mock.timers.enable({apis:['setTimeout']});view={...view,stage:'processing',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture()};await show();assert.equal(calls.length,1);assert.equal(terminalCalls.length,0);view={...view,stage:'ready',plan:planFixture()};await act(async()=>{t.mock.timers.tick(5000);});assert.equal(calls.length,2);assert.equal(terminalCalls.filter(c=>c.options.method==='POST').length,0);await act(async()=>{t.mock.timers.tick(15000);});assert.equal(calls.length,2);assert.equal(terminalCalls.filter(c=>c.options.method==='POST').length,0);

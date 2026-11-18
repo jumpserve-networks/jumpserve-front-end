@@ -64,6 +64,15 @@ cannot open later stages without a selected assessment. A preparing paper stays
 on step two. Confirmation advances to step three; a verified ready plan enables
 step four, which generates shared setup and numbered run commands. Back
 navigation keeps the saved confirmation.
+After confirmation, Step 3 submission belongs to the app-wide paper notification
+provider, so navigating elsewhere keeps generation and saved-call reconciliation
+active. Progress, readiness and failures appear in the same notification area as
+Step 2, with a link back to Step 3. Reload discovers existing work without
+replaying a confirmation or model admission. Step 4 uses the same provider for
+shared script packages; see `paper-terminal-commands.md` for its completion rules
+and owner-only metadata endpoint. Closing a progress notice does not cancel work
+or suppress a later completion notice. No worker or database migration is needed
+for this tracking, and no operating-system push or email is sent.
 The `step` query parameter preserves the selected screen through refresh,
 browser history and Google sign-in. Direct links cannot bypass confirmation or
 plan readiness. Historical `step=queue` wizard URLs open Step 4 shared setup and commands.

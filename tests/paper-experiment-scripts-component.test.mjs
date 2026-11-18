@@ -4,18 +4,22 @@ import {afterEach,beforeEach,test} from 'node:test';
 import {registerHooks} from 'node:module';
 import React from 'react';
 import {act,cleanup,fireEvent,render,screen} from '@testing-library/react';
+import {PaperWorkManager} from '../lib/paper-work-manager.ts';
 import {experimentScriptsView,hierarchicalImplementationPlan,implementationBreakdown} from './support/experiment-scripts-fixture.mjs';
-const hook=registerHooks({resolve(name,context,next){if(name==='@/lib/browser-auth')return{shortCircuit:true,url:'data:text/javascript,export const requireAccessToken=async(message,owner)=>{if(owner!=="owner")throw new Error("Wrong owner");return "verified-owner";};'};return next(name,context);}});
+globalThis.__scriptsReact=React;
+const hook=registerHooks({resolve(name,context,next){if(name==='next/link')return{shortCircuit:true,url:'data:text/javascript,export default function Link({prefetch,...props}){return globalThis.__scriptsReact.createElement("a",props);}'};if(name==='@/lib/browser-auth')return{shortCircuit:true,url:'data:text/javascript,export const requireAccessToken=async(message,owner)=>{if(owner!=="owner")throw new Error("Wrong owner");return "verified-owner";};'};return next(name,context);}});
 const {PaperExperimentScripts}=await import('../app/components/research-workflow/paper-experiment-scripts.tsx');
+const {PaperWorkScope}=await import('../app/components/research-workflow/paper-work-provider.tsx');
 const {PaperExperimentPlanOutline}=await import('../app/components/research-workflow/paper-experiment-plan-outline.tsx');hook.deregister();
-const id='11111111-1111-4111-8111-111111111111';let originalFetch,clipboardDescriptor,calls,copied,view,read,write;
+const id='11111111-1111-4111-8111-111111111111';let originalFetch,clipboardDescriptor,calls,copied,view,read,write,work;
 beforeEach(()=>{
+ work=new PaperWorkManager('owner',async()=>({version:'paper-work-status-v1',study_ids:[id],units:[],next_cursor:0}));work.start();
  calls=[];copied=[];view=experimentScriptsView(id,'not_generated');originalFetch=globalThis.fetch;clipboardDescriptor=Object.getOwnPropertyDescriptor(navigator,'clipboard');Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>copied.push(text)}});
  read=async()=>view;write=async body=>view=experimentScriptsView(id,body.action==='cancel'?'cancelled':'ready');
  globalThis.fetch=async(url,options)=>{assert.match(url,/api\/experiment-scripts/);assert.equal(options.headers.Authorization,'Bearer verified-owner');calls.push({url,options});return Response.json(options.method==='POST'?await write(JSON.parse(options.body)):await read());};
 });
-afterEach(()=>{cleanup();globalThis.fetch=originalFetch;if(clipboardDescriptor)Object.defineProperty(navigator,'clipboard',clipboardDescriptor);else delete navigator.clipboard;});
-const show=async(strict=false)=>{await act(async()=>{const element=React.createElement(PaperExperimentScripts,{assessmentId:id,ownerId:'owner',index:1,plan:hierarchicalImplementationPlan(),breakdown:implementationBreakdown()});render(strict?React.createElement(React.StrictMode,null,element):element);});};
+afterEach(()=>{cleanup();work.stop();globalThis.fetch=originalFetch;if(clipboardDescriptor)Object.defineProperty(navigator,'clipboard',clipboardDescriptor);else delete navigator.clipboard;});
+const show=async(strict=false)=>{await act(async()=>{const element=React.createElement(PaperExperimentScripts,{assessmentId:id,ownerId:'owner',index:1,plan:hierarchicalImplementationPlan(),breakdown:implementationBreakdown()});render(React.createElement(PaperWorkScope,{manager:work},strict?React.createElement(React.StrictMode,null,element):element));});};
 const click=async name=>{await act(async()=>{fireEvent.click(screen.getByRole('button',{name}));});};
 test('Step 3 renders numbered planning instructions with no command requests or generation controls',async()=>{
  await act(async()=>render(React.createElement(PaperExperimentPlanOutline,{plan:hierarchicalImplementationPlan(),breakdown:implementationBreakdown()})));
@@ -47,6 +51,6 @@ test('lost acknowledgements and failed reads check saved state before any possib
  write=async()=>{view=experimentScriptsView(id,'processing');throw new Error('Lost acknowledgement');};await show();assert.ok(screen.getByText('Lost acknowledgement'));await click('Check saved scripts');assert.equal(calls.filter(c=>c.options.method==='POST').length,1);
  cleanup();calls=[];read=async()=>{throw new Error('Database update required');};await show();assert.ok(screen.getByText('Database update required'));assert.equal(calls.filter(c=>c.options.method==='POST').length,0);
 });
-test('unmount aborts a late status read before it can generate a package',async()=>{
- let resolve;read=()=>new Promise(r=>{resolve=r;});await show();const pending=calls[0];cleanup();assert.equal(pending.options.signal.aborted,true);await act(async()=>resolve(experimentScriptsView(id,'not_generated')));assert.equal(calls.filter(c=>c.options.method==='POST').length,0);
+test('leaving Step 4 preserves the initial read and completes its intended submission in the shared manager',async()=>{
+ let resolve;read=()=>new Promise(r=>{resolve=r;});await show();const pending=calls[0];cleanup();assert.equal(pending.options.signal.aborted,false);await act(async()=>resolve(experimentScriptsView(id,'not_generated')));assert.equal(calls.filter(c=>c.options.method==='POST').length,1);assert.equal(work.getSnapshot().activity[0].stage,'ready');
 });

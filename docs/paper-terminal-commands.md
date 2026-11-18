@@ -8,6 +8,27 @@ inputs. Opening Step 4 first reads saved status and explicitly POSTs generation
 only when no package exists. GET requests never admit inference. No generated
 command is executed by the application.
 
+Step 3 planning and Step 4 script generation use the app-wide paper notification
+provider. Leaving the assessment for another app page keeps the initial admission
+and saved-call reconciliation active. One notification per assessment/step shows
+progress, completion or a failure requiring attention and links to that wizard
+step. Step 4 completes only when every expected experiment package is ready.
+Dismissed progress does not suppress the later completion notification.
+
+The owner-authenticated `GET /research-verification/api/paper-workflow` discovers
+bounded metadata and reconciles at most two existing original calls per poll,
+using a rotating cursor. It cannot start replacement model calls. Status failures
+retain the last recorded progress; cancellation, original call identities, source
+revision checks, budgets and deadlines still apply. Pending legacy command calls
+are reconciled before an already-requested shared package can be admitted.
+
+Reload restores saved work from the database. Browser storage contains only
+owner-scoped watched/dismissed identifiers, with no paper or command contents.
+Sign-out stops the old owner's transport and clears its visible state. Closing
+the browser leaves already-admitted model calls running; in-app notifications
+resume on return. These are not operating-system push or email notifications.
+Step 4 still starts when the owner opens it; completing Step 3 does not start it.
+
 Run the shared setup first on an Ubuntu/Debian Linux research host using Bash,
 then follow the numbered commands. The setup supplies the reusable program;
 actions call its subcommands and check their prerequisite data and resources.
