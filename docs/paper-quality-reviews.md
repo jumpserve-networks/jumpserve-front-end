@@ -6,9 +6,10 @@ then receives an independent high-reasoning review against the retained original
 paper, exact confirmed sections, saved plan where applicable, and generated draft.
 Step 1 retains deterministic PDF upload and extraction validation.
 
-A stage can use one medium-reasoning repair followed by one new high-reasoning
-review. There are at most three additional model calls per stage (per experiment
-package at Step 4). Remaining blockers, refused/incomplete responses or missing
+A stage can use up to three medium-reasoning repairs, each followed by a new
+high-reasoning review. It stops as soon as a review passes. There are at most seven
+additional model calls per stage: one initial review and three repair/re-review
+pairs (per experiment package at Step 4). Remaining blockers, refused/incomplete responses or missing
 verification evidence leave the stage needing attention. They do not expose the
 draft, silently retry inference, or change confirmed scientific criteria. Review
 and repair reservations count toward the original assessment limits and deadline.
@@ -36,7 +37,9 @@ check evidence is retained in Postgres before anything is made ready.
 ## Persistence and background continuation
 
 `202611180001_paper_quality_reviews.sql` adds private workflow, call, event and
-prompt-use relations. Original extraction, plan and command rows remain unchanged.
+prompt-use relations. `202611180002_paper_quality_review_rounds.sql` widens the
+repair bound to three without rewriting or reopening terminal workflows. Pending
+work retains its current round and all earlier call identities. Original extraction, plan and command rows remain unchanged.
 Approved repairs are effective overlays, not rewrites. Requests, provider IDs,
 raw responses, findings, checks and repaired candidates are versioned. Shared
 `/prompts` entries contain generic templates; source text, findings, assessment
@@ -84,10 +87,15 @@ Never commit these private source/response artifacts.
 The infrastructure test `test/check_paper_quality_database.py` runs the additive
 migration and actual RPC flows against the existing isolated native Postgres
 fixture, without Docker, remote writes or provider calls. It checks all three
-stages, one-repair bounds, concurrency, uncertain-call reconciliation, original
-budgets, cancellation, deletion, immutable evidence and private catalogue capture.
+stages, the original one-repair bounds, concurrency, uncertain-call reconciliation,
+original budgets, cancellation, deletion, immutable evidence and private catalogue capture.
 Its `--reuse-base` option clones a fingerprinted pristine fixture for faster reruns.
 
-Release order: qualify locally, apply the new migration after the existing shared
-script/model migrations, then deploy the matching frontend. Neither production
+The additional `test/check_paper_quality_rounds_database.py` qualifies all seven
+call positions, early approval and exhaustion across Steps 2–4, immutable earlier
+rounds, concurrency and limits. It supports the same `--reuse-base` option.
+
+Release order: qualify locally, apply the quality-gate and review-round migrations
+in order after the existing shared script/model migrations, then deploy the matching
+frontend. Neither production
 migration application nor deployment is implied by a local implementation request.

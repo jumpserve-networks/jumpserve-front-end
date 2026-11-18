@@ -51,7 +51,7 @@ unprivileged process-identity reads are rejected before a package becomes ready.
 Static checks do not establish runtime correctness or scientific validity.
 
 New drafts also require a separate **high**-reasoning review before display. Step
-4 adds isolated syntax/behavior fixtures, with at most one medium repair and high
+4 adds isolated syntax/behavior fixtures, with up to three medium repairs, each followed by a high
 re-review. Completion notifications wait for approval. See
 [Paper quality gates](paper-quality-reviews.md) for persistence, limits, background
 continuation, browser-free evaluation and the required additional migration.

@@ -25,7 +25,8 @@ test('review verdicts require concrete bounded findings and deterministic checks
  for(const key of ['provenance','implementation_choices']){const bad=qualitySource(2);const evidence=key==='provenance'?bad.candidate.breakdown.provenance:bad.candidate.breakdown.implementation_choices[0];evidence.citations[0].quote='Unsupported evidence';assert.equal(deterministicQualityChecks(bad).passed,false);}
  const unspecified=qualitySource(2);unspecified.candidate.breakdown.provenance={classification:'unspecified',statement:null,citations:[]};assert.equal(deterministicQualityChecks(unspecified).passed,true);
  const plan=qualitySource(3);plan.candidate.experiments[0].steps[0].source_refs=['validate-999'];assert.equal(deterministicQualityChecks(plan).passed,false);
- assert.throws(()=>validateQualityProgress({version:'paper-quality-v1',phase:'approved',round:2,findings:[]}));
+ for(const round of [0,1,2,3])assert.equal(validateQualityProgress({version:'paper-quality-v1',phase:'reviewing',round,findings:[]}).round,round);
+ for(const round of [-1,4,1.5,'1',null])assert.throws(()=>validateQualityProgress({version:'paper-quality-v1',phase:'reviewing',round,findings:[]}));
 });
 test('sandbox approval requires the exact executed checker, original source hash and provider tool logs',()=>{
  const source=qualitySource(4),response=qualityResponse(passReview(),source);assert.equal(sandboxQualityChecks(response,source).passed,true);
@@ -37,11 +38,23 @@ test('read-only polling cannot admit reviews and a pass exposes only the approve
  const original=structuredClone(f.row().source_json);await advancePaperQuality(f.row(),f.ops,true);assert.equal(f.requests.length,1);assert.equal(f.requests[0].request.reasoning.effort,'high');assert.ok(f.events.findIndex(e=>e.operation==='request')<f.events.findIndex(e=>e.operation==='submitted'));
  const done=await advancePaperQuality(f.row(),f.ops);assert.equal(done.status,'approved');assert.deepEqual(done.source_json,original);assert.equal((await advancePaperQuality(done,f.ops,true)).status,'approved');assert.equal(f.requests.length,1);
 });
-test('a blocking review allows one medium repair, always requires high re-review, then stops after unresolved findings',async()=>{
- const f=qualityOperations(),original=structuredClone(f.row().source_json);
- await advancePaperQuality(f.row(),f.ops,true);f.response(qualityResponse(reviseReview()));await advancePaperQuality(f.row(),f.ops);assert.equal(f.row().status,'repair_pending');
- await advancePaperQuality(f.row(),f.ops,true);assert.equal(f.requests[1].request.reasoning.effort,'medium');await advancePaperQuality(f.row(),f.ops);assert.equal(f.row().round,1);assert.equal(f.row().status,'review_pending');
- await advancePaperQuality(f.row(),f.ops,true);assert.equal(f.requests[2].request.reasoning.effort,'high');await advancePaperQuality(f.row(),f.ops);assert.equal(f.row().status,'needs_attention');await advancePaperQuality(f.row(),f.ops,true);assert.equal(f.requests.length,3);assert.deepEqual(f.row().source_json,original);
+test('all three steps allow three medium repairs with high re-review, then stop after seven calls',async()=>{
+ for(const step of [2,3,4]){
+  const f=qualityOperations(qualityRow(step)),original=structuredClone(f.row().source_json);
+  f.ops.parseRepair=()=>{const c=structuredClone(f.row().candidate);if(step===2)c.breakdown.sections.access[0].description+=' Revised.';else if(step===3)c.experiments[0].title+=' Revised.';else c.setup.notes+=' Revised.';return c;};
+  for(let round=0;round<=3;round++){
+   const source={...f.row().source_json,candidate:f.row().candidate};await advancePaperQuality(f.row(),f.ops,true);assert.equal(f.requests.at(-1).request.reasoning.effort,'high');f.response(qualityResponse(reviseReview(),source));await advancePaperQuality(f.row(),f.ops);assert.equal(f.row().round,round);
+   if(round===3){assert.equal(f.row().status,'needs_attention');break;}
+   assert.equal(f.row().status,'repair_pending');const previous=structuredClone(f.row().candidate);await advancePaperQuality(f.row(),f.ops,true);assert.equal(f.requests.at(-1).request.reasoning.effort,'medium');assert.deepEqual(JSON.parse(f.requests.at(-1).request.input).previous_output,previous);await advancePaperQuality(f.row(),f.ops);assert.equal(f.row().round,round+1);assert.equal(f.row().status,'review_pending');assert.notDeepEqual(f.row().candidate,previous);
+  }
+  await advancePaperQuality(f.row(),f.ops,true);assert.equal(f.requests.length,7);assert.deepEqual(f.row().source_json,original);
+ }
+});
+test('approval stops additional rounds immediately, including after the second and third repair',async()=>{
+ for(const repairs of [0,1,2,3]){
+  const f=qualityOperations();for(let round=0;round<=repairs;round++){await advancePaperQuality(f.row(),f.ops,true);f.response(qualityResponse(round===repairs?passReview():reviseReview()));await advancePaperQuality(f.row(),f.ops);if(round<repairs){await advancePaperQuality(f.row(),f.ops,true);await advancePaperQuality(f.row(),f.ops);}}
+  assert.equal(f.row().status,'approved');await advancePaperQuality(f.row(),f.ops,true);assert.equal(f.requests.length,1+2*repairs);
+ }
 });
 test('an approved repair is versioned separately and can pass its second review without changing frozen scope',async()=>{
  const f=qualityOperations(),before=structuredClone(f.row().source_json);await advancePaperQuality(f.row(),f.ops,true);f.response(qualityResponse(reviseReview()));await advancePaperQuality(f.row(),f.ops);await advancePaperQuality(f.row(),f.ops,true);await advancePaperQuality(f.row(),f.ops);f.response(qualityResponse(passReview()));await advancePaperQuality(f.row(),f.ops,true);await advancePaperQuality(f.row(),f.ops);assert.equal(f.row().status,'approved');assert.equal(f.requests.length,3);assert.deepEqual(f.row().source_json,before);

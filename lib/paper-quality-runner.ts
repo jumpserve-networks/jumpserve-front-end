@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import type { Response, ResponseCreateParamsNonStreaming } from "openai/resources/responses/responses";
 import { deterministicQualityChecks } from "./paper-quality-checks";
-import { PAPER_QUALITY_VERSION, type PaperQualityChecks, type PaperQualityPhase, type PaperQualityReview, type PaperQualityStep, type PaperQualityProgress, type QualitySandboxArtifact } from "./paper-quality";
+import { PAPER_QUALITY_VERSION, type PaperQualityChecks, type PaperQualityPhase, type PaperQualityReview, type PaperQualityStep, type PaperQualityProgress, type PaperQualityRound, type QualitySandboxArtifact } from "./paper-quality";
 import { qualityAttachment, qualityReviewRequest, qualityRepairRequest, readQualityReview, sandboxQualityChecks, type QualitySource } from "./paper-quality-model";
 
 export type QualityCall = {
@@ -11,7 +11,7 @@ export type QualityCall = {
 export type QualityWorkflow = {
   id: string; study_id: string; owner_id: string; step: PaperQualityStep; experiment_index: number;
   status: "waiting" | "review_pending" | "repair_pending" | "running" | "approved" | "needs_attention" | "uncertain" | "cancelled";
-  phase: PaperQualityPhase; round: 0 | 1; source_json: QualitySource; candidate: unknown;
+  phase: PaperQualityPhase; round: PaperQualityRound; source_json: QualitySource; candidate: unknown;
   original_request: ResponseCreateParamsNonStreaming; deadline_at: string; updated_at: string;
   review: PaperQualityReview | null; checks: PaperQualityChecks | null; reason: string | null;
   source_revision: number | null; source_provider_id: string | null;
@@ -35,7 +35,8 @@ const identity = (row: QualityWorkflow) => ({ call_id: row.call?.id, token: row.
 const fail = (ops: QualityOperations, row: QualityWorkflow, reason: string, response?: Response) => ops.save("failed", { ...identity(row), reason: reason.slice(0, 2000), ...(response ? { response } : {}) });
 
 /** Status reads only reconcile known identities. Only an explicit authorized
- * advancement POST may enter this admission path. One repair, then re-review. */
+ * advancement POST may enter this admission path. Every repair needs re-review;
+ * the database enforces at most three repairs within the original limits. */
 export async function advancePaperQuality(row: QualityWorkflow, ops: QualityOperations, admit = false): Promise<QualityWorkflow> {
   if (terminal(row)) return row;
   const now = (ops.now ?? Date.now)();

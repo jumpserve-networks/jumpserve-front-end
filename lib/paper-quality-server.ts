@@ -59,7 +59,7 @@ export type QualityGated = { quality?: PaperQualityProgress };
 const stage = (q: Pick<QualityWorkflow, "status">) => q.status === "approved" ? "ready" : q.status === "uncertain" ? "uncertain" : q.status === "cancelled" ? "cancelled" : q.status === "needs_attention" ? "failed" : "processing";
 export type QualityMetadata = Pick<QualityWorkflow, "study_id" | "step" | "experiment_index" | "status" | "phase" | "round" | "reason" | "source_revision" | "source_provider_id"> & { candidate_title: string | null; [key: string]: unknown };
 export const qualityMetadataStage = (q: QualityMetadata | undefined) => q ? stage(q) : "processing";
-export const qualityMetadataReason = (q: QualityMetadata | undefined, step: PaperQualityStep) => q?.status === "approved" ? null : q?.reason ?? qualityReason(q?.phase ?? "waiting", step);
+export const qualityMetadataReason = (q: QualityMetadata | undefined, step: PaperQualityStep) => q?.status === "approved" ? null : q?.reason ?? qualityReason(q?.phase ?? "waiting", step, q?.round);
 export async function qualityMetadataFor(owner: string, studies: string[]): Promise<QualityMetadata[]> {
   if (!studies.length) return [];
   const titles = Array.from({ length: 8 }, (_, i) => `experiment_${i}:candidate->experiments->${i}->>title`).join(",");
@@ -84,15 +84,15 @@ export async function qualityIntake(row: IntakeRecord & { policy_snapshot?: unkn
   if (!q) return row;
   const quality = qualityProgress(q);
   if (q.status === "approved") return { ...row, ...(q.candidate as QualityIntakeCandidate), quality };
-  return { ...row, status: stage(q), breakdown: null, title: null, domain: null, authors: [], reason: q.reason ?? qualityReason(q.phase, 2), quality };
+  return { ...row, status: stage(q), breakdown: null, title: null, domain: null, authors: [], reason: q.reason ?? qualityReason(q.phase, 2, q.round), quality };
 }
 export async function qualityPlan(row: ExperimentPlanRecord & { policy_snapshot?: unknown; revision?: number }): Promise<ExperimentPlanRecord & QualityGated> {
   const q = await gate(row, 3, 0, row.plan);if (!q) return row;
-  return { ...row, status: stage(q), plan: q.status === "approved" ? q.candidate as ExperimentPlan : null, reason: q.reason ?? (q.status === "approved" ? null : qualityReason(q.phase, 3)), quality: qualityProgress(q) };
+  return { ...row, status: stage(q), plan: q.status === "approved" ? q.candidate as ExperimentPlan : null, reason: q.reason ?? (q.status === "approved" ? null : qualityReason(q.phase, 3, q.round)), quality: qualityProgress(q) };
 }
 export async function qualityScripts(row: TerminalCommandsRecord & { policy_snapshot?: unknown; revision?: number }): Promise<TerminalCommandsRecord & QualityGated> {
   const q = await gate(row, 4, row.experiment_index, row.command_set);if (!q) return row;
-  return { ...row, status: stage(q), command_set: q.status === "approved" ? q.candidate as TerminalCommandSet : null, generated_at: q.status === "approved" ? row.generated_at : null, reason: q.reason ?? (q.status === "approved" ? null : qualityReason(q.phase, 4)), quality: qualityProgress(q) };
+  return { ...row, status: stage(q), command_set: q.status === "approved" ? q.candidate as TerminalCommandSet : null, generated_at: q.status === "approved" ? row.generated_at : null, reason: q.reason ?? (q.status === "approved" ? null : qualityReason(q.phase, 4, q.round)), quality: qualityProgress(q) };
 }
 /** Bounded owner-scoped POST continuation. Unknown submissions never enter the
  * candidate set; only their saved identities can be reconciled explicitly. */
