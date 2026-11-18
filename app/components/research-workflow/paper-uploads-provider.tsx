@@ -12,7 +12,7 @@ import { researchAssessmentPath } from "@/lib/research-pathways";
 import { assessmentActivityHeading, type AssessmentActivity } from "@/lib/assessment-notifications";
 import { cn } from "@/lib/utils";
 import { PaperWorkManager } from "@/lib/paper-work-manager";
-import { paperWorkStatus } from "@/lib/paper-work-client";
+import { paperWorkStatus, advancePaperReviews } from "@/lib/paper-work-client";
 import { PaperWorkScope, PaperWorkNotices } from "./paper-work-provider";
 
 const Context = createContext<PaperUploadManager | null>(null);
@@ -41,7 +41,7 @@ export function PaperUploadsProvider({ children }: { children: ReactNode }) {
       if (error) throw new Error("The PDF upload response could not be confirmed.");
     }), [ownerId]);
   const state = useSyncExternalStore(manager.subscribe, manager.getSnapshot, manager.getServerSnapshot);
-  const work = useMemo(() => new PaperWorkManager(ownerId, (cursor, signal) => paperWorkStatus(cursor, ownerId!, signal)), [ownerId]);
+  const work = useMemo(() => new PaperWorkManager(ownerId, (cursor, signal) => paperWorkStatus(cursor, ownerId!, signal), (cursor, signal) => advancePaperReviews(cursor, ownerId!, signal)), [ownerId]);
   const workState = useSyncExternalStore(work.subscribe, work.getSnapshot, work.getServerSnapshot);
   useEffect(() => {
     let storage: Storage | undefined;

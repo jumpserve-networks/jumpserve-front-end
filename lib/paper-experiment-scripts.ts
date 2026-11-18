@@ -2,12 +2,13 @@ import { validateExperimentPlan, type ExperimentPlan } from "./paper-experiment-
 import type { PaperBreakdown } from "./research-paper-breakdown";
 import { terminalCommandsInput, terminalActionRefs, terminalBlockedActionRefs, validateTerminalCommandSet, SHARED_TERMINAL_LAYOUT, TERMINAL_TARGET, type TerminalCommandSet, type TerminalStage } from "./paper-terminal-commands";
 import { RESEARCH_WORKFLOW_MODULE_PATH } from "./test-modules";
+import { validateQualityProgress, type PaperQualityProgress } from "./paper-quality";
 
 export const EXPERIMENT_SCRIPTS_VERSION = "paper-experiment-scripts-v1";
 export const EXPERIMENT_SCRIPTS_FORMAT = "paper_experiment_scripts_v1";
 export const SHARED_SETUP_MAX_CHARACTERS = 200000;
 export const EXPERIMENT_SCRIPTS_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/api/experiment-scripts`;
-export type ExperimentScriptsView = { version: typeof EXPERIMENT_SCRIPTS_VERSION; study_id: string; experiment_index: number; command_layout: typeof SHARED_TERMINAL_LAYOUT; target: typeof TERMINAL_TARGET; stage: TerminalStage; command_set: TerminalCommandSet | null; reason: string | null; generated_at: string | null; prior_pending: number };
+export type ExperimentScriptsView = { version: typeof EXPERIMENT_SCRIPTS_VERSION; study_id: string; experiment_index: number; command_layout: typeof SHARED_TERMINAL_LAYOUT; target: typeof TERMINAL_TARGET; stage: TerminalStage; command_set: TerminalCommandSet | null; reason: string | null; generated_at: string | null; prior_pending: number; quality?: PaperQualityProgress };
 export function experimentScriptsInput(study: string, index: number, plan: ExperimentPlan, breakdown: PaperBreakdown) {
   return { ...terminalCommandsInput(study, index, plan, breakdown), phase: EXPERIMENT_SCRIPTS_VERSION, command_layout: SHARED_TERMINAL_LAYOUT };
 }
@@ -37,5 +38,6 @@ export function validateExperimentScriptsView(value: unknown, study: string, ind
   const v = value as ExperimentScriptsView;
   if (!v || v.version !== EXPERIMENT_SCRIPTS_VERSION || v.study_id !== study || v.experiment_index !== index || v.command_layout !== SHARED_TERMINAL_LAYOUT || v.target !== TERMINAL_TARGET || !Number.isSafeInteger(v.prior_pending) || v.prior_pending < 0 || v.prior_pending > 65 || !["not_generated", "submitting", "processing", "uncertain", "ready", "failed", "cancelled"].includes(v.stage) || v.reason !== null && (typeof v.reason !== "string" || !v.reason.trim() || v.reason.length > 2000) || v.generated_at !== null && !Number.isFinite(Date.parse(v.generated_at)) || (v.stage === "ready") !== (v.generated_at !== null) || (v.stage === "ready") !== (v.command_set !== null)) throw new Error("The saved experiment scripts could not be verified.");
   if (v.command_set) validateExperimentScripts(v.command_set, plan, breakdown, index);
+  if (v.quality !== undefined) validateQualityProgress(v.quality);
   return v;
 }

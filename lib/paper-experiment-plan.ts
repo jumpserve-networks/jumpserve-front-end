@@ -2,6 +2,7 @@ import { PAPER_BREAKDOWN_SECTIONS, validatePaperBreakdown, type PaperBreakdown, 
 import { RESEARCH_WORKFLOW_MODULE_PATH } from "./test-modules";
 import type { PaperCitation, PaperCriterion, PaperExperimentSpecification } from "./paper-breakdown-evidence";
 import { validPaperDependencies } from "./paper-detail-dependencies";
+import { validateQualityProgress, type PaperQualityProgress } from "./paper-quality";
 
 export const EXPERIMENT_PLAN_VERSION = "paper-experiment-plan-v1";
 export const MAX_EXPERIMENT_STAGES = 8;
@@ -21,6 +22,7 @@ export type ExperimentPlanView = {
   version: typeof EXPERIMENT_PLAN_VERSION; study_id: string; stage: PlanStage; intake_revision: number;
   confirmed_at: string | null; confirmed_breakdown: PaperBreakdown | null; plan: ExperimentPlan | null; reason: string | null;
   link_review?: { id: string; original_revision: number; reviewed_at: string; reviewer_type: "AI" | "human" };
+  quality?: PaperQualityProgress;
 };
 export const planPending = (stage: PlanStage) => stage === "submitting" || stage === "processing";
 export const reviewedSections = (breakdown: PaperBreakdown): ReviewedSections => Object.fromEntries(PAPER_BREAKDOWN_SECTIONS.map(({ id }) => [id, breakdown.sections[id].map(({ id, description }) => ({ id, description }))])) as ReviewedSections;
@@ -121,5 +123,6 @@ export function validateExperimentPlanView(value: unknown, id: string): Experime
     if (v.stage === "ready" && v.plan === null) throw new Error("The recorded experiment plan is missing.");
   }
   if (v.link_review !== undefined && (v.stage !== "ready" || !object(v.link_review) || !text(v.link_review.id, 100) || !Number.isSafeInteger(v.link_review.original_revision) || v.link_review.original_revision < 1 || !Number.isFinite(Date.parse(v.link_review.reviewed_at)) || !["AI", "human"].includes(v.link_review.reviewer_type))) throw new Error("The recorded plan review could not be verified.");
+  if (v.quality !== undefined) validateQualityProgress(v.quality);
   return v;
 }

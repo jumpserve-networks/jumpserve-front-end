@@ -12,6 +12,8 @@ import { PAPER_ASSESSMENT_STEPS } from "@/lib/paper-assessment-wizard";
 import { PaperExperimentPlanOutline } from "./paper-experiment-plan-outline";
 import { PaperExperimentScripts } from "./paper-experiment-scripts";
 import { usePaperWork } from "./paper-work-provider";
+import { PaperQualityFeedback } from "./paper-quality-feedback";
+import type { PaperQualityProgress } from "@/lib/paper-quality";
 
 async function planFetch(id: string, ownerId: string, options: RequestInit = {}) {
   const token = await requireAccessToken(RESEARCH_SIGN_IN_REQUIRED, ownerId);
@@ -23,12 +25,12 @@ async function planFetch(id: string, ownerId: string, options: RequestInit = {})
   return validateExperimentPlanView(result, id);
 }
 
-type PlanningProps = { assessmentId: string; ownerId: string; breakdown: PaperBreakdown; header?: ReactNode; title?: string };
+type PlanningProps = { assessmentId: string; ownerId: string; breakdown: PaperBreakdown; header?: ReactNode; title?: string; breakdownQuality?: PaperQualityProgress };
 export function PaperExperimentPlanning({ wizard = false, ...props }: PlanningProps & { wizard?: boolean }) {
   return wizard ? <PaperWizardRoute>{navigation => <PaperPlanningView {...props} wizard={navigation} />}</PaperWizardRoute> : <PaperPlanningView {...props} />;
 }
 
-function PaperPlanningView({ assessmentId, ownerId, breakdown, header, wizard, title = "Paper assessment" }: PlanningProps & { wizard?: PaperWizardNavigation }) {
+function PaperPlanningView({ assessmentId, ownerId, breakdown, header, wizard, title = "Paper assessment", breakdownQuality }: PlanningProps & { wizard?: PaperWizardNavigation }) {
   const work = usePaperWork();
   const mounted = useRef(false);
   useEffect(() => { mounted.current = true;return () => { mounted.current = false; }; }, []);
@@ -88,21 +90,23 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, header, wizard, t
   const implementationPanel = <section aria-labelledby="experiment-planning-title" className="space-y-5">
       <h2 id="experiment-planning-title" className="text-lg font-semibold">{wizard ? "Experiment Steps" : "Phase 2 · Experiment implementation steps"}</h2>
       {feedback}
+      <PaperQualityFeedback quality={view?.quality} step={3} />
       {!view ? <p role="status" className="text-sm">Checking phase-one confirmation…</p> : awaiting ? confirmation : <>
-        {view.stage !== "ready" ? <p role="status" className="text-sm font-medium">{view.stage === "cancelled" ? "Experiment planning cancelled" : view.stage === "failed" ? "Experiment planning needs attention" : view.stage === "uncertain" ? "Planning submission needs reconciliation" : "Preparing experiment implementation steps…"}</p> : null}
-        {view.reason ? <p className="text-sm text-muted-foreground">{view.reason}</p> : null}
+        {view.stage !== "ready" && !view.quality ? <p role="status" className="text-sm font-medium">{view.stage === "cancelled" ? "Experiment planning cancelled" : view.stage === "failed" ? "Experiment planning needs attention" : view.stage === "uncertain" ? "Planning submission needs reconciliation" : "Preparing experiment implementation steps…"}</p> : null}
+        {view.reason && !view.quality ? <p className="text-sm text-muted-foreground">{view.reason}</p> : null}
         {view.stage === "processing" ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void action("cancel")}>Cancel planning</Button> : null}
         {view.plan ? <PaperExperimentPlanOutline plan={view.plan} breakdown={saved} /> : null}
       </>}
       <Button size="sm" variant="outline" disabled={busy} onClick={() => setRevision(value => value + 1)}>Check planning status</Button>
     </section>;
-  if (!wizard) return <>{header}{breakdownPanel}{implementationPanel}</>;
+  if (!wizard) return <>{header}<PaperQualityFeedback quality={breakdownQuality} step={2} />{breakdownPanel}{implementationPanel}</>;
   return <>
     <PaperAssessmentSteps current={step} assessment implementation={hasConfirmation} execution={view?.stage === "ready"} busy={busy || editingDetail} onStep={wizard.navigate} />
     {header}
     <section ref={stepPanel} tabIndex={-1} aria-label={`${PAPER_ASSESSMENT_STEPS.find(s => s.id === step)!.title} step`} className="scroll-mt-24 space-y-6 outline-none">
       {step === "breakdown" ? <>
         <h2 className="text-lg font-semibold">Initial Assessment</h2>
+        <PaperQualityFeedback quality={breakdownQuality} step={2} />
         {breakdownPanel}{feedback}
         {!view ? <p role="status" className="text-sm">Checking phase-one confirmation…</p> : awaiting ? confirmation : <div className="border-t pt-4"><Button disabled={busy} onClick={() => wizard.navigate("implementation")}>Next: Experiment Steps</Button></div>}
       </> : step === "implementation" ? <>

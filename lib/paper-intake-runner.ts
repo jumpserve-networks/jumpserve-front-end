@@ -4,6 +4,7 @@ import { paperIntakePending, type PaperIntakeStage } from "./paper-intake";
 import { PAPER_SOURCE_FORMAT, PAPER_SOURCE_FORMAT_V3, PAPER_SOURCE_FORMAT_V4, PAPER_SOURCE_FORMAT_V5, PAPER_SOURCE_FORMAT_V6, resolvePaperSources } from "./paper-source-references";
 import { assertPaperIntakeQuality } from "./paper-intake-quality";
 import { parsePaperModelOutput } from "./paper-model-output";
+import type { PaperQualityProgress } from "./paper-quality";
 
 export type IntakeRecord = {
   study_id: string; owner_id: string; filename: string; sha256: string; byte_count: number;
@@ -13,6 +14,7 @@ export type IntakeRecord = {
   title: string | null; domain: string | null; authors: string[]; breakdown: unknown; reason: string | null;
   admitted?: boolean;
   revision?: number; review_revision?: number;
+  policy_snapshot?: unknown; quality?: PaperQualityProgress;
 };
 
 const sourceFormats: string[] = [PAPER_SOURCE_FORMAT, PAPER_SOURCE_FORMAT_V3, PAPER_SOURCE_FORMAT_V4, PAPER_SOURCE_FORMAT_V5, PAPER_SOURCE_FORMAT_V6];

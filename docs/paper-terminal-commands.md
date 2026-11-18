@@ -38,7 +38,7 @@ Copy controls include a private workspace and an experiment-specific namespace
 prefix. Environment values are entered in the host terminal and never sent to
 the browser, database or model.
 
-All assessment generation now uses pinned `gpt-5.4-2026-03-05` with **medium**
+All assessment generation uses pinned `gpt-5.4-2026-03-05` with **medium**
 reasoning. Step 2 breakdown and Step 3 planning each allow 32,768 reasoning/output
 tokens. Step 4 allows 64,000 tokens for the entire package. The setup body permits
 200,000 characters, action/cleanup bodies 16,000 each, and the whole saved package
@@ -49,6 +49,12 @@ setup cut; that failed original response is retained. The new 200,000-character
 setup bound is separate from historical 64,000-character recipes. Incomplete heredocs and the observed unsafe
 unprivileged process-identity reads are rejected before a package becomes ready.
 Static checks do not establish runtime correctness or scientific validity.
+
+New drafts also require a separate **high**-reasoning review before display. Step
+4 adds isolated syntax/behavior fixtures, with at most one medium repair and high
+re-review. Completion notifications wait for approval. See
+[Paper quality gates](paper-quality-reviews.md) for persistence, limits, background
+continuation, browser-free evaluation and the required additional migration.
 
 Frozen scientific acceptance criteria, exact confirmed evidence, trial scope,
 measurement endpoints and uncertainty rules remain unchanged. Dedicated claim

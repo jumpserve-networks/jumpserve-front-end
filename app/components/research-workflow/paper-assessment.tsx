@@ -1,4 +1,5 @@
 "use client";
+import { PaperQualityFeedback } from "./paper-quality-feedback";
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/app/components/ui/button";
@@ -65,12 +66,13 @@ function PaperAssessmentView({ assessmentId, ownerId, children, header, allowRes
   const pageHeader = header ?? (!embedded ? <ResearchHeader title={view?.title ?? "Paper assessment"} showModuleLabel={false} /> : null);
   const feedback = error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null;
   return <Container className={embedded ? "space-y-6" : "mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6"}>
-    {!view ? <>{wizard ? <PaperAssessmentSteps current="breakdown" assessment /> : null}{pageHeader}{feedback}<p role="status">Loading paper preparation status…</p></> : showWizard && ownerId && view.stage === "ready" && view.breakdown ? <PaperExperimentPlanning key={`${assessmentId}:${view.breakdown.review?.id ?? view.breakdown.policy_sha256}`} assessmentId={assessmentId} ownerId={ownerId} title={view.title ?? "Paper assessment"} breakdown={view.breakdown} header={error ? <>{pageHeader}{feedback}</> : pageHeader} wizard /> : <>
+    {!view ? <>{wizard ? <PaperAssessmentSteps current="breakdown" assessment /> : null}{pageHeader}{feedback}<p role="status">Loading paper preparation status…</p></> : showWizard && ownerId && view.stage === "ready" && view.breakdown ? <PaperExperimentPlanning key={`${assessmentId}:${view.breakdown.review?.id ?? view.breakdown.policy_sha256}`} assessmentId={assessmentId} ownerId={ownerId} title={view.title ?? "Paper assessment"} breakdown={view.breakdown} breakdownQuality={view.quality} header={error ? <>{pageHeader}{feedback}</> : pageHeader} wizard /> : <>
       {showWizard ? <PaperAssessmentSteps current="breakdown" assessment /> : null}
       {pageHeader}{feedback}
       {showWizard ? <h2 className="text-lg font-semibold">Initial Assessment</h2> : null}
       {preparation}
-      {view.owner && ownerId && view.stage === "ready" && view.breakdown ? <PaperExperimentPlanning key={`${assessmentId}:${view.breakdown.review?.id ?? view.breakdown.policy_sha256}`} assessmentId={assessmentId} ownerId={ownerId} title={view.title ?? "Paper assessment"} breakdown={view.breakdown} /> : view.owner && view.stage !== "uploaded" ? <PaperBreakdownPanel version="paper-breakdown-v1" value={view.breakdown} preparing={paperIntakePending(view.stage)} busy={busy} /> : !view.owner ? <p className="text-sm text-muted-foreground">The paper breakdown and source quotes are available to the paper’s owner.</p> : null}
+      {view.stage !== "ready" ? <PaperQualityFeedback quality={view.quality} step={2} /> : null}
+      {view.owner && ownerId && view.stage === "ready" && view.breakdown ? <PaperExperimentPlanning key={`${assessmentId}:${view.breakdown.review?.id ?? view.breakdown.policy_sha256}`} assessmentId={assessmentId} ownerId={ownerId} title={view.title ?? "Paper assessment"} breakdown={view.breakdown} breakdownQuality={view.quality} /> : view.owner && view.stage !== "uploaded" ? <PaperBreakdownPanel version="paper-breakdown-v1" value={view.breakdown} preparing={paperIntakePending(view.stage)} busy={busy} /> : !view.owner ? <p className="text-sm text-muted-foreground">The paper breakdown and source quotes are available to the paper’s owner.</p> : null}
       {!showWizard ? <section aria-labelledby="phase-one-queue" className="content-panel space-y-2 rounded-lg border p-4"><h2 id="phase-one-queue" className="text-lg font-semibold">Experiment Queue</h2><p className="text-sm">{view.experiment_jobs === 0 ? "No experiments have been queued." : `${view.experiment_jobs} recorded experiment jobs.`}</p></section> : null}
     </>}
   </Container>;

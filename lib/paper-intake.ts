@@ -1,5 +1,6 @@
 import { RESEARCH_WORKFLOW_MODULE_PATH } from "./test-modules";
 import { validatePaperBreakdown, type PaperBreakdown } from "./research-paper-breakdown";
+import { validateQualityProgress, type PaperQualityProgress } from "./paper-quality";
 
 export const PAPER_INTAKE_VERSION = "paper-intake-next-v1";
 export const PAPER_INTAKE_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/api/paper-intake`;
@@ -10,6 +11,7 @@ export type PaperIntakeView = {
   review_version: "research-paper-review-v1"; stage: PaperIntakeStage; title: string | null;
   authors: string[] | null; domain: string | null; created_at: string; updated_at: string;
   reason: string | null; breakdown: PaperBreakdown | null; owner: boolean; experiment_jobs: number;
+  quality?: PaperQualityProgress;
 };
 export const paperIntakePending = (stage: PaperIntakeStage) => ["uploaded", "submitting", "processing"].includes(stage);
 export function validatePaperIntake(value: unknown, id: string): PaperIntakeView {
@@ -23,6 +25,7 @@ export function validatePaperIntake(value: unknown, id: string): PaperIntakeView
       v.status !== (v.stage === "ready" ? "ready" : paperIntakePending(v.stage) ? "preparing" : "failed") ||
       !v.owner && v.breakdown !== null) throw new Error("Paper breakdown status could not be verified.");
   if (v.breakdown !== null) validatePaperBreakdown(v.breakdown);
+  if (v.quality !== undefined) { if (!v.owner) throw new Error("Private quality findings require the paper owner.");validateQualityProgress(v.quality); }
   if (v.owner && v.stage === "ready" && v.breakdown === null) throw new Error("The saved paper breakdown is missing.");
   return v;
 }

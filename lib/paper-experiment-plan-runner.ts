@@ -4,6 +4,7 @@ import { experimentPlanRequest, PAPER_EXPERIMENT_PLAN_FORMAT } from "./paper-exp
 import { validateExperimentPlan, type ExperimentPlan, type PlanStage } from "./paper-experiment-plan";
 import type { PaperBreakdown } from "./research-paper-breakdown";
 import { parsePaperModelOutput } from "./paper-model-output";
+import type { PaperQualityProgress } from "./paper-quality";
 
 export type ExperimentPlanRecord = {
   study_id: string; owner_id: string; status: Exclude<PlanStage, "awaiting_confirmation">;
@@ -11,6 +12,7 @@ export type ExperimentPlanRecord = {
   submit_token: string | null; provider_response_id: string | null; request: unknown;
   deadline_at: string; updated_at: string; plan: ExperimentPlan | null; reason: string | null; admitted?: boolean;
   link_review?: { id: string; original_revision: number; reviewed_at: string; reviewer_type: "AI" | "human" };
+  policy_snapshot?: unknown; quality?: PaperQualityProgress; revision?: number;
 };
 export type PlanOperations = {
   save: (operation: string, payload: Record<string, unknown>) => Promise<ExperimentPlanRecord>;

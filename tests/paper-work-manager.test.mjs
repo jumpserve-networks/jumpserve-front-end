@@ -62,3 +62,6 @@ test('earlier known pending calls resume their original Step 4 intent without pa
 test('invalid, incomplete and cross-study metadata is rejected without erasing recorded work',()=>{
  for(const bad of [listing([unit({id:other})]),listing([unit({stage:'invented'})]),listing([unit(),unit()]),{...listing(),next_cursor:9001}])assert.throws(()=>validatePaperWorkListing(bad));
 });
+test('saved review intent continues through a separate POST and never announces completion before approval',async t=>{
+ let approved=false,posts=0;const manager=new PaperWorkManager('owner',async()=>({...listing([unit({stage:approved?'ready':'processing',reason:approved?null:'Reviewing the experiment steps before display.'})]),review_pending:!approved}),async(cursor,signal)=>{posts++;assert.equal(signal.aborted,false);return cursor+2;});t.after(()=>manager.stop());manager.start(storage());await settle();await settle();assert.equal(posts,1);assert.equal(manager.getSnapshot().activity[0].stage,'processing');await manager.refresh();assert.equal(posts,2);approved=true;await manager.refresh();assert.equal(manager.getSnapshot().activity[0].stage,'ready');assert.equal(posts,2);
+});

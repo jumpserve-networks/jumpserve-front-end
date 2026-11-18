@@ -6,7 +6,7 @@ export const PAPER_WORK_STATUS_VERSION = "paper-work-status-v1";
 export const WORK_STAGES = ["not_generated", "submitting", "processing", "uncertain", "ready", "failed", "cancelled"] as const;
 export type PaperWorkStage = typeof WORK_STAGES[number];
 export type PaperWorkUnit = { id: string; title: string; step: 3 | 4; index: number; total: number; stage: PaperWorkStage; reason: string | null; updated_at: string | null; status_error?: string };
-export type PaperWorkListing = { version: typeof PAPER_WORK_STATUS_VERSION; study_ids: string[]; units: PaperWorkUnit[]; next_cursor: number };
+export type PaperWorkListing = { version: typeof PAPER_WORK_STATUS_VERSION; study_ids: string[]; units: PaperWorkUnit[]; next_cursor: number; review_pending?: boolean };
 export type PaperWorkActivity = Omit<PaperWorkUnit, "index"> & { ready: number; pending: number; needs_attention: number };
 export const workKey = (unit: Pick<PaperWorkUnit, "id" | "step" | "index">) => `${unit.id}:${unit.step}:${unit.index}`;
 export const workGroup = (unit: Pick<PaperWorkUnit, "id" | "step">) => `${unit.id}:${unit.step}`;
@@ -16,6 +16,7 @@ export const workPath = (activity: Pick<PaperWorkUnit, "id" | "step">) => `${res
 const id = (value: unknown): value is string => typeof value === "string" && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value);
 export function validatePaperWorkListing(value: unknown): PaperWorkListing {
   const v = value as PaperWorkListing;
+  if (v?.review_pending !== undefined && typeof v.review_pending !== "boolean") throw new Error("Background review progress could not be verified.");
   if (!v || v.version !== PAPER_WORK_STATUS_VERSION || !Array.isArray(v.study_ids) || v.study_ids.length > 1000 || !v.study_ids.every(id) || new Set(v.study_ids).size !== v.study_ids.length || !Array.isArray(v.units) || v.units.length > 9000 || !Number.isSafeInteger(v.next_cursor) || v.next_cursor < 0 || v.next_cursor > 9000) throw new Error("Background paper status could not be verified.");
   const keys = new Set<string>(), groups = new Map<string, PaperWorkUnit[]>();
   for (const unit of v.units) {
