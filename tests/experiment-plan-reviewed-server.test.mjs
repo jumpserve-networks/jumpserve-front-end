@@ -5,7 +5,7 @@ import {duplicatedClaimFixture} from './support/experiment-plan-link-review-fixt
 import {reviewExperimentPlanLinks} from '../lib/paper-experiment-plan-review.ts';
 const hook=registerHooks({resolve(name,context,next){
  if(name==='server-only')return{shortCircuit:true,url:'data:text/javascript,export {};'};
- if(name==='./paper-intake-server')return{shortCircuit:true,url:'data:text/javascript,export const intakeDatabase=async()=>globalThis.__reviewPlanDatabase;export const modelClient=()=>{throw new Error("No model calls during review reads");};'};
+ if(name==='./paper-intake-server')return{shortCircuit:true,url:'data:text/javascript,export const intakeConfigured=async()=>true;export const intakeDatabase=async()=>globalThis.__reviewPlanDatabase;export const modelClient=()=>{throw new Error("No model calls during review reads");};'};
  return next(name,context);
 }});
 const {loadExperimentPlan}=await import('../lib/paper-experiment-plan-server.ts');hook.deregister();

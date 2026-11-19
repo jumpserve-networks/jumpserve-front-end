@@ -9,6 +9,8 @@ import { refreshStepCommands, cancelStepCommands } from "./paper-step-commands-s
 import { SHARED_TERMINAL_LAYOUT, TERMINAL_TARGET } from "./paper-terminal-commands";
 import { EXPERIMENT_SCRIPTS_VERSION, type ExperimentScriptsView } from "./paper-experiment-scripts";
 import { experimentScriptsRequest } from "./paper-experiment-scripts-model";
+import { localPaperRecord, localScripts } from "./local-paper-assessment";
+import { loadLocalPaperAssessment } from "./local-paper-assessment-server";
 
 function failed(error: { code?: string; message: string }): never {
   throw new ExperimentPlanError(["42P01", "42703", "PGRST202", "PGRST204", "PGRST205"].includes(error.code ?? "") ? "Step 4 needs the shared experiment scripts database update." : `Experiment scripts could not be saved: ${error.message}`, ["42P01", "42703", "PGRST202", "PGRST204", "PGRST205"].includes(error.code ?? "") ? 424 : 409);
@@ -16,7 +18,9 @@ function failed(error: { code?: string; message: string }): never {
 export async function loadExperimentScripts(study: string, owner: string, index: number) {
   const { data, error } = await (await intakeDatabase()).from("research_experiment_scripts").select("*").eq("study_id", study).eq("owner_id", owner).eq("experiment_index", index).eq("target", TERMINAL_TARGET).maybeSingle();
   if (error) failed(error);
-  return data ? qualityScripts(data as TerminalCommandsRecord) : null;
+  if (data) return qualityScripts(data as TerminalCommandsRecord);
+  const local = await loadLocalPaperAssessment(study, owner);
+  return local ? localScripts(local.bundle, local.owner, index) : null;
 }
 function operations(study: string, owner: string, index: number) {
   return { save: async (operation: string, payload: Record<string, unknown>) => {
@@ -44,6 +48,7 @@ export async function reconcileEarlierCommands(study: string, owner: string, ind
   return pending;
 }
 export async function prepareExperimentScripts(plan: ExperimentPlanRecord, index: number) {
+  if (localPaperRecord(plan)) throw new ExperimentPlanError("This local Codex import already retains its complete commands. Create a new local version to change them.", 409);
   if (plan.status !== "ready" || !plan.plan) throw new ExperimentPlanError("Wait for the saved experiment plan before Step 4.", 409);
   return qualityScripts(await generateTerminalCommands(experimentScriptsRequest(plan.study_id, index, plan.plan, plan.confirmed_breakdown), operations(plan.study_id, plan.owner_id, index)));
 }

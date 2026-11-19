@@ -10,6 +10,8 @@ import { isGoogleAuthenticatedUser } from "./auth-provider";
 import { paperIntakeCredentials } from "./paper-intake-credentials";
 import { readWithAssessmentDeletion } from "./assessment-visibility";
 import { validatePaperBreakdown } from "./research-paper-breakdown";
+import { localIntake, localPaperRecord } from "./local-paper-assessment";
+import { loadLocalPaperAssessment } from "./local-paper-assessment-server";
 
 export async function intakeConfigured() { return Boolean(await paperIntakeCredentials()); }
 export async function intakeDatabase() {
@@ -42,10 +44,15 @@ export async function loadIntake(id: string, actor?: string | null) {
   const { data, error } = await query.maybeSingle();
   if (error && ["PGRST205", "42P01"].includes(error.code)) return null;
   if (error) throw new Error(`Paper status could not be loaded: ${error.message}`);
-  return data && actor ? effectiveIntake(data as IntakeRecord, actor) : data as IntakeRecord | null;
+  if (!data) {
+    const local = await loadLocalPaperAssessment(id, actor);
+    return local ? localIntake(local.bundle, local.owner) : null;
+  }
+  return actor ? effectiveIntake(data as IntakeRecord, actor) : data as IntakeRecord;
 }
 /** A reviewed overlay never changes the frozen original model call or intake. */
 export async function effectiveIntake(row: IntakeRecord, actor: string) {
+  if (localPaperRecord(row)) return row;
   if (actor === row.owner_id) row = await qualityIntake(row);
   if (actor !== row.owner_id || row.status !== "ready" || row.review_revision) return row;
   const { data, error } = await (await intakeDatabase()).from("research_paper_breakdown_reviews").select("revision,breakdown").eq("study_id", row.study_id).eq("owner_id", actor).order("revision", { ascending: false }).limit(1).maybeSingle();

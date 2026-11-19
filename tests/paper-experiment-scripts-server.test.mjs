@@ -7,7 +7,7 @@ import {LEGACY_TERMINAL_LAYOUT} from '../lib/paper-terminal-commands.ts';
 globalThis.__scriptsServer={};
 const hook=registerHooks({resolve(name,context,next){
  if(name==='server-only')return{shortCircuit:true,url:'data:text/javascript,export {};'};
- if(name==='./paper-intake-server')return{shortCircuit:true,url:'data:text/javascript,export const intakeDatabase=async()=>globalThis.__scriptsServer.db;export const modelClient=async()=>globalThis.__scriptsServer.model;'};
+ if(name==='./paper-intake-server')return{shortCircuit:true,url:'data:text/javascript,export const intakeConfigured=async()=>true;export const intakeDatabase=async()=>globalThis.__scriptsServer.db;export const modelClient=async()=>globalThis.__scriptsServer.model;'};
  if(name==='./paper-experiment-plan-server')return{shortCircuit:true,url:'data:text/javascript,export class ExperimentPlanError extends Error {constructor(message,status){super(message);this.status=status;}}'};
  return next(name,context);
 }});

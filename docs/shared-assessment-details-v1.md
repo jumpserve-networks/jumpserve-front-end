@@ -153,3 +153,32 @@ No deployment is authorized by a routine editing turn. A later explicit release
 must deploy the backend before the frontend, then verify production anonymous
 detail reads and authenticated owner write controls when a legitimate session
 is available. Original PDFs and private artifact storage are not made public.
+
+## Local Codex assessment imports
+
+Confirmed `local-codex-assessment-v1` bundles retain locally authored Steps 2–4
+in immutable paper-review history and private, hash-verified artifacts. They have
+no fabricated provider IDs, API calls, independent-review approvals or measured
+experiment outcomes. Native API-generated drafts keep their existing quality gates.
+
+The owner can view the imported bundle through the existing wizard. Other visitors
+see a read-only projection on the same canonical assessment URL, with navigation
+between Paper Breakdown, Experiment Steps and Setup & Run Commands. The shared
+view explicitly labels local authoring and absent independent/sandbox review.
+It does not load queues or mount owner actions, and cannot generate commands,
+launch work or change scope. Undefined claim criteria remain blocked.
+
+The projection selects only public descriptions, specifications, claim criteria,
+source page numbers, plans and command blocks. Original paper text, quotations,
+filenames, artifact identities, owner IDs and provider requests are omitted.
+Recognized credentials, contacts and private paths are redacted. A command with
+redactions cannot be copied as executable code; redacting setup also blocks its
+dependent commands. This format-based filter is not a complete privacy review
+of arbitrary text. Hashes embedded in a protocol identify unchanged originals.
+An optional local-data outage does not prevent the existing paper header from
+rendering. No schema changes, browser SQL grants or model calls are added.
+
+After deployment, `npm run verify:research:local-assessments -- --revision <sha>`
+checks the three imported assessment links, all saved steps, public privacy,
+unchanged write authentication and desktop/mobile rendering. For local checks,
+pass `--origin http://localhost:6001` instead of a revision.
