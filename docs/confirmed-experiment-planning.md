@@ -59,11 +59,11 @@ disabled until the active editor is saved or cancelled. Original quotes,
 citations, criteria and confirmed sections remain read-only.
 
 The owner flow shows four wizard steps starting at
-`/research-verification/new-assessment`: Paper Upload, Initial Assessment,
+`/research-verification/new-assessment`: Paper Upload, Paper Breakdown,
 Experiment Steps, and Setup & Run Commands. Upload remains batch-capable. Each
 screen places the wizard navigation before its heading and paper metadata.
 Public readers retain the paper metadata without private wizard controls. Each
-retained paper links to its own Initial Assessment screen at
+retained paper links to its own Paper Breakdown screen at
 `/research-verification/assessment/<id>?step=breakdown`. The upload route
 cannot open later stages without a selected assessment. A preparing paper stays
 on step two. Confirmation advances to step three; a verified ready plan enables

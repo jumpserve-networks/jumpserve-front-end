@@ -52,7 +52,7 @@ the cursor. These query parameters are shareable and survive reload/back.
 
 The status field shows only the saved wizard step, without publication badges:
 **Step 1 · Paper Upload** for an
-upload reservation, **Step 2 · Initial Assessment** while preparing or reviewing
+upload reservation, **Step 2 · Paper Breakdown** while preparing or reviewing
 the breakdown, **Step 3 · Experiment Steps** after confirmation while a plan is
 pending or needs attention, and **Step 4 · Setup & Run Commands** when the plan is ready
 or an older experiment workflow exists. Step four names the next available

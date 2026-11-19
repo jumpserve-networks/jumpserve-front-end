@@ -95,7 +95,7 @@ test('paper intake retains an enqueue error and a non-Error failure without rese
 test('wizard uploads link each retained paper to its own initial assessment screen',()=>{
  Object.assign(globalThis.__workspaceUploads,{uploads:[{id:uid(31),title:'First paper',phase:'preparing'},{id:uid(32),title:'Second paper',phase:'ready'}]});
  render(React.createElement(PaperIntake,{wizard:true}));
- assert.deepEqual(screen.getAllByRole('link',{name:'Continue to Initial Assessment'}).map(a=>a.getAttribute('href')),['/research-verification/assessment/'+uid(31)+'?step=breakdown','/research-verification/assessment/'+uid(32)+'?step=breakdown']);
+ assert.deepEqual(screen.getAllByRole('link',{name:'Continue to Paper Breakdown'}).map(a=>a.getAttribute('href')),['/research-verification/assessment/'+uid(31)+'?step=breakdown','/research-verification/assessment/'+uid(32)+'?step=breakdown']);
 });
 
 test('owner studies filters paper and idea pathways and resolves author fallbacks without mixing routes', async () => {

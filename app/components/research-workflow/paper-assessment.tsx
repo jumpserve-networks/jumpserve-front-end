@@ -5,12 +5,11 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/app/components/ui/button";
 import { useUserPreferences } from "@/app/components/user-preferences";
 import { ResearchHeader } from "./header";
-import { PaperBreakdownPanel } from "./paper-breakdown";
 import { PaperExperimentPlanning } from "./paper-experiment-planning";
 import { PaperAssessmentSteps } from "./paper-assessment-steps";
 import { paperIntakeFetch } from "@/lib/paper-intake-client";
 import { ResearchRequestError } from "@/lib/research-workflow-api";
-import { paperIntakePending, validatePaperIntake, type PaperIntakeView } from "@/lib/paper-intake";
+import { validatePaperIntake, type PaperIntakeView } from "@/lib/paper-intake";
 
 export function PaperAssessment({ assessmentId, children, header, allowResume = false, wizard = false, embedded = false, ownerOnly = false }: { assessmentId: string; children: ReactNode; header?: ReactNode; allowResume?: boolean; wizard?: boolean; embedded?: boolean; ownerOnly?: boolean }) {
   const ownerId = useUserPreferences()?.userId ?? undefined;
@@ -32,7 +31,7 @@ function PaperAssessmentView({ assessmentId, ownerId, children, header, allowRes
         const result = validatePaperIntake(await paperIntakeFetch(`?id=${assessmentId}`, { signal: controller.signal }, ownerId), assessmentId);
         if (!active) return;
         setView(result); setLegacy(false); setError("");
-        if (["submitting", "processing"].includes(result.stage)) timer = setTimeout(refresh, 5000);
+        if (["submitting", "processing"].includes(result.stage) || result.quality?.history_unavailable) timer = setTimeout(refresh, 5000);
       } catch (failure) {
         if (!active) return;
         if (failure instanceof ResearchRequestError && failure.status === 404) setLegacy(true);
@@ -46,7 +45,7 @@ function PaperAssessmentView({ assessmentId, ownerId, children, header, allowRes
     if (!ownerId) return;
     setBusy(true); setError("");
     try { setView(validatePaperIntake(await paperIntakeFetch("", { method: "POST", body: JSON.stringify({ action, request_id: assessmentId }) }, ownerId), assessmentId)); setLegacy(false); setRevision(r => r + 1); }
-    catch (failure) { setError(failure instanceof Error ? failure.message : "Paper preparation could not be confirmed."); }
+    catch (failure) { setError(failure instanceof Error ? failure.message : "Paper preparation could not be confirmed."); setRevision(r => r + 1); }
     finally { setBusy(false); }
   }
   const preparation = view ? <section className="content-panel space-y-3 rounded-lg border p-4" aria-label="Paper preparation status">
@@ -55,7 +54,7 @@ function PaperAssessmentView({ assessmentId, ownerId, children, header, allowRes
         {view.domain ? <p className="text-sm text-muted-foreground">{view.domain}</p> : null}
         {view.reason && view.reason !== "OpenAI is preparing the four paper sections." ? <p className="text-sm text-muted-foreground">{view.reason}</p> : null}
         <p className="text-xs text-muted-foreground">Updated {new Date(view.updated_at).toLocaleString()}</p>
-        <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" disabled={busy} onClick={() => setRevision(r => r + 1)}>Check status</Button>
+        <div className="flex flex-wrap gap-2">
           {view.owner && view.stage === "uploaded" ? <Button size="sm" disabled={busy} onClick={() => void action("prepare")}>Prepare breakdown</Button> : null}
           {view.owner && ["uploaded", "processing", "uncertain"].includes(view.stage) ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void action("cancel")}>Cancel preparation</Button> : null}</div>
       </section> : null;
@@ -69,10 +68,10 @@ function PaperAssessmentView({ assessmentId, ownerId, children, header, allowRes
     {!view ? <>{wizard ? <PaperAssessmentSteps current="breakdown" assessment /> : null}{pageHeader}{feedback}<p role="status">Loading paper preparation status…</p></> : showWizard && ownerId && view.stage === "ready" && view.breakdown ? <PaperExperimentPlanning key={`${assessmentId}:${view.breakdown.review?.id ?? view.breakdown.policy_sha256}`} assessmentId={assessmentId} ownerId={ownerId} title={view.title ?? "Paper assessment"} breakdown={view.breakdown} breakdownQuality={view.quality} header={error ? <>{pageHeader}{feedback}</> : pageHeader} wizard /> : <>
       {showWizard ? <PaperAssessmentSteps current="breakdown" assessment /> : null}
       {pageHeader}{feedback}
-      {showWizard ? <h2 className="text-lg font-semibold">Initial Assessment</h2> : null}
+      {showWizard ? <h2 className="text-lg font-semibold">Paper Breakdown</h2> : null}
       {preparation}
       {view.stage !== "ready" ? <PaperQualityFeedback quality={view.quality} step={2} /> : null}
-      {view.owner && ownerId && view.stage === "ready" && view.breakdown ? <PaperExperimentPlanning key={`${assessmentId}:${view.breakdown.review?.id ?? view.breakdown.policy_sha256}`} assessmentId={assessmentId} ownerId={ownerId} title={view.title ?? "Paper assessment"} breakdown={view.breakdown} breakdownQuality={view.quality} /> : view.owner && view.stage !== "uploaded" ? <PaperBreakdownPanel version="paper-breakdown-v1" value={view.breakdown} preparing={paperIntakePending(view.stage)} busy={busy} /> : !view.owner ? <p className="text-sm text-muted-foreground">The paper breakdown and source quotes are available to the paper’s owner.</p> : null}
+      {view.owner && ownerId && view.stage === "ready" && view.breakdown ? <PaperExperimentPlanning key={`${assessmentId}:${view.breakdown.review?.id ?? view.breakdown.policy_sha256}`} assessmentId={assessmentId} ownerId={ownerId} title={view.title ?? "Paper assessment"} breakdown={view.breakdown} breakdownQuality={view.quality} /> : !view.owner ? <p className="text-sm text-muted-foreground">The paper breakdown and source quotes are available to the paper’s owner.</p> : null}
       {!showWizard ? <section aria-labelledby="phase-one-queue" className="content-panel space-y-2 rounded-lg border p-4"><h2 id="phase-one-queue" className="text-lg font-semibold">Experiment Queue</h2><p className="text-sm">{view.experiment_jobs === 0 ? "No experiments have been queued." : `${view.experiment_jobs} recorded experiment jobs.`}</p></section> : null}
     </>}
   </Container>;

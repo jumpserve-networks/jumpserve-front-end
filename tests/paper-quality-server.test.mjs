@@ -4,6 +4,7 @@ import{registerHooks}from'node:module';
 import{qualityRow,passReview,qualityResponse}from'./support/paper-quality-fixture.mjs';
 import{deterministicQualityChecks}from'../lib/paper-quality-checks.ts';
 import{sandboxQualityChecks}from'../lib/paper-quality-model.ts';
+import{historyFixture,passHistoryReview}from'./support/paper-quality-history-fixture.mjs';
 globalThis.__qualityServer={};
 const hook=registerHooks({resolve(name,context,next){const code=name==='server-only'?'export {};':name==='./paper-intake-server'?'export const intakeDatabase=async()=>globalThis.__qualityServer.db;export const modelClient=async()=>{throw Error("Read-only overlays cannot create model calls");};':null;return code?{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent(code)}:next(name,context);}});
 const{qualityIntake,qualityPlan,qualityScripts,advanceOwnerPaperQuality}=await import('../lib/paper-quality-server.ts');after(()=>hook.deregister());
@@ -28,4 +29,13 @@ test('stale source revisions, changed frozen inputs and unverified approvals fai
 test('one unavailable saved workflow cannot starve other background work or force inference replay',async()=>{
  const pending=[{study_id:'first',step:3,experiment_index:0},{study_id:'second',step:4,experiment_index:1}],loaded=[];globalThis.__qualityServer.db={from(){let study;return{select(){return this;},eq(key,value){if(key==='study_id')study=value;return this;},in(){return this;},order(){return this;},range(){return Promise.resolve({data:pending,error:null});},async maybeSingle(){loaded.push(study);return{data:null,error:study==='first'?{code:'unavailable'}:null};}};}};
  const result=await advanceOwnerPaperQuality('owner');assert.deepEqual(loaded,['first','second']);assert.equal(result.next_cursor,2);assert.equal(result.unavailable,1);assert.equal(result.advanced,0);
+});
+test('all owner overlays return bounded history and history outages do not change approved results',async()=>{
+ for(const[step,run,key]of[[2,qualityIntake,'breakdown'],[3,qualityPlan,'plan'],[4,qualityScripts,'command_set']]){
+  const original=row(step);approve();q.round=1;q.review=passHistoryReview();const f=historyFixture('completed'),current={...f.calls[2],submit_token:'private-token',provider_response_id:'resp_private_review',request:null};let unavailable=false;const reads=[];
+  globalThis.__qualityServer.db={from(table){const filters=[];return{select(columns){reads.push({table,columns,filters});return this;},eq(...v){filters.push(v);return this;},in(...v){filters.push(v);return this;},order(){return this;},async maybeSingle(){return{data:table==='research_paper_quality_workflows'?{...q,current_call_id:current.id}:current,error:null};},async limit(){return unavailable?{data:null,error:{code:'temporary'}}:{data:table==='research_paper_quality_calls'?f.calls:table==='research_paper_agent_actions'?[]:f.events,error:null};}};}};
+  const ready=await run(original);assert.equal(ready.status,'ready');assert.equal(ready.quality.history.length,3);assert.equal(ready.quality.history[2].resolutions[0].status,'resolved');assert.ok(!JSON.stringify(ready.quality).includes('resp_private_review'));assert.ok(!JSON.stringify(ready.quality).includes('private-token'));
+  const query=reads.find(r=>r.table==='research_paper_quality_calls'&&r.columns!=='*');assert.ok(query.filters.some(([k,v])=>k==='owner_id'&&v===q.owner_id));
+  unavailable=true;const degraded=await run(original);assert.equal(degraded.status,'ready');assert.deepEqual(degraded[key],ready[key]);assert.equal(degraded.quality.history_unavailable,true);assert.equal(degraded.quality.history,undefined);
+ }
 });

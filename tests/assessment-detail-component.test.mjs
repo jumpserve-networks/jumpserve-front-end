@@ -41,8 +41,8 @@ const advance = async (t, milliseconds = DETAIL_POLL_MS) => {await act(async () 
 test('owner wizard remains visible when paper metadata is unavailable', async t => {
   t.mock.timers.enable({apis:['setTimeout']});
   detailReader = async () => {throw new Error('Synthetic metadata failure');};
-  await show({children: React.createElement('section', {'aria-label':'Owner wizard'}, 'Initial Assessment')});
-  assert.ok(screen.getByRole('region',{name:'Owner wizard'}));assert.ok(screen.getByText('Initial Assessment'));
+  await show({children: React.createElement('section', {'aria-label':'Owner wizard'}, 'Paper Breakdown')});
+  assert.ok(screen.getByRole('region',{name:'Owner wizard'}));assert.ok(screen.getByText('Paper Breakdown'));
   assert.equal(document.querySelectorAll('main').length,1);assert.equal(queueCalls.length,0);
 });
 
