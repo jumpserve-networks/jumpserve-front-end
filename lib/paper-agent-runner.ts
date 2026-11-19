@@ -3,7 +3,7 @@ import type { AgentSession } from "openai/resources/beta/agents/agents";
 import type { Turn } from "openai/resources/beta/agents/sessions/turns/turns";
 import type { QualityWorkflow } from "./paper-quality-runner";
 import { deterministicQualityChecks } from "./paper-quality-checks";
-import { PAPER_AGENT_MAX_ACTIONS, paperAgentRequest, paperAgentTool, type PaperAgentAction, type PaperAgentRecord, type PaperAgentResult } from "./paper-agent";
+import { PAPER_AGENT_MAX_ACTIONS, PAPER_AGENT_EDIT_ACTIONS, paperAgentRequest, paperAgentTool, type PaperAgentAction, type PaperAgentRecord, type PaperAgentResult, type PaperAgentStopCode } from "./paper-agent";
 
 export type PaperAgentOperations = {
   save: (operation: string, payload: Record<string, unknown>) => Promise<QualityWorkflow>;
@@ -19,7 +19,10 @@ export type PaperAgentOperations = {
   now?: () => number;
 };
 const finalTurn = (turn: Turn | null) => Boolean(turn && ["completed", "failed", "cancelled"].includes(turn.status));
-export class PaperAgentActionLimitError extends Error {}
+export class PaperAgentActionLimitError extends Error {
+  readonly stopCode: "action_limit" | "no_progress";
+  constructor(message = "The managed repair action limit was reached.", stopCode: "action_limit" | "no_progress" = "action_limit") { super(message); this.stopCode = stopCode; }
+}
 function sameSession(row: QualityWorkflow, session: AgentSession) {
   if (!row.call || session.metadata.call_id !== row.call.id || session.metadata.submit_token !== row.call.submit_token || session.agent.model !== "gpt-5.4" || session.agent.reasoning.effort !== "medium" || session.environment.type !== "none" || session.agent.multi_agent.enabled || row.agent?.provider_session_id && session.id !== row.agent.provider_session_id) throw new Error("The managed session does not match the retained repair identity and configuration.");
 }
@@ -64,19 +67,38 @@ export async function advancePaperAgent(row: QualityWorkflow, ops: PaperAgentOpe
   const stopping = Boolean(current.agent!.cancel_requested_at);
   if (finalTurn(turn) || session.status === "failed") {
     const items = await ops.items(id);
-    if (turn?.status !== "completed" || stopping) return ops.save(session.status !== "failed" && (stopping || turn?.status === "cancelled") ? "cancelled" : "failed", { session, turn, items, reason: stopping ? "Managed repair stopped after confirmed provider completion or cancellation." : "The retained managed repair did not complete successfully." });
+    if (turn?.status !== "completed" || stopping) {
+      const code = current.agent!.stop_code;
+      if (current.agent!.recovery_version === 1 && ["action_limit", "no_progress"].includes(code ?? "") && session.status === "idle" && finalTurn(turn) && current.agent!.candidate_version > 0 && JSON.stringify(current.agent!.candidate) !== JSON.stringify(current.agent!.initial_candidate) && Date.parse(current.agent!.deadline_at) > now && await ops.limits()) {
+        const checks = deterministicQualityChecks({ ...current.source_json, candidate: current.agent!.candidate });
+        if (checks.passed) {
+          await ops.save("controller_checks", { checks });
+          return ops.save("checkpoint", { session, turn, items, checks });
+        }
+      }
+      const owner = code === "owner_cancel" || stopping && !code; // Legacy cancellation retains its original semantics.
+      return ops.save(owner ? "cancelled" : "failed", { session, turn, items, reason: owner ? "The owner cancelled managed repair; provider stopping is confirmed." : code === "action_limit" ? "The repair action limit was reached. Its draft and findings are retained, but no valid improved checkpoint was eligible for independent review within the original limits." : code === "no_progress" ? "Three identical patch failures stopped this repair. The draft and exact validation findings are retained; no valid improved checkpoint was eligible for independent review within the original limits." : code === "deadline" ? "The original assessment deadline expired. The draft and evidence are retained." : code === "policy_change" ? "The current assessment limits stopped managed repair. Its draft and evidence are retained." : "The retained managed repair did not complete successfully; its draft and provider evidence are retained." });
+    }
     const checks = deterministicQualityChecks({ ...current.source_json, candidate: current.agent!.candidate });
     if (!checks.passed) return ops.save("failed", { session, turn, items, reason: "The final managed draft failed its original source checks.", checks });
     await ops.save("controller_checks", { checks });
     return ops.save("completed", { session, turn, items, checks });
   }
   if (!advance) return current; // GET never returns a tool result or admits more inference.
+  const stop = async (code: PaperAgentStopCode, reason: string) => {
+    const saved = await ops.save("cancel_requested", { stop_code: code, reason });
+    await ops.cancel(id, current.call!.submit_token + ":cancel");
+    return saved;
+  };
   const allowed = await ops.limits();
   if (stopping || !allowed || Date.parse(current.agent!.deadline_at) <= now) {
-    if (!stopping) current = await ops.save("cancel_requested", { reason: !allowed ? "The assessment's current finite limits do not admit managed continuation." : "The managed repair deadline expired." });
+    if (!stopping) return stop(!allowed ? "policy_change" : "deadline", !allowed ? "The assessment's current finite limits do not admit managed continuation." : "The managed repair deadline expired.");
     await ops.cancel(id, current.call!.submit_token + ":cancel");
     return current; // HTTP acceptance is not cancellation completion.
   }
+  const boundedStop = () => current.agent!.recovery_version === 1 && ((current.agent!.repeated_failures ?? 0) >= 3 ? "no_progress" : (current.agent!.actions_used ?? 0) >= PAPER_AGENT_EDIT_ACTIONS ? "action_limit" : null);
+  const stopForBound = () => stop(boundedStop() || "action_limit", boundedStop() === "no_progress" ? "Three identical rejected patches without saved progress; stopping the provider to review the retained checkpoint." : "The repair action allowance is used; reserving the final actions for controller validation and a bounded independent review handoff.");
+  if (boundedStop()) return stopForBound();
   let count = 0;
   for (const action of session.required_actions) {
     if (count++ >= 4) break; // Periodic server reconciliation also handles remaining pending calls.
@@ -85,9 +107,7 @@ export async function advancePaperAgent(row: QualityWorkflow, ops: PaperAgentOpe
     try { claim = await ops.claim({ action }); }
     catch (error) {
       if (!(error instanceof PaperAgentActionLimitError)) throw error;
-      current = await ops.save("cancel_requested", { reason: "The bounded managed repair action limit was reached." });
-      await ops.cancel(id, current.call!.submit_token + ":cancel");
-      return current;
+      return stop(error.stopCode, error.stopCode === "no_progress" ? "Three identical patch failures stopped further repair actions; preserve the saved checkpoint." : "The bounded managed repair action limit was reached.");
     }
     if (claim.workflow) current = claim.workflow;
     if (!claim.admitted && !claim.result) continue;
@@ -97,13 +117,14 @@ export async function advancePaperAgent(row: QualityWorkflow, ops: PaperAgentOpe
       current = await ops.save("action_result", { action_id: claim.id, lease_token: claim.lease_token, candidate_version: claim.candidate_version, ...evaluated });
       result = evaluated.result;
     }
+    if (boundedStop()) return stopForBound(); // Store result before stopping; never ACK it into further inference.
     await ops.result(id, action.turn_id, action.call_id, result, current.call!.submit_token + ":" + action.call_id);
   }
   return current;
 }
 export async function requestPaperAgentCancellation(row: QualityWorkflow, ops: PaperAgentOperations) {
   if (!row.agent?.provider_session_id) throw new Error("Reconcile the original managed session identity before confirming cancellation.");
-  const current = await ops.save("cancel_requested", { reason: "Owner requested managed repair cancellation." });
+  const current = await ops.save("cancel_requested", { stop_code: "owner_cancel", reason: "Owner requested managed repair cancellation." });
   await ops.cancel(row.agent.provider_session_id, row.call!.submit_token + ":cancel");
   return advancePaperAgent(current, ops, false);
 }

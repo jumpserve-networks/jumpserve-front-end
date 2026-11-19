@@ -17,8 +17,13 @@ Each managed repair can inspect retained paper text, the current draft, confirme
 sections, the saved plan, cumulative findings and generation/storage contracts.
 It can make atomic JSON-pointer edits, run the unchanged source validators, and
 record a platform defect with counterevidence. Invalid edits leave the saved
-candidate unchanged and return diagnostics. Criterion-limit diagnostics identify
-the exact field, permitted length and attempted length. The prompts explicitly
+candidate unchanged and return diagnostics. Shared field-limit diagnostics identify
+the exact JSON-pointer field, permitted length and attempted length across all
+three stages, plus quote/page mismatches, reference/coverage failures and unfinished
+heredocs. The original validators remain the acceptance authority. `field_limits`
+is available upfront; `read_evidence` accepts a targeted JSON-pointer `path` or,
+for `paper`, a single PDF `page`. Reads cannot change evidence or access arbitrary
+properties. The prompts explicitly
 preserve quantifiers and all decision branches during compression.
 
 The agent has no shell, filesystem, SQL, deployment, experiment-execution, browser
@@ -34,6 +39,25 @@ output. Step 4 continues to require the existing source-bound, network-disabled
 Code Interpreter syntax and behavioral checks before display. Generated commands
 never run on the Next.js host. Higher reasoning and model review do not guarantee
 scientific correctness.
+
+New recovery-policy admissions reserve the final two of the 24 actions for the
+controller's stop/validation handoff: editing ends at action 22. Every patch result
+reports exact diagnostics and remaining editing actions. Two identical rejected
+patches advise a strategy change. Three identical failures at the same saved
+candidate version stop further actions/acknowledgments. Immutable actions determine
+the count and failure signature, so reads, duplicate deliveries and server restarts
+cannot reset the streak. Different diagnostics or a saved improvement break it.
+
+After confirmed stopping of the original provider turn, an improved, source-valid
+saved candidate can become a checkpoint for a new independent high-reasoning review.
+Its native session records the actual cancelled/completed/failed provider outcome;
+the quality call records a checkpoint, not a fabricated successful provider turn.
+The current repair round is consumed normally. Approval still requires the review
+and Step 4 sandbox; no extra sessions, actions, rounds, deadline or budget are added.
+Owner cancellation always wins. An unchanged/invalid draft or ineligible remaining
+limits leaves the workflow needing attention with the real stop reason. Historical
+failed/cancelled assessments are never reopened. Checkpoint handoffs appear in the
+existing modal history.
 
 Step 2 reviews now explicitly understand the normalized stored representation:
 dependency positions become opaque same-section IDs, and experiment fields are
@@ -158,8 +182,9 @@ Live smoke results retained under ignored
 | Refined Step 2 instructions/diagnostics | 125.1 seconds; explicit support/contradiction/inconclusive quantifiers within the existing limit. |
 | Seeded Step 3 fabricated-data misuse | 40.7 seconds; restored independent-measurement instructions. |
 | Seeded Step 4 Bash syntax error | 34.9 seconds; repaired the missing `fi`. No command execution. |
+| Recovery-contract Step 3 (2026-11-19) | 70.9 seconds; 15 actions, targeted item/page reads and one source-valid repair; returned to independent review. |
 
-All four sessions completed and returned to `review_pending`, not to approval.
+These sessions completed and returned to `review_pending`, not to approval.
 These are integration checks, not a corpus benchmark. Manual inspection of the
 first Step 2 trial found ambiguous compressed wording despite a passing separate
 high-reasoning review; the revised contract and field diagnostics produced an
@@ -173,7 +198,7 @@ policies, native identity/adapter isolation, immutable provider items, cancellat
 cleanup receipts, RLS and background leases:
 
 ```sh
-python3 -B test/check_managed_paper_agents_database.py --reuse-base --with-context
+python3 -B test/check_managed_paper_agents_database.py --reuse-base --with-context --with-recovery
 npm test -- --runInBand test/frontend-paper-intake-stack.test.ts
 python3 -B -m unittest discover -s test -p frontend_paper_continuation_test.py -v
 npm run build
@@ -183,12 +208,22 @@ The PostgreSQL fixture is isolated on port 54477 and uses no Docker, remote writ
 or model calls. Local endpoint tests use the real SDK's signature verifier and
 synthetic secrets. Production webhook delivery, EventBridge invocation and the
 complete authenticated production round trip still require release verification.
+The recovery qualification additionally replays the 405-character description and
+879-character quote failure without private paper text in committed tests, and
+checks source-bound checkpoints across all three stages, original round/deadline
+preservation, owner-cancel precedence, duplicate final-action delivery, refusal of
+action 23, policy changes during stopping and migration-first compatibility. A
+private offline replay of assessment `5335bd98…` confirmed that the new diagnostics
+identify its actual rejected fields; it made no model calls or database changes.
 
 ## Release order
 
 1. Apply `202611180004_managed_paper_agents.sql`, then
-   `202611180005_paper_background_continuation.sql`, after the existing review
-   migrations. Both are additive and qualified for repeat application.
+   `202611180005_paper_background_continuation.sql`, followed by
+   `202611190001_paper_agent_recovery.sql`, after the existing review migrations.
+   These are additive and qualified for repeat application. Recovery policy is
+   frozen only for new admissions explicitly requesting version 1; old frontend
+   admissions and existing provider requests keep their original policy.
 2. Deploy the matching Next.js frontend. A capability check prevents admission
    against an older database; existing provider calls retain their original adapter.
 3. Deploy the updated `JumpServeFrontendPaperIntakeStack` schedule and verify the

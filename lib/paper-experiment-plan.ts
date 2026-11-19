@@ -1,3 +1,4 @@
+import { PAPER_FIELD_LIMITS as LIMITS } from "./paper-field-limits";
 import { PAPER_BREAKDOWN_SECTIONS, validatePaperBreakdown, type PaperBreakdown, type PaperBreakdownSection } from "./research-paper-breakdown";
 import { RESEARCH_WORKFLOW_MODULE_PATH } from "./test-modules";
 import type { PaperCitation, PaperCriterion, PaperExperimentSpecification } from "./paper-breakdown-evidence";
@@ -5,8 +6,8 @@ import { validPaperDependencies } from "./paper-detail-dependencies";
 import { validateQualityProgress, type PaperQualityProgress } from "./paper-quality";
 
 export const EXPERIMENT_PLAN_VERSION = "paper-experiment-plan-v1";
-export const MAX_EXPERIMENT_STAGES = 8;
-export const MAX_STAGE_ACTIONS = 8;
+export const MAX_EXPERIMENT_STAGES = LIMITS.plan.stages;
+export const MAX_STAGE_ACTIONS = LIMITS.plan.steps;
 export const MAX_EXPERIMENT_ACTIONS = MAX_EXPERIMENT_STAGES * MAX_STAGE_ACTIONS;
 export const EXPERIMENT_PLAN_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/api/experiment-plan`;
 export type ReviewedSections = Record<PaperBreakdownSection, { id: string; description: string }[]>;
@@ -67,11 +68,11 @@ export function planningInput(breakdown: PaperBreakdown) {
 
 export function validateExperimentPlan(value: unknown, breakdown: PaperBreakdown): ExperimentPlan {
   const fail = () => new Error("The experiment steps could not be verified against the confirmed paper sections.");
-  if (!object(value) || !exact(value, ["experiments"]) || !Array.isArray(value.experiments) || value.experiments.length > 8) throw fail();
+  if (!object(value) || !exact(value, ["experiments"]) || !Array.isArray(value.experiments) || value.experiments.length > LIMITS.plan.experiments) throw fail();
   const sources = planningSources(breakdown), refs = new Set(Object.values(sources).flat().map(s => s.ref));
   const expected = new Set(sources.experiment.map(s => s.ref)), covered = new Set<string>();
   const claims = new Set(sources.validate.filter(s => s.kind === "claim").map(s => s.ref)), checked = new Set<string>();
-  const refList = (v: unknown, allowed: Set<string>, min = 0): v is string[] => Array.isArray(v) && v.length >= min && v.length <= 32 && v.every(r => typeof r === "string" && allowed.has(r)) && new Set(v).size === v.length;
+  const refList = (v: unknown, allowed: Set<string>, min = 0): v is string[] => Array.isArray(v) && v.length >= min && v.length <= LIMITS.plan.refs && v.every(r => typeof r === "string" && allowed.has(r)) && new Set(v).size === v.length;
   let format: "flat" | "hierarchical" | undefined;
   for (const experiment of value.experiments) {
     if (!object(experiment)) throw fail();
@@ -79,24 +80,24 @@ export function validateExperimentPlan(value: unknown, breakdown: PaperBreakdown
     const currentFormat = hierarchical ? "hierarchical" : "flat";
     if (format && format !== currentFormat) throw fail();
     format = currentFormat;
-    if (!exact(experiment, ["title", "experiment_refs", hierarchical ? "stages" : "steps", "open_questions"]) || !text(experiment.title, 200) || !refList(experiment.experiment_refs, expected, 1) ||
-      !Array.isArray(experiment.open_questions) || experiment.open_questions.length > 12 || !experiment.open_questions.every(q => text(q, 400))) throw fail();
+    if (!exact(experiment, ["title", "experiment_refs", hierarchical ? "stages" : "steps", "open_questions"]) || !text(experiment.title, LIMITS.plan.title) || !refList(experiment.experiment_refs, expected, 1) ||
+      !Array.isArray(experiment.open_questions) || experiment.open_questions.length > LIMITS.plan.questions || !experiment.open_questions.every(q => text(q, LIMITS.plan.question))) throw fail();
     let steps: unknown[];
     if (hierarchical) {
       if (!Array.isArray(experiment.stages) || !experiment.stages.length || experiment.stages.length > MAX_EXPERIMENT_STAGES) throw fail();
       steps = [];
       for (const stage of experiment.stages) {
-        if (!object(stage) || !exact(stage, ["title", "steps"]) || !text(stage.title, 160) || !Array.isArray(stage.steps) || !stage.steps.length || stage.steps.length > MAX_STAGE_ACTIONS) throw fail();
+        if (!object(stage) || !exact(stage, ["title", "steps"]) || !text(stage.title, LIMITS.plan.stageTitle) || !Array.isArray(stage.steps) || !stage.steps.length || stage.steps.length > MAX_STAGE_ACTIONS) throw fail();
         steps.push(...stage.steps);
       }
       if (steps.length > MAX_EXPERIMENT_ACTIONS) throw fail();
     } else {
-      if (!Array.isArray(experiment.steps) || !experiment.steps.length || experiment.steps.length > 12) throw fail();
+      if (!Array.isArray(experiment.steps) || !experiment.steps.length || experiment.steps.length > LIMITS.plan.flatSteps) throw fail();
       steps = experiment.steps;
     }
     for (const ref of experiment.experiment_refs) { if (covered.has(ref)) throw fail(); covered.add(ref); }
     for (const step of steps) {
-      if (!object(step) || !exact(step, ["title", "instructions", "basis", "source_refs", ...(hierarchical || "validation_ref" in step ? ["validation_ref"] : [])]) || !text(step.title, 160) || !text(step.instructions, hierarchical ? 800 : 1200) || !["paper", "proposed"].includes(String(step.basis)) || !refList(step.source_refs, refs, step.basis === "paper" ? 1 : 0) ||
+      if (!object(step) || !exact(step, ["title", "instructions", "basis", "source_refs", ...(hierarchical || "validation_ref" in step ? ["validation_ref"] : [])]) || !text(step.title, LIMITS.plan.stepTitle) || !text(step.instructions, hierarchical ? LIMITS.plan.instructions : LIMITS.plan.flatInstructions) || !["paper", "proposed"].includes(String(step.basis)) || !refList(step.source_refs, refs, step.basis === "paper" ? 1 : 0) ||
         hierarchical && step.validation_ref !== null && typeof step.validation_ref !== "string") throw fail();
       if (step.validation_ref != null) {
         if (typeof step.validation_ref !== "string" || !claims.has(step.validation_ref) || !step.source_refs.includes(step.validation_ref)) throw fail();

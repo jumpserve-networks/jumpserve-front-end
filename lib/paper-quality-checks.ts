@@ -4,6 +4,7 @@ import { validateExperimentPlan, type ExperimentPlan } from "./paper-experiment-
 import { validateExperimentScripts } from "./paper-experiment-scripts";
 import { PAPER_QUALITY_VERSION, type PaperQualityChecks } from "./paper-quality";
 import { qualityAttachment, type QualitySource } from "./paper-quality-model";
+import { paperFieldDiagnostics } from "./paper-field-diagnostics";
 
 export type QualityIntakeCandidate = { breakdown: PaperBreakdown; title: string | null; authors: string[]; domain: string | null };
 export function deterministicQualityChecks(source: QualitySource): PaperQualityChecks {
@@ -24,6 +25,11 @@ export function deterministicQualityChecks(source: QualitySource): PaperQualityC
     else validateExperimentScripts(source.candidate, source.plan as ExperimentPlan, source.confirmed_breakdown as PaperBreakdown, source.experiment_index);
     return { version: PAPER_QUALITY_VERSION, passed: true, source_sha256, findings: [] };
   } catch (error) {
-    return { version: PAPER_QUALITY_VERSION, passed: false, source_sha256, findings: [{ id: "source-validation", severity: "blocking", location: "Step " + source.step + " deterministic checks", explanation: "The draft failed its original source, format or coverage checks.", evidence: (error instanceof Error ? error.message : "Invalid draft.").slice(0, 2000) }] };
+    let diagnostics: ReturnType<typeof paperFieldDiagnostics> = [];
+    try { diagnostics = paperFieldDiagnostics(source); } catch { /* Malformed source still fails the original gate below. */ }
+    return { version: PAPER_QUALITY_VERSION, passed: false, source_sha256, findings: [
+      ...diagnostics.map((d, i) => ({ id: `field-${i + 1}`, severity: "blocking" as const, location: d.path || "/", explanation: d.message, evidence: `code=${d.code}; actual=${d.actual}${d.limit === undefined ? "" : `; limit=${d.limit}`}. The draft was not accepted.` })),
+      { id: "source-validation", severity: "blocking", location: "Step " + source.step + " deterministic checks", explanation: "The draft failed its original source, format or coverage checks.", evidence: (error instanceof Error ? error.message : "Invalid draft.").slice(0, 2000) },
+    ] };
   }
 }

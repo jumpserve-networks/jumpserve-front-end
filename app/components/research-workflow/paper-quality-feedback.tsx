@@ -4,9 +4,9 @@ import { PaperAgentHistory } from "./paper-agent-history";
 
 /** The generated draft stays on the server until approved. These are bounded
  * findings, not the unreviewed output or the provider's private reasoning. */
-export function PaperQualityFeedback({ quality, step }: { quality?: PaperQualityProgress; step: PaperQualityStep }) {
+export function PaperQualityFeedback({ quality, step, showHistoryHeading = true }: { quality?: PaperQualityProgress; step: PaperQualityStep; showHistoryHeading?: boolean }) {
   if (!quality) return null;
-  if (quality.history && (quality.history.length || ["reviewing", "repairing", "checking"].includes(quality.phase))) return <div className="space-y-5"><PaperQualityHistory quality={quality} step={step} />{quality.agent_history ? <PaperAgentHistory history={quality.agent_history} /> : null}</div>;
+  if (quality.history && (quality.history.length || ["reviewing", "repairing", "checking"].includes(quality.phase))) return <div className="space-y-5"><PaperQualityHistory quality={quality} step={step} showHeading={showHistoryHeading} />{quality.agent_history ? <PaperAgentHistory history={quality.agent_history} /> : null}</div>;
   const pending = ["waiting", "reviewing", "repairing", "checking"].includes(quality.phase);
   const reason = quality.phase === "approved" ? null : qualityReason(quality.phase, step, quality.round);
   if (!reason && !quality.findings.length && !quality.history_unavailable) return null;

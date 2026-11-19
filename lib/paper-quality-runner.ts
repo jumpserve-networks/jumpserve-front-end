@@ -97,7 +97,7 @@ export async function advancePaperQuality(row: QualityWorkflow, ops: QualityOper
   const contextRow = await ops.save("context", {});
   validateQualityContext(contextRow.review_context!);
   let admitted: QualityWorkflow;
-  try { admitted = await ops.save("admit", { source_sha256: sourceKey(row), review_context_version: "paper-quality-context-v1", ...(row.status === "repair_pending" && ops.repairRuntime ? { repair_runtime: ops.repairRuntime } : {}) }); }
+  try { admitted = await ops.save("admit", { source_sha256: sourceKey(row), review_context_version: "paper-quality-context-v1", ...(row.status === "repair_pending" && ops.repairRuntime ? { repair_runtime: ops.repairRuntime, repair_recovery_version: 1 } : {}) }); }
   catch (error) { if (error instanceof PaperQualityLimitError) return fail(ops, row, error.message);throw error; }
   if (!admitted.admitted) return admitted;
   if (row.status === "repair_pending" && ops.repairRuntime && admitted.call?.provider_type !== "managed_agent") return fail(ops, admitted, "The application and database managed-runtime contracts do not match. No managed session or replacement model response was submitted.");

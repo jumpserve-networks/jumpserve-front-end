@@ -1,3 +1,4 @@
+import { PAPER_FIELD_LIMITS as LIMITS } from "./paper-field-limits";
 import { experimentActions, planningInput, planningSources, validateExperimentPlan, type ExperimentPlan } from "./paper-experiment-plan";
 import type { PaperBreakdown } from "./research-paper-breakdown";
 import { RESEARCH_WORKFLOW_MODULE_PATH } from "./test-modules";
@@ -34,16 +35,16 @@ export function terminalSetupRequired(set: TerminalCommandSet) {
 }
 export function validateTerminalCommandSet(value: unknown, refs: string[], blockedRefs: string[] = [], standalone = false, earlierRefs: string[] = [], setupLimit = 64000): TerminalCommandSet {
   const fail = () => new Error("The terminal commands do not match the saved experiment steps.");
-  if (!object(value) || !exact(value, ["setup", "actions", "cleanup", "inputs"]) || !object(value.actions) || !exact(value.actions, refs) || !Array.isArray(value.inputs) || value.inputs.length > 16) throw fail();
+  if (!object(value) || !exact(value, ["setup", "actions", "cleanup", "inputs"]) || !object(value.actions) || !exact(value.actions, refs) || !Array.isArray(value.inputs) || value.inputs.length > LIMITS.scripts.inputs) throw fail();
   const inputs = new Set<string>();
   for (const input of value.inputs) {
-    if (!object(input) || !exact(input, ["name", "description", "secret"]) || typeof input.name !== "string" || !/^JUMPSERVE_[A-Z][A-Z0-9_]{0,63}$/.test(input.name) || inputs.has(input.name) || !text(input.description, 600) || typeof input.secret !== "boolean") throw fail();
+    if (!object(input) || !exact(input, ["name", "description", "secret"]) || typeof input.name !== "string" || !/^JUMPSERVE_[A-Z][A-Z0-9_]{0,63}$/.test(input.name) || inputs.has(input.name) || !text(input.description, LIMITS.scripts.inputDescription) || typeof input.secret !== "boolean") throw fail();
     inputs.add(input.name);
   }
   const allowed: string[] = [...earlierRefs];
   for (const [ref, block] of [["setup", value.setup], ...refs.map(ref => [ref, (value.actions as Record<string, unknown>)[ref]]), ["cleanup", value.cleanup]] as [string, unknown][]) {
-    if (!object(block) || !exact(block, ["kind", "commands", "prerequisites", "verification", "notes", "needs_sudo"]) || !["terminal", "manual", "blocked"].includes(String(block.kind)) || typeof block.needs_sudo !== "boolean" || !text(block.verification, 800) || !text(block.notes, 1200) || !Array.isArray(block.prerequisites) || block.prerequisites.length > 24 || new Set(block.prerequisites).size !== block.prerequisites.length || block.prerequisites.some(r => typeof r !== "string" || !allowed.includes(r))) throw fail();
-    if (block.kind === "terminal" ? !text(block.commands, ref === "setup" ? setupLimit : 16000) || block.commands.includes("\u0000") : block.commands !== null || block.needs_sudo) throw fail();
+    if (!object(block) || !exact(block, ["kind", "commands", "prerequisites", "verification", "notes", "needs_sudo"]) || !["terminal", "manual", "blocked"].includes(String(block.kind)) || typeof block.needs_sudo !== "boolean" || !text(block.verification, LIMITS.scripts.verification) || !text(block.notes, LIMITS.scripts.notes) || !Array.isArray(block.prerequisites) || block.prerequisites.length > LIMITS.scripts.prerequisites || new Set(block.prerequisites).size !== block.prerequisites.length || block.prerequisites.some(r => typeof r !== "string" || !allowed.includes(r))) throw fail();
+    if (block.kind === "terminal" ? !text(block.commands, ref === "setup" ? setupLimit : LIMITS.scripts.commands) || block.commands.includes("\u0000") : block.commands !== null || block.needs_sudo) throw fail();
     if (block.kind === "terminal" && /(^|[;\n&|])\s*(sudo\s+)?tc\s+(qdisc|class|filter)\s+(add|change|replace|del|delete)(\s|$)/m.test(block.commands as string)) throw new Error("A command block changes host traffic control without an explicit network namespace. The original response is retained.");
     if (block.kind === "terminal" && /\bpython3-distutils\b/.test(block.commands as string)) throw new Error("The generated commands require an obsolete Python package for this host profile. The original response is retained.");
     if (blockedRefs.includes(ref) && block.kind !== "blocked") throw new Error("A claim with undefined scientific acceptance criteria must remain blocked before observations; command generation cannot define a post-hoc decision rule.");
@@ -52,7 +53,7 @@ export function validateTerminalCommandSet(value: unknown, refs: string[], block
     if (standalone && block.kind === "terminal" && /(?:os\.readlink|\bopen)\s*\(\s*f?["']\/proc\/\{[^}]+\}\/(?:exe|cmdline|ns\/net)["']/.test(block.commands as string)) throw new Error("Privileged process identity reads must use sudo from the ordinary-user script. The original response is retained.");
     allowed.push(ref);
   }
-  if (new TextEncoder().encode(JSON.stringify(value)).length > 250000) throw fail();
+  if (new TextEncoder().encode(JSON.stringify(value)).length > LIMITS.scripts.bytes) throw fail();
   return value as TerminalCommandSet;
 }
 export function validateTerminalCommandsView(value: unknown, study: string, index: number, refs: string[], blockedRefs: string[] = []): TerminalCommandsView {
