@@ -6,7 +6,7 @@ import {dependencyBreakdown} from './support/paper-dependency-fixture.mjs';
 import {reviewedSections} from '../lib/paper-experiment-plan.ts';
 const hook=registerHooks({resolve(specifier,context,next){
  if(specifier==='server-only')return{shortCircuit:true,url:'data:text/javascript,export {};'};
- if(specifier==='./paper-intake-server')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('export const intakeDatabase=async()=>({rpc:async()=>({error:{message:"Plan only from the exact confirmed sections"}})});export const modelClient=()=>{throw new Error("No model call should be sent before database admission");};')};
+ if(specifier==='./paper-intake-server')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('export const intakeConfigured=async()=>true;export const intakeDatabase=async()=>({rpc:async()=>({error:{message:"Plan only from the exact confirmed sections"}})});export const modelClient=()=>{throw new Error("No model call should be sent before database admission");};')};
  return next(specifier,context);
 }});
 const {confirmPlan}=await import('../lib/paper-experiment-plan-server.ts');hook.deregister();

@@ -1,5 +1,5 @@
 import "server-only";
-import { intakeDatabase } from "./paper-intake-server";
+import { intakeConfigured, intakeDatabase } from "./paper-intake-server";
 import { readWithAssessmentDeletion } from "./assessment-visibility";
 import { validateLocalPaperAssessment } from "./local-paper-assessment";
 import { shareLocalPaperAssessment } from "./shared-local-paper-assessment";
@@ -29,7 +29,6 @@ export async function loadLocalPaperAssessment(study: string, actor?: string | n
 /** A failed optional local read must not hide the existing public paper header. */
 export async function loadSharedLocalPaperAssessment(study: string) {
   try {
-    const { intakeConfigured } = await import("./paper-intake-server");
     if (!await intakeConfigured()) return { status: "absent" as const };
     const local = await loadLocalPaperAssessment(study);
     return local ? { status: "available" as const, owner: local.owner, value: shareLocalPaperAssessment(local.bundle) } : { status: "absent" as const };
