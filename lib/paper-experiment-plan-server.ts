@@ -7,6 +7,8 @@ import { confirmAndPlan, refreshExperimentPlan, cancelExperimentPlan, type Exper
 import { validatePaperBreakdown, type PaperBreakdown } from "./research-paper-breakdown";
 import type { IntakeRecord } from "./paper-intake-runner";
 import { applyExperimentPlanLinkReview, type ExperimentPlanLinkReview } from "./paper-experiment-plan-review";
+import { localPaperRecord, localPlan } from "./local-paper-assessment";
+import { loadLocalPaperAssessment } from "./local-paper-assessment-server";
 
 export class ExperimentPlanError extends Error {
   public status: number;
@@ -19,7 +21,9 @@ function databaseFailure(error: { code?: string; message: string }): never {
 export async function loadExperimentPlan(study: string, actor: string) {
   const { data, error } = await (await intakeDatabase()).from("research_experiment_plans").select("*").eq("study_id", study).eq("owner_id", actor).maybeSingle();
   if (error) databaseFailure(error);
-  return data ? qualityPlan(await effectiveExperimentPlan(data as ExperimentPlanRecord)) : null;
+  if (data) return qualityPlan(await effectiveExperimentPlan(data as ExperimentPlanRecord));
+  const local = await loadLocalPaperAssessment(study, actor);
+  return local ? localPlan(local.bundle, local.owner) : null;
 }
 /** Reviewed link corrections overlay the immutable failed call and its original evidence. */
 async function effectiveExperimentPlan(row: ExperimentPlanRecord) {
@@ -55,6 +59,7 @@ export const cancelPlan = async (row: ExperimentPlanRecord) => {
   return qualityPlan(await cancelExperimentPlan(row, operations(row.study_id, row.owner_id)));
 };
 export async function confirmPlan(intake: IntakeRecord, revision: number, sections: unknown) {
+  if (localPaperRecord(intake)) throw new ExperimentPlanError("This completed local Codex import is immutable. Create a new version to change its confirmed source or plan.", 409);
   let confirmed;
   try { confirmed = confirmPaperSections(validatePaperBreakdown(intake.breakdown), sections); }
   catch (error) { throw new ExperimentPlanError(error instanceof Error ? error.message : "Review all four paper sections before confirming.", 400); }

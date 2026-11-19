@@ -29,7 +29,7 @@ export async function readAssessmentWizardProgress(ids: string[]): Promise<Asses
     const [intakes, plans, reviews, workflows] = await Promise.all([
       db.from("research_paper_intakes").select("study_id,status", { count: "exact" }).in("study_id", activeIds).limit(activeIds.length + 1),
       db.from("research_experiment_plans").select("study_id,status,revision", { count: "exact" }).in("study_id", activeIds).limit(activeIds.length + 1),
-      db.from("research_paper_reviews").select("study_id,status", { count: "exact" }).in("study_id", activeIds).limit(activeIds.length + 1),
+      db.from("research_paper_reviews").select("study_id,status,local_steps:coverage->local_codex_steps,local_version:metadata->local_codex_assessment->>version", { count: "exact" }).in("study_id", activeIds).limit(activeIds.length + 1),
       db.from("research_autonomy_workflows").select("study_id", { count: "exact" }).in("study_id", activeIds).limit(activeIds.length + 1),
     ]);
     const intakeRows = rows(intakes, activeIds, "study_id"), planRows = rows(plans, activeIds, "study_id"), reviewRows = rows(reviews, activeIds, "study_id"), workflowRows = rows(workflows, activeIds, "study_id");
@@ -45,7 +45,9 @@ export async function readAssessmentWizardProgress(ids: string[]): Promise<Asses
       if (intake !== undefined && !["uploaded", "submitting", "processing", "uncertain", "ready", "failed", "cancelled"].includes(String(intake)) ||
           plan !== undefined && !["submitting", "processing", "uncertain", "ready", "failed", "cancelled"].includes(String(plan)) ||
           review !== undefined && !["preparing", "ready", "failed", "confirmed"].includes(String(review))) throw new Error("Assessment steps could not be checked.");
-      if (workflowRows.has(id) || plan === "ready" || linkReviews.has(id)) steps.set(id, 4);
+      const local = reviewRows.get(id);
+      const localComplete = review === "confirmed" && local?.local_version === "local-codex-assessment-v1" && JSON.stringify(local.local_steps) === "[2,3,4]";
+      if (localComplete || workflowRows.has(id) || plan === "ready" || linkReviews.has(id)) steps.set(id, 4);
       else if (plan !== undefined || review === "confirmed") steps.set(id, 3);
       else if (intake === "uploaded") steps.set(id, 1);
       else if (intake !== undefined || review !== undefined) steps.set(id, 2);

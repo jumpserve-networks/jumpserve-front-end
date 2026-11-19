@@ -15,6 +15,8 @@ const replacements = {
   'next/navigation': "export function notFound(){throw Object.assign(new Error('Synthetic notFound'),{code:'NEXT_NOT_FOUND'});}export function permanentRedirect(url){throw Object.assign(new Error('Synthetic permanent redirect'),{code:'NEXT_REDIRECT',url});}",
   '@/lib/supabase/server': 'export async function createClient(){return globalThis.__routeState.client;}',
   '@/lib/auth': "export async function getGoogleUser(){return globalThis.__routeState.user;}export async function requireGoogleUser(path){globalThis.__routeState.authPaths.push(path);if(globalThis.__routeState.authError)throw globalThis.__routeState.authError;return globalThis.__routeState.user;}",
+  '@/lib/local-paper-assessment-server': "export async function loadSharedLocalPaperAssessment(id){globalThis.__routeState.localReads=(globalThis.__routeState.localReads??0)+1;return globalThis.__routeState.localAssessment??{status:'absent'};}",
+  '@/app/components/research-workflow/shared-local-paper-assessment': boundary('SharedLocalPaperAssessment'),
   '@/app/components/auth-button': boundary('AuthButton'),
   '@/app/components/profile-editor': boundary('ProfileEditor'),
   '@/app/components/benchmark-tabs': boundary('BenchmarkTabs'),
@@ -87,6 +89,14 @@ const renderPage = async (name, options = props()) => documentOf(await pages[nam
 const capture = name => state.captures.findLast(value => value.name === name)?.props;
 const google = () => ({id: 'synthetic-google-owner', email: 'owner@example.test', app_metadata: {provider: 'google'}, identities: [{provider: 'google'}]});
 const assertNotFound = action => assert.rejects(action, {code: 'NEXT_NOT_FOUND'});
+
+test('local assessments expose only the public projection to visitors and keep owner editing separate',async()=>{
+ const value={study_id:ID,public:'Shared output'};state.localAssessment={status:'available',owner:'synthetic-google-owner',value};
+ await renderPage('review',props({assessmentId:ID}));assert.deepEqual(capture('SharedLocalPaperAssessment'),{value});assert.equal(capture('PaperAssessment'),undefined);
+ state.captures=[];state.user={id:OTHER};await renderPage('review',props({assessmentId:ID}));assert.deepEqual(capture('SharedLocalPaperAssessment'),{value});
+ state.captures=[];state.user=google();await renderPage('review',props({assessmentId:ID}));assert.ok(capture('PaperAssessment'));assert.equal(capture('SharedLocalPaperAssessment'),undefined);
+ state.captures=[];state.localAssessment={status:'unavailable'};const document=await renderPage('review',props({assessmentId:ID}));assert.match(document.body.textContent,/temporarily unavailable/);assert.ok(capture('AssessmentDetail'));
+});
 
 test('real-world launch requires sign-in while result and job pages remain public',async()=>{
   let document=await renderPage('realLaunch');assert.equal(capture('RealWorldTests'),undefined);assert.ok(document.querySelector('a[href="/login?next=%2Fcongestion-control-real-world%2Frun-a-test"]'));assert.equal(state.authPaths.length,0);
@@ -215,7 +225,8 @@ test('canonical assessment validates saved queue identities while showing the ow
 test('paper wizard step links remain publicly readable and cannot authorize an action', async () => {
   for(const step of ['implementation','execution','queue','upload',['queue'],'https://example.test','unknown']) {
     const page = await pages.review.default(props({assessmentId:ID},{step}));
-    assert.equal(page.props.children.props.wizard,true);assert.equal(page.props.children.props.ownerOnly,true);assert.deepEqual(state.authPaths,[]);
+    const wizard=React.Children.toArray(page.props.children).find(child=>child.props?.wizard);
+    assert.equal(wizard.props.wizard,true);assert.equal(wizard.props.ownerOnly,true);assert.deepEqual(state.authPaths,[]);
   }
   state.authError = Object.assign(new Error('Synthetic required login'), {code:'AUTH_REQUIRED'});
   await assert.rejects(pages.review.default(props({assessmentId: ID}, {gap: OTHER})), {code:'AUTH_REQUIRED'});

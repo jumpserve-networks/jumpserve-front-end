@@ -42,6 +42,16 @@ test('failed uncertain and cancelled planning stays on step three rather than re
   records.research_experiment_plans=ids.map((study_id,i)=>({study_id,status:['failed','uncertain','cancelled'][i]}));
   assert.deepEqual((await(await GET(request(ids))).json()).assessments.map(item=>item.step),[3,3,3]);
 });
+test('complete local imports reach step four through a bounded metadata projection',async()=>{
+  let local={study_id:uid(1),status:'confirmed',local_version:'local-codex-assessment-v1',local_steps:[2,3,4]};
+  override=query=>query.table==='research_paper_reviews'?{data:[local],count:1,error:null}:null;
+  const value=await(await GET(request([uid(1)]))).json();assert.equal(value.assessments[0].step,4);
+  assert.ok(!JSON.stringify(value).includes('local_version'));assert.ok(!JSON.stringify(value).includes('local_steps'));
+  for(const patch of [{local_version:'unknown'},{local_steps:[2,3]},{status:'ready'}]){
+    local={study_id:uid(1),status:'confirmed',local_version:'local-codex-assessment-v1',local_steps:[2,3,4],...patch};
+    assert.notEqual((await(await GET(request([uid(1)]))).json()).assessments[0].step,4);
+  }
+});
 test('ideas deleted papers missing records and unknown progress never reveal a guessed step',async()=>{
   records.research_studies.push({id:uid(2),study_kind:'idea',deleted_at:null},{id:uid(3),study_kind:'paper',deleted_at:'2026-11-14T00:00:00Z'});
   records.research_paper_intakes=[{study_id:uid(2),status:'ready'},{study_id:uid(3),status:'processing'}];
