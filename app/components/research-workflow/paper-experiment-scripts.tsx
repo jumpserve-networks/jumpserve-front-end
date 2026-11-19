@@ -44,9 +44,9 @@ export function PaperExperimentScripts({ assessmentId, ownerId, index, plan, bre
     return () => { requests.current++;activeController.current?.abort(); };
   }, [perform]);
   useEffect(() => {
-    if (busy || !view || !(["submitting", "processing"].includes(view.stage) || view.prior_pending > 0)) return;
-    const timer = setTimeout(() => void perform(), 5000);return () => clearTimeout(timer);
-  }, [busy, view, perform]);
+    if (busy || !(error || view && (view.quality?.history_unavailable || ["not_generated", "submitting", "processing"].includes(view.stage) || view.prior_pending > 0))) return;
+    const timer = setTimeout(() => void perform(), error || view?.quality?.history_unavailable ? 15000 : 5000);return () => clearTimeout(timer);
+  }, [busy, view, error, perform]);
   const set = view?.command_set;
   const before = <section aria-label={`Shared setup for experiment ${index}`} className="space-y-3 text-sm" aria-busy={busy || view?.stage === "processing"}>
     {error ? <p role="alert" className="text-destructive">{error}</p> : null}
@@ -55,7 +55,6 @@ export function PaperExperimentScripts({ assessmentId, ownerId, index, plan, bre
     {view?.reason && !view.quality ? <p className="text-muted-foreground">{view.reason}</p> : null}
     {view?.stage === "processing" ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void perform("cancel")}>Cancel script generation</Button> : null}
     {view && view.prior_pending > 0 ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void perform("cancel_previous")}>Cancel earlier command generation</Button> : null}
-    {error || view && ["failed", "uncertain", "cancelled", "not_generated"].includes(view.stage) ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void perform()}>Check saved scripts</Button> : null}
     {set ? <>
       {set.inputs.length ? <TerminalInputs inputs={set.inputs} /> : null}
       <h4 className="font-semibold">Shared setup script</h4>

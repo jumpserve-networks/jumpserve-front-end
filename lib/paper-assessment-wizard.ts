@@ -1,6 +1,6 @@
 export const PAPER_ASSESSMENT_STEPS = [
   { id: "upload", title: "Paper Upload" },
-  { id: "breakdown", title: "Initial Assessment" },
+  { id: "breakdown", title: "Paper Breakdown" },
   { id: "implementation", title: "Experiment Steps" },
   { id: "execution", title: "Setup & Run Commands" },
 ] as const;

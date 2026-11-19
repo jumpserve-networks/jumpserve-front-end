@@ -38,7 +38,7 @@ test('table is the default view and recorded title, initiator, stage and detail 
   show();
   const table = await screen.findByRole('table');
   assert.match(table.textContent, /Fixture Initiator/);
-  await screen.findByText('Step 2 · Initial Assessment');assert.equal(screen.queryByText('In progress'),null);
+  await screen.findByText('Step 2 · Paper Breakdown');assert.equal(screen.queryByText('In progress'),null);
   assert.equal(screen.queryByText('Not published'),null);
   assert.equal(screen.getByRole('link', {name: 'Synthetic networking paper'}).getAttribute('href'), `/research-verification/assessment/${id}`);
   assert.equal(screen.getByRole('button', {name: 'Table'}).getAttribute('aria-current'), 'page');
@@ -50,7 +50,7 @@ test('each table row shows its saved wizard step instead of a shared workflow st
  const ids=Array.from({length:4},(_,i)=>`00000000-0000-4000-8000-${String(i+1).padStart(12,'0')}`);let reads=0;
  globalThis.__assessmentProgress=async requested=>{reads++;assert.deepEqual(requested,ids);return{assessments:ids.map((id,i)=>({id,step:i+1}))};};
  show({},catalog(ids.map((id,i)=>paper({id,title:'Paper '+(i+1)}))));
- for(const label of ['Step 1 · Paper Upload','Step 2 · Initial Assessment','Step 3 · Experiment Steps','Step 4 · Setup & Run Commands'])await screen.findByText(label);
+ for(const label of ['Step 1 · Paper Upload','Step 2 · Paper Breakdown','Step 3 · Experiment Steps','Step 4 · Setup & Run Commands'])await screen.findByText(label);
  assert.equal(reads,1);assert.equal(screen.queryByText('In progress'),null);
 });
 test('unavailable progress keeps the assessment list usable and retries without guessing a step',async()=>{
@@ -62,8 +62,8 @@ test('unavailable progress keeps the assessment list usable and retries without 
 test('progress refreshes serially and stale status remains labeled until a successful retry',async t=>{
  t.mock.timers.enable({apis:['setTimeout']});let calls=0;
  globalThis.__assessmentProgress=async ids=>{calls++;if(calls===2)throw new Error('Explicit outage');return{assessments:ids.map(id=>({id,step:calls===1?2:4}))};};
- await act(async()=>{show();});assert.ok(screen.getByText('Step 2 · Initial Assessment'));
- await act(async()=>{t.mock.timers.tick(10000);});assert.ok(screen.getByText('Step 2 · Initial Assessment'));assert.match(screen.getByRole('alert').textContent,/may be stale/);
+ await act(async()=>{show();});assert.ok(screen.getByText('Step 2 · Paper Breakdown'));
+ await act(async()=>{t.mock.timers.tick(10000);});assert.ok(screen.getByText('Step 2 · Paper Breakdown'));assert.match(screen.getByRole('alert').textContent,/may be stale/);
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Retry steps'}));});assert.ok(screen.getByText('Step 4 · Setup & Run Commands'));assert.equal(screen.queryByRole('alert'),null);
 });
 test('unmount aborts a pending progress read and ignores its late response',async()=>{
@@ -110,7 +110,7 @@ test('card view, personal scope and name filters survive view and pagination lin
   await screen.findByRole('article');
   assert.equal(screen.queryByRole('table'), null);
   assert.match(screen.getByRole('article').textContent, /Initiated by: Name unavailable/);
-  await screen.findByText('Step 2 · Initial Assessment');assert.equal(container.querySelectorAll('[data-slot="badge"]').length, 1);
+  await screen.findByText('Step 2 · Paper Breakdown');assert.equal(container.querySelectorAll('[data-slot="badge"]').length, 1);
   assert.equal(screen.queryByText('Published assessment'),null);
   const older = new URL(screen.getByRole('link', {name: 'Older assessments'}).href);
   assert.equal(older.searchParams.get('mine'), '1'); assert.equal(older.searchParams.get('view'), 'card');

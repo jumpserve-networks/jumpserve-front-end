@@ -4,8 +4,10 @@ import { deterministicQualityChecks } from "./paper-quality-checks";
 import { PAPER_QUALITY_VERSION, type PaperQualityContext, type PaperQualityChecks, type PaperQualityPhase, type PaperQualityReview, type PaperQualityStep, type PaperQualityProgress, type PaperQualityRound, type QualitySandboxArtifact } from "./paper-quality";
 import { validateQualityContext } from "./paper-quality-context";
 import { qualityAttachment, qualityReviewRequest, qualityRepairRequest, readQualityReview, sandboxQualityChecks, type QualitySource } from "./paper-quality-model";
+import type { PaperAgentRecord } from "./paper-agent";
 
 export type QualityCall = {
+  provider_type?: "responses" | "managed_agent";
   id: string; kind: "review" | "repair"; status: "preparing" | "submitting" | "processing" | "uncertain" | "completed" | "failed" | "cancelled";
   submit_token: string; provider_response_id: string | null; request: ResponseCreateParamsNonStreaming | null; updated_at: string;
 };
@@ -17,6 +19,7 @@ export type QualityWorkflow = {
   review: PaperQualityReview | null; checks: PaperQualityChecks | null; reason: string | null;
   source_revision: number | null; source_provider_id: string | null;
   call: QualityCall | null; admitted?: boolean; review_context?: PaperQualityContext;
+  agent?: PaperAgentRecord | null;
 };
 export type QualityOperations = {
   save: (operation: string, payload: Record<string, unknown>) => Promise<QualityWorkflow>;
@@ -26,6 +29,9 @@ export type QualityOperations = {
   parseRepair: (response: Response, row: QualityWorkflow) => unknown;
   sandboxArtifact?: (response: Response, source: QualitySource) => Promise<QualitySandboxArtifact | null>;
   now?: () => number;
+  repairRuntime?: "managed-agents-v1";
+  agentReady?: () => Promise<void>;
+  advanceAgent?: (row: QualityWorkflow, admit: boolean) => Promise<QualityWorkflow>;
 };
 export class PaperQualityLimitError extends Error {}
 const terminal = (row: QualityWorkflow) => ["approved", "needs_attention", "uncertain", "cancelled", "waiting"].includes(row.status);
@@ -39,6 +45,10 @@ const fail = (ops: QualityOperations, row: QualityWorkflow, reason: string, resp
  * advancement POST may enter this admission path. Every repair needs re-review;
  * the database enforces at most three repairs within the original limits. */
 export async function advancePaperQuality(row: QualityWorkflow, ops: QualityOperations, admit = false): Promise<QualityWorkflow> {
+  if (row.call?.provider_type === "managed_agent" && ["running", "uncertain"].includes(row.status)) {
+    if (!ops.advanceAgent) throw new Error("The managed repair adapter is unavailable; the original session is retained.");
+    return ops.advanceAgent(row, admit);
+  }
   if (terminal(row)) return row;
   const now = (ops.now ?? Date.now)();
   if (row.status === "running") {
@@ -78,14 +88,23 @@ export async function advancePaperQuality(row: QualityWorkflow, ops: QualityOper
   }
   if (!admit) return row;
   if (Date.parse(row.deadline_at) <= now) return fail(ops, row, "The original assessment deadline expired before quality checking could continue.");
+  if (row.status === "repair_pending" && ops.repairRuntime) {
+    if (!ops.agentReady || !ops.advanceAgent) throw new Error("The managed repair adapter and database capability are required before admission.");
+    await ops.agentReady();
+  }
   // Read-only capability/context check BEFORE reserving a call. The admission
   // returns a fresh snapshot under the database lock; never submit stale history.
   const contextRow = await ops.save("context", {});
   validateQualityContext(contextRow.review_context!);
   let admitted: QualityWorkflow;
-  try { admitted = await ops.save("admit", { source_sha256: sourceKey(row), review_context_version: "paper-quality-context-v1" }); }
+  try { admitted = await ops.save("admit", { source_sha256: sourceKey(row), review_context_version: "paper-quality-context-v1", ...(row.status === "repair_pending" && ops.repairRuntime ? { repair_runtime: ops.repairRuntime } : {}) }); }
   catch (error) { if (error instanceof PaperQualityLimitError) return fail(ops, row, error.message);throw error; }
   if (!admitted.admitted) return admitted;
+  if (row.status === "repair_pending" && ops.repairRuntime && admitted.call?.provider_type !== "managed_agent") return fail(ops, admitted, "The application and database managed-runtime contracts do not match. No managed session or replacement model response was submitted.");
+  if (admitted.call?.provider_type === "managed_agent") {
+    if (!ops.advanceAgent) throw new Error("The managed repair adapter is unavailable.");
+    return ops.advanceAgent(admitted, true);
+  }
   let prepared = admitted;
   try {
     const source = sourceFor(admitted), call = admitted.call;

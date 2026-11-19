@@ -1,4 +1,4 @@
-/** Public progress contains findings, never private drafts or provider/tool identities. */
+/** Owner-facing progress contains findings, never private drafts or provider/tool identities. */
 export const PAPER_QUALITY_VERSION = "paper-quality-v1";
 export const PAPER_QUALITY_FORMAT = "paper_quality_review_v1";
 export const PAPER_QUALITY_CONTEXT_FORMAT = "paper_quality_review_v2";
@@ -18,7 +18,16 @@ export type PaperQualityContext = {
   previous_candidate: unknown;
 };
 export type PaperQualityRound = 0 | 1 | 2 | 3;
-export type PaperQualityProgress = { version: typeof PAPER_QUALITY_VERSION; phase: PaperQualityPhase; round: PaperQualityRound; findings: PaperQualityFinding[] };
+export const PAPER_QUALITY_CALL_STATUSES = ["preparing", "submitting", "processing", "uncertain", "completed", "failed", "cancelled"] as const;
+export type PaperQualityHistoryEntry = {
+  position: number; kind: "review" | "repair"; round: PaperQualityRound;
+  status: typeof PAPER_QUALITY_CALL_STATUSES[number]; requested_at: string; completed_at: string | null;
+  decision: "pass" | "revise" | null; checks_passed: boolean | null; summary: string | null; reason: string | null;
+  findings: PaperQualityFinding[]; check_findings: PaperQualityFinding[];
+  resolutions: (PaperQualityResolution & { location: string })[];
+};
+export type PaperAgentHistoryEntry = { round: 1 | 2 | 3; position: number; status: "running" | "completed" | "failed"; label: string; detail: string | null; started_at: string; completed_at: string | null };
+export type PaperQualityProgress = { version: typeof PAPER_QUALITY_VERSION; phase: PaperQualityPhase; round: PaperQualityRound; findings: PaperQualityFinding[]; history?: PaperQualityHistoryEntry[]; agent_history?: PaperAgentHistoryEntry[]; history_unavailable?: boolean };
 export type QualitySandboxArtifact = { file_id: string; path: string; content: string; content_sha256: string };
 export type PaperQualityChecks = { version: typeof PAPER_QUALITY_VERSION; passed: boolean; source_sha256: string; findings: PaperQualityFinding[]; sandbox?: { container_id: string; call_id: string; result: Record<string, unknown>; artifact?: QualitySandboxArtifact } };
 const object = (v: unknown): v is Record<string, unknown> => Boolean(v && typeof v === "object" && !Array.isArray(v));
@@ -47,7 +56,7 @@ export function validateQualityReview(value: unknown, context?: PaperQualityCont
   }
   return review;
 }
-export function qualityReason(phase: PaperQualityPhase, step: PaperQualityStep, round?: PaperQualityRound): string {
+export function qualityReason(phase: PaperQualityPhase, step: PaperQualityStep, round?: PaperQualityRound): string | null {
   const label = step === 2 ? "paper breakdown" : step === 3 ? "experiment steps" : "setup and run commands";
   const repair = round === undefined ? "" : " (repair round " + Math.min(round + 1, PAPER_QUALITY_MAX_REPAIRS) + " of " + PAPER_QUALITY_MAX_REPAIRS + ")";
   const review = round ? " after repair round " + round + " of " + PAPER_QUALITY_MAX_REPAIRS : "";
@@ -57,11 +66,48 @@ export function qualityReason(phase: PaperQualityPhase, step: PaperQualityStep, 
   if (phase === "needs_attention") return "The " + label + " need attention after the bounded review and repair process.";
   if (phase === "uncertain") return "The original quality-check submission needs reconciliation. It will not be repeated automatically.";
   if (phase === "cancelled") return "Quality checking was cancelled. The original outputs are retained.";
+  if (step === 2 && !round) return null;
   return "Reviewing the " + label + review + " before displaying the completed output.";
 }
 export function validateQualityProgress(value: unknown): PaperQualityProgress {
   const v = value as PaperQualityProgress;
   if (!v || v.version !== PAPER_QUALITY_VERSION || !PAPER_QUALITY_PHASES.includes(v.phase) || !Number.isSafeInteger(v.round) || v.round < 0 || v.round > PAPER_QUALITY_MAX_REPAIRS) throw new Error("Quality-check progress could not be verified.");
   validateQualityReview({ decision: v.findings?.some(f => f.severity === "blocking") ? "revise" : "pass", summary: "Recorded review progress.", findings: v.findings });
+  if (v.history !== undefined) validateQualityHistory(v.history);
+  if (v.agent_history !== undefined) validatePaperAgentHistory(v.agent_history);
+  if (v.history_unavailable !== undefined && typeof v.history_unavailable !== "boolean") throw new Error("Quality history availability could not be verified.");
   return v;
+}
+export function validatePaperAgentHistory(value: unknown): PaperAgentHistoryEntry[] {
+  if (!Array.isArray(value) || value.length > 72) throw new Error("The bounded repair action history is invalid.");
+  const seen = new Set<string>();
+  for (const item of value) {
+    if (!object(item) || Object.keys(item).sort().join(",") !== "completed_at,detail,label,position,round,started_at,status" || ![1, 2, 3].includes(Number(item.round)) || !Number.isSafeInteger(item.round) || !Number.isSafeInteger(item.position) || Number(item.position) < 1 || Number(item.position) > 24 || !["running", "completed", "failed"].includes(String(item.status)) || !bounded(item.label, 120) || item.detail !== null && !bounded(item.detail, 2000) || typeof item.started_at !== "string" || !Number.isFinite(Date.parse(item.started_at)) || item.completed_at !== null && (typeof item.completed_at !== "string" || !Number.isFinite(Date.parse(item.completed_at)) || Date.parse(item.completed_at) < Date.parse(item.started_at)) || item.status === "running" !== (item.completed_at === null)) throw new Error("The recorded repair action is invalid.");
+    const key = item.round + ":" + item.position;if (seen.has(key)) throw new Error("The recorded repair action is duplicated.");seen.add(key);
+  }
+  return value as PaperAgentHistoryEntry[];
+}
+/** Only this explicit owner-view projection crosses the client boundary. */
+export function validateQualityHistory(value: unknown): PaperQualityHistoryEntry[] {
+  const fail = () => new Error("The recorded review history could not be verified.");
+  const date = (v: unknown): v is string => typeof v === "string" && Number.isFinite(Date.parse(v));
+  if (!Array.isArray(value) || value.length > 2 * PAPER_QUALITY_MAX_REPAIRS + 1) throw fail();
+  let previous = 0;
+  for (const item of value) {
+    if (!object(item) || Object.keys(item).sort().join(",") !== "check_findings,checks_passed,completed_at,decision,findings,kind,position,reason,requested_at,resolutions,round,status,summary" || !Number.isSafeInteger(item.position) || Number(item.position) !== previous + 1 || Number(item.position) > 7 || item.kind !== (Number(item.position) % 2 ? "review" : "repair") || item.round !== Math.floor(Number(item.position) / 2) || !PAPER_QUALITY_CALL_STATUSES.includes(item.status as typeof PAPER_QUALITY_CALL_STATUSES[number]) || !date(item.requested_at) || item.completed_at !== null && (!date(item.completed_at) || Date.parse(item.completed_at) < Date.parse(item.requested_at)) || ["completed", "failed", "cancelled"].includes(String(item.status)) !== (item.completed_at !== null) || ![null, "pass", "revise"].includes(item.decision as null | string) || item.checks_passed !== null && typeof item.checks_passed !== "boolean" || ![item.summary, item.reason].every(v => v === null || bounded(v, 2000)) || !Array.isArray(item.resolutions) || item.resolutions.length > 128) throw fail();
+    for (const findings of [item.findings, item.check_findings]) validateQualityReview({ decision: Array.isArray(findings) && findings.some(f => f?.severity === "blocking") ? "revise" : "pass", summary: "Recorded findings.", findings });
+    const resolutions = item.resolutions.map(r => {
+      if (!object(r) || Object.keys(r).sort().join(",") !== "evidence,key,location,status" || !bounded(r.location, 200)) throw fail();
+      return { key: r.key, status: r.status, evidence: r.evidence };
+    });
+    validateQualityReview({ decision: "pass", summary: "Recorded dispositions.", findings: [], resolutions });
+    if (item.decision !== null) {
+      if (item.kind !== "review" || item.status !== "completed" || item.summary === null) throw fail();
+      validateQualityReview({ decision: item.decision, summary: item.summary, findings: item.findings, resolutions });
+    }
+    if (item.checks_passed === true && (item.check_findings as PaperQualityFinding[]).some(f => f.severity === "blocking")) throw fail();
+    if (item.kind === "repair" && (item.decision !== null || item.checks_passed !== null || resolutions.length)) throw fail();
+    previous = Number(item.position);
+  }
+  return value as PaperQualityHistoryEntry[];
 }

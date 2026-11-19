@@ -2,6 +2,7 @@ export type PaperCitation = { quote: string; page: number };
 export const PAPER_ITEM_KINDS = ["requirement", "experiment_specification", "reported_result", "claim", "limitation"] as const;
 export type PaperItemKind = typeof PAPER_ITEM_KINDS[number];
 export type PaperCriterion = { metric: string; comparison: string; target: string; acceptance: "paper_defined" | "needs_definition"; tolerance: string | null };
+export const PAPER_CRITERION_LIMITS = { metric: 300, comparison: 300, target: 300, tolerance: 200 } as const;
 export type PaperExperimentSpecification = { setup: string; conditions: string; procedure: string; comparisons: string };
 export type PaperItemEvidence = { citations?: PaperCitation[]; kind?: PaperItemKind; label?: string | null; criterion?: PaperCriterion | null; specification?: PaperExperimentSpecification | null; depends_on?: string[] };
 export type PaperProvenance = { classification: "synthetic" | "simulated" | "reported_empirical" | "unspecified"; statement: string | null; citations: PaperCitation[] };
@@ -21,7 +22,7 @@ export function validItemEvidence(v: Record<string, unknown>, pages: number, mis
   } else if (v.specification !== null) return false;
   if (v.kind !== "claim") return v.criterion === null;
   const c = v.criterion;
-  return object(c) && keys(c, ["metric", "comparison", "target", "acceptance", "tolerance"]) && [c.metric, c.comparison, c.target].every(t => evidenceText(t, 300)) && ["paper_defined", "needs_definition"].includes(String(c.acceptance)) && (c.tolerance === null || evidenceText(c.tolerance, 200));
+  return object(c) && keys(c, ["metric", "comparison", "target", "acceptance", "tolerance"]) && ["metric", "comparison", "target"].every(key => evidenceText(c[key], PAPER_CRITERION_LIMITS[key as keyof typeof PAPER_CRITERION_LIMITS])) && ["paper_defined", "needs_definition"].includes(String(c.acceptance)) && (c.tolerance === null || evidenceText(c.tolerance, PAPER_CRITERION_LIMITS.tolerance));
 }
 export function validDocumentEvidence(v: Record<string, unknown>, pages: number, missing: number[]) {
   if (!("provenance" in v) && !("implementation_choices" in v)) return true;

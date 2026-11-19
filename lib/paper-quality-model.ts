@@ -6,6 +6,7 @@ import { PAPER_QUALITY_FORMAT, PAPER_QUALITY_CONTEXT_FORMAT, PAPER_QUALITY_VERSI
 import { validateQualityContext } from "./paper-quality-context";
 import { QUALITY_SANDBOX_MARKER, qualitySandboxProgram, isQualitySandboxProgram } from "./paper-quality-sandbox";
 import { parsePaperModelOutput } from "./paper-model-output";
+import { PAPER_NORMALIZATION_CONTRACT } from "./paper-agent";
 
 export type QualitySource = {
   study_id: string; step: PaperQualityStep; experiment_index: number;
@@ -42,7 +43,7 @@ export function qualityReviewRequest(source: QualitySource, fileId?: string, con
   return {
     model: PAPER_ASSESSMENT_MODEL, background: true, store: true,
     reasoning: { effort: "high" }, max_output_tokens: source.step === 4 ? 64000 : 32768,
-    instructions: QUALITY_REVIEW_INSTRUCTIONS + sandbox,
+    instructions: QUALITY_REVIEW_INSTRUCTIONS + "\n" + PAPER_NORMALIZATION_CONTRACT + sandbox,
     input: JSON.stringify({ ...(source.step === 4 ? { version: PAPER_QUALITY_VERSION, source_sha256: attachment.hash, step: 4, study_id: source.study_id, experiment_index: source.experiment_index, attachment: attachment.filename } : { version: PAPER_QUALITY_VERSION, source_sha256: attachment.hash, source }), ...(context ? { review_context: context } : {}) }),
     ...(source.step === 4 ? { tools: [{ type: "code_interpreter" as const, container: { type: "auto" as const, memory_limit: "1g" as const, network_policy: { type: "disabled" as const }, file_ids: [fileId!] } }], max_tool_calls: 12, include: ["code_interpreter_call.outputs" as const] } : {}),
     text: { verbosity: "medium", format: { type: "json_schema", name: context ? PAPER_QUALITY_CONTEXT_FORMAT : PAPER_QUALITY_FORMAT, strict: true, schema: context ? QUALITY_CONTEXT_REVIEW_SCHEMA : QUALITY_REVIEW_SCHEMA } },

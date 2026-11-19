@@ -7,9 +7,12 @@ paper, exact confirmed sections, saved plan where applicable, and generated draf
 Step 1 retains deterministic PDF upload and extraction validation.
 
 A stage can use up to three medium-reasoning repairs, each followed by a new
-high-reasoning review. It stops as soon as a review passes. There are at most seven
-additional model calls per stage: one initial review and three repair/re-review
-pairs (per experiment package at Step 4). Remaining blockers, refused/incomplete responses or missing
+high-reasoning review. New repairs use managed agent sessions; existing saved
+Responses repairs keep their original adapter. It stops as soon as a review passes.
+There are at most four reviews and three repair sessions per stage (per experiment
+package at Step 4). A managed session can contain multiple inferences and up to
+24 function actions. See [managed paper agents](managed-paper-agents.md) for
+the native records, finite-policy restriction and qualification. Remaining blockers, refused/incomplete responses or missing
 verification evidence leave the stage needing attention. They do not expose the
 draft, silently retry inference, or change confirmed scientific criteria. Review
 and repair reservations count toward the original assessment limits and deadline.
@@ -70,6 +73,22 @@ raw responses, findings, checks and repaired candidates are versioned. Shared
 `/prompts` entries contain generic templates; source text, findings, assessment
 identities, source hashes and provider file IDs stay in private call history.
 
+The owner screens for Steps 2–4 show a chronological review and repair history
+through the existing automatically refreshed status responses. It includes each
+admitted round, recorded request/completion times, review summaries, findings,
+source or sandbox check findings, and later recorded dispositions of earlier
+issues. A saved repair is awaiting verification; it does not by itself mark a
+finding resolved. Earlier entries stay available after subsequent rounds and
+approval. Queued rounds have no invented timestamps. This display does not expose
+drafts, scripts, prompts, raw responses, provider identities or sandbox internals.
+
+History uses two bounded, read-only server queries against the existing private
+call and workflow-event tables. Calls are scoped by owner, assessment and workflow;
+event reads are scoped to that same assessment/workflow. Public metadata and global
+background polling do not receive this history. Transient history-read failures
+show an availability message and do not change approval, admit model calls, or
+prevent an approved output from being displayed. No schema migration is required.
+
 New source admissions receive a required-review marker. Historical work is not
 retroactively rerun or charged. SQL confirmation and command-generation paths
 enforce the same approval gate as the owner APIs. Pending/uncertain quality calls
@@ -82,8 +101,9 @@ most two saved workflows per request. GET status reads only reconcile known call
 Database admission coalesces concurrent tabs. Uncertain submission identities are
 retained without replay. Returning to the app resumes saved work; leaving an
 assessment for another app page keeps continuation active. Already-admitted
-provider calls run with the browser closed, while later repair/review admissions
-resume when the authenticated app is open. Notifications announce completion
+provider calls run with the browser closed. The managed-runtime release adds
+signed webhooks and a scheduled Next.js continuation path for subsequent
+repair/review admissions without an open browser. Notifications announce completion
 only after approval; no email or operating-system push is added.
 
 ## Browser-free verification

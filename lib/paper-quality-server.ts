@@ -12,6 +12,8 @@ import { readTerminalCommands, type TerminalCommandsRecord } from "./paper-termi
 import type { ExperimentPlan } from "./paper-experiment-plan";
 import type { TerminalCommandSet } from "./paper-terminal-commands";
 import type { PaperBreakdown } from "./research-paper-breakdown";
+import { readQualityHistory } from "./paper-quality-history";
+import { readPaperAgentHistory } from "./paper-agent-history";
 
 export class PaperQualityError extends Error { status: number;constructor(message: string, status = 503) { super(message);this.status = status; } }
 async function database() { return (await import("./paper-intake-server")).intakeDatabase(); }
@@ -23,12 +25,21 @@ export async function loadPaperQuality(study: string, owner: string, step: Paper
   dbFailure(result.error);if (!result.data) return null;
   let call = null;
   if (result.data.current_call_id) { const current = await db.from("research_paper_quality_calls").select("*").eq("id", result.data.current_call_id).eq("workflow_id", result.data.id).eq("owner_id", owner).maybeSingle();dbFailure(current.error);if (!current.data) throw new PaperQualityError("The original quality call is missing.");call = current.data; }
-  return { ...result.data, call } as QualityWorkflow;
+  let agent = null;
+  if (call?.provider_type === "managed_agent") {
+    const retained = await db.from("research_paper_agent_sessions").select("*").eq("call_id", call.id).eq("workflow_id", result.data.id).eq("owner_id", owner).maybeSingle();
+    dbFailure(retained.error);if (!retained.data) throw new PaperQualityError("The original managed repair state is missing.");agent = retained.data;
+  }
+  return { ...result.data, call, agent } as QualityWorkflow;
 }
 function operations(row: QualityWorkflow) {
   return {
+    repairRuntime: "managed-agents-v1" as const,
+    agentReady: async () => (await import("./paper-agent-server")).assertPaperAgentRuntime(),
+    advanceAgent: async (current: QualityWorkflow, admit: boolean) => (await import("./paper-agent-server")).driveManagedPaperRepair(current, admit),
     save: async (operation: string, payload: Record<string, unknown>) => {
       const { data, error } = await (await database()).rpc("research_paper_quality_control", { p_operation: operation, p_actor: row.owner_id, p_workflow: row.id, p_payload: payload });
+      if (/provider limits for finite/.test(error?.message ?? "")) throw new PaperQualityLimitError("Managed repair needs provider-enforced limits for this assessment's finite budget. No managed session was submitted.");
       if (operation === "context" && error?.code === "P0001" && /Unknown quality operation|original quality call identity and token/.test(error.message)) throw new PaperQualityError("Paper quality checking needs the database review-context update.", 424);
       if (operation === "admit" && error?.code === "P0001" && /original assessment (budget|deadline)/i.test(error.message)) throw new PaperQualityLimitError("The original assessment budget or deadline does not allow another quality call. No replacement request was sent.");
       dbFailure(error);return data as QualityWorkflow;
@@ -54,9 +65,19 @@ export async function drivePaperQuality(row: QualityWorkflow, admit = false) { r
 export async function stopPaperQuality(study: string, owner: string, step: PaperQualityStep, index = 0) {
   const row = await loadPaperQuality(study, owner, step, index);
   if (!row) throw new PaperQualityError("No retained quality workflow exists.", 409);
+  if (row.call?.provider_type === "managed_agent" && ["running", "uncertain"].includes(row.status)) return (await import("./paper-agent-server")).cancelManagedPaperRepair(row);
   return cancelPaperQuality(row, operations(row));
 }
 export type QualityGated = { quality?: PaperQualityProgress };
+async function progressWithHistory(row: QualityWorkflow): Promise<PaperQualityProgress> {
+  const progress = qualityProgress(row);
+  try {
+    const db = await database();
+    const [history, agent_history] = await Promise.all([readQualityHistory(db, row), row.call ? readPaperAgentHistory(db, row) : Promise.resolve([])]);
+    return { ...progress, history, ...(agent_history.length ? { agent_history } : {}) };
+  }
+  catch { return { ...progress, history_unavailable: true }; } // History outages do not change approval or trigger inference.
+}
 const stage = (q: Pick<QualityWorkflow, "status">) => q.status === "approved" ? "ready" : q.status === "uncertain" ? "uncertain" : q.status === "cancelled" ? "cancelled" : q.status === "needs_attention" ? "failed" : "processing";
 export type QualityMetadata = Pick<QualityWorkflow, "study_id" | "step" | "experiment_index" | "status" | "phase" | "round" | "reason" | "source_revision" | "source_provider_id"> & { candidate_title: string | null; [key: string]: unknown };
 export const qualityMetadataStage = (q: QualityMetadata | undefined) => q ? stage(q) : "processing";
@@ -71,7 +92,7 @@ async function gate(row: { study_id: string; owner_id: string; status: string; p
   if (!marked(row) || !["ready", "failed"].includes(row.status)) return null;
   let q = await loadPaperQuality(row.study_id, row.owner_id, step, index);
   if (!q) throw new PaperQualityError("The required quality approval record is missing.");
-  if (q.status === "running") q = await drivePaperQuality(q, false); // Original-call reconciliation only.
+  if (q.status === "running" || q.status === "uncertain" && q.call?.provider_type === "managed_agent") q = await drivePaperQuality(q, false); // Original-call reconciliation only.
   if (q.source_json && (!isDeepStrictEqual(q.source_json.candidate, original) || q.source_revision !== row.revision || q.source_provider_id !== row.provider_response_id || q.study_id !== row.study_id || q.owner_id !== row.owner_id || q.step !== step || q.experiment_index !== index || step === 2 && !isDeepStrictEqual(q.source_json.paper, row.paper_text) || step !== 2 && !isDeepStrictEqual(q.source_json.confirmed_breakdown, row.confirmed_breakdown) || step === 4 && !isDeepStrictEqual(q.source_json.plan, row.source_plan))) throw new PaperQualityError("The quality review belongs to a different original draft.");
   if (q.status === "approved") {
     const source = { ...q.source_json, candidate: q.candidate }, hash = qualityAttachment(source).hash;
@@ -83,23 +104,23 @@ export async function qualityIntake(row: IntakeRecord & { policy_snapshot?: unkn
   if (row.quality) return row;
   const q = await gate(row, 2, 0, { breakdown: row.breakdown, title: row.title, authors: row.authors, domain: row.domain });
   if (!q) return row;
-  const quality = qualityProgress(q);
+  const quality = await progressWithHistory(q);
   if (q.status === "approved") return { ...row, ...(q.candidate as QualityIntakeCandidate), quality };
   return { ...row, status: stage(q), breakdown: null, title: null, domain: null, authors: [], reason: q.reason ?? qualityReason(q.phase, 2, q.round), quality };
 }
 export async function qualityPlan(row: ExperimentPlanRecord & { policy_snapshot?: unknown; revision?: number }): Promise<ExperimentPlanRecord & QualityGated> {
   const q = await gate(row, 3, 0, row.plan);if (!q) return row;
-  return { ...row, status: stage(q), plan: q.status === "approved" ? q.candidate as ExperimentPlan : null, reason: q.reason ?? (q.status === "approved" ? null : qualityReason(q.phase, 3, q.round)), quality: qualityProgress(q) };
+  return { ...row, status: stage(q), plan: q.status === "approved" ? q.candidate as ExperimentPlan : null, reason: q.reason ?? (q.status === "approved" ? null : qualityReason(q.phase, 3, q.round)), quality: await progressWithHistory(q) };
 }
 export async function qualityScripts(row: TerminalCommandsRecord & { policy_snapshot?: unknown; revision?: number }): Promise<TerminalCommandsRecord & QualityGated> {
   const q = await gate(row, 4, row.experiment_index, row.command_set);if (!q) return row;
-  return { ...row, status: stage(q), command_set: q.status === "approved" ? q.candidate as TerminalCommandSet : null, generated_at: q.status === "approved" ? row.generated_at : null, reason: q.reason ?? (q.status === "approved" ? null : qualityReason(q.phase, 4, q.round)), quality: qualityProgress(q) };
+  return { ...row, status: stage(q), command_set: q.status === "approved" ? q.candidate as TerminalCommandSet : null, generated_at: q.status === "approved" ? row.generated_at : null, reason: q.reason ?? (q.status === "approved" ? null : qualityReason(q.phase, 4, q.round)), quality: await progressWithHistory(q) };
 }
 /** Bounded owner-scoped POST continuation. Unknown submissions never enter the
  * candidate set; only their saved identities can be reconciled explicitly. */
 export async function advanceOwnerPaperQuality(owner: string, cursor = 0) {
   const db = await database();
-  const result = await db.from("research_paper_quality_workflows").select("study_id,step,experiment_index").eq("owner_id", owner).in("status", ["review_pending", "repair_pending", "running"]).order("updated_at").order("id").range(cursor, cursor + 1);
+  const result = await db.from("research_paper_quality_workflows").select("study_id,step,experiment_index").eq("owner_id", owner).in("status", ["review_pending", "repair_pending", "running", "uncertain"]).order("updated_at").order("id").range(cursor, cursor + 1);
   dbFailure(result.error);
   let advanced = 0, unavailable = 0;
   for (const item of result.data ?? []) {

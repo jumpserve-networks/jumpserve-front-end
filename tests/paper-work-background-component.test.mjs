@@ -9,7 +9,7 @@ globalThis.__workReact=React;
 const hook=registerHooks({resolve(name,context,next){
  const replacements={
   'next/link':'export default function Link({prefetch,...props}){return globalThis.__workReact.createElement("a",props);}',
-  '@/app/components/user-preferences':'export const useUserPreferences=()=>({userId:"owner"});',
+  '@/app/components/user-preferences':'export const useUserPreferences=()=>({userId:"owner"});export const LocalDateTime=({value})=>globalThis.__workReact.createElement("time",{dateTime:value},value);',
   '@/lib/browser-auth':'export const requireAccessToken=async(_message,owner)=>{if(owner!=="owner")throw Error("Wrong owner");return "verified-owner";};',
   './browser-auth':'export const requireAccessToken=async(_message,owner)=>{if(owner!=="owner")throw Error("Wrong owner");return "verified-owner";};',
   '@/lib/paper-intake-client':'export const paperIntakeRequest=async()=>({access:"owner-drafts",studies:[]});',

@@ -15,7 +15,7 @@ afterEach(cleanup);
 test('upload starts at step one with all four stages visible and later stages disabled',()=>{
  const selected=[];render(React.createElement(PaperAssessmentSteps,{onStep:step=>selected.push(step)}));
  const upload=screen.getByRole('button',{name:'Step 1: Paper Upload'});assert.equal(upload.getAttribute('href'),'/research-verification/new-assessment');assert.equal(upload.getAttribute('aria-current'),'step');
- for(const name of ['Step 2: Initial Assessment','Step 3: Experiment Steps','Step 4: Setup & Run Commands']){const button=screen.getByRole('button',{name});assert.equal(button.disabled,true);fireEvent.click(button);}
+ for(const name of ['Step 2: Paper Breakdown','Step 3: Experiment Steps','Step 4: Setup & Run Commands']){const button=screen.getByRole('button',{name});assert.equal(button.disabled,true);fireEvent.click(button);}
  assert.deepEqual(selected,[]);
 });
 test('a ready plan enables step four navigation while upload remains a separate route',()=>{

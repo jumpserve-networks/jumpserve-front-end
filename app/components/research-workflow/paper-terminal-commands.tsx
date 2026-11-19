@@ -71,9 +71,9 @@ export function PaperTerminalCommands({ assessmentId, ownerId, index, plan, brea
     void perform();return cancelPending;
   }, [perform, cancelPending]);
   useEffect(() => {
-    if (busy || !view || !["submitting", "processing"].includes(view.stage)) return;
-    const timer = setTimeout(() => void perform(), 5000);return () => clearTimeout(timer);
-  }, [busy, view, perform]);
+    if (busy || !(error || view && ["submitting", "processing"].includes(view.stage))) return;
+    const timer = setTimeout(() => void perform(), error ? 15000 : 5000);return () => clearTimeout(timer);
+  }, [busy, view, error, perform]);
   const commandSet = view?.command_set;
   return <CommandContext.Provider value={commandSet ? { set: commandSet, study: assessmentId, index } : null}>
       <section aria-label={`Terminal commands for experiment ${index}`} className="space-y-3 text-sm">
@@ -83,7 +83,6 @@ export function PaperTerminalCommands({ assessmentId, ownerId, index, plan, brea
         {view?.reason ? <p className="text-xs text-muted-foreground">{view.reason}</p> : null}
         {view && ["submitting", "processing"].includes(view.stage) ? <p role="status">Generating commands for each numbered step…</p> : null}
         {view?.stage === "processing" ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void perform("cancel")}>Cancel command generation</Button> : null}
-        {error || view && ["failed", "uncertain", "cancelled"].includes(view.stage) ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void perform()}>Check saved command status</Button> : null}
         {commandSet ? <>
           {commandSet.inputs.length ? <TerminalInputs inputs={commandSet.inputs} /> : null}
           {terminalSetupRequired(commandSet) ? <CommandBlock block={commandSet.setup} label="saved setup" study={assessmentId} index={index} /> : null}

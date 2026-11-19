@@ -50,7 +50,7 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, header, wizard, t
         const result = await planFetch(assessmentId, ownerId, { signal: controller.signal });
         if (!active) return;
         setView(result); setError("");
-        if (planPending(result.stage)) timer = setTimeout(refresh, 5000);
+        if (planPending(result.stage) || result.quality?.history_unavailable) timer = setTimeout(refresh, 5000);
       } catch (failure) {
         if (!active) return;
         setError(failure instanceof Error ? failure.message : "Experiment planning is unavailable.");
@@ -69,7 +69,7 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, header, wizard, t
       if (!mounted.current) return;
       setView(result); setRevision(value => value + 1);
       if (action === "confirm" && result.stage !== "awaiting_confirmation") wizard?.navigate("implementation");
-    } catch (failure) { if (mounted.current) setError(failure instanceof Error ? failure.message : "The confirmation could not be saved. Check status before retrying."); }
+    } catch (failure) { if (mounted.current) { setError(failure instanceof Error ? failure.message : "The confirmation could not be saved. The saved status will be checked automatically."); setRevision(value => value + 1); } }
     finally { if (mounted.current) setBusy(false); }
   }
   function edit(section: PaperBreakdownSection, id: string, description: string | null) {
@@ -97,7 +97,6 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, header, wizard, t
         {view.stage === "processing" ? <Button size="sm" variant="outline" disabled={busy} onClick={() => void action("cancel")}>Cancel planning</Button> : null}
         {view.plan ? <PaperExperimentPlanOutline plan={view.plan} breakdown={saved} /> : null}
       </>}
-      <Button size="sm" variant="outline" disabled={busy} onClick={() => setRevision(value => value + 1)}>Check planning status</Button>
     </section>;
   if (!wizard) return <>{header}<PaperQualityFeedback quality={breakdownQuality} step={2} />{breakdownPanel}{implementationPanel}</>;
   return <>
@@ -105,13 +104,13 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, header, wizard, t
     {header}
     <section ref={stepPanel} tabIndex={-1} aria-label={`${PAPER_ASSESSMENT_STEPS.find(s => s.id === step)!.title} step`} className="scroll-mt-24 space-y-6 outline-none">
       {step === "breakdown" ? <>
-        <h2 className="text-lg font-semibold">Initial Assessment</h2>
+        <h2 className="text-lg font-semibold">Paper Breakdown</h2>
         <PaperQualityFeedback quality={breakdownQuality} step={2} />
         {breakdownPanel}{feedback}
         {!view ? <p role="status" className="text-sm">Checking phase-one confirmation…</p> : awaiting ? confirmation : <div className="border-t pt-4"><Button disabled={busy} onClick={() => wizard.navigate("implementation")}>Next: Experiment Steps</Button></div>}
       </> : step === "implementation" ? <>
         {implementationPanel}
-        <div className="flex flex-wrap justify-between gap-3 border-t pt-4"><Button variant="outline" disabled={busy} onClick={() => wizard.navigate("breakdown")}>Back to Initial Assessment</Button><Button disabled={busy || view?.stage !== "ready"} onClick={() => wizard.navigate("execution")}>Continue to Step 4</Button></div>
+        <div className="flex flex-wrap justify-between gap-3 border-t pt-4"><Button variant="outline" disabled={busy} onClick={() => wizard.navigate("breakdown")}>Back to Paper Breakdown</Button><Button disabled={busy || view?.stage !== "ready"} onClick={() => wizard.navigate("execution")}>Continue to Step 4</Button></div>
       </> : <>
         <section aria-labelledby="experiment-execution-title" className="space-y-6"><h2 id="experiment-execution-title" className="text-lg font-semibold">Setup &amp; Run Commands</h2>
           {view?.plan?.experiments.length === 0 ? <p>No experiments were included in the confirmed assessment.</p> : view?.plan?.experiments.map((_, index) => <PaperExperimentScripts key={`${assessmentId}:${ownerId}:${index + 1}`} assessmentId={assessmentId} ownerId={ownerId} title={title} index={index + 1} plan={view.plan!} breakdown={saved} />)}

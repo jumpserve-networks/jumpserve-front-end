@@ -1,13 +1,13 @@
 import "server-only";
 import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 
-type Credentials = { openaiApiKey: string; supabaseSecret: string };
+type Credentials = { openaiApiKey: string; supabaseSecret: string; openaiWebhookSecret?: string };
 // These are application credentials, shared across requests and never user data.
 let cached: { id: string; expires: number; value: Promise<Credentials> } | undefined;
 export async function paperIntakeCredentials(): Promise<Credentials | null> {
   const openaiApiKey = process.env.OPENAI_API_KEY;
   const supabaseSecret = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (openaiApiKey && supabaseSecret) return { openaiApiKey, supabaseSecret };
+  if (openaiApiKey && supabaseSecret) return { openaiApiKey, supabaseSecret, ...(process.env.OPENAI_WEBHOOK_SECRET ? { openaiWebhookSecret: process.env.OPENAI_WEBHOOK_SECRET } : {}) };
   const id = process.env.PAPER_INTAKE_SECRET_ID;
   if (!id) return null;
   if (!cached || cached.id !== id || cached.expires <= Date.now()) {
@@ -17,7 +17,7 @@ export async function paperIntakeCredentials(): Promise<Credentials | null> {
         const result = await client.send(new GetSecretValueCommand({ SecretId: id }), { abortSignal: AbortSignal.timeout(8000) });
         const secret = JSON.parse(result.SecretString ?? "null");
         if (!secret || typeof secret.OPENAI_API_KEY !== "string" || !secret.OPENAI_API_KEY.trim() || typeof secret.SUPABASE_SECRET_KEY !== "string" || !secret.SUPABASE_SECRET_KEY.trim()) throw new Error("Incomplete server credentials");
-        return { openaiApiKey: secret.OPENAI_API_KEY, supabaseSecret: secret.SUPABASE_SECRET_KEY };
+        return { openaiApiKey: secret.OPENAI_API_KEY, supabaseSecret: secret.SUPABASE_SECRET_KEY, ...(typeof secret.OPENAI_WEBHOOK_SECRET === "string" && secret.OPENAI_WEBHOOK_SECRET.trim() ? { openaiWebhookSecret: secret.OPENAI_WEBHOOK_SECRET } : {}) };
       } catch { throw new Error("Paper preparation server credentials are temporarily unavailable."); }
       finally { client.destroy(); }
     })();
