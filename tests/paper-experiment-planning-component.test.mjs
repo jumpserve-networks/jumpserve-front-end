@@ -9,11 +9,15 @@ import {implementationBreakdown,hierarchicalImplementationPlan,granularImplement
 import {experimentScriptsView} from './support/experiment-scripts-fixture.mjs';
 import {PaperWorkManager} from '../lib/paper-work-manager.ts';
 import {confirmPaperSections} from '../lib/paper-experiment-plan.ts';
+import {projectQualityHistory} from '../lib/paper-quality-history.ts';
+import {historyFixture} from './support/paper-quality-history-fixture.mjs';
 globalThis.__planComponent={};
 globalThis.__planReact=React;
 const navigation=`const subscribe=callback=>{globalThis.__planComponent.listeners.add(callback);return()=>globalThis.__planComponent.listeners.delete(callback);};export const usePathname=()=>'/research-verification/assessment/11111111-1111-4111-8111-111111111111';export const useRouter=()=>({push:(...args)=>globalThis.__planComponent.push(...args)});export function useSearchParams(){const query=globalThis.__planReact.useSyncExternalStore(subscribe,()=>globalThis.__planComponent.search);return new URLSearchParams(query);}`;
 const hook=registerHooks({resolve(specifier,context,next){if(specifier==='next/link')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('export default function Link({prefetch,...props}){return globalThis.__planReact.createElement("a",props);}')};if(specifier==='@/app/components/user-preferences')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('export const LocalDateTime=({value})=>globalThis.__planReact.createElement("time",{dateTime:value},value);')};if(specifier==='next/navigation')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent(navigation)};if(specifier==='@/lib/browser-auth')return{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent('export const requireAccessToken=(...args)=>globalThis.__planComponent.token(...args);')};if(specifier==='@/lib/research-workflow-api')return{shortCircuit:true,url:'data:text/javascript,export const RESEARCH_SIGN_IN_REQUIRED="Sign in";'};return next(specifier,context);}});
 const {PaperExperimentPlanning}=await import('../app/components/research-workflow/paper-experiment-planning.tsx');const {PaperWorkScope}=await import('../app/components/research-workflow/paper-work-provider.tsx');hook.deregister();
+const {ResearchHeader}=await import('../app/components/research-workflow/header.tsx');
+const {PaperQualityHistoryMenu}=await import('../app/components/research-workflow/paper-quality-history-dialog.tsx');
 const id='11111111-1111-4111-8111-111111111111';
 let calls,terminalCalls,view,post,originalFetch,work;
 beforeEach(()=>{
@@ -158,6 +162,22 @@ test('the wizard stays above the paper header across steps without remounting me
  view={...view,stage:'ready',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdownFixture(),plan:planFixture()};await show({wizard:true,header:React.createElement(PaperHeader)});
  const checkOrder=()=>{const nav=screen.getByRole('navigation',{name:'Assessment steps'}),header=screen.getByRole('heading',{name:'Retained paper heading'});assert.ok(nav.compareDocumentPosition(header)&Node.DOCUMENT_POSITION_FOLLOWING);assert.equal(screen.getAllByRole('navigation',{name:'Assessment steps'}).length,1);assert.equal(screen.getAllByRole('heading',{level:1}).length,1);};
  checkOrder();await click('Continue to Step 4');checkOrder();await click('Step 2: Paper Breakdown');checkOrder();assert.ok(screen.getByRole('heading',{name:'Paper breakdown'}));assert.equal(mounts,1);assert.equal(calls.length,1);assert.equal(calls.filter(c=>c.options.method==='POST').length,0);
+});
+test('the paper menu follows Steps 3 and 4 and keeps each experiment history separate without new requests',async()=>{
+ const breakdown=breakdownFixture();breakdown.sections.experiment.push({...structuredClone(breakdown.sections.experiment[0]),id:'second-experiment',description:'Second confirmed experiment'});
+ const plan=planFixture(),second=structuredClone(plan.experiments[0]);second.title='Second confirmed experiment';second.experiment_refs=['experiment-2'];second.steps[0].source_refs=['experiment-2','data-1'];plan.experiments.push(second);
+ const history=(label,phase='reviewing')=>({version:'paper-quality-v1',phase,round:1,findings:[],history:projectQualityHistory(historyFixture(phase==='approved'?'completed':'processing').calls,historyFixture(phase==='approved'?'completed':'processing').events).map(entry=>({...entry,summary:label}))});
+ view={...view,stage:'ready',confirmed_at:'2026-11-11T12:00:00Z',confirmed_breakdown:breakdown,plan,quality:history('Planning review passed','approved')};
+ const original=globalThis.fetch;globalThis.fetch=async(url,options)=>{if(!url.includes('/api/experiment-scripts?'))return original(url,options);terminalCalls.push({url,options});const index=Number(new URL(url,'https://example.test').searchParams.get('experiment'));return Response.json({...experimentScriptsView(id,'processing'),experiment_index:index,quality:history(`Package ${index} review in progress`)});};
+ await show({wizard:true,breakdown,header:React.createElement(ResearchHeader,{title:'Retained paper heading',showModuleLabel:false,actions:React.createElement(PaperQualityHistoryMenu)})});
+ const open=async()=>{await click('Paper actions');await act(async()=>{fireEvent.click(screen.getByRole('menuitem',{name:'Review and Repair History'}));});return screen.getByRole('dialog',{name:'Review and Repair History'});};
+ const close=async dialog=>{await act(async()=>{fireEvent.click(within(dialog).getByRole('button',{name:'Close'}));});};
+ assert.equal(screen.queryByRole('list',{name:'Review and repair rounds'}),null);let dialog=await open();assert.ok(within(dialog).getByText('Step 3 · Experiment Steps'));assert.equal(within(dialog).getAllByText('Planning review passed').length,3);assert.equal(calls.length,1);assert.equal(terminalCalls.length,0);await close(dialog);
+ await click('Continue to Step 4');assert.equal(terminalCalls.length,2);assert.equal(terminalCalls.filter(call=>call.options.method==='POST').length,0);assert.equal(screen.queryByRole('list',{name:'Review and repair rounds'}),null);
+ dialog=await open();assert.ok(within(dialog).getByText('Step 4 · Setup & Run Commands'));
+ const first=within(dialog).getByRole('region',{name:`Experiment 1: ${plan.experiments[0].title}`}),next=within(dialog).getByRole('region',{name:'Experiment 2: Second confirmed experiment'});
+ assert.equal(within(first).getAllByText('Package 1 review in progress').length,3);assert.equal(within(first).queryByText('Package 2 review in progress'),null);assert.equal(within(next).getAllByText('Package 2 review in progress').length,3);assert.equal(within(next).queryByText('Package 1 review in progress'),null);assert.equal(terminalCalls.length,2);await close(dialog);
+ await click('Back to Experiment Steps');dialog=await open();assert.ok(within(dialog).getByText('Step 3 · Experiment Steps'));assert.equal(within(dialog).queryByText('Package 1 review in progress'),null);assert.equal(calls.length,1);assert.equal(terminalCalls.length,2);
 });
 test('granular actions keep experiment, stage and action numbering with independent instructions and original evidence',async()=>{
  const breakdown=implementationBreakdown(),plan=granularImplementationPlan();

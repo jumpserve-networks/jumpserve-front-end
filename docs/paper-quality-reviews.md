@@ -12,7 +12,11 @@ Responses repairs keep their original adapter. It stops as soon as a review pass
 There are at most four reviews and three repair sessions per stage (per experiment
 package at Step 4). A managed session can contain multiple inferences and up to
 24 function actions. See [managed paper agents](managed-paper-agents.md) for
-the native records, finite-policy restriction and qualification. Remaining blockers, refused/incomplete responses or missing
+the native records, precise field diagnostics, targeted evidence reads, bounded
+checkpoint recovery, finite-policy restriction and qualification. A checkpoint
+handoff consumes its existing repair round and must pass a new high-reasoning
+review; it cannot approve output. Owner cancellation and original limits take
+precedence. Remaining blockers, refused/incomplete responses or missing
 verification evidence leave the stage needing attention. They do not expose the
 draft, silently retry inference, or change confirmed scientific criteria. Review
 and repair reservations count toward the original assessment limits and deadline.
@@ -73,8 +77,14 @@ raw responses, findings, checks and repaired candidates are versioned. Shared
 `/prompts` entries contain generic templates; source text, findings, assessment
 identities, source hashes and provider file IDs stay in private call history.
 
-The owner screens for Steps 2–4 show a chronological review and repair history
-through the existing automatically refreshed status responses. It includes each
+The owner screens for Steps 2–4 provide a chronological review and repair history
+through the existing automatically refreshed status responses. Each step keeps its
+history in a modal opened through the three-dot menu at the right of the paper
+title, including while preparation, review or repair is running and after approval
+or failure. The menu follows the current wizard step. Step 4 groups records by
+experiment, using its existing command-package responses. The modal updates with
+those same responses and stays open when the current generation finishes. Opening
+it makes no model calls or additional requests. The history includes each
 admitted round, recorded request/completion times, review summaries, findings,
 source or sandbox check findings, and later recorded dispositions of earlier
 issues. A saved repair is awaiting verification; it does not by itself mark a

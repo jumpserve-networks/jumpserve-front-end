@@ -7,6 +7,7 @@ import { PaperQualityError } from "./paper-quality-server";
 
 function failure(error: { message: string; code?: string } | null) {
   if (!error) return;
+  if (/repeated failure limit reached/.test(error.message)) throw new PaperAgentActionLimitError("Three identical patch failures stopped managed repair.", "no_progress");
   if (/action limit reached/.test(error.message)) throw new PaperAgentActionLimitError("The managed repair action limit was reached.");
   if (/finite|provider limit/i.test(error.message)) throw new PaperQualityError("Managed repair needs provider-enforced limits for this assessment's finite budget. The original limits and evidence are retained.", 424);
   throw new PaperQualityError(["42P01", "PGRST202", "PGRST205"].includes(error.code ?? "") ? "Managed paper repair needs the database agent-runtime update." : "Managed repair evidence could not be saved. Its original identity is retained.", ["42P01", "PGRST202", "PGRST205"].includes(error.code ?? "") ? 424 : 503);
@@ -14,7 +15,7 @@ function failure(error: { message: string; code?: string } | null) {
 export async function assertPaperAgentRuntime() {
   const { data, error } = await (await intakeDatabase()).rpc("research_paper_agent_capabilities", {});
   failure(error);
-  if (data?.runtime !== "managed-agents-v1" || data?.native_records !== true) throw new PaperQualityError("Managed paper repair needs the matching database runtime update.", 424);
+  if (data?.runtime !== "managed-agents-v1" || data?.native_records !== true || data?.recovery_version !== 1) throw new PaperQualityError("Managed paper repair needs the matching database runtime update.", 424);
 }
 export function paperAgentOperations(row: QualityWorkflow): PaperAgentOperations {
   const rpc = async (operation: string, payload: Record<string, unknown> = {}) => {

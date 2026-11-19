@@ -17,14 +17,14 @@ function Findings({ findings, checks, repair }: { findings: PaperQualityFinding[
   </ul> : null;
 }
 
-export function PaperQualityHistory({ quality, step }: { quality: PaperQualityProgress; step: PaperQualityStep }) {
+export function PaperQualityHistory({ quality, step, showHeading = true }: { quality: PaperQualityProgress; step: PaperQualityStep; showHeading?: boolean }) {
   const history = quality.history ?? [], latest = history.at(-1);
   const reviewing = ["reviewing", "checking"].includes(quality.phase), repairing = quality.phase === "repairing";
   const currentPosition = 2 * quality.round + (repairing ? 2 : 1);
   const current = history.find(entry => entry.position === currentPosition);
   const progress = reviewing || repairing ? `${label({ kind: repairing ? "repair" : "review", round: repairing ? Math.min(quality.round + 1, PAPER_QUALITY_MAX_REPAIRS) : quality.round })} — ${current ? status(current) : "Queued"}` : quality.phase === "approved" ? null : qualityReason(quality.phase, step, quality.round);
   return <section aria-label="Paper quality checks" className="space-y-4 text-sm">
-    <h3 className="font-semibold">Review and repair history</h3>
+    {showHeading ? <h3 className="font-semibold">Review and repair history</h3> : null}
     {progress ? <p role={quality.phase === "needs_attention" ? "alert" : "status"}>{progress}</p> : null}
     <ol aria-label="Review and repair rounds" className="space-y-5">
       {history.map(entry => {

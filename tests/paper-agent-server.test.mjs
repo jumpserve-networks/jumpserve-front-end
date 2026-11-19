@@ -6,7 +6,7 @@ globalThis.__paperAgentServer={};
 const hook=registerHooks({resolve(name,context,next){const code=name==='server-only'?'export {};':name==='./paper-intake-server'?'export const intakeDatabase=async()=>globalThis.__paperAgentServer.db;export const modelClient=async()=>globalThis.__paperAgentServer.client;':name==='./paper-quality-server'?'export class PaperQualityError extends Error {constructor(message,status){super(message);this.status=status;}};':null;return code?{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent(code)}:next(name,context);}});
 const {paperAgentOperations,assertPaperAgentRuntime}=await import('../lib/paper-agent-server.ts');after(()=>hook.deregister());
 let calls,ack;
-beforeEach(()=>{calls=[];ack=true;globalThis.__paperAgentServer.db={rpc:async(name,args)=>{calls.push(['rpc',name,args]);return{data:name==='research_paper_agent_capabilities'?{runtime:'managed-agents-v1',native_records:true}:args.p_operation==='action_ack'?ack:args.p_operation==='history_item'?{item_key:args.p_payload.item.id,retained_in:'research_paper_agent_items'}:true,error:null};}};globalThis.__paperAgentServer.client={beta:{agents:{sessions:{events:{create:async(...args)=>{calls.push(['events',...args]);}}}}}};});
+beforeEach(()=>{calls=[];ack=true;globalThis.__paperAgentServer.db={rpc:async(name,args)=>{calls.push(['rpc',name,args]);return{data:name==='research_paper_agent_capabilities'?{runtime:'managed-agents-v1',native_records:true,recovery_version:1}:args.p_operation==='action_ack'?ack:args.p_operation==='history_item'?{item_key:args.p_payload.item.id,retained_in:'research_paper_agent_items'}:true,error:null};}};globalThis.__paperAgentServer.client={beta:{agents:{sessions:{events:{create:async(...args)=>{calls.push(['events',...args]);}}}}}};});
 test('provider tool acknowledgments recheck the retained stop and budget gate',async()=>{
  const row=agentRow(),ops=paperAgentOperations(row),result={success:true,output:'{"saved":true}'};
  ack=false;await ops.result('sess_fixture','turn_fixture','call_fixture',result,'original-key');assert.equal(calls.filter(c=>c[0]==='events').length,0);
@@ -19,5 +19,11 @@ test('native history streams complete originals into immutable rows before retur
  const items=await paperAgentOperations(row).items('sess_fixture');assert.equal(items.length,2);assert.ok(!JSON.stringify(items).includes('aaaa'));const retained=calls.filter(c=>c[0]==='rpc');assert.equal(retained.length,2);assert.equal(retained[0][2].p_payload.item.content[0].text.length,1100000);assert.equal(retained[1][2].p_payload.item.content[0].text.length,1100000);
 });
 test('missing database capabilities fail before managed admission or inference',async()=>{
- await assertPaperAgentRuntime();globalThis.__paperAgentServer.db.rpc=async()=>({data:null,error:{code:'PGRST202',message:'Function unavailable with private diagnostic.'}});await assert.rejects(()=>assertPaperAgentRuntime(),error=>error.status===424&&!error.message.includes('private diagnostic'));
+ await assertPaperAgentRuntime();
+ globalThis.__paperAgentServer.db.rpc=async()=>({data:{runtime:'managed-agents-v1',native_records:true},error:null});await assert.rejects(()=>assertPaperAgentRuntime(),error=>error.status===424);
+ globalThis.__paperAgentServer.db.rpc=async()=>({data:null,error:{code:'PGRST202',message:'Function unavailable with private diagnostic.'}});await assert.rejects(()=>assertPaperAgentRuntime(),error=>error.status===424&&!error.message.includes('private diagnostic'));
+});
+test('a concurrent no-progress stop preserves its reason instead of being mistaken for action exhaustion',async()=>{
+ globalThis.__paperAgentServer.db.rpc=async()=>({data:null,error:{message:'Managed repair repeated failure limit reached; preserve checkpoint'}});
+ await assert.rejects(()=>paperAgentOperations(agentRow()).claim({}),error=>error.stopCode==='no_progress');
 });

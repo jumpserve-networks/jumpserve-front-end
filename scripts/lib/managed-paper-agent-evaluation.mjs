@@ -38,7 +38,7 @@ async function inputRow(step,workflowPath){
  const created=new Date().toISOString(),deadline=new Date(Date.now()+240000).toISOString(),callId=randomUUID(),token=randomUUID();
  row.status='running';row.phase='repairing';row.round=0;row.deadline_at=deadline;
  row.call={id:callId,kind:'repair',provider_type:'managed_agent',status:'preparing',submit_token:token,provider_response_id:null,request:null,updated_at:created};
- row.agent={call_id:callId,workflow_id:row.id,study_id:row.study_id,owner_id:row.owner_id,submit_token:token,status:'preparing',provider_session_id:null,request:null,initial_candidate:structuredClone(row.candidate),candidate:structuredClone(row.candidate),candidate_version:0,session:null,turn:null,deadline_at:deadline,cancel_requested_at:null,created_at:created,updated_at:created};
+ row.agent={call_id:callId,workflow_id:row.id,study_id:row.study_id,owner_id:row.owner_id,submit_token:token,status:'preparing',recovery_version:1,actions_used:0,repeated_failures:0,failure_signature:null,stop_code:null,provider_session_id:null,request:null,initial_candidate:structuredClone(row.candidate),candidate:structuredClone(row.candidate),candidate_version:0,session:null,turn:null,deadline_at:deadline,cancel_requested_at:null,created_at:created,updated_at:created};
  return row;
 }
 export async function evaluateManagedPaperRuntime(values){
@@ -62,9 +62,9 @@ export async function evaluateManagedPaperRuntime(values){
     if(operation==='submitted'){row.agent.provider_session_id=payload.session.id;row.agent.session=payload.session;row.agent.status='processing';row.call.status='processing';row.status='running';}
     if(operation==='observed'){row.agent.session=payload.session;if(payload.turn)row.agent.turn=payload.turn;}
     if(operation==='uncertain'){row.agent.status='uncertain';row.call.status='uncertain';row.status='uncertain';}
-    if(operation==='cancel_requested')row.agent.cancel_requested_at=new Date().toISOString();
-    if(operation==='action_result'){const action=saved.actions.find(action=>action.id===payload.action_id);action.result=payload.result;if(payload.candidate){row.agent.candidate=payload.candidate;row.agent.candidate_version++;}}
-    if(operation==='completed'){row.candidate=row.agent.candidate;row.agent.status='completed';row.call.status='completed';row.status='review_pending';saved.finished_at=new Date().toISOString();saved.items=payload.items;}
+    if(operation==='cancel_requested'){row.agent.cancel_requested_at=new Date().toISOString();row.agent.stop_code=payload.stop_code??'owner_cancel';}
+    if(operation==='action_result'){const action=saved.actions.find(action=>action.id===payload.action_id);action.result=payload.result;const output=payload.result.success?JSON.parse(payload.result.output):null;if(action.name==='apply_patch'){const signature=output?.failure_signature??null;row.agent.repeated_failures=signature&&signature===row.agent.failure_signature?(row.agent.repeated_failures??0)+1:signature?1:0;row.agent.failure_signature=signature;}if(payload.candidate){row.agent.candidate=payload.candidate;row.agent.candidate_version++;}}
+    if(operation==='completed'||operation==='checkpoint'){row.candidate=row.agent.candidate;row.round++;row.agent.status=operation==='checkpoint'?'cancelled':'completed';row.call.status='completed';row.status='review_pending';saved.finished_at=new Date().toISOString();saved.items=payload.items;}
     if(operation==='failed'||operation==='cancelled'){row.status=operation==='failed'?'needs_attention':'cancelled';row.agent.status=operation;row.call.status=operation;saved.finished_at=new Date().toISOString();saved.reason=payload.reason;saved.items=payload.items??[];}
     row.agent.updated_at=new Date().toISOString();await persist();
     if(!['observed','controller_checks'].includes(operation))console.log(JSON.stringify({step,operation}));return structuredClone(row);
@@ -76,7 +76,7 @@ export async function evaluateManagedPaperRuntime(values){
    result:(id,turn,call,result,key)=>api.events.create(id,{events:[{type:'agent.session.input.tool_result',turn_id:turn,call_id:call,...result}]},{headers:{'Idempotency-Key':key}}),
    cancel:(id,key)=>api.events.create(id,{events:[{type:'agent.session.input.cancel'}]},{headers:{'Idempotency-Key':key}}),
    async limits(){return true;},
-   async claim({action}){let savedAction=saved.actions.find(item=>item.call_id===action.call_id&&item.turn_id===action.turn_id);if(!savedAction){if(saved.actions.length>=24){saved.row.agent.cancel_requested_at=new Date().toISOString();await persist();throw Error('Evaluation action bound reached; resume to reconcile cancellation.');}savedAction={...action,id:randomUUID(),lease_token:randomUUID(),admitted:true,candidate_version:saved.row.agent.candidate_version,result:null};saved.actions.push(savedAction);await persist();}console.log(JSON.stringify({step,tool:action.name}));return{...structuredClone(savedAction),workflow:structuredClone(saved.row)};},
+   async claim({action}){let savedAction=saved.actions.find(item=>item.call_id===action.call_id&&item.turn_id===action.turn_id);if(!savedAction){if(saved.actions.length>=24){saved.row.agent.cancel_requested_at=new Date().toISOString();await persist();throw Error('Evaluation action bound reached; resume to reconcile cancellation.');}savedAction={...action,id:randomUUID(),lease_token:randomUUID(),admitted:true,candidate_version:saved.row.agent.candidate_version,result:null};saved.actions.push(savedAction);saved.row.agent.actions_used=saved.actions.length;await persist();}console.log(JSON.stringify({step,tool:action.name}));return{...structuredClone(savedAction),workflow:structuredClone(saved.row)};},
   };
   for(let i=0;i<150&&!saved.finished_at;i++){await advancePaperAgent(structuredClone(saved.row),ops,true);if(!saved.finished_at)await delay(2000);}
   if(!saved.finished_at)throw Error('The original runtime evaluation is pending; resume this exact named run without replacement inference.');

@@ -1,3 +1,4 @@
+import { PAPER_FIELD_LIMITS as LIMITS } from "./paper-field-limits";
 export const PAPER_BREAKDOWN_VERSION = "paper-breakdown-v1";
 import { validPaperDependencies } from "./paper-detail-dependencies";
 export const PAPER_BREAKDOWN_SECTIONS = [
@@ -52,8 +53,8 @@ export function validatePaperBreakdown(value: unknown): PaperBreakdown {
     const entries = value.sections[id];
     if (!Array.isArray(entries) || entries.length > 200) throw failure();
     for (const entry of entries) {
-      if (!record(entry) || !boundedText(entry.id, 100) || ids.has(entry.id) || !boundedText(entry.description, 400) ||
-          !boundedText(entry.quote, 800) || !integer(entry.page) || entry.page < 1 || entry.page > value.total_pages ||
+      if (!record(entry) || !boundedText(entry.id, LIMITS.detail.id) || ids.has(entry.id) || !boundedText(entry.description, LIMITS.detail.description) ||
+          !boundedText(entry.quote, LIMITS.detail.quote) || !integer(entry.page) || entry.page < 1 || entry.page > value.total_pages ||
           value.missing_text_pages.includes(entry.page) || !validItemEvidence(entry, value.total_pages as number, value.missing_text_pages as number[])) throw failure();
       if (entry.kind && (id === "experiment" && entry.kind !== "experiment_specification" || entry.kind === "experiment_specification" && id !== "experiment" || entry.kind === "claim" && id !== "validate" || entry.kind === "reported_result" && id !== "data")) throw failure();
       ids.add(entry.id);

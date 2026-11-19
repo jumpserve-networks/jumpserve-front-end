@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { validatePaperAgentHistory, type PaperAgentHistoryEntry } from "./paper-quality";
 type Row = { repair_round: 1 | 2 | 3; position: number; name: string; status: "claimed" | "completed"; record: string | null; explanation: string | null; result_success: boolean | null; reason: string | null; checks_passed: boolean | null; created_at: string; completed_at: string | null };
-const labels: Record<string, string> = { paper: "Read retained paper", draft: "Inspect current draft", confirmed_sections: "Read confirmed sections", source_plan: "Read saved experiment plan", review_findings: "Inspect review findings", generation_contract: "Read assessment instructions", normalization_contract: "Check assessment structure" };
+const labels: Record<string, string> = { paper: "Read retained paper", draft: "Inspect current draft", confirmed_sections: "Read confirmed sections", source_plan: "Read saved experiment plan", review_findings: "Inspect review findings", generation_contract: "Read assessment instructions", normalization_contract: "Check assessment structure", field_limits: "Check stored field limits" };
 export function projectPaperAgentHistory(rows: Row[]): PaperAgentHistoryEntry[] {
   return validatePaperAgentHistory(rows.map(row => ({
     round: row.repair_round, position: row.position, started_at: row.created_at, completed_at: row.completed_at,

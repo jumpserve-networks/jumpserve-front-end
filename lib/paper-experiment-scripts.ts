@@ -1,3 +1,4 @@
+import { PAPER_FIELD_LIMITS } from "./paper-field-limits";
 import { validateExperimentPlan, type ExperimentPlan } from "./paper-experiment-plan";
 import type { PaperBreakdown } from "./research-paper-breakdown";
 import { terminalCommandsInput, terminalActionRefs, terminalBlockedActionRefs, validateTerminalCommandSet, SHARED_TERMINAL_LAYOUT, TERMINAL_TARGET, type TerminalCommandSet, type TerminalStage } from "./paper-terminal-commands";
@@ -6,7 +7,7 @@ import { validateQualityProgress, type PaperQualityProgress } from "./paper-qual
 
 export const EXPERIMENT_SCRIPTS_VERSION = "paper-experiment-scripts-v1";
 export const EXPERIMENT_SCRIPTS_FORMAT = "paper_experiment_scripts_v1";
-export const SHARED_SETUP_MAX_CHARACTERS = 200000;
+export const SHARED_SETUP_MAX_CHARACTERS = PAPER_FIELD_LIMITS.scripts.setup;
 export const EXPERIMENT_SCRIPTS_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/api/experiment-scripts`;
 export type ExperimentScriptsView = { version: typeof EXPERIMENT_SCRIPTS_VERSION; study_id: string; experiment_index: number; command_layout: typeof SHARED_TERMINAL_LAYOUT; target: typeof TERMINAL_TARGET; stage: TerminalStage; command_set: TerminalCommandSet | null; reason: string | null; generated_at: string | null; prior_pending: number; quality?: PaperQualityProgress };
 export function experimentScriptsInput(study: string, index: number, plan: ExperimentPlan, breakdown: PaperBreakdown) {

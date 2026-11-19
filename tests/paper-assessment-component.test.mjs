@@ -12,7 +12,7 @@ const hook=registerHooks({resolve(specifier,context,next){
   'next/navigation':'export const usePathname=()=>"/research-verification/assessment/saved";export const useSearchParams=()=>new URLSearchParams();export const useRouter=()=>({push(){}});',
   '@/app/components/user-preferences':'export const useUserPreferences=()=>({userId:globalThis.__paperWizard.userId});export const LocalDateTime=({value})=>globalThis.__paperWizardReact.createElement("time",{dateTime:value},value);',
   '@/lib/paper-intake-client':'export const paperIntakeFetch=async()=>{globalThis.__paperWizard.reads++;return structuredClone(globalThis.__paperWizard.view);};',
-  './paper-experiment-planning':'export function PaperExperimentPlanning(props){globalThis.__paperWizard.planning=props;const [checked,setChecked]=globalThis.__paperWizardReact.useState(false);return globalThis.__paperWizardReact.createElement("div",null,globalThis.__paperWizardReact.createElement("p",null,props.wizard?"Wizard planning screen":"Combined planning view"),globalThis.__paperWizardReact.createElement("input",{type:"checkbox","aria-label":"Draft consent",checked,onChange:e=>setChecked(e.target.checked)}));}',
+  './paper-experiment-planning':'export function PaperExperimentPlanning(props){globalThis.__paperWizard.planning=props;const [checked,setChecked]=globalThis.__paperWizardReact.useState(false);return globalThis.__paperWizardReact.createElement("div",null,props.header,globalThis.__paperWizardReact.createElement("p",null,props.wizard?"Wizard planning screen":"Combined planning view"),globalThis.__paperWizardReact.createElement("input",{type:"checkbox","aria-label":"Draft consent",checked,onChange:e=>setChecked(e.target.checked)}));}',
  };
  return replacements[specifier]?{shortCircuit:true,url:'data:text/javascript,'+encodeURIComponent(replacements[specifier])}:next(specifier,context);
 }});
@@ -62,9 +62,9 @@ test('preparation renders a single wizard before the paper heading and forwards 
  Object.assign(globalThis.__paperWizard.view,{status:'preparing',stage:'processing',breakdown:null});
  const header=React.createElement('h1',null,'Paper heading');await show(true,{embedded:true,ownerOnly:true,header});
  const nav=screen.getByRole('navigation',{name:'Assessment steps'});assert.ok(nav.compareDocumentPosition(screen.getByRole('heading',{name:'Paper heading'}))&Node.DOCUMENT_POSITION_FOLLOWING);assert.equal(screen.getAllByRole('navigation',{name:'Assessment steps'}).length,1);
- cleanup();Object.assign(globalThis.__paperWizard.view,{status:'ready',stage:'ready',breakdown:breakdownFixture()});await show(true,{embedded:true,ownerOnly:true,header});assert.equal(globalThis.__paperWizard.planning.header,header);
+ cleanup();Object.assign(globalThis.__paperWizard.view,{status:'ready',stage:'ready',breakdown:breakdownFixture()});await show(true,{embedded:true,ownerOnly:true,header});assert.ok(screen.getByRole('heading',{name:'Paper heading'}));
 });
 test('an approved breakdown stays usable while unavailable review history retries automatically',async t=>{
  t.mock.timers.enable({apis:['setTimeout']});globalThis.__paperWizard.view.quality={version:'paper-quality-v1',phase:'approved',round:0,findings:[],history_unavailable:true};await show();assert.ok(screen.getByText('Wizard planning screen'));assert.equal(globalThis.__paperWizard.reads,1);
- globalThis.__paperWizard.view.quality={version:'paper-quality-v1',phase:'approved',round:0,findings:[],history:[]};await act(async()=>t.mock.timers.tick(5000));assert.equal(globalThis.__paperWizard.reads,2);assert.deepEqual(globalThis.__paperWizard.planning.breakdownQuality.history,[]);await act(async()=>t.mock.timers.tick(15000));assert.equal(globalThis.__paperWizard.reads,2);
+ globalThis.__paperWizard.view.quality={version:'paper-quality-v1',phase:'approved',round:0,findings:[],history:[]};await act(async()=>t.mock.timers.tick(5000));assert.equal(globalThis.__paperWizard.reads,2);assert.ok(screen.getByRole('button',{name:'Paper actions'}));await act(async()=>t.mock.timers.tick(15000));assert.equal(globalThis.__paperWizard.reads,2);
 });

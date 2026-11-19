@@ -30,6 +30,13 @@ test('source/sandbox check findings stay separate and are carried into the repai
  const history=projectQualityHistory(historyFixture('completed').calls,[final,first]);assert.equal(history[0].checks_passed,false);assert.deepEqual(history[1].check_findings,[check]);assert.equal(history[2].resolutions[0].location,check.location);
 });
 
+test('a bounded checkpoint explains its review handoff without claiming approval',()=>{
+ const f=historyFixture(),reason='Repair stopped at its bounded limit. The improved saved checkpoint is awaiting independent high-reasoning review.';
+ f.events.unshift({call_id:f.calls[1].id,status:'review_pending',review:null,check_findings:[],checks_passed:true,reason});
+ const history=projectQualityHistory(f.calls,f.events);
+ assert.equal(history[1].reason,reason);assert.equal(history[1].decision,null);assert.equal(history[2].decision,null);
+});
+
 test('a failed review never reuses a previous report and uncertain submissions have no invented completion time',()=>{
  for(const state of ['preparing','submitting','processing','uncertain','failed','cancelled']){
   const f=historyFixture(state);f.events[0]={...f.events[0],status:state==='failed'?'needs_attention':state,reason:'Original call retained.'};

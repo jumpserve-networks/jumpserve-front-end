@@ -22,7 +22,7 @@ export function projectQualityHistory(calls: HistoryCall[], events: HistoryEvent
       requested_at: call.created_at, completed_at: terminal ? call.updated_at : null,
       decision: reviewed?.decision ?? null, checks_passed: reviewed ? event?.checks_passed ?? null : null,
       summary: reviewed?.summary ?? null,
-      reason: ["failed", "uncertain", "cancelled"].includes(call.status) ? events.find(e => e.call_id === call.id && ["needs_attention", "uncertain", "cancelled"].includes(e.status))?.reason ?? null : null,
+      reason: call.kind === "repair" && call.status === "completed" ? event?.reason ?? null : ["failed", "uncertain", "cancelled"].includes(call.status) ? events.find(e => e.call_id === call.id && ["needs_attention", "uncertain", "cancelled"].includes(e.status))?.reason ?? null : null,
       findings: (call.kind === "repair" ? previous?.findings ?? [] : reviewed?.findings ?? []).map(finding),
       check_findings: (call.kind === "repair" ? previous?.check_findings ?? [] : checks).map(finding),
       resolutions: (reviewed?.resolutions ?? []).map(r => {

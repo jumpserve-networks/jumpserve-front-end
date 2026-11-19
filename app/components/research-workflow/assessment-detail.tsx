@@ -6,6 +6,7 @@ import { LocalDateTime } from "@/app/components/user-preferences";
 import { loadPaperDetail, type PaperDetail } from "@/lib/research-paper-catalog";
 import { PaperAuthors } from "./paper-bibliography";
 import { ResearchHeader } from "./header";
+import { PaperQualityHistoryMenu } from "./paper-quality-history-dialog";
 import { AssessmentGapExperiments } from "./experiment-queue";
 
 const DETAIL_POLL_MS = 10000;
@@ -35,7 +36,7 @@ export function AssessmentDetail({ assessmentId, gapId, launchId, children, embe
 
   const Container = embedded ? "section" : "main";
   return <Container className={embedded ? "space-y-6" : "mx-auto max-w-6xl space-y-6 px-4 py-6"} data-testid={embedded ? "assessment-paper-header" : "assessment-detail"}>
-    <ResearchHeader title={title} showModuleLabel={false} />
+    <ResearchHeader title={title} showModuleLabel={false} actions={<PaperQualityHistoryMenu />} />
     {paper ? <div className="space-y-2 text-sm">
       <PaperAuthors authors={paper.authors} />
       <p>Initiated by: {paper.initiated_by ?? "Name unavailable"}</p>
