@@ -2,6 +2,19 @@
 
 Last updated: 2026-10-17
 
+## Owner-directed local assessment architecture, 2026-11-20
+
+Paper assessment and experiment execution are moving to a standalone public
+Claude/Codex skill. JumpServe retains evidence, authentication, public results
+and a future optional authenticated bundle import. Hosted paper generation and
+the named platform supervisor are retired by the owner's latest instruction.
+Do not recreate their hosts, schedules or automatic release roles under the
+historical standing authority below. Preserve existing assessment URLs, private
+originals and honest unexecuted/uncertain outcomes. The public skill and import
+interface require separate implementation; do not claim they have shipped from
+infrastructure retirement alone. See
+`jumpserve-infra/docs/local-assessment-retirement-v1.md`.
+
 ## Deployment workflow
 
 - Keep routine changes and verification local. Do not push or merge to `main`,

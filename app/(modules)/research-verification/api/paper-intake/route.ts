@@ -12,7 +12,7 @@ const failure = (error: unknown) => json({ error: error instanceof Error ? error
 export async function GET(request: Request) {
   try {
     const query = new URL(request.url).searchParams;
-    if (query.get("capabilities") === "1") return json({ paper_intake: { version: PAPER_INTAKE_VERSION, enabled: await intakeConfigured() }, paper_uploads: { version: "research-paper-upload-v2", review_version: "research-paper-review-v1", confirmation_required: true, maximum_bytes: 10_000_000 } });
+    if (query.get("capabilities") === "1") return json({ paper_intake: { version: PAPER_INTAKE_VERSION, enabled: false, runtime: "local-skill-v1" }, paper_uploads: { version: "research-paper-upload-v2", enabled: false, review_version: "research-paper-review-v1", confirmation_required: true, maximum_bytes: 10_000_000 } });
     const actor = await intakeActor(request);
     if (query.get("mine") === "1") {
       if (!actor) return json({ error: "Sign in with Google to view your papers." }, 401);

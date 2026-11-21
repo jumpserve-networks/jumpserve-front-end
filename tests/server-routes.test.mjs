@@ -193,8 +193,8 @@ test('login preserves a plain-text provider error and treats arrays as the first
   }
 });
 
-test('profile and paper or idea intake require the exact resumable Google action before rendering controls', async () => {
-  const entries = [['profile', props(), '/profile', 'ProfileEditor'], ['newPaper', props({}, {name: 'A & B', mine: '1'}), BASE + '/new-assessment?name=A+%26+B&mine=1', 'PaperIntake'], ['newIdea', props({}, {topic: 'Ω'}), '/research-ideas/new-idea?topic=%CE%A9', 'IdeaIntake'], ['ideas', props(), '/research-ideas/workspace', 'OwnerStudies']];
+test('profile and idea intake require the exact resumable Google action before rendering controls', async () => {
+  const entries = [['profile', props(), '/profile', 'ProfileEditor'], ['newIdea', props({}, {topic: 'Ω'}), '/research-ideas/new-idea?topic=%CE%A9', 'IdeaIntake'], ['ideas', props(), '/research-ideas/workspace', 'OwnerStudies']];
   for (const [name, options, path, control] of entries) {
     state.authPaths.length = 0; state.captures.length = 0; const document = await renderPage(name, options);
     assert.deepEqual(state.authPaths, [path]); assert.ok(document.querySelector(`[data-boundary="${control}"]`));
@@ -231,10 +231,12 @@ test('paper wizard step links remain publicly readable and cannot authorize an a
   state.authError = Object.assign(new Error('Synthetic required login'), {code:'AUTH_REQUIRED'});
   await assert.rejects(pages.review.default(props({assessmentId: ID}, {gap: OTHER})), {code:'AUTH_REQUIRED'});
 });
-test('the upload route starts the four-step wizard before an assessment identity exists',async()=>{
+test('the retired upload route explains local assessments publicly without mounting hosted generation',async()=>{
  const document=await renderPage('newPaper',props({}, {step:'execution'}));
- assert.deepEqual(capture('PaperAssessmentSteps'),{current:'upload'});assert.equal(capture('PaperIntake').wizard,true);
- assert.equal(document.querySelector('main').firstElementChild.getAttribute('data-boundary'),'PaperAssessmentSteps');
+ assert.equal(capture('PaperIntake'),undefined);assert.equal(capture('PaperAssessmentSteps'),undefined);
+ assert.match(document.body.textContent,/Hosted assessment generation has been retired/);
+ assert.ok(document.querySelector('a[href="/research-verification/assessments"]'));
+ assert.deepEqual(state.authPaths,[]);
 });
 
 test('paper review and experiment design validate frozen identities before requesting authorization', async () => {
