@@ -1,26 +1,12 @@
 "use client";
 
-import { EMULATED_MODULE_PATH } from "@/lib/test-modules";
-
-import { SignInToRun } from "./sign-in-to-run";
-import { BenchmarkForm } from "./benchmark-form";
 import { BenchmarkStatus } from "./benchmark-status";
-import { Card, CardContent } from "@/app/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
 
-export function BenchmarkTabs({ userEmail }: { userEmail?: string }) {
+export function BenchmarkTabs() {
   return (
-    <Tabs defaultValue="configure" className="mt-6 gap-6">
-      <TabsList variant="line" aria-label="Benchmarks" className="w-full justify-start border-b border-border">
-        <TabsTrigger value="configure" className="flex-none px-5">Configure</TabsTrigger>
-        <TabsTrigger value="history" className="flex-none px-5">Run History</TabsTrigger>
-      </TabsList>
-      <TabsContent value="configure">
-        <Card>
-          <CardContent>{userEmail ? <BenchmarkForm /> : <SignInToRun nextPath={`${EMULATED_MODULE_PATH}/benchmarks`} />}</CardContent>
-        </Card>
-      </TabsContent>
-      <TabsContent value="history"><BenchmarkStatus canManage={Boolean(userEmail)} /></TabsContent>
-    </Tabs>
+    <div className="mt-6 space-y-6">
+      <p className="text-sm text-muted-foreground">Cloud benchmark execution has been retired. Run new experiments locally with Claude or Codex. Historical measurements remain available here.</p>
+      <BenchmarkStatus canManage={false} />
+    </div>
   );
 }

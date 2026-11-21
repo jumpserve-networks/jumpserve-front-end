@@ -98,9 +98,9 @@ test('local assessments expose only the public projection to visitors and keep o
  state.captures=[];state.localAssessment={status:'unavailable'};const document=await renderPage('review',props({assessmentId:ID}));assert.match(document.body.textContent,/temporarily unavailable/);assert.ok(capture('AssessmentDetail'));
 });
 
-test('real-world launch requires sign-in while result and job pages remain public',async()=>{
-  let document=await renderPage('realLaunch');assert.equal(capture('RealWorldTests'),undefined);assert.ok(document.querySelector('a[href="/login?next=%2Fcongestion-control-real-world%2Frun-a-test"]'));assert.equal(state.authPaths.length,0);
-  state.user=google();await renderPage('realLaunch');assert.ok(capture('RealWorldTests'));
+test('retired real-world execution keeps local guidance and public result pages',async()=>{
+  let document=await renderPage('realLaunch');assert.equal(capture('RealWorldTests'),undefined);assert.match(document.body.textContent,/Cloud benchmark execution has been retired/);assert.ok(document.querySelector('a[href="/congestion-control-real-world/test-results"]'));assert.equal(state.authPaths.length,0);
+  state.user=google();await renderPage('realLaunch');assert.equal(capture('RealWorldTests'),undefined);
   state.user=null;await renderPage('realDetail',props({jobId:ID}));assert.equal(capture('RealWorldTestDetail').jobId,ID);
   await renderPage('realReport',props({jobId:ID}));assert.equal(capture('RealWorldReport').jobId,ID);
   await renderPage('realResults');assert.ok(capture('RealWorldReports'));assert.deepEqual(state.authPaths,[]);
@@ -283,10 +283,10 @@ test('benchmark pages use an explicit public projection and distinguish invalid 
     await renderPage('lookup', props({}, {page})); assert.equal(capture('TestLookupHome').initialPageNumber, expected);
   }
   for (const user of [null, google()]) {
-    state.user = user; const document = await renderPage('benchmark'); assert.equal(capture('BenchmarkTabs').userEmail, user?.email);
+    state.user = user; const document = await renderPage('benchmark'); assert.equal(capture('BenchmarkTabs').userEmail, undefined);
     assert.equal(document.querySelector('a').getAttribute('href'), '/congestion-control-emulated');
     state.row = {id: ID, status: 'running', requested_instances: 0}; await renderPage('benchmarkRun', props({jobId: ID}));
-    assert.equal(capture('BenchmarkRunStatus').initialJob, state.row); assert.equal(capture('BenchmarkRunStatus').canManage, Boolean(user));
+    assert.equal(capture('BenchmarkRunStatus').initialJob, state.row); assert.equal(capture('BenchmarkRunStatus').canManage, false);
     assert.deepEqual(state.queries.at(-1), {table: 'benchmark_jobs', columns: PUBLIC_BENCHMARK_COLUMNS, field: 'id', value: ID});
     assert.doesNotMatch(PUBLIC_BENCHMARK_COLUMNS, /requester_email/);
   }
