@@ -42,8 +42,8 @@ test('private idea snapshots keep proposed work separate and never offer paper g
 test('an idea claim shows its recorded finding without a paper-claim design action',()=>{
  const data=snapshot();data.study.study_kind='idea';data.records.claims=[{id:'claim',description:'Original idea claim',created_at:'2026-11-08'}];globalThis.__panelCaptures=[];const document=documentOf(React.createElement(StudyPanel,{snapshot:data,view:'results',basePath:'/idea'}));assert.match(document.body.textContent,/Original idea claim/);assert.equal(document.querySelector('a[href*="design-claim"]'),null);
 });
-test('benchmark tabs keep public run history and require sign-in only for execution',async()=>{
- for(const signedIn of [false,true]){globalThis.__panelCaptures=[];render(React.createElement(BenchmarkTabs,{userEmail:signedIn?'synthetic@example.test':undefined}));assert.ok(document.querySelector('[data-child="'+(signedIn?'BenchmarkForm':'SignInToRun')+'"]'));await act(async()=>fireEvent.click(screen.getByRole('tab',{name:'Run History'})));const status=globalThis.__panelCaptures.findLast(c=>c.name==='BenchmarkStatus');assert.equal(status.props.canManage,signedIn);cleanup();}
+test('retired benchmark execution keeps public history without cloud launch or cancellation controls',()=>{
+ globalThis.__panelCaptures=[];render(React.createElement(BenchmarkTabs));assert.match(document.body.textContent,/Cloud benchmark execution has been retired/);assert.equal(document.querySelector('[data-child="BenchmarkForm"]'),null);assert.equal(document.querySelector('[data-child="SignInToRun"]'),null);const status=globalThis.__panelCaptures.findLast(c=>c.name==='BenchmarkStatus');assert.equal(status.props.canManage,false);
 });
 test('benchmark and study failure boundaries preserve explicit retry and module navigation',async()=>{
  for(const Component of [BenchmarkError,StudyError]){let retries=0;render(React.createElement(Component,{reset:()=>retries++}));assert.ok(screen.getByRole('heading',{level:1}));await act(async()=>fireEvent.click(screen.getByRole('button',{name:/Try again|Retry/})));assert.equal(retries,1);cleanup();}

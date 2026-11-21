@@ -1,19 +1,16 @@
 import type { Metadata } from "next";
 import { BenchmarkTabs } from "@/app/components/benchmark-tabs";
-import { getGoogleUser } from "@/lib/auth";
 import Link from "next/link";
 import { EMULATED_TESTS_MODULE } from "@/lib/test-modules";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Run Benchmark",
-  description: "Configure and launch TCP congestion control benchmarks.",
+  title: "Benchmark History",
+  description: "Browse historical TCP congestion control benchmarks.",
 };
 
 export default async function BenchmarksPage() {
-  const user = await getGoogleUser();
-
   return (
     <div className="min-h-[var(--page-height)] bg-muted dark:bg-background">
       <div className="mx-auto max-w-3xl px-4 py-12">
@@ -28,11 +25,10 @@ export default async function BenchmarksPage() {
           Benchmarks
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Configure and launch TCP congestion control benchmarks on fresh EC2
-          instances.
+          Browse recorded TCP congestion control benchmarks and their measurements.
         </p>
 
-        <BenchmarkTabs userEmail={user?.email} />
+        <BenchmarkTabs />
       </div>
     </div>
   );
