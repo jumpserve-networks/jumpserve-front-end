@@ -108,7 +108,7 @@ export const RESEARCH_VERIFICATION_MODULE = {
   description: "Assess claims in academic papers with versioned sources, documented protocols, recorded measurements and clear evidence gaps.",
   status: "available", href: RESEARCH_WORKFLOW_MODULE_PATH,
   sections: [
-    { href: NEW_ASSESSMENT_PATH, label: "Assess a Paper", description: "Create a paper assessment, prepare available domain plans and queue their checks.", paths: [NEW_ASSESSMENT_PATH, ASSESSMENT_PATH] },
+    { href: NEW_ASSESSMENT_PATH, label: "Assess a Paper", description: "Assess a paper locally in Claude Code or Codex and share selected results on JumpServe.", paths: [NEW_ASSESSMENT_PATH, ASSESSMENT_PATH] },
     { href: ASSESSMENTS_PATH, label: "Assessments", description: "Browse submitted paper assessments, recorded progress and evidence.", paths: [ASSESSMENTS_PATH, `${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`, `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-design`, `${RESEARCH_WORKFLOW_MODULE_PATH}/design-claim`] },
     { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/methods`, label: "Verification Methods", description: "Choose appropriate checks and understand validation criteria.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/methods`] },
   ],

@@ -7,6 +7,8 @@ import { isResearchId } from "@/lib/research-experiment-queue";
 import { researchAssessmentPath, researchSearchSuffix } from "@/lib/research-pathways";
 import { loadSharedLocalPaperAssessment } from "@/lib/local-paper-assessment-server";
 import { SharedLocalPaperAssessment } from "@/app/components/research-workflow/shared-local-paper-assessment";
+import { SkillAssessment } from "@/app/components/research-workflow/skill-assessment";
+import { readSharedSkillAssessment } from "@/lib/jumpserve-mcp-store";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Assessment" };
@@ -18,6 +20,10 @@ export default async function AssessmentPage({ params, searchParams }: { params:
   const { job, gap, run } = query;
   if ([job, gap, run].some(value => value !== undefined && !isResearchId(value)) || (run && !gap)) notFound();
   if (gap) await requireGoogleUser(`${researchAssessmentPath(assessmentId)}${researchSearchSuffix(query)}`);
+  const sharedSkill = gap ? null : await readSharedSkillAssessment(assessmentId).catch(() => null);
+  if (sharedSkill) return <main className="mx-auto max-w-6xl px-4 py-6" data-testid="assessment-detail">
+    <SkillAssessment bundle={sharedSkill} />
+  </main>;
   const local = gap ? { status: "absent" as const } : await loadSharedLocalPaperAssessment(assessmentId);
   if (local.status === "available" && (await getGoogleUser())?.id !== local.owner) return <main className="mx-auto max-w-6xl space-y-6 px-4 py-6" data-testid="assessment-detail">
     <AssessmentDetail assessmentId={assessmentId} embedded />
