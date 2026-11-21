@@ -16,7 +16,9 @@ const replacements = {
   '@/lib/supabase/server': 'export async function createClient(){return globalThis.__routeState.client;}',
   '@/lib/auth': "export async function getGoogleUser(){return globalThis.__routeState.user;}export async function requireGoogleUser(path){globalThis.__routeState.authPaths.push(path);if(globalThis.__routeState.authError)throw globalThis.__routeState.authError;return globalThis.__routeState.user;}",
   '@/lib/local-paper-assessment-server': "export async function loadSharedLocalPaperAssessment(id){globalThis.__routeState.localReads=(globalThis.__routeState.localReads??0)+1;return globalThis.__routeState.localAssessment??{status:'absent'};}",
+  '@/lib/jumpserve-mcp-store': "export async function readSharedSkillAssessment(){return globalThis.__routeState.skillAssessment??null;}",
   '@/app/components/research-workflow/shared-local-paper-assessment': boundary('SharedLocalPaperAssessment'),
+  '@/app/components/research-workflow/skill-assessment': boundary('SkillAssessment'),
   '@/app/components/auth-button': boundary('AuthButton'),
   '@/app/components/profile-editor': boundary('ProfileEditor'),
   '@/app/components/benchmark-tabs': boundary('BenchmarkTabs'),
@@ -96,6 +98,13 @@ test('local assessments expose only the public projection to visitors and keep o
  state.captures=[];state.user={id:OTHER};await renderPage('review',props({assessmentId:ID}));assert.deepEqual(capture('SharedLocalPaperAssessment'),{value});
  state.captures=[];state.user=google();await renderPage('review',props({assessmentId:ID}));assert.ok(capture('PaperAssessment'));assert.equal(capture('SharedLocalPaperAssessment'),undefined);
  state.captures=[];state.localAssessment={status:'unavailable'};const document=await renderPage('review',props({assessmentId:ID}));assert.match(document.body.textContent,/temporarily unavailable/);assert.ok(capture('AssessmentDetail'));
+});
+
+test('shared skill assessments use the canonical page and its approved projection', async () => {
+  state.skillAssessment = { summary: 'Approved evidence' };
+  await renderPage('review', props({ assessmentId: ID }));
+  assert.deepEqual(capture('SkillAssessment'), { bundle: state.skillAssessment });
+  assert.equal(capture('PaperAssessment'), undefined);
 });
 
 test('retired real-world execution keeps local guidance and public result pages',async()=>{

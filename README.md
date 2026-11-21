@@ -7,6 +7,59 @@ Starter app using:
 - shadcn/ui (Base UI components styled with Tailwind)
 - Supabase client libraries (`@supabase/supabase-js` + `@supabase/ssr`)
 
+## Local paper assessments and JumpServe MCP
+
+Claude Code and Codex run paper assessments locally with the standalone
+[JumpServe paper assessment skill](skills/jumpserve-paper-assessment/SKILL.md).
+[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.zip)
+from JumpServe. Place the extracted skill
+directory under `~/.claude/skills/` for Claude Code or `~/.agents/skills/` for
+Codex. The skill produces a local bundle even when sharing is unavailable.
+Model inference follows the user's Claude Code or Codex configuration. A
+local workspace can still use a hosted model provider.
+
+The Next.js app serves an optional Streamable HTTP MCP connector at `/mcp`.
+It supports `preview_assessment` and `submit_assessment`. The user signs in
+with their JumpServe Google account, reviews the exact public copy, approves it,
+and tells the local client to finish sharing. The client gets the assessment URL
+without a file picker. JumpServe stores the approved copy and its measurements
+in Supabase. Original PDFs, raw logs and other local material stay with the
+user. The connector does not need a model-provider key.
+
+### Enable and connect
+
+1. Apply `jumpserve-infra/database/202611210001_jumpserve_mcp_assessments.sql`
+   to the target Supabase project before enabling the connector.
+2. Set `NEXT_PUBLIC_SITE_URL` to the app's actual origin and
+   `JUMPSERVE_MCP_ENABLED=true` in the server runtime. Use the existing
+   `PAPER_INTAKE_SECRET_ID` on Amplify or set a server-only
+   `SUPABASE_SECRET_KEY` for an isolated local project. On Amplify, the
+   `scripts/configure-paper-intake-runtime.mjs` build hook forwards the
+   connector flag and origin into the SSR runtime.
+3. Register the enabled instance in your local client. The two public OAuth
+   clients use fixed loopback callback ports. These examples point at local
+   development. Use the deployed HTTPS origin for a live instance.
+
+```bash
+codex -c mcp_oauth_callback_port=17651 mcp add jumpserve \
+  --url http://localhost:6001/mcp --oauth-client-id jumpserve-codex
+
+claude mcp add --transport http --scope user --client-id jumpserve-claude-code \
+  --callback-port 17652 jumpserve http://localhost:6001/mcp
+```
+
+Codex opens the consent flow when adding the connector. To reconnect, run
+`codex -c mcp_oauth_callback_port=17651 mcp login jumpserve`. In Claude Code,
+use `/mcp` to sign in. The account owner can revoke connector sessions at
+`/oauth/jumpserve/connections`. For a local end-to-end run, use an isolated
+Supabase instance with Google sign-in configured for your loopback app origin.
+Run `npm run verify:research:mcp` for the browser and MCP integration check
+with an isolated Next.js build and synthetic Supabase accounts.
+
+For a new skill release, package the `jumpserve-paper-assessment` directory from
+`skills/` into a versioned ZIP in `public/downloads/`. Update the download links
+here and on the new-assessment page to point to that archive.
+
 ## Quick Start
 
 Use Node.js 22 or newer. The pinned Supabase SDK requires Node.js 22+; local

@@ -4,15 +4,20 @@ Last updated: 2026-10-17
 
 ## Owner-directed local assessment architecture, 2026-11-20
 
-Paper assessment and experiment execution are moving to a standalone public
-Claude/Codex skill. JumpServe retains evidence, authentication, public results
-and a future optional authenticated bundle import. Hosted paper generation and
-the named platform supervisor are retired by the owner's latest instruction.
-Do not recreate their hosts, schedules or automatic release roles under the
-historical standing authority below. Preserve existing assessment URLs, private
-originals and honest unexecuted/uncertain outcomes. The public skill and import
-interface require separate implementation; do not claim they have shipped from
-infrastructure retirement alone. See
+Claude Code or Codex uses the standalone skill in
+`skills/jumpserve-paper-assessment` for local analysis, experiment design,
+execution and evidence capture. It saves a local bundle and optionally shares
+selected results through the JumpServe MCP connector. Preserve account-owner
+approval of the exact public preview, scoped credentials, and idempotent
+submission. Keep original PDFs, raw logs and other private material local.
+Keep paper-reported values distinct from observations and preserve existing
+URLs and uncertain outcomes.
+
+Hosted paper generation and the named platform supervisor are retired. The
+historical authority below does not authorize recreating their infrastructure.
+Next.js serves the connector and public pages. Supabase stores shared records
+and measurements. The connector validates and imports evidence without calling
+models or running uploaded commands. See
 `jumpserve-infra/docs/local-assessment-retirement-v1.md`.
 
 ## Deployment workflow
@@ -63,17 +68,17 @@ This purpose applies to Congestion Control Emulated Tests, Congestion Control
 Real World Tests, and future test modules. Treat persistence in Supabase as a
 core requirement when adding or changing tests and measurements.
 
-## Research assessment autonomy
+## Local research assessment autonomy
 
 The goal of research assessments is **100% unattended autonomy** after the user
-submits the paper or idea and confirms the assessment scope. JumpServe should
+provides the paper or idea and confirms the assessment scope. The local skill should
 plan, implement, validate and execute experiments, analyze measurements, and
 diagnose, repair and resume recoverable failures without routine user input.
 Installing dependencies, writing instrumentation and repairing experiment
-packages are system responsibilities. Run claims in parallel where appropriate,
-share compatible acquisitions, and make repair and execution progress visible
-in Experiment Queue. Persist prompts, responses, actions, failures, repairs and
-measurement provenance as versioned Supabase records.
+packages are local workflow responsibilities. Run claims in parallel where
+appropriate and share compatible acquisitions. Save prompts, responses,
+actions, failures, repairs and provenance locally. Import selected results and
+measurement provenance into Supabase only on approved sharing.
 
 Continue useful work within the approved spending, elapsed-time and authorization
 limits, honoring cancellation. Unattended operation does not guarantee conclusive

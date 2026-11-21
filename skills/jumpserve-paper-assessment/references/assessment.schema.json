@@ -1,0 +1,238 @@
+{
+  "title": "JumpServe paper assessment bundle v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "paper",
+    "summary",
+    "claims",
+    "methods",
+    "runs",
+    "limitations"
+  ],
+  "properties": {
+    "version": {
+      "const": "jumpserve-assessment-v1"
+    },
+    "paper": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "authors",
+        "domain",
+        "sha256",
+        "byte_count"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "authors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "minItems": 0,
+          "maxItems": 50
+        },
+        "domain": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "url": {
+          "type": "string",
+          "maxLength": 1024,
+          "pattern": "^https://[^\\s]+$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "byte_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000000
+        }
+      }
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 5000
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "page",
+          "claim",
+          "criterion",
+          "outcome",
+          "finding"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,39}$"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          },
+          "claim": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "criterion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "outcome": {
+            "enum": [
+              "untested",
+              "inconclusive",
+              "reproduced",
+              "discrepant"
+            ]
+          },
+          "finding": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 50
+    },
+    "methods": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "procedure"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "procedure": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          },
+          "commands": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 6000
+          }
+        }
+      },
+      "minItems": 0,
+      "maxItems": 30
+    },
+    "runs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "configuration",
+          "started_at",
+          "artifact_sha256",
+          "measurements"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,39}$"
+          },
+          "configuration": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "started_at": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d(?:\\.\\d{1,3})?Z$"
+          },
+          "artifact_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "measurements": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "claim_id",
+                "metric",
+                "units",
+                "paper_value",
+                "observed_value"
+              ],
+              "properties": {
+                "claim_id": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,39}$"
+                },
+                "metric": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "units": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "paper_value": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "observed_value": {
+                  "type": "number"
+                }
+              }
+            },
+            "minItems": 1,
+            "maxItems": 100
+          }
+        }
+      },
+      "minItems": 0,
+      "maxItems": 20
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2000
+      },
+      "minItems": 1,
+      "maxItems": 20
+    }
+  }
+}
