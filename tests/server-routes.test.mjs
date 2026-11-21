@@ -243,7 +243,8 @@ test('paper wizard step links remain publicly readable and cannot authorize an a
 test('the retired upload route explains local assessments publicly without mounting hosted generation',async()=>{
  const document=await renderPage('newPaper',props({}, {step:'execution'}));
  assert.equal(capture('PaperIntake'),undefined);assert.equal(capture('PaperAssessmentSteps'),undefined);
- assert.match(document.body.textContent,/Hosted assessment generation has been retired/);
+ assert.match(document.body.textContent,/assess papers and run experiments in your local workspace/);
+ assert.ok(document.querySelector('a[href="/downloads/jumpserve-paper-assessment-v1.zip"][download]'));
  assert.ok(document.querySelector('a[href="/research-verification/assessments"]'));
  assert.deepEqual(state.authPaths,[]);
 });
