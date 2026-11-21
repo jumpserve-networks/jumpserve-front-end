@@ -3,8 +3,7 @@ import { getPostLoginPath, getSafeNextPath } from "@/lib/auth-redirect";
 import { getConfiguredSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 import { initializeGoogleProfile } from "@/lib/profile-store";
-
-const PRODUCTION_SITE_ORIGIN = "https://jumpserve.quaint-lab.org";
+import { PRODUCTION_SITE_ORIGIN } from "@/lib/site-url";
 
 function getRedirectOrigin(requestUrl: URL) {
   const configuredSiteUrl = getConfiguredSiteUrl();

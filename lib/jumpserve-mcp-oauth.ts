@@ -1,9 +1,10 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { getConfiguredSiteUrl } from "@/lib/site-url";
 
 export const MCP_SCOPE = "assessments:share";
 export const MCP_AUTHORIZE_PATH = "/oauth/jumpserve/authorize";
 export const MCP_TOKEN_PATH = "/oauth/jumpserve/token";
+export const MCP_REGISTRATION_PATH = "/oauth/jumpserve/register";
 export const MCP_RESOURCE_METADATA_PATH = "/.well-known/oauth-protected-resource/mcp";
 export const MCP_CLIENTS = {
   "jumpserve-codex": { name: "Codex", port: 17651 },
@@ -19,29 +20,75 @@ export function mcpConfig() {
   return { issuer, resource: `${issuer}/mcp`, metadata: `${issuer}${MCP_RESOURCE_METADATA_PATH}` };
 }
 
-export function clientInfo(id: string | null) {
+function fixedClient(id: string | null) {
   return id === "jumpserve-codex" || id === "jumpserve-claude-code" ? MCP_CLIENTS[id] : null;
 }
 
-export function registeredRedirect(clientId: string | null, redirect: string | null): redirect is string {
-  const client = clientInfo(clientId);
-  return !!client && (redirect === `http://127.0.0.1:${client.port}/callback` ||
-    redirect === `http://localhost:${client.port}/callback`);
+// Codex can append a server-specific callback ID. Public native clients may
+// select a new loopback port at login, and code exchange binds the exact URI.
+export function loopbackCallback(uri: unknown) {
+  if (typeof uri !== "string") return null;
+  const callback = /^http:\/\/(127\.0\.0\.1|localhost)(?::([1-9][0-9]{0,4}))?(\/callback(?:\/[A-Za-z0-9_-]{12})?)$/.exec(uri);
+  if (!callback || callback[0] !== uri) return null;
+  const [, host, textPort, path] = callback;
+  const port = textPort ? Number(textPort) : null;
+  if (port !== null && (port < 1024 || port > 65535)) return null;
+  return { host, port, path };
 }
 
-export function parseAuthorizationRequest(query: URLSearchParams, resource: string) {
+const registrationId = /^js1\.([A-Za-z0-9_-]{1,100})\.([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{43})$/;
+export function isRegisteredClientId(id: string | null) {
+  return id !== null && registrationId.test(id);
+}
+
+function registrationSignature(payload: string, resource: string, key: string) {
+  return createHmac("sha256", key).update("jumpserve-mcp-registration-v1\0")
+    .update(resource).update("\0").update(payload).digest("base64url");
+}
+
+export function issueClientId(redirectUri: string, resource: string, key: string) {
+  const payload = Buffer.from(redirectUri).toString("base64url") + "." + randomBytes(16).toString("base64url");
+  return `js1.${payload}.${registrationSignature(payload, resource, key)}`;
+}
+
+type McpClient = { name: string } & (
+  { redirect: NonNullable<ReturnType<typeof loopbackCallback>> } | { port: number }
+);
+
+export function clientInfo(id: string | null, resource: string, key?: string): McpClient | null {
+  const fixed = fixedClient(id);
+  if (fixed) return fixed;
+  const match = id && key ? registrationId.exec(id) : null;
+  if (!match || match[0] !== id || !key) return null;
+  const [, encodedRedirect, nonce, signature] = match;
+  const expected = registrationSignature(encodedRedirect + "." + nonce, resource, key);
+  if (!timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
+  const redirect = loopbackCallback(Buffer.from(encodedRedirect, "base64url").toString("utf8"));
+  return redirect ? { name: "an MCP client", redirect } : null;
+}
+
+export function registeredRedirect(client: McpClient | null, redirect: string | null): redirect is string {
+  if (!client || !redirect) return false;
+  const callback = loopbackCallback(redirect);
+  if (callback?.port == null) return false;
+  return "redirect" in client
+    ? callback.host === client.redirect.host && callback.path === client.redirect.path
+    : callback.port === client.port && callback.path === "/callback";
+}
+
+export function parseAuthorizationRequest(query: URLSearchParams, resource: string, client: McpClient | null = fixedClient(query.get("client_id"))) {
   const clientId = query.get("client_id");
   const redirectUri = query.get("redirect_uri");
   const challenge = query.get("code_challenge");
   const state = query.get("state");
   const resourceIndicator = query.get("resource");
   if ([...query.keys()].some(key => query.getAll(key).length > 1) ||
-      !clientId || !registeredRedirect(clientId, redirectUri) ||
+      !client || !clientId || !registeredRedirect(client, redirectUri) ||
       query.get("response_type") !== "code" || query.get("code_challenge_method") !== "S256" ||
       !challenge || !/^[A-Za-z0-9_-]{43}$/.test(challenge) || !state || state.length > 512 ||
       (query.has("scope") && query.get("scope") !== MCP_SCOPE) ||
       (resourceIndicator !== null && resourceIndicator !== resource)) return null;
-  return { clientId, redirectUri, challenge, state };
+  return { clientId, clientName: client.name, redirectUri, challenge, state };
 }
 
 export function opaqueCredential() {

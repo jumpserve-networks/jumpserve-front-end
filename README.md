@@ -36,20 +36,18 @@ user. The connector does not need a model-provider key.
    `SUPABASE_SECRET_KEY` for an isolated local project. On Amplify, the
    `scripts/configure-paper-intake-runtime.mjs` build hook forwards the
    connector flag and origin into the SSR runtime.
-3. Register the enabled instance in your local client. The two public OAuth
-   clients use fixed loopback callback ports. These examples point at local
-   development. Use the deployed HTTPS origin for a live instance.
+3. Add the connector in your local client. JumpServe registers each client
+   automatically. Use the local URL only when you enable an isolated local
+   connector. Otherwise, the new-assessment page shows the hosted URL.
 
 ```bash
-codex -c mcp_oauth_callback_port=17651 mcp add jumpserve \
-  --url http://localhost:6001/mcp --oauth-client-id jumpserve-codex
+codex mcp add jumpserve --url https://jumpserve.quaint-lab.org/mcp
 
-claude mcp add --transport http --scope user --client-id jumpserve-claude-code \
-  --callback-port 17652 jumpserve http://localhost:6001/mcp
+claude mcp add -t http -s user jumpserve https://jumpserve.quaint-lab.org/mcp
 ```
 
 Codex opens the consent flow when adding the connector. To reconnect, run
-`codex -c mcp_oauth_callback_port=17651 mcp login jumpserve`. In Claude Code,
+`codex mcp login jumpserve`. In Claude Code,
 use `/mcp` to sign in. The account owner can revoke connector sessions at
 `/oauth/jumpserve/connections`. For a local end-to-end run, use an isolated
 Supabase instance with Google sign-in configured for your loopback app origin.

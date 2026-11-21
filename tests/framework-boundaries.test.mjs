@@ -63,7 +63,7 @@ test('CSS and lint configuration retain shared UI rules and exclude generated ar
   assert.ok(eslintConfig.some(entry => entry.ignores?.includes('coverage/**')));
   const matcher = new RegExp('^' + proxyConfig.matcher[0] + '$');
   for (const path of ['/research-verification/assessment/id', '/login', '/api/session']) assert.ok(matcher.test(path));
-  for (const path of ['/_next/static/chunk.js', '/_next/image', '/favicon.ico', '/source.png', '/mcp', '/oauth/jumpserve/token', '/.well-known/oauth-protected-resource/mcp']) assert.equal(matcher.test(path), false);
+  for (const path of ['/_next/static/chunk.js', '/_next/image', '/favicon.ico', '/source.png', '/mcp', '/oauth/jumpserve/token', '/oauth/jumpserve/register', '/.well-known/oauth-protected-resource/mcp']) assert.equal(matcher.test(path), false);
 });
 
 test('session refresh preserves original request cookies and propagates exact refreshed options to redirects', async () => {
