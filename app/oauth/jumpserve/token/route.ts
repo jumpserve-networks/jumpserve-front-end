@@ -1,8 +1,8 @@
 import {
-  clientInfo, isOpaqueCredential, mcpConfig, MCP_SCOPE, readBoundedBody,
+  isOpaqueCredential, mcpConfig, MCP_SCOPE, readBoundedBody,
   registeredRedirect, verifierChallenge,
 } from "@/lib/jumpserve-mcp-oauth";
-import { exchangeGrant } from "@/lib/jumpserve-mcp-store";
+import { exchangeGrant, resolveMcpClient } from "@/lib/jumpserve-mcp-store";
 
 const headers = { "Cache-Control": "no-store", Pragma: "no-cache" };
 
@@ -25,18 +25,20 @@ export async function POST(request: Request) {
       (body.has("resource") && body.get("resource") !== config.resource)) return oauthError("invalid_request");
   if (body.has("scope") && body.get("scope") !== MCP_SCOPE) return oauthError("invalid_scope");
   const client = body.get("client_id");
-  if (!client || !clientInfo(client)) return oauthError("invalid_client");
+  if (!client) return oauthError("invalid_client");
   const grant = body.get("grant_type");
   if (grant !== "authorization_code" && grant !== "refresh_token") return oauthError("unsupported_grant_type");
   const proof = body.get(grant === "authorization_code" ? "code" : "refresh_token");
   if (!isOpaqueCredential(proof)) return oauthError("invalid_grant");
   const redirect = body.get("redirect_uri");
   const verifier = body.get("code_verifier");
-  if (grant === "authorization_code" &&
-      (!registeredRedirect(client, redirect) || !verifier || !/^[A-Za-z0-9._~-]{43,128}$/.test(verifier))) {
-    return oauthError("invalid_grant");
-  }
   try {
+    const clientDetails = await resolveMcpClient(client, config.resource);
+    if (!clientDetails) return oauthError("invalid_client");
+    if (grant === "authorization_code" &&
+        (!registeredRedirect(clientDetails, redirect) || !verifier || !/^[A-Za-z0-9._~-]{43,128}$/.test(verifier))) {
+      return oauthError("invalid_grant");
+    }
     const tokens = await exchangeGrant({
       grant, proof, client, resource: config.resource,
       redirect, challenge: verifier ? verifierChallenge(verifier) : null,

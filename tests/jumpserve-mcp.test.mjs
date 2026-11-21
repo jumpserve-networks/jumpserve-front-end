@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { prepareAssessmentBundle } from '../lib/jumpserve-assessment-bundle.ts';
-import { parseAuthorizationRequest, verifierChallenge } from '../lib/jumpserve-mcp-oauth.ts';
+import { clientInfo, issueClientId, parseAuthorizationRequest, registeredRedirect, verifierChallenge } from '../lib/jumpserve-mcp-oauth.ts';
 import { serveJumpServeTools } from '../lib/jumpserve-mcp-server.ts';
 
 const origin = 'https://jumpserve.example.test';
@@ -61,6 +61,29 @@ test('OAuth requests require a registered loopback callback, PKCE and the JumpSe
     const repeated = new URLSearchParams(values); repeated.append('state', 'second');
     assert.equal(parseAuthorizationRequest(repeated, resource), null);
   }
+});
+
+test('automatic registration binds a client ID to the connector and loopback callback', () => {
+  const resource = origin + '/mcp';
+  const key = 'local-fixture-key';
+  const registered = 'http://127.0.0.1:40021/callback/aBcDeF123456';
+  const clientId = issueClientId(registered, resource, key);
+  const info = clientInfo(clientId, resource, key);
+  assert.ok(info);
+  assert.notEqual(issueClientId(registered, resource, key), clientId);
+  assert.equal(clientInfo(clientId, resource + '/other', key), null);
+  assert.equal(clientInfo(clientId, resource, key + 'x'), null);
+  const tampered = clientId.replace(/\.[A-Za-z0-9_-]{43}$/, '.' + 'a'.repeat(43));
+  assert.equal(clientInfo(tampered, resource, key), null);
+  assert.ok(registeredRedirect(info, 'http://127.0.0.1:40022/callback/aBcDeF123456'));
+  for (const redirect of [
+    'http://localhost:40021/callback/aBcDeF123456',
+    'http://127.0.0.1:40021/callback',
+    registered + '?next=elsewhere',
+    registered + '\n',
+    'http://127.0.0.1:65536/callback/aBcDeF123456',
+    'https://other.example.test/callback',
+  ]) assert.equal(registeredRedirect(info, redirect), false);
 });
 
 test('a real MCP SDK client discovers both tools and completes preview and submit', async () => {

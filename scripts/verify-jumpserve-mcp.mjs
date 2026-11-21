@@ -150,6 +150,27 @@ try {
   assert.equal(authResponse.status, 200, "Authorization server metadata");
   const auth = await authResponse.json();
   assert.equal(auth.issuer, origin);
+  assert.equal(auth.registration_endpoint, origin + '/oauth/jumpserve/register');
+  const setup = await (await fetch(origin + '/research-verification/new-assessment')).text();
+  assert.ok(setup.includes('claude mcp add -t http -s user jumpserve ' + resource));
+  assert.ok(setup.includes('codex mcp add jumpserve --url ' + resource));
+  assert.ok(!setup.includes('Local sharing is disabled'));
+
+  async function register(redirectUri, options = {}) {
+    return fetch(auth.registration_endpoint, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ redirect_uris: [redirectUri], token_endpoint_auth_method: 'none', ...options }) });
+  }
+  assert.equal((await register('https://outside.example.test/callback')).status, 400);
+  assert.equal((await register('http://localhost:48252/callback', { grant_types: ['client_credentials'] })).status, 400);
+  const claude = await register('http://localhost:48252/callback', {
+    client_name: 'Claude Code', grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'],
+  });
+  assert.equal(claude.status, 201);
+  const redirect = 'http://127.0.0.1:48251/callback/Abcd1234efgh';
+  const codex = await register(redirect, { client_name: 'Codex', scope: 'assessments:share' });
+  assert.equal(codex.status, 201);
+  const { client_id: clientId, token_endpoint_auth_method: method } = await codex.json();
+  assert.equal(method, 'none');
 
   const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
   browser = await chromium.launch({ executablePath: existsSync(chrome) ? chrome : undefined });
@@ -158,11 +179,10 @@ try {
   await context.addCookies([cookie(owner)]);
   const page = await context.newPage();
   const verifier = 'v'.repeat(43);
-  const redirect = 'http://127.0.0.1:17651/callback';
   await page.route(redirect + '?*', route => route.fulfill({ body: 'Callback captured' }));
   const consent = new URL(auth.authorization_endpoint);
   consent.search = new URLSearchParams({
-    client_id: 'jumpserve-codex', redirect_uri: redirect, response_type: 'code', code_challenge_method: 'S256',
+    client_id: clientId, redirect_uri: redirect, response_type: 'code', code_challenge_method: 'S256',
     code_challenge: createHash('sha256').update(verifier).digest('base64url'), state: 'fixture-state', resource, scope: 'assessments:share',
   }).toString();
   await page.goto(consent.href);
@@ -173,7 +193,7 @@ try {
   const code = callback.searchParams.get('code');
   assert.equal(codes.get(sha256(code))?.owner_id, owner);
   const grant = verifier => fetch(auth.token_endpoint, { method: 'POST', body: new URLSearchParams({
-    grant_type: 'authorization_code', code, code_verifier: verifier, client_id: 'jumpserve-codex', redirect_uri: redirect, resource,
+    grant_type: 'authorization_code', code, code_verifier: verifier, client_id: clientId, redirect_uri: redirect, resource,
   }) });
   assert.equal((await grant('x'.repeat(43))).status, 400);
   const issued = await grant(verifier);

@@ -3,14 +3,23 @@ import { createClient } from "@supabase/supabase-js";
 import { createStaticClient } from "@/lib/supabase/server";
 import { paperIntakeCredentials } from "@/lib/paper-intake-credentials";
 import { prepareAssessmentBundle, type AssessmentBundle } from "@/lib/jumpserve-assessment-bundle";
-import { credentialHash, opaqueCredential } from "@/lib/jumpserve-mcp-oauth";
+import { clientInfo, credentialHash, isRegisteredClientId, opaqueCredential } from "@/lib/jumpserve-mcp-oauth";
+
+export async function connectorServiceKey() {
+  const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    (await paperIntakeCredentials())?.supabaseSecret;
+  if (!key) throw new Error("JumpServe sharing is unavailable.");
+  return key;
+}
+
+export async function resolveMcpClient(id: string | null, resource: string) {
+  return clientInfo(id, resource, isRegisteredClientId(id) ? await connectorServiceKey() : undefined);
+}
 
 async function serviceDatabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    (await paperIntakeCredentials())?.supabaseSecret;
-  if (!url || !key) throw new Error("JumpServe sharing is unavailable.");
-  return createClient(url, key, {
+  if (!url) throw new Error("JumpServe sharing is unavailable.");
+  return createClient(url, await connectorServiceKey(), {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { fetch: (url, options) => fetch(url, { ...options, cache: "no-store", signal: AbortSignal.timeout(10000) }) },
   });

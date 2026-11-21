@@ -1,13 +1,17 @@
 import { notFound, redirect } from "next/navigation";
 import { requireGoogleUser } from "@/lib/auth";
-import { clientInfo, mcpConfig, MCP_AUTHORIZE_PATH, parseAuthorizationRequest } from "@/lib/jumpserve-mcp-oauth";
-import { createAuthorizationCode } from "@/lib/jumpserve-mcp-store";
+import { mcpConfig, MCP_AUTHORIZE_PATH, parseAuthorizationRequest } from "@/lib/jumpserve-mcp-oauth";
+import { createAuthorizationCode, resolveMcpClient } from "@/lib/jumpserve-mcp-store";
 import { Button } from "@/app/components/ui/button";
+
+async function parseConsent(query: URLSearchParams, resource: string) {
+  return parseAuthorizationRequest(query, resource, await resolveMcpClient(query.get("client_id"), resource));
+}
 
 async function authorize(values: string, form: FormData) {
   "use server";
   const config = mcpConfig();
-  const details = config && parseAuthorizationRequest(new URLSearchParams(values), config.resource);
+  const details = config && await parseConsent(new URLSearchParams(values), config.resource);
   if (!config || !details) notFound();
   const user = await requireGoogleUser(`${MCP_AUTHORIZE_PATH}?${values}`);
   const callback = new URL(details.redirectUri);
@@ -33,12 +37,12 @@ export default async function AuthorizePage({ searchParams }: {
     if (typeof value === "string") query.set(key, value);
     if (Array.isArray(value)) value.forEach(item => query.append(key, item));
   }
-  const details = parseAuthorizationRequest(query, config.resource);
+  const details = await parseConsent(query, config.resource);
   if (!details) notFound();
   const values = query.toString();
   await requireGoogleUser(`${MCP_AUTHORIZE_PATH}?${values}`);
   return <main className="mx-auto max-w-xl space-y-5 px-4 py-10">
-    <h1 className="text-2xl font-semibold">Connect {clientInfo(details.clientId)?.name} to JumpServe</h1>
+    <h1 className="text-2xl font-semibold">Connect {details.clientName} to JumpServe</h1>
     <p>This connection can send assessment previews and submit assessments you approve on JumpServe.</p>
     <form className="flex gap-3" action={authorize.bind(null, values)}>
       <Button type="submit" name="decision" value="allow">Connect</Button>

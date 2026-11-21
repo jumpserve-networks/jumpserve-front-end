@@ -245,6 +245,8 @@ test('the retired upload route explains local assessments publicly without mount
  assert.equal(capture('PaperIntake'),undefined);assert.equal(capture('PaperAssessmentSteps'),undefined);
  assert.match(document.body.textContent,/assess papers and run experiments in your local workspace/);
  assert.ok(document.querySelector('a[href="/downloads/jumpserve-paper-assessment-v1.zip"][download]'));
+ assert.match(document.body.textContent,/claude mcp add -t http -s user jumpserve https:\/\/jumpserve\.quaint-lab\.org\/mcp/);
+ assert.match(document.body.textContent,/codex mcp add jumpserve --url https:\/\/jumpserve\.quaint-lab\.org\/mcp/);
  assert.ok(document.querySelector('a[href="/research-verification/assessments"]'));
  assert.deepEqual(state.authPaths,[]);
 });

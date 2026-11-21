@@ -1,3 +1,5 @@
+export const PRODUCTION_SITE_ORIGIN = "https://jumpserve.quaint-lab.org";
+
 export function getConfiguredSiteUrl() {
   const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
 
