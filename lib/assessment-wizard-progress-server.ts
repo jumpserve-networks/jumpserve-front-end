@@ -26,13 +26,16 @@ export async function readAssessmentWizardProgress(ids: string[]): Promise<Asses
   const activeIds = [...active.keys()];
   const steps = new Map<string, AssessmentStep>();
   if (activeIds.length) {
-    const [intakes, plans, reviews, workflows] = await Promise.all([
+    const [intakes, plans, reviews, workflows, skillAssessments] = await Promise.all([
       db.from("research_paper_intakes").select("study_id,status", { count: "exact" }).in("study_id", activeIds).limit(activeIds.length + 1),
       db.from("research_experiment_plans").select("study_id,status,revision", { count: "exact" }).in("study_id", activeIds).limit(activeIds.length + 1),
       db.from("research_paper_reviews").select("study_id,status,local_steps:coverage->local_codex_steps,local_version:metadata->local_codex_assessment->>version", { count: "exact" }).in("study_id", activeIds).limit(activeIds.length + 1),
       db.from("research_autonomy_workflows").select("study_id", { count: "exact" }).in("study_id", activeIds).limit(activeIds.length + 1),
+      db.from("research_skill_submissions").select("study_id", { count: "exact" }).in("study_id", activeIds).not("bundle->wizard", "is", null).limit(activeIds.length + 1),
     ]);
     const intakeRows = rows(intakes, activeIds, "study_id"), planRows = rows(plans, activeIds, "study_id"), reviewRows = rows(reviews, activeIds, "study_id"), workflowRows = rows(workflows, activeIds, "study_id");
+    // Instances installed before the connector migration can still list legacy progress.
+    const skillRows = ["42P01", "PGRST205"].includes(skillAssessments.error?.code ?? "") ? new Map() : rows(skillAssessments, activeIds, "study_id");
     const failedIds = activeIds.filter(id => planRows.get(id)?.status === "failed");
     let linkReviews = new Map<string, Record<string, unknown>>();
     if (failedIds.length) {
@@ -47,7 +50,7 @@ export async function readAssessmentWizardProgress(ids: string[]): Promise<Asses
           review !== undefined && !["preparing", "ready", "failed", "confirmed"].includes(String(review))) throw new Error("Assessment steps could not be checked.");
       const local = reviewRows.get(id);
       const localComplete = review === "confirmed" && local?.local_version === "local-codex-assessment-v1" && JSON.stringify(local.local_steps) === "[2,3,4]";
-      if (localComplete || workflowRows.has(id) || plan === "ready" || linkReviews.has(id)) steps.set(id, 4);
+      if (skillRows.has(id) || localComplete || workflowRows.has(id) || plan === "ready" || linkReviews.has(id)) steps.set(id, 4);
       else if (plan !== undefined || review === "confirmed") steps.set(id, 3);
       else if (intake === "uploaded") steps.set(id, 1);
       else if (intake !== undefined || review !== undefined) steps.set(id, 2);

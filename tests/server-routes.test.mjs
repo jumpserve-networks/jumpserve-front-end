@@ -102,8 +102,9 @@ test('local assessments expose only the public projection to visitors and keep o
 
 test('shared skill assessments use the canonical page and its approved projection', async () => {
   state.skillAssessment = { summary: 'Approved evidence' };
-  await renderPage('review', props({ assessmentId: ID }));
-  assert.deepEqual(capture('SkillAssessment'), { bundle: state.skillAssessment });
+  const query = { step: 'execution' };
+  await renderPage('review', props({ assessmentId: ID }, query));
+  assert.deepEqual(capture('SkillAssessment'), { bundle: state.skillAssessment, path: `/research-verification/assessment/${ID}`, query });
   assert.equal(capture('PaperAssessment'), undefined);
 });
 

@@ -4,7 +4,7 @@ import { mcpConfig } from "@/lib/jumpserve-mcp-oauth";
 import { SHARE_REVIEW_PATH } from "@/lib/jumpserve-mcp-server";
 import { approveAssessment, readAssessmentPreview, submitAssessment } from "@/lib/jumpserve-mcp-store";
 import { isResearchId } from "@/lib/research-experiment-queue";
-import { researchAssessmentPath } from "@/lib/research-pathways";
+import { researchAssessmentPath, researchSearchSuffix } from "@/lib/research-pathways";
 import { Button } from "@/app/components/ui/button";
 import { SkillAssessment } from "@/app/components/research-workflow/skill-assessment";
 
@@ -30,10 +30,12 @@ async function share(id: string, hash: string) {
 
 export const metadata = { title: "Review shared assessment", robots: { index: false, follow: false }, referrer: "no-referrer" };
 
-export default async function SharePreviewPage({ params }: { params: Promise<{ previewId: string }> }) {
+export default async function SharePreviewPage({ params, searchParams }: { params: Promise<{ previewId: string }>; searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const { previewId } = await params;
   if (!mcpConfig() || !isResearchId(previewId)) notFound();
-  const user = await requireGoogleUser(`${SHARE_REVIEW_PATH}/${previewId}`);
+  const path = `${SHARE_REVIEW_PATH}/${previewId}`;
+  const query = (await searchParams) ?? {};
+  const user = await requireGoogleUser(`${path}${researchSearchSuffix(query)}`);
   const preview = await readAssessmentPreview(user.id, previewId);
   if (!preview) notFound();
   if (preview.studyId) redirect(researchAssessmentPath(preview.studyId));
@@ -41,11 +43,11 @@ export default async function SharePreviewPage({ params }: { params: Promise<{ p
     <div className="content-panel space-y-3 rounded-xl border p-5">
       {preview.approved
         ? <p role="status">This copy is approved. You can finish sharing it publicly here.</p>
-        : <p>This assessment is private. Review the results below before approving this exact copy for public sharing.</p>}
+        : <p>Review Steps 2–4 of this private assessment before approving this exact copy for public sharing.</p>}
       <form action={share.bind(null, previewId, preview.hash)}>
         <Button type="submit">{preview.approved ? "Share approved assessment" : "Approve public sharing"}</Button>
       </form>
     </div>
-    <SkillAssessment bundle={preview.bundle} />
+    <SkillAssessment bundle={preview.bundle} path={path} query={query} />
   </main>;
 }
