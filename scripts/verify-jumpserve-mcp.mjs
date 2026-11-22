@@ -522,7 +522,7 @@ try {
   const sourceDownload = origin + '/research-verification/api/assessment-source?assessment_id=' + assessmentId;
   const prompt = page.locator('[aria-label="assessment prompt"]');
   await prompt.waitFor();
-  assert.equal(await prompt.textContent(), `Use the JumpServe paper assessment skill for ${assessmentId}.`);
+  assert.equal(await prompt.textContent(), `Use the JumpServe paper assessment skill for ${assessmentId}. Recreate the paper's testbed and run experiments to test its claims with fresh measurements. Use published figures and tables only as reference values.`);
   await page.evaluate(() => {
     let copied = '';
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {

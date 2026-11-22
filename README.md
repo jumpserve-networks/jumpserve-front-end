@@ -21,18 +21,23 @@ The plugin downloads the verified PDF by assessment ID. Connect with the same
 Google account and authorize PDF downloads if your connection only supports sharing.
 Every assessment starts with this upload. JumpServe attaches the existing Step 1
 PDF when the plugin saves the results.
-An assessment request authorizes the plugin to plan and run in-scope local
-verification experiments. The plugin proceeds within available permissions and
-respects any limits or plan-only instructions you give it.
+An assessment request authorizes the plugin to recreate the paper's testbed
+and run in-scope local experiments. The plugin records fresh measurements,
+documents substitutions and blocked claims, and respects any limits or
+plan-only instructions you give it.
 
 Claude Code and Codex run paper assessments locally with the standalone
 [JumpServe paper assessment skill](skills/jumpserve-paper-assessment/SKILL.md).
-[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.3.14.zip)
+[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.5.0.zip)
 from JumpServe. Place the extracted skill
 directory under `~/.claude/skills/` for Claude Code or `~/.agents/skills/` for
 Codex. The skill uses the [Access, Experiment, Data, and Validate workflow](skills/jumpserve-paper-assessment/references/modules.md)
-to compose local tests and record their evidence. It produces a local bundle
-even when sharing is unavailable.
+to compose local tests and record their evidence. The skill checks the local
+run receipts and raw output hashes before saving the bundle. It uses values
+read from the paper only as references for comparison.
+For experiments that need AWS, the
+[temporary testbed workflow](skills/jumpserve-paper-assessment/references/aws-testbeds.md)
+uses account `395567831870` and verifies teardown after collecting evidence.
 Model inference follows the user's Claude Code or Codex configuration. A
 local workspace can still use a hosted model provider.
 
