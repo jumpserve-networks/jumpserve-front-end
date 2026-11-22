@@ -34,7 +34,7 @@ export default async function NewAssessment({ searchParams }: { searchParams: Pr
         <section className="space-y-3" aria-labelledby="paper-upload">
           <h2 id="paper-upload" className="text-lg font-semibold">Upload the research paper</h2>
           {result?.source && assessmentId ? <>
-            <p className="text-sm text-muted-foreground">Download the verified PDF to your local workspace, then paste the prompt into Claude Code or Codex with the JumpServe plugin connected.</p>
+            <p className="text-sm text-muted-foreground">Paste the prompt into Claude Code or Codex. The connected JumpServe plugin downloads the private PDF for this assessment.</p>
             <p className="break-all text-sm">Assessment ID <code>{assessmentId}</code></p>
             <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
               <a href={`${LOCAL_ASSESSMENT_SOURCE_API}?assessment_id=${assessmentId}`} className="text-primary underline underline-offset-4">Download PDF</a>

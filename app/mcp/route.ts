@@ -1,6 +1,6 @@
-import { BoundedBodyError, isOpaqueCredential, mcpConfig, MCP_SCOPE, readBoundedBody } from "@/lib/jumpserve-mcp-oauth";
-import { connectorActor, previewAssessment, submitAssessment } from "@/lib/jumpserve-mcp-store";
-import { serveJumpServeTools } from "@/lib/jumpserve-mcp-server";
+import { BoundedBodyError, isOpaqueCredential, mcpConfig, MCP_DOWNLOAD_SCOPE, readBoundedBody } from "@/lib/jumpserve-mcp-oauth";
+import { connectorActor, connectorMayDownloadSource, localAssessmentSourceTicket, previewAssessment, submitAssessment } from "@/lib/jumpserve-mcp-store";
+import { isAssessmentPdfDownloadRequest, serveJumpServeTools } from "@/lib/jumpserve-mcp-server";
 
 export const runtime = "nodejs";
 
@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const token = request.headers.get("authorization")?.match(/^Bearer ([A-Za-z0-9_-]+)$/i)?.[1];
   function unauthorized() {
     return new Response(null, { status: 401, headers: {
-      "WWW-Authenticate": `Bearer resource_metadata="${config?.metadata}", scope="${MCP_SCOPE}"`,
+      "WWW-Authenticate": `Bearer resource_metadata="${config?.metadata}", scope="${MCP_DOWNLOAD_SCOPE}"`,
       "Cache-Control": "no-store",
     } });
   }
@@ -34,7 +34,23 @@ export async function POST(request: Request) {
     return Response.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Invalid request body." } },
       { status: error instanceof BoundedBodyError ? error.status : 400 });
   }
+  let sourceAccess: Promise<boolean> | undefined;
+  const mayDownload = () => sourceAccess ??= connectorMayDownloadSource(token, config.resource);
+  if (isAssessmentPdfDownloadRequest(body)) {
+    try {
+      if (!await mayDownload()) return new Response(null, { status: 403, headers: {
+        "WWW-Authenticate": `Bearer error="insufficient_scope", resource_metadata="${config.metadata}", scope="${MCP_DOWNLOAD_SCOPE}"`,
+        "Cache-Control": "no-store",
+      } });
+    } catch {
+      return new Response(null, { status: 503 });
+    }
+  }
   const response = await serveJumpServeTools(request, body, config.issuer, {
+    download: async id => {
+      if (!await mayDownload()) throw new Error("Reconnect the JumpServe plugin to allow downloading Step 1 PDFs.");
+      return localAssessmentSourceTicket(actor, id, 180);
+    },
     preview: ({ bundle, hash }, assessmentId) => previewAssessment(actor, bundle, hash, assessmentId),
     submit: id => submitAssessment(actor, id),
   });

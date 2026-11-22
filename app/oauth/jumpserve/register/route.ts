@@ -1,5 +1,5 @@
 import {
-  BoundedBodyError, issueClientId, loopbackCallback, mcpConfig, MCP_SCOPE, readBoundedBody,
+  BoundedBodyError, issueClientId, loopbackCallback, mcpConfig, MCP_DOWNLOAD_SCOPE, parseMcpScope, readBoundedBody,
 } from "@/lib/jumpserve-mcp-oauth";
 import { connectorServiceKey } from "@/lib/jumpserve-mcp-store";
 
@@ -30,8 +30,8 @@ export async function POST(request: Request) {
   if (!Array.isArray(redirects) || redirects.length !== 1 || !loopbackCallback(redirects[0])) {
     return errorResponse("invalid_redirect_uri");
   }
-  if ((body.token_endpoint_auth_method !== undefined && body.token_endpoint_auth_method !== "none") ||
-      (body.scope !== undefined && body.scope !== "" && body.scope !== MCP_SCOPE) ||
+  const scope = body.scope === undefined || body.scope === "" ? MCP_DOWNLOAD_SCOPE : parseMcpScope(body.scope);
+  if (!scope || (body.token_endpoint_auth_method !== undefined && body.token_endpoint_auth_method !== "none") ||
       (body.grant_types !== undefined && (!Array.isArray(body.grant_types) ||
         !body.grant_types.includes("authorization_code") || body.grant_types.some((grant: string) => !grantTypes.includes(grant)))) ||
       (body.response_types !== undefined && (!Array.isArray(body.response_types) ||
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       token_endpoint_auth_method: "none",
       grant_types: grantTypes,
       response_types: responseTypes,
-      scope: MCP_SCOPE,
+      scope,
     }, { status: 201, headers });
   } catch {
     return errorResponse("temporarily_unavailable", 503);

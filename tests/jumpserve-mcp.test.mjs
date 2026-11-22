@@ -125,6 +125,10 @@ test('OAuth requests require a registered loopback callback, PKCE and the JumpSe
       response_type: 'code', code_challenge_method: 'S256', code_challenge: verifierChallenge('a'.repeat(43)),
     });
     assert.equal(parseAuthorizationRequest(values, resource)?.redirectUri, callback);
+    assert.equal(parseAuthorizationRequest(values, resource)?.readSources, false);
+    const expanded = new URLSearchParams(values);
+    expanded.set('scope', 'assessments:share assessments:read-source');
+    assert.equal(parseAuthorizationRequest(expanded, resource)?.readSources, true);
     assert.equal(parseAuthorizationRequest(values, origin + '/different'), null);
     for (const url of [callback + '/extra', 'https://attacker.example.test/callback', 'http://localhost:1/callback']) {
       const copy = new URLSearchParams(values); copy.set('redirect_uri', url);
@@ -158,7 +162,7 @@ test('automatic registration binds a client ID to the connector and loopback cal
   ]) assert.equal(registeredRedirect(info, redirect), false);
 });
 
-test('a real MCP SDK client discovers both tools and completes preview and submit', async () => {
+test('a real MCP SDK client discovers the PDF and assessment tools', async () => {
   let approved = false;
   let previewed;
   const transport = new StreamableHTTPClientTransport(new URL(origin + '/mcp'), {
@@ -166,6 +170,7 @@ test('a real MCP SDK client discovers both tools and completes preview and submi
       const request = new Request(target, options);
       if (request.method === 'GET') return new Response(null, { status: 405 });
       return serveJumpServeTools(request, await request.json(), origin, {
+        download: async value => value === id ? { assessment_id: id, byte_count: 12 } : null,
         preview: async prepared => { previewed = prepared; return { previewId: id, studyId: null }; },
         submit: async value => {
           assert.equal(value, id);
@@ -179,7 +184,10 @@ test('a real MCP SDK client discovers both tools and completes preview and submi
   try {
     await client.connect(transport);
     const { tools } = await client.listTools();
-    assert.deepEqual(tools.map(tool => tool.name), ['preview_assessment', 'submit_assessment']);
+    assert.deepEqual(tools.map(tool => tool.name), ['download_assessment_pdf', 'preview_assessment', 'submit_assessment']);
+    assert.equal(tools[0].annotations.readOnlyHint, true);
+    assert.deepEqual((await client.callTool({ name: tools[0].name, arguments: { assessment_id: id } })).structuredContent,
+      { assessment_id: id, byte_count: 12 });
     const completionMessage = [
       'Your research paper assessment is finished!',
       'View the assessment online using the JumpServe app at the following URL:',
@@ -188,7 +196,7 @@ test('a real MCP SDK client discovers both tools and completes preview and submi
     const sharingGuide = readFileSync(new URL('../skills/jumpserve-paper-assessment/references/sharing.md', import.meta.url), 'utf8');
     assert.ok(sharingGuide.includes(['```text', completionMessage, '```'].join('\n')));
     assert.match(sharingGuide, /End the reply\s+immediately after the URL\./);
-    for (const tool of tools) {
+    for (const tool of tools.slice(1)) {
       assert.ok(tool.description.endsWith(`End the reply immediately after the URL.\n\n${completionMessage}`));
     }
     const bundle = { ...fixture(), wizard: wizard() };
@@ -211,7 +219,7 @@ test('a real MCP SDK client discovers both tools and completes preview and submi
 test('the HTTP route challenges missing tokens and rejects untrusted origins and oversized bodies', async () => {
   const scope = registerHooks({ resolve(name, context, next) {
     if (name === '@/lib/jumpserve-mcp-store') return { shortCircuit: true, url: 'data:text/javascript,' + encodeURIComponent(
-      'export async function connectorActor(){return "fixture-owner"}; export function previewAssessment(){throw Error("Must not preview")}; export function submitAssessment(){throw Error("Must not submit")};'
+      'export async function connectorActor(){return "fixture-owner"}; export async function connectorMayDownloadSource(){return false}; export function localAssessmentSourceTicket(){throw Error("Must not download")}; export function previewAssessment(){throw Error("Must not preview")}; export function submitAssessment(){throw Error("Must not submit")};'
     ) };
     return next(name, context);
   } });
@@ -225,6 +233,11 @@ test('the HTTP route challenges missing tokens and rejects untrusted origins and
     assert.match(missing.headers.get('www-authenticate'), /resource_metadata=.*oauth-protected-resource\/mcp/);
     assert.equal((await call({ origin: 'https://other.example.test' })).status, 403);
     assert.equal((await call({ authorization: 'Bearer ' + 'a'.repeat(43), 'content-type': 'application/json' }, ' '.repeat(600001))).status, 413);
+    const shareOnly = await call({ authorization: 'Bearer ' + 'a'.repeat(43), 'content-type': 'application/json' }, JSON.stringify({
+      jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'download_assessment_pdf', arguments: { assessment_id: id } },
+    }));
+    assert.equal(shareOnly.status, 403);
+    assert.match(shareOnly.headers.get('www-authenticate'), /insufficient_scope.*assessments:read-source/);
   } finally {
     scope.deregister();
     for (const key of ['JUMPSERVE_MCP_ENABLED', 'NEXT_PUBLIC_SITE_URL']) {

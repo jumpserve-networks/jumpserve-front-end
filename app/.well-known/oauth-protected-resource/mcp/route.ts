@@ -1,4 +1,4 @@
-import { mcpConfig, MCP_SCOPE } from "@/lib/jumpserve-mcp-oauth";
+import { mcpConfig, MCP_SCOPES } from "@/lib/jumpserve-mcp-oauth";
 
 export function GET() {
   const config = mcpConfig();
@@ -7,7 +7,7 @@ export function GET() {
     resource: config.resource,
     resource_name: "JumpServe",
     authorization_servers: [config.issuer],
-    scopes_supported: [MCP_SCOPE],
+    scopes_supported: MCP_SCOPES,
     bearer_methods_supported: ["header"],
   }, { headers: { "Cache-Control": "no-store" } });
 }

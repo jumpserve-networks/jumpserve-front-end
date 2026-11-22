@@ -15,14 +15,14 @@ The marketplace README has the GitHub install commands for both clients.
 Start a new client session after installing. Connect JumpServe to receive a
 website link when your assessment finishes.
 
-In **Assess a Paper**, sign in and upload the PDF in Step 1. Download the
-verified copy and paste the provided prompt into Claude Code or Codex. The
-prompt identifies the PDF by assessment ID. Connect the plugin with the same
-Google account so the private preview can use that ID and its verified PDF.
+In **Assess a Paper**, sign in and upload the PDF in Step 1. Paste the
+provided prompt into Claude Code or Codex with the JumpServe plugin connected.
+The plugin downloads the verified PDF by assessment ID. Connect with the same
+Google account and authorize PDF downloads if your connection only supports sharing.
 
 Claude Code and Codex run paper assessments locally with the standalone
 [JumpServe paper assessment skill](skills/jumpserve-paper-assessment/SKILL.md).
-[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.3.4.zip)
+[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.3.5.zip)
 from JumpServe. Place the extracted skill
 directory under `~/.claude/skills/` for Claude Code or `~/.agents/skills/` for
 Codex. The skill uses the [Access, Experiment, Data, and Validate workflow](skills/jumpserve-paper-assessment/references/modules.md)
@@ -54,6 +54,8 @@ evidence stay with the user. The connector does not need a model-provider key.
    repository before releasing the updated connector and skill. Apply
    `database/202611220002_jumpserve_assessment_sources.sql` for the Step 1
    assessment IDs.
+   Apply `database/202611220003_jumpserve_mcp_source_access.sql` before enabling
+   private Step 1 downloads through the connector.
 2. Set `NEXT_PUBLIC_SITE_URL` to the app's actual origin and
    `JUMPSERVE_MCP_ENABLED=true` in the server runtime. Use the existing
    `PAPER_INTAKE_SECRET_ID` on Amplify or set a server-only

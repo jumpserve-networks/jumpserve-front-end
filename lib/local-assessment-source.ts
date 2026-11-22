@@ -18,5 +18,5 @@ export function localAssessmentSourceFilename(assessmentId: string) {
 }
 
 export function localAssessmentPrompt(assessmentId: string) {
-  return `Use the JumpServe paper assessment skill to assess the PDF uploaded for JumpServe assessment ${assessmentId}. Use the Step 1 download named ${localAssessmentSourceFilename(assessmentId)}. If it is missing from the local workspace, ask me to provide that download or its local path.\n\nPrepare the assessment locally and confirm the experiment scope with me before running experiments. Keep raw evidence local. Set bundle.paper.pdf_copy to true and pass assessment_id "${assessmentId}" alongside the bundle to JumpServe's preview_assessment tool. Return the private review link.`;
+  return `Use the JumpServe paper assessment skill to assess the PDF uploaded for JumpServe assessment ${assessmentId}. Call the JumpServe download_assessment_pdf tool with assessment_id "${assessmentId}" and save the verified PDF as ${localAssessmentSourceFilename(assessmentId)} in the local assessment directory.\n\nPrepare the assessment locally and confirm the experiment scope with me before running experiments. Keep raw evidence local. Set bundle.paper.pdf_copy to true and pass assessment_id "${assessmentId}" alongside the bundle to JumpServe's preview_assessment tool. Return the private review link.`;
 }
