@@ -4,8 +4,10 @@ import argparse
 from hashlib import sha256
 from http.client import HTTPConnection, HTTPSConnection, HTTPException
 import json
+import os
 from pathlib import Path
 import re
+import ssl
 import sys
 from urllib.parse import parse_qs, urlsplit
 
@@ -37,7 +39,15 @@ def upload(pdf, bundle, ticket):
         set(query) != {"token"} or len(query["token"]) != 1):
         raise ValueError(invalid_ticket)
 
-    connection = (HTTPConnection if loopback else HTTPSConnection)(url.hostname, port, timeout=120)
+    if loopback:
+        connection = HTTPConnection(url.hostname, port, timeout=120)
+    else:
+        context = ssl.create_default_context()
+        system_bundle = Path("/etc/ssl/cert.pem")
+        if (sys.platform == "darwin" and system_bundle.is_file() and
+                not (os.getenv("SSL_CERT_FILE") or os.getenv("SSL_CERT_DIR"))):
+            context.load_verify_locations(cafile=str(system_bundle))
+        connection = HTTPSConnection(url.hostname, port, context=context, timeout=120)
     try:
         connection.request("PUT", f"{url.path}?{url.query}", original, headers={
             "Content-Type": "application/pdf", "Cache-Control": "max-age=0", "x-upsert": "false",
