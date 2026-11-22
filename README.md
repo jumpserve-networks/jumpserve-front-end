@@ -15,9 +15,14 @@ The marketplace README has the GitHub install commands for both clients.
 Start a new client session after installing. Connect JumpServe to receive a
 website link when your assessment finishes.
 
+In **Assess a Paper**, sign in and upload the PDF in Step 1. Download the
+verified copy and paste the provided prompt into Claude Code or Codex. The
+prompt identifies the PDF by assessment ID. Connect the plugin with the same
+Google account so the private preview can use that ID and its verified PDF.
+
 Claude Code and Codex run paper assessments locally with the standalone
 [JumpServe paper assessment skill](skills/jumpserve-paper-assessment/SKILL.md).
-[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.3.3.zip)
+[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.3.4.zip)
 from JumpServe. Place the extracted skill
 directory under `~/.claude/skills/` for Claude Code or `~/.agents/skills/` for
 Codex. The skill uses the [Access, Experiment, Data, and Validate workflow](skills/jumpserve-paper-assessment/references/modules.md)
@@ -35,8 +40,9 @@ The breakdown uses numbered sections, steps, and substeps with PDF page citation
 Experiment Setup includes local commands and any script files supplied with the assessment.
 The account owner can approve the exact copy on JumpServe. The MCP
 `submit_assessment` tool also accepts already approved previews. JumpServe
-stores the approved copy and its measurements in Supabase. The skill uploads a
-verified copy of the source PDF to private storage. Approval makes that copy
+stores the approved copy and its measurements in Supabase. The connector uses
+the verified Step 1 upload when available. For assessments started from a local
+PDF, the skill can upload a copy at preview time. Approval makes that copy
 downloadable with the assessment. The original PDF, raw logs, and other local
 evidence stay with the user. The connector does not need a model-provider key.
 
@@ -45,7 +51,9 @@ evidence stay with the user. The connector does not need a model-provider key.
 1. Apply `jumpserve-infra/database/202611210001_jumpserve_mcp_assessments.sql`
    to the target Supabase project before enabling the connector. For PDF copies,
    apply `database/202611220001_jumpserve_skill_pdf_copies.sql` in the infra
-   repository before releasing the updated connector and skill.
+   repository before releasing the updated connector and skill. Apply
+   `database/202611220002_jumpserve_assessment_sources.sql` for the Step 1
+   assessment IDs.
 2. Set `NEXT_PUBLIC_SITE_URL` to the app's actual origin and
    `JUMPSERVE_MCP_ENABLED=true` in the server runtime. Use the existing
    `PAPER_INTAKE_SECRET_ID` on Amplify or set a server-only

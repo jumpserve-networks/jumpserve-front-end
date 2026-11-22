@@ -115,6 +115,7 @@ const codes = new Map();
 const tokens = new Map();
 const previews = new Map();
 const papers = new Map();
+const sources = new Map();
 let failNextSubmission = false;
 const fixture = createServer(async (req, res) => {
   const url = new URL(req.url, api);
@@ -126,7 +127,19 @@ const fixture = createServer(async (req, res) => {
   for await (const chunk of req) chunks.push(chunk);
   const body = Buffer.concat(chunks);
   const service = req.headers.apikey === 'fixture-service';
-  const storage = url.pathname.match(/^\/storage\/v1\/object\/(?:(upload\/sign|sign)\/)?(research-paper-uploads\/jumpserve-mcp\/[a-f0-9-]+\.pdf)$/);
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Methods': 'PUT, GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': req.headers['access-control-request-headers'] ?? '' });
+    return res.end();
+  }
+  if (url.pathname === '/storage/v1/object/copy' && req.method === 'POST' && service) {
+    const { bucketId, sourceKey, destinationKey } = JSON.parse(body);
+    const source = `${bucketId}/${sourceKey}`, destination = `${bucketId}/${destinationKey}`;
+    if (!papers.has(source) || papers.has(destination)) return send(409, { message: 'Fixture copy unavailable' });
+    papers.set(destination, papers.get(source));
+    return send(200, { Key: destination });
+  }
+  const storage = url.pathname.match(/^\/storage\/v1\/object\/(?:(upload\/sign|sign)\/)?(research-paper-uploads\/(?:jumpserve-mcp\/[a-f0-9-]+|local-assessment-sources\/[a-f0-9-]+\/[a-f0-9]{64})\.pdf)$/);
   if (storage) {
     const [, kind, key] = storage;
     const signed = (prefix, id) => `/object/${prefix}/${key}?token=${id}`;
@@ -135,9 +148,18 @@ const fixture = createServer(async (req, res) => {
       return send(200, { url: signed('upload/sign', 'write-only-fixture') });
     }
     if (kind === 'upload/sign' && req.method === 'PUT' && url.searchParams.get('token') === 'write-only-fixture') {
-      assert.equal(req.headers['content-type'], 'application/pdf');
       if (papers.has(key)) return send(409, { message: 'Fixture object exists' });
-      papers.set(key, body);
+      const type = req.headers['content-type'];
+      let bytes = body;
+      if (type.startsWith('multipart/form-data;')) {
+        const form = await new Response(body, { headers: { 'Content-Type': type } }).formData();
+        const file = form.get('');
+        assert.equal(file.type, 'application/pdf');
+        bytes = Buffer.from(await file.arrayBuffer());
+      } else {
+        assert.equal(type, 'application/pdf');
+      }
+      papers.set(key, bytes);
       return send(200, {});
     }
     if (kind === 'sign' && req.method === 'POST' && service && papers.has(key)) {
@@ -148,7 +170,8 @@ const fixture = createServer(async (req, res) => {
       return send(papers.has(key) ? 200 : 404, null);
     }
     if (req.method === 'GET' && papers.has(key) && (service || kind === 'sign' && url.searchParams.get('token') === 'read-only-fixture')) {
-      res.writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="source-paper.pdf"' });
+      const filename = url.searchParams.get('download') ?? 'source-paper.pdf';
+      res.writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${filename}"` });
       return res.end(papers.get(key));
     }
     return send(403, {});
@@ -181,10 +204,28 @@ const fixture = createServer(async (req, res) => {
     return send(200, !!valid);
   }
   if (path === 'rpc/jumpserve_mcp_actor') return send(200, tokens.get(input.p_access) ?? null);
-  if (path === 'rpc/research_skill_preview') {
-    let row = [...previews.values()].find(record => record.owner_id === input.p_owner && record.bundle_sha256 === input.p_hash);
+  if (path === 'research_skill_sources') {
+    if (req.method === 'POST') {
+      if (!sources.has(input.id)) sources.set(input.id, input);
+      return send(201, null);
+    }
+    const source = sources.get(url.searchParams.get('id')?.slice(3));
+    return send(200, source && url.searchParams.get('owner_id') === 'eq.' + source.owner_id ? [source] : []);
+  }
+  if (path === 'rpc/research_skill_preview' || path === 'rpc/research_skill_preview_for_source') {
+    const assessmentId = input.p_assessment_id;
+    if (assessmentId) {
+      const source = sources.get(assessmentId);
+      const paper = input.p_bundle.paper;
+      if (source?.owner_id !== input.p_owner || source.sha256 !== paper.sha256 || source.byte_count !== paper.byte_count || !paper.pdf_copy) {
+        return send(400, { code: '22023' });
+      }
+    }
+    let row = assessmentId ? previews.get(assessmentId) : [...previews.values()]
+      .find(record => !record.source_id && record.owner_id === input.p_owner && record.bundle_sha256 === input.p_hash);
+    if (row && row.bundle_sha256 !== input.p_hash) return send(409, { code: '23505' });
     if (!row) {
-      row = { id: randomUUID(), owner_id: input.p_owner, bundle_sha256: input.p_hash, bundle: input.p_bundle,
+      row = { id: assessmentId ?? randomUUID(), source_id: assessmentId, owner_id: input.p_owner, bundle_sha256: input.p_hash, bundle: input.p_bundle,
         approved_at: null, pdf_verified_at: null, study_id: null, expires_at: new Date(Date.now() + 30 * 60_000).toISOString() };
       previews.set(row.id, row);
     }
@@ -321,7 +362,7 @@ try {
     navigator.clipboard.writeText = async () => { throw new DOMException('Denied', 'NotAllowedError'); };
   });
   await page.getByRole('button', { name: 'Copy Codex install command' }).press('Enter');
-  await page.getByText('Copy failed. Select the command and copy it manually.').waitFor();
+  await page.getByText('Copy failed. Select the text and copy it manually.').waitFor();
   console.log('PASS setup buttons copy the displayed command and report denied clipboard access');
 
   await context.addCookies([cookie(owner)]);
@@ -453,6 +494,63 @@ try {
   assert.match(rejected.content[0].text, /differs from the assessed PDF/);
   assert.equal(previews.get(wrong.preview_id).pdf_verified_at, null);
   console.log('PASS verified PDF upload, owner-only preview, public download, deletion and mismatched byte rejection');
+
+  const uploadPage = origin + '/research-verification/new-assessment';
+  const sourcePdf = Buffer.from('%PDF-1.4\n% Step 1 browser fixture\n%%EOF\n');
+  const sourceSha = sha256(sourcePdf);
+  await page.goto(uploadPage);
+  const fileInput = page.getByLabel('Research paper PDF');
+  await fileInput.setInputFiles({ name: 'paper.pdf', mimeType: 'application/pdf', buffer: Buffer.from('not a PDF') });
+  await page.getByRole('button', { name: 'Upload PDF' }).click();
+  await page.getByText(/no PDF signature/i).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Copy assessment prompt' }).count(), 0);
+  await fileInput.setInputFiles({ name: 'paper.pdf', mimeType: 'application/octet-stream', buffer: sourcePdf });
+  await page.getByRole('button', { name: 'Upload PDF' }).click();
+  await page.waitForURL(url => /^[a-f0-9-]{36}$/.test(url.searchParams.get('assessment') ?? ''));
+  const assessmentId = new URL(page.url()).searchParams.get('assessment');
+  const sourceDownload = origin + '/research-verification/api/assessment-source?assessment_id=' + assessmentId;
+  const prompt = page.locator('[aria-label="assessment prompt"]');
+  await prompt.waitFor();
+  assert.match(await prompt.textContent(), new RegExp(`paper-${assessmentId}\\.pdf`));
+  assert.doesNotMatch(await prompt.textContent(), new RegExp(sourceSha));
+  await page.evaluate(() => {
+    let copied = '';
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+      writeText: async text => { copied = text; }, readText: async () => copied,
+    } });
+  });
+  await page.getByRole('button', { name: 'Copy assessment prompt' }).click();
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), await prompt.textContent());
+  await page.reload();
+  await prompt.waitFor();
+  const downloaded = await context.request.get(sourceDownload);
+  assert.deepEqual(await downloaded.body(), sourcePdf);
+  assert.equal(downloaded.headers()['content-disposition'], `attachment; filename="paper-${assessmentId}.pdf"`);
+  assert.equal((await viewer.request.get(sourceDownload, { maxRedirects: 0 })).status(), 307);
+  const stranger = await browser.newContext();
+  await stranger.addCookies([cookie(other)]);
+  assert.equal((await stranger.request.get(sourceDownload)).status(), 404);
+  await stranger.close();
+  const sourceBundle = { ...pdfBundle, paper: { ...pdfBundle.paper, sha256: sourceSha, byte_count: sourcePdf.length } };
+  const stageSource = bundle => client.callTool({ name: 'preview_assessment', arguments: { bundle, assessment_id: assessmentId } });
+  const wrongSource = await stageSource(pdfBundle);
+  assert.equal(wrongSource.isError, true);
+  assert.match(wrongSource.content[0].text, /supplied PDF is different/);
+  const autoAttached = (await stageSource(sourceBundle)).structuredContent;
+  assert.equal(autoAttached.status, 'review_required');
+  assert.equal(autoAttached.preview_id, assessmentId);
+  assert.deepEqual((await stageSource(sourceBundle)).structuredContent, autoAttached);
+  assert.ok(previews.get(autoAttached.preview_id).pdf_verified_at);
+  assert.equal((await viewer.request.get(`${origin}/research-verification/assessment/${autoAttached.preview_id}/paper`)).status(), 404);
+  assert.deepEqual(await (await context.request.get(autoAttached.review_url + '/paper')).body(), sourcePdf);
+  await page.getByRole('link', { name: 'Upload another paper' }).click();
+  await page.waitForURL(uploadPage);
+  await fileInput.waitFor();
+  await page.goto(autoAttached.review_url);
+  await page.getByRole('button', { name: 'Approve public sharing' }).click();
+  await page.waitForURL(`${origin}/research-verification/assessment/${assessmentId}`);
+  assert.deepEqual(await (await viewer.request.get(`${page.url()}/paper`)).body(), sourcePdf);
+  console.log('PASS one assessment ID across the upload, local prompt, private preview and shared assessment');
 } finally {
   await client?.close();
   await browser?.close();

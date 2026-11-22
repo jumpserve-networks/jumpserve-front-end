@@ -19,7 +19,7 @@ const result = (value: Record<string, string>) => ({
 });
 
 export async function serveJumpServeTools(request: Request, body: unknown, origin: string, tools: {
-  preview: (data: ReturnType<typeof prepareAssessmentBundle>) => Promise<{ previewId: string; studyId: string | null; pdfUploadUrl?: string }>;
+  preview: (data: ReturnType<typeof prepareAssessmentBundle>, assessmentId?: string) => Promise<{ previewId: string; studyId: string | null; pdfUploadUrl?: string }>;
   submit: (id: string) => Promise<string>;
 }) {
   const server = new Server({ name: "JumpServe", version: "1.0.0" }, { capabilities: { tools: {} } });
@@ -27,8 +27,8 @@ export async function serveJumpServeTools(request: Request, body: unknown, origi
     tools: [
       {
         name: "preview_assessment",
-        description: `Stage a requested JumpServe assessment privately and return its results link for owner review. Set bundle.paper.pdf_copy to true to attach the local PDF. For pdf_upload_required, upload the exact PDF to upload_url with the skill's upload helper, then retry the same bundle. Populate bundle.wizard with page-cited paper breakdown steps and substeps, ordered experiment steps, shareable local commands and any script files those commands need. Honor local-only requests. Exclude PDF bytes, raw logs, private paths and credentials from the bundle. Replace {assessmentUrlHere} with assessment_url for already_shared or review_url for review_required. ${completionReply}\n\n${completionMessage}`,
-        inputSchema: { type: "object", additionalProperties: false, required: ["bundle"], properties: { bundle: ASSESSMENT_SCHEMA } },
+        description: `Stage a requested JumpServe assessment privately and return its results link for owner review. For a PDF uploaded in Step 1, pass the provided assessment_id alongside bundle. Set bundle.paper.pdf_copy to true to attach the exact PDF. For pdf_upload_required, upload the exact PDF to upload_url with the skill's upload helper, then retry the same bundle. Populate bundle.wizard with page-cited paper breakdown steps and substeps, ordered experiment steps, shareable local commands and any script files those commands need. Honor local-only requests. Exclude PDF bytes, raw logs, private paths and credentials from the bundle. Replace {assessmentUrlHere} with assessment_url for already_shared or review_url for review_required. ${completionReply}\n\n${completionMessage}`,
+        inputSchema: { type: "object", additionalProperties: false, required: ["bundle"], properties: { bundle: ASSESSMENT_SCHEMA, assessment_id: { type: "string", format: "uuid", description: "Assessment ID from the Step 1 prompt." } } },
         annotations: { title: "Preview assessment", idempotentHint: true },
       },
       {
@@ -43,8 +43,10 @@ export async function serveJumpServeTools(request: Request, body: unknown, origi
   server.setRequestHandler(CallToolRequestSchema, async ({ params }) => {
     const args = params.arguments;
     try {
-      if (params.name === "preview_assessment" && args && Object.keys(args).length === 1 && "bundle" in args) {
-        const preview = await tools.preview(prepareAssessmentBundle(args.bundle));
+      if (params.name === "preview_assessment" && args && "bundle" in args &&
+          Object.keys(args).every(key => key === "bundle" || key === "assessment_id") &&
+          (!("assessment_id" in args) || isResearchId(args.assessment_id))) {
+        const preview = await tools.preview(prepareAssessmentBundle(args.bundle), args.assessment_id as string | undefined);
         if (preview.pdfUploadUrl) return result({ status: "pdf_upload_required", preview_id: preview.previewId, upload_url: preview.pdfUploadUrl });
         return preview.studyId
           ? result({ assessment_url: assessmentUrl(preview.studyId), status: "already_shared" })

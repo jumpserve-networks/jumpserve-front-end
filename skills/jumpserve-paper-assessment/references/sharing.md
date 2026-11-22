@@ -57,6 +57,11 @@ Call `preview_assessment` with the saved bundle. If it returns
 installed skill, with the path to the exact local PDF and the saved bundle.
 Keep the signed upload ticket private and out of retained logs.
 
+For a PDF uploaded in Step 1, use the file downloaded for that assessment ID.
+Pass `assessment_id` alongside `bundle` in `preview_assessment` and repeat the
+same ID on every retry. JumpServe checks the PDF against the private upload in
+the connected owner's account. The preview and shared assessment use the same ID.
+
 ```sh
 python3 "$SKILL_DIR/scripts/upload_paper.py" --pdf "$PDF" --bundle "$BUNDLE" < "$PRIVATE_TICKET"
 ```

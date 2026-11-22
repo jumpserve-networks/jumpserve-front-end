@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       { status: error instanceof BoundedBodyError ? error.status : 400 });
   }
   const response = await serveJumpServeTools(request, body, config.issuer, {
-    preview: ({ bundle, hash }) => previewAssessment(actor, bundle, hash),
+    preview: ({ bundle, hash }, assessmentId) => previewAssessment(actor, bundle, hash, assessmentId),
     submit: id => submitAssessment(actor, id),
   });
   const headers = new Headers(response.headers);
