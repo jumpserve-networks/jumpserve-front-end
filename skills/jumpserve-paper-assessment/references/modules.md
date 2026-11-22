@@ -35,45 +35,9 @@ implement a role. Select the smallest combination that can answer the claim.
 
 ## Request local permission
 
-Use existing grants and start with the normal sandbox. Confirm the experiment
-scope before requesting permission to acquire experiment resources. If a
-required operation within the approved scope fails on a credible sandbox
-restriction, request the smallest supported permission through the local client.
-Name the resource, the exact operation, and the relevant effect, keeping
-credentials out of the request text. For Docker,
-use a read-only preflight such as `docker info --format '{{.OSType}}'` to check
-daemon access when needed. A reachable daemon still needs the capabilities
-required by the frozen experiment. A missing or stopped daemon needs diagnosis
-before requesting sandbox access.
-
-- **Codex.** Use a resource-scoped request if the client offers one that covers
-  the restriction. When the exact command must run outside the sandbox, use
-  the native command approval. Where the tool exposes these fields, retry the
-  same command with `sandbox_permissions: "require_escalated"` and a short
-  `justification` question. Leave `prefix_rule` unset for a one-time experiment
-  launch. [Codex sandbox and approvals](https://learn.chatgpt.com/docs/agent-approvals-security#sandbox-and-approvals)
-- **Claude Code.** Use the native Bash approval. If the normal sandbox is the
-  blocker and the session permits an unsandboxed retry, request it for the
-  same command with `dangerouslyDisableSandbox: true`. The active permission
-  mode and managed settings decide whether it prompts, permits, or denies
-  execution. [Claude Code sandbox retry](https://code.claude.com/docs/en/sandboxing#the-unsandboxed-retry-escape-hatch)
-
-For an approved Docker run, a suitable question is “Allow this command to use
-the local Docker engine for the six approved ping measurements and save the
-logs in the assessment directory?” Keep the approved image, runner, mounts,
-capabilities, network settings, and output destination fixed. Leave global
-sandbox settings, daemon permissions, and broad allowlists under the user's
-control. A preflight grant covers the preflight, so obtain the launch grant
-separately if the client's existing permission does not cover the launch.
-
-While approval is pending, preserve the plan and continue independent work.
-On approval, retry the blocked step and continue the assessment. If a launch
-may have started, reconcile its recorded state before retrying. If approval
-is denied or unavailable, retain the restriction and any completed evidence.
-Mark a claim untested when its experiment never ran, or inconclusive when
-the evidence is insufficient after acquisition started. Record the specific
-blocker and permission outcome locally and summarize the limitation in the
-assessment.
+Use the [approval workflow](permissions.md) during setup, acquisition,
+validation, and cleanup. Record the grant or the concrete blocker in the
+private run record.
 
 ## Hand off evidence between roles
 

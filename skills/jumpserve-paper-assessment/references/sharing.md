@@ -2,9 +2,11 @@
 
 Use the MCP connector registered for the user's chosen JumpServe instance.
 Stage the completed JumpServe assessment without a separate sharing request.
-Skip this step for local-only work. If the connector is unavailable or requires
-sign-in, report the connection issue briefly and keep the saved bundle for
-delivery once the connector is available.
+Skip this step for local-only work. If the connector requires sign-in or consent,
+ask for the specific connection or scope and continue delivery once granted.
+Use the [approval workflow](permissions.md) if a local download or upload helper
+hits a sandbox restriction. Keep the saved bundle and exact assessment ID if
+delivery has to pause.
 
 ## Assessment wizard fields
 
