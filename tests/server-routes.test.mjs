@@ -268,6 +268,9 @@ test('Step 1 shows private PDF upload and reveals the local prompt only after ve
  const prompt=ready.querySelector('[aria-label="assessment prompt"]').textContent;
  assert.match(prompt,new RegExp(ID));
  assert.doesNotMatch(prompt,new RegExp(sha256));
+ assert.match(prompt,/confirm the experiment scope.+if an authorized action is blocked, use the client's native approval or consent mechanism for the specific resource or command and continue once granted/);
+ assert.match(prompt,/If approval is declined or unavailable, record the blocker, save the assessment for resumption/);
+ assert.match(prompt,/Stage a plan-only preview only if I choose it/);
  assert.ok(ready.querySelector(`a[href="${BASE}/api/assessment-source?assessment_id=${ID}"]`));
 });
 
