@@ -251,12 +251,11 @@ test('Step 1 shows private PDF upload and reveals the local prompt only after ve
  assert.equal(state.sourceReads,undefined);
  const signIn=document.querySelector('a[href^="/login?"]');
  assert.equal(new URL(signIn.href,'https://example.test').searchParams.get('next'),BASE+'/new-assessment?assessment='+ID);
- assert.match(document.body.textContent,/assess papers and run experiments in your local workspace/);
- assert.ok(document.querySelector('a[href="https://github.com/jumpserve-networks/jumpserve-plugins"]'));
- assert.match(document.body.textContent,/claude plugin install jumpserve --marketplace jumpserve-networks\/jumpserve-plugins/);
- assert.match(document.body.textContent,/codex plugin add jumpserve@jumpserve/);
- assert.doesNotMatch(document.body.textContent,/manual setup|mcp add|install from a zip/i);
- assert.ok(document.querySelector('a[href="/research-verification/assessments"]'));
+ const setupButtons=Array.from(document.querySelectorAll('button'),button=>button.textContent)
+  .filter(label=>label.startsWith('Add Plugin to '));
+ assert.deepEqual(setupButtons,['Add Plugin to Claude','Add Plugin to Codex']);
+ assert.doesNotMatch(document.body.textContent,/claude plugin install|codex plugin add|install from a zip/i);
+ assert.doesNotMatch(document.body.textContent,/Share an assessment|View saved assessments/);
  assert.deepEqual(state.authPaths,[]);
  state.user=google();
  const unavailable=await renderPage('newPaper',props({}, {assessment:ID}));

@@ -1,9 +1,9 @@
 import { ResearchHeader } from "@/app/components/research-workflow/header";
-import { CopyBlock, McpSetupCommand } from "@/app/components/research-workflow/mcp-setup-command";
+import { CopyBlock, McpSetupDialogs } from "@/app/components/research-workflow/mcp-setup-command";
 import { LocalAssessmentUpload } from "@/app/components/research-workflow/local-assessment-upload";
 import { PaperAssessmentSteps } from "@/app/components/research-workflow/paper-assessment-steps";
 import Link from "next/link";
-import { ASSESSMENTS_PATH, NEW_ASSESSMENT_PATH } from "@/lib/test-modules";
+import { NEW_ASSESSMENT_PATH } from "@/lib/test-modules";
 import { getGoogleUser } from "@/lib/auth";
 import { mcpConfig } from "@/lib/jumpserve-mcp-oauth";
 import { readLocalAssessmentSource } from "@/lib/jumpserve-mcp-store";
@@ -13,7 +13,6 @@ import { PRODUCTION_SITE_ORIGIN } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
-const marketplace = "jumpserve-networks/jumpserve-plugins";
 const codexApprovalCommand = `codex --sandbox workspace-write --ask-for-approval on-request -c 'approvals_reviewer="user"'`;
 
 export default async function NewAssessment({ searchParams }: { searchParams: Promise<{ assessment?: string | string[] }> }) {
@@ -54,21 +53,7 @@ export default async function NewAssessment({ searchParams }: { searchParams: Pr
           </>}
         </section>
 
-        <details className="space-y-3 border-t pt-4" open={!result?.source}>
-          <summary className="cursor-pointer text-lg font-semibold">Set up the JumpServe plugin</summary>
-          <p>The plugin bundles the paper assessment skill and hosted JumpServe connector. Use it to assess papers and run experiments in your local workspace.</p>
-          <McpSetupCommand client="Claude Code" command={`claude plugin install jumpserve --marketplace ${marketplace}`} />
-          <McpSetupCommand client="Codex" command={`codex plugin marketplace add ${marketplace} && codex plugin add jumpserve@jumpserve`} />
-          <p>Connect with Google from <code>/mcp</code> in Claude Code or run <code>codex mcp login jumpserve</code> in Codex. Use the same Google account you used to upload the paper.</p>
-          <p><a href={`https://github.com/${marketplace}`} className="text-primary underline underline-offset-4">View the public marketplace and install instructions</a></p>
-          <p><Link href={connections} className="text-primary underline underline-offset-4">Manage JumpServe connections</Link></p>
-        </details>
-
-        <section className="space-y-3 border-t pt-4" aria-labelledby="share-assessment">
-          <h2 id="share-assessment" className="text-lg font-semibold">Share an assessment</h2>
-          <p>When the assessment finishes, find it under My Assessments. It stays private until you choose to share it publicly.</p>
-          <Link href={ASSESSMENTS_PATH} className="text-primary underline underline-offset-4">View saved assessments</Link>
-        </section>
+        <McpSetupDialogs connectionsUrl={connections} />
       </section>
     </main>
   );
