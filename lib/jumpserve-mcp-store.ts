@@ -7,6 +7,8 @@ import { prepareAssessmentBundle, type AssessmentBundle } from "@/lib/jumpserve-
 import { clientInfo, credentialHash, isRegisteredClientId, MCP_DOWNLOAD_SCOPE, MCP_SCOPE, opaqueCredential } from "@/lib/jumpserve-mcp-oauth";
 import { localAssessmentSourceFilename, PAPER_UPLOAD_BUCKET, type LocalAssessmentSource } from "@/lib/local-assessment-source";
 import { PAPER_UPLOAD_MAX_BYTES } from "@/lib/research-paper-upload";
+import { encodeAssessmentCursor, type AssessmentCursor } from "@/lib/research-assessment-cursor";
+import { validPaperAuthors, type PaperCatalog } from "@/lib/research-paper-catalog";
 
 export async function connectorServiceKey() {
   const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY ||
@@ -38,12 +40,11 @@ function matchesPdf(bytes: Buffer, sha256: string) {
     createHash("sha256").update(bytes).digest("hex") === sha256;
 }
 
-async function verifiedSource(storage: PaperStorage, owner: string, sha256: string, size?: number) {
-  const path = sourceObject(owner, sha256);
+async function verifiedPdfObject(storage: PaperStorage, path: string, sha256: string, size: number) {
   if (!(await storage.exists(path)).data) return null;
   const { data, error } = await storage.download(path);
   if (error || !data) throw new Error("JumpServe could not read the private PDF.");
-  if (data.size < 1 || data.size > PAPER_UPLOAD_MAX_BYTES || (size !== undefined && data.size !== size)) return null;
+  if (data.size < 1 || data.size > PAPER_UPLOAD_MAX_BYTES || data.size !== size) return null;
   return matchesPdf(Buffer.from(await data.arrayBuffer()), sha256) ? { sha256, byte_count: data.size } : null;
 }
 
@@ -57,7 +58,7 @@ async function sourceIdentity(db: ServiceDatabase, owner: string, assessmentId: 
 export async function readLocalAssessmentSource(owner: string, assessmentId: string) {
   const db = await serviceDatabase();
   const source = await sourceIdentity(db, owner, assessmentId);
-  return source && await verifiedSource(db.storage.from(PAPER_UPLOAD_BUCKET), owner, source.sha256, source.byte_count);
+  return source && await verifiedPdfObject(db.storage.from(PAPER_UPLOAD_BUCKET), sourceObject(owner, source.sha256), source.sha256, source.byte_count);
 }
 
 export async function reserveLocalAssessmentSource(owner: string, assessmentId: string, { sha256, byte_count }: LocalAssessmentSource) {
@@ -83,7 +84,7 @@ export async function localAssessmentSourceTicket(owner: string, assessmentId: s
   const db = await serviceDatabase();
   const source = await sourceIdentity(db, owner, assessmentId);
   const storage = db.storage.from(PAPER_UPLOAD_BUCKET);
-  if (!source || !await verifiedSource(storage, owner, source.sha256, source.byte_count)) return null;
+  if (!source || !await verifiedPdfObject(storage, sourceObject(owner, source.sha256), source.sha256, source.byte_count)) return null;
   const filename = localAssessmentSourceFilename(assessmentId);
   const { data, error } = await storage.createSignedUrl(sourceObject(owner, source.sha256), expiresIn, { download: filename });
   if (error || !data) throw new Error("JumpServe could not prepare the private PDF download.");
@@ -97,44 +98,28 @@ export async function localAssessmentSourceDownload(owner: string, assessmentId:
 async function verifiedPdf(db: Awaited<ReturnType<typeof serviceDatabase>>, owner: string, id: string) {
   const { data, error } = await db.from("research_skill_submissions")
     .select("pdf_verified_at").eq("owner_id", owner).eq("id", id).maybeSingle();
-  if (error) throw new Error("JumpServe could not check the PDF upload.");
+  if (error) throw new Error("JumpServe could not check the PDF attachment.");
   return typeof data?.pdf_verified_at === "string";
 }
 
-async function preparePdfUpload(db: ServiceDatabase, owner: string, id: string, hash: string, paper: AssessmentBundle["paper"], assessmentId?: string) {
-  if (await verifiedPdf(db, owner, id)) return undefined;
+async function attachStepOnePdf(db: ServiceDatabase, owner: string, id: string, source: LocalAssessmentSource) {
   const storage = db.storage.from(PAPER_UPLOAD_BUCKET);
   const path = paperObject(id);
-  const { data: exists } = await storage.exists(path).catch(() => {
-    throw new Error("JumpServe could not check the PDF upload.");
-  });
-  if (!exists && await verifiedSource(storage, owner, paper.sha256, paper.byte_count)) {
-    const { error } = await storage.copy(sourceObject(owner, paper.sha256), path);
+  const attachmentExists = (await storage.exists(path)).data;
+  if (attachmentExists && await verifiedPdf(db, owner, id)) return;
+  const original = sourceObject(owner, source.sha256);
+  if (!await verifiedPdfObject(storage, original, source.sha256, source.byte_count)) {
+    throw new Error("Finish uploading the matching PDF in JumpServe Step 1, then retry the saved bundle.");
+  }
+  // The public download may expose this path. Keep the owner's account ID
+  // and the original Step 1 storage path private.
+  if (!attachmentExists) {
+    const { error } = await storage.copy(original, path);
     if (error && !(await storage.exists(path)).data) throw new Error("JumpServe could not attach the private PDF. Retry the same bundle.");
-  } else if (!exists) {
-    if (assessmentId) throw new Error("The private PDF for this assessment ID is unavailable. Finish the Step 1 upload and retry the same bundle.");
-    const { data: expired } = await db.rpc("research_skill_expired_pdfs");
-    if (Array.isArray(expired) && expired.length) await storage.remove(expired);
-    const { data, error } = await storage.createSignedUploadUrl(path, { upsert: false });
-    if (error || !data) throw new Error("JumpServe could not prepare the PDF upload. Retry the same bundle.");
-    return data.signedUrl;
   }
-
-  const { data, error } = await storage.download(path);
-  if (error || !data) throw new Error("JumpServe could not read the uploaded PDF. Retry the same bundle.");
-  if (data.size !== paper.byte_count) throw new Error("The uploaded PDF size differs from the assessed paper.");
-  const bytes = Buffer.from(await data.arrayBuffer());
-  if (!matchesPdf(bytes, paper.sha256)) {
-    throw new Error("The uploaded file differs from the assessed PDF.");
+  if (!await verifiedPdfObject(storage, path, source.sha256, source.byte_count)) {
+    throw new Error("The saved attachment differs from the Step 1 PDF.");
   }
-  const time = new Date().toISOString();
-  const { data: saved, error: saveError } = await db.from("research_skill_submissions").update({ pdf_verified_at: time })
-    .eq("owner_id", owner).eq("id", id).eq("bundle_sha256", hash).is("study_id", null)
-    .is("pdf_verified_at", null).gt("expires_at", time).select("id").maybeSingle();
-  if (saveError || (!saved && !await verifiedPdf(db, owner, id))) {
-    throw new Error("JumpServe could not verify the PDF for this preview. Retry the same bundle.");
-  }
-  return undefined;
 }
 
 export async function createAuthorizationCode(owner: string, request: { clientId: string; redirectUri: string; challenge: string; readSources: boolean }, resource: string) {
@@ -188,51 +173,76 @@ export async function revokeConnector(owner: string, resource: string) {
   if (error) throw new Error("Could not disconnect all JumpServe clients.");
 }
 
-export async function previewAssessment(owner: string, bundle: AssessmentBundle, hash: string, assessmentId?: string) {
+export async function previewAssessment(owner: string, bundle: AssessmentBundle, hash: string, assessmentId: string) {
   const db = await serviceDatabase();
-  const args = { p_owner: owner, p_hash: hash, p_bundle: bundle };
-  const { data, error } = assessmentId
-    ? await db.rpc("research_skill_preview_for_source", { ...args, p_assessment_id: assessmentId })
-    : await db.rpc("research_skill_preview", args);
-  if (error?.code === "54000") throw new Error("Eight previews are pending. Submit an approved preview or wait for it to expire.");
+  const mismatch = "The assessment ID does not match a private Step 1 upload in this account or the assessed PDF is different.";
+  const source = await sourceIdentity(db, owner, assessmentId);
+  if (!source || !bundle.paper.pdf_copy || source.sha256 !== bundle.paper.sha256 || source.byte_count !== bundle.paper.byte_count) {
+    throw new Error(mismatch);
+  }
+  await attachStepOnePdf(db, owner, assessmentId, source);
+  const { data, error } = await db.rpc("research_skill_save_from_source", {
+    p_owner: owner, p_hash: hash, p_bundle: bundle, p_assessment_id: assessmentId,
+  });
   if (error?.code === "P0002") throw new Error("This assessment was deleted.");
-  if (error?.code === "22023" && assessmentId) throw new Error("The assessment ID does not match a private upload in this account or the supplied PDF is different.");
-  if (error?.code === "23505" && assessmentId) throw new Error("This assessment ID already has a different preview. Review the existing preview or start another assessment.");
-  if (error || typeof data?.preview_id !== "string") throw new Error("JumpServe could not save the preview. Retry the same bundle.");
-  const previewId = data.preview_id as string, studyId = (data.study_id ?? null) as string | null;
-  const pdfUploadUrl = bundle.paper.pdf_copy && !studyId ? await preparePdfUpload(db, owner, previewId, hash, bundle.paper, assessmentId) : undefined;
-  return { previewId, studyId, pdfUploadUrl };
+  if (error?.code === "22023") throw new Error(mismatch);
+  if (error?.code === "23505") throw new Error("This ID already belongs to a different saved assessment. Open the existing assessment or start another one.");
+  if (error || typeof data?.preview_id !== "string") throw new Error("JumpServe could not save the private assessment. Retry the same bundle.");
+  return { previewId: data.preview_id as string, studyId: (data.study_id ?? null) as string | null };
 }
 
 export async function readAssessmentPreview(owner: string, id: string) {
   const db = await serviceDatabase();
   const { data, error } = await db.from("research_skill_submissions")
-    .select("bundle,bundle_sha256,approved_at,study_id")
+    .select("bundle,bundle_sha256,completed_at,approved_at,study_id")
     .eq("owner_id", owner).eq("id", id)
-    .or(`expires_at.gt.${new Date().toISOString()},study_id.not.is.null`).maybeSingle();
-  if (error) throw new Error("JumpServe could not load the preview.");
+    .or("completed_at.not.is.null,study_id.not.is.null").maybeSingle();
+  if (error) throw new Error("JumpServe could not load the private assessment.");
   if (!data) return null;
   const { bundle } = prepareAssessmentBundle(data.bundle);
   const pdfReady = !!bundle.paper.pdf_copy && await verifiedPdf(db, owner, id);
-  return { bundle, hash: data.bundle_sha256 as string, approved: !!data.approved_at, studyId: data.study_id as string | null, pdfReady };
+  return { bundle, hash: data.bundle_sha256 as string, complete: !!data.completed_at, approved: !!data.approved_at, studyId: data.study_id as string | null, pdfReady };
+}
+
+export async function readPrivateAssessmentCatalog(owner: string, before?: AssessmentCursor): Promise<PaperCatalog> {
+  const db = await serviceDatabase();
+  let query = db.from("research_skill_submissions")
+    .select("id,completed_at,title:bundle->paper->>title,authors:bundle->paper->authors")
+    .eq("owner_id", owner).is("study_id", null).not("completed_at", "is", null);
+  if (before) {
+    query = query.or(`completed_at.lt.${before.created_at},and(completed_at.eq.${before.created_at},id.lt.${before.id})`);
+  }
+  const { data, error } = await query.order("completed_at", { ascending: false }).order("id", { ascending: false }).limit(11);
+  if (error || !data) throw new Error("JumpServe could not load private assessments.");
+  const papers = data.slice(0, 10).map(row => ({
+    id: row.id,
+    title: row.title,
+    authors: validPaperAuthors(row.authors) ? row.authors : null,
+    initiated_by: "You",
+    created_at: row.completed_at,
+    workflow_status: null,
+  }));
+  return {
+    version: "research-paper-catalog-v1", access: "owner-read-only", papers,
+    coverage: { papers: papers.length }, next_cursor: data.length > 10 ? encodeAssessmentCursor(papers[9]) : null,
+  };
 }
 
 export async function approveAssessment(owner: string, id: string, hash: string) {
   const db = await serviceDatabase();
-  const timestamp = new Date().toISOString();
-  const { data, error } = await db.from("research_skill_submissions").update({ approved_at: timestamp })
+  const { data, error } = await db.from("research_skill_submissions").update({ approved_at: new Date().toISOString() })
     .eq("owner_id", owner).eq("id", id).eq("bundle_sha256", hash).is("study_id", null)
-    .gt("expires_at", timestamp).select("id").maybeSingle();
-  if (error) throw new Error("JumpServe could not approve the preview.");
+    .not("completed_at", "is", null).select("id").maybeSingle();
+  if (error) throw new Error("JumpServe could not record approval to share the assessment.");
   return !!data;
 }
 
 export async function submitAssessment(owner: string, id: string) {
   const db = await serviceDatabase();
   const { data, error } = await db.rpc("research_skill_submit", { p_owner: owner, p_preview: id });
-  if (error?.code === "55000") throw new Error("The preview needs owner approval or has expired. Open the review link or request a new preview.");
-  if (error?.code === "P0002") throw new Error("This preview or assessment is unavailable.");
-  if (error || typeof data !== "string") throw new Error("JumpServe could not confirm submission. Retry this preview ID.");
+  if (error?.code === "55000") throw new Error("The assessment must be complete and approved by its owner before public sharing. Open its private link.");
+  if (error?.code === "P0002") throw new Error("This assessment is unavailable.");
+  if (error || typeof data !== "string") throw new Error("JumpServe could not confirm public sharing. Retry the same assessment ID.");
   return data;
 }
 

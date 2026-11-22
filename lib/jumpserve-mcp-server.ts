@@ -4,9 +4,9 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 import { ASSESSMENT_SCHEMA, prepareAssessmentBundle } from "@/lib/jumpserve-assessment-bundle";
 import { isResearchId } from "@/lib/research-experiment-queue";
 import { researchAssessmentPath } from "@/lib/research-pathways";
-import { RESEARCH_WORKFLOW_MODULE_PATH } from "@/lib/test-modules";
+import { ASSESSMENT_REVIEW_PATH } from "@/lib/test-modules";
 
-export const SHARE_REVIEW_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/share`;
+export const SHARE_REVIEW_PATH = ASSESSMENT_REVIEW_PATH;
 export const DOWNLOAD_ASSESSMENT_PDF_TOOL = "download_assessment_pdf";
 const completionReply = "On success, send only the exact completion message below as plain text. End the reply immediately after the URL.";
 const completionMessage = `Your research paper assessment is finished!
@@ -26,7 +26,7 @@ export function isAssessmentPdfDownloadRequest(body: unknown) {
 
 export async function serveJumpServeTools(request: Request, body: unknown, origin: string, tools: {
   download: (id: string) => Promise<Record<string, string | number> | null>;
-  preview: (data: ReturnType<typeof prepareAssessmentBundle>, assessmentId?: string) => Promise<{ previewId: string; studyId: string | null; pdfUploadUrl?: string }>;
+  preview: (data: ReturnType<typeof prepareAssessmentBundle>, assessmentId: string) => Promise<{ previewId: string; studyId: string | null }>;
   submit: (id: string) => Promise<string>;
 }) {
   const server = new Server({ name: "JumpServe", version: "1.0.0" }, { capabilities: { tools: {} } });
@@ -40,13 +40,13 @@ export async function serveJumpServeTools(request: Request, body: unknown, origi
       },
       {
         name: "preview_assessment",
-        description: `Stage a requested JumpServe assessment privately and return its results link for owner review. For a PDF uploaded in Step 1, pass the provided assessment_id alongside bundle. Set bundle.paper.pdf_copy to true to attach the exact PDF. For pdf_upload_required, upload the exact PDF to upload_url with the skill's upload helper, then retry the same bundle. Populate bundle.wizard with page-cited paper breakdown steps and substeps, ordered experiment steps, shareable local commands and any script files those commands need. Honor local-only requests. Exclude PDF bytes, raw logs, private paths and credentials from the bundle. Replace {assessmentUrlHere} with assessment_url for already_shared or review_url for review_required. ${completionReply}\n\n${completionMessage}`,
-        inputSchema: { type: "object", additionalProperties: false, required: ["bundle"], properties: { bundle: ASSESSMENT_SCHEMA, assessment_id: { type: "string", format: "uuid", description: "Assessment ID from the Step 1 prompt." } } },
-        annotations: { title: "Preview assessment", idempotentHint: true },
+        description: `Save a completed JumpServe assessment privately and return its owner-only link. Pass the Step 1 assessment_id alongside bundle and set bundle.paper.pdf_copy to true. JumpServe attaches the existing verified PDF from Step 1. The assessment stays private until its owner shares it publicly. Populate bundle.wizard with page-cited paper breakdown steps and substeps, ordered experiment steps, shareable local commands and any script files those commands need. Honor local-only requests. Exclude PDF bytes, raw logs, private paths and credentials from the bundle. Replace {assessmentUrlHere} with assessment_url for already_shared or review_url for review_required. ${completionReply}\n\n${completionMessage}`,
+        inputSchema: { type: "object", additionalProperties: false, required: ["bundle", "assessment_id"], properties: { bundle: ASSESSMENT_SCHEMA, assessment_id: { type: "string", format: "uuid", description: "Assessment ID from the Step 1 prompt." } } },
+        annotations: { title: "Save private assessment", idempotentHint: true },
       },
       {
         name: "submit_assessment",
-        description: `Share the exact preview approved by the account owner on JumpServe. Retry the same preview ID after an uncertain result. Replace {assessmentUrlHere} with assessment_url. ${completionReply}\n\n${completionMessage}`,
+        description: `Share the exact assessment approved by the account owner on JumpServe. Retry with the same preview_id after an uncertain result. Replace {assessmentUrlHere} with assessment_url. ${completionReply}\n\n${completionMessage}`,
         inputSchema: { type: "object", additionalProperties: false, required: ["preview_id"], properties: { preview_id: { type: "string", format: "uuid" } } },
         annotations: { title: "Submit approved assessment", idempotentHint: true },
       },
@@ -61,11 +61,12 @@ export async function serveJumpServeTools(request: Request, body: unknown, origi
         if (!ticket) throw new Error("This private Step 1 PDF is unavailable in the connected Google account.");
         return result(ticket);
       }
-      if (params.name === "preview_assessment" && args && "bundle" in args &&
-          Object.keys(args).every(key => key === "bundle" || key === "assessment_id") &&
-          (!("assessment_id" in args) || isResearchId(args.assessment_id))) {
-        const preview = await tools.preview(prepareAssessmentBundle(args.bundle), args.assessment_id as string | undefined);
-        if (preview.pdfUploadUrl) return result({ status: "pdf_upload_required", preview_id: preview.previewId, upload_url: preview.pdfUploadUrl });
+      if (params.name === "preview_assessment") {
+        if (!args || !isResearchId(args.assessment_id)) throw new Error("Start the assessment in JumpServe Step 1 and pass its assessment_id.");
+        if (!("bundle" in args) || Object.keys(args).some(key => key !== "bundle" && key !== "assessment_id")) {
+          throw new Error("Pass the assessment_id and the saved assessment bundle.");
+        }
+        const preview = await tools.preview(prepareAssessmentBundle(args.bundle), args.assessment_id);
         return preview.studyId
           ? result({ assessment_url: assessmentUrl(preview.studyId), status: "already_shared" })
           : result({ preview_id: preview.previewId, review_url: new URL(`${SHARE_REVIEW_PATH}/${preview.previewId}`, origin).href, status: "review_required" });

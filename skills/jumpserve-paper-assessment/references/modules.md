@@ -16,22 +16,21 @@ implement a role. Select the smallest combination that can answer the claim.
 2. Record the composition in private `composition.json` using the contract below.
    Save a separate specification with the exact parameters, comparison,
    conditions, repetitions and order, duration, stopping rules, and resource
-   roles. Propose validators and their reference sources before the run. Record
-   the user's confirmed scope and accepted validator set, including a choice to
-   omit optional validation. An existing authorization covering that scope is
-   sufficient. Before acquiring any resource, run the checker from the installed
-   skill and record the composition digest it prints alongside the specification
-   and reference digests.
+   roles. Select validators and their reference sources before the run. Record
+   the assessment request, applicable limits, and the chosen validators. The
+   assessment request covers in-scope local execution. Before acquiring experiment
+   resources, run the checker from the installed skill and record the composition
+   digest it prints alongside the specification and reference digests.
 
    ```sh
    python3 "$SKILL_DIR/scripts/check_composition.py" composition.json
    ```
 
-   The checker uses Python 3.9+ with its standard library. After approval, pass
-   `--expected-sha256` with the recorded digest to check the exact composition
-   again before use. Keep prior versions and use a new composition and approval
-   when the scope or accepted design changes. Routine repairs within the approved
-   scope should preserve the frozen design and retained evidence.
+   The checker uses Python 3.9+ with its standard library. Before running the
+   experiment, pass `--expected-sha256` with the recorded digest to check the
+   exact composition. Preserve the frozen scientific criteria and retained
+   evidence through routine repairs. Record any replacement composition and
+   re-freeze it before use. Obtain new authorization for work outside the request.
 
 ## Request local permission
 

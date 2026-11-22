@@ -53,6 +53,19 @@ test('each table row shows its saved wizard step instead of a shared workflow st
  for(const label of ['Step 1 · Paper Upload','Step 2 · Paper Breakdown','Step 3 · Experiment Steps','Step 4 · Experiment Setup'])await screen.findByText(label);
  assert.equal(reads,1);assert.equal(screen.queryByText('In progress'),null);
 });
+test('private assessments link to owner review in both views and stay out of public progress reads',async()=>{
+ const previewId='22222222-2222-4222-8222-222222222222';
+ globalThis.__assessmentPreferences={userId:'owner'};
+ globalThis.__assessmentProgress=async ids=>{assert.deepEqual(ids,[id]);return{assessments:[{id,step:5}]};};
+ const rows=catalog([paper(),paper({id:previewId,title:'Private paper',authors:null,private_preview:true})]);
+ for(const view of ['table','card']){
+  const result=show({mine:true,view},rows);
+  assert.equal((await screen.findByRole('link',{name:'Private paper'})).getAttribute('href'),`/research-verification/share/${previewId}`);
+  await screen.findByText('Private',{exact:true});await screen.findByText('Step 5 · Experiment Results');
+  assert.equal(screen.queryByRole('button',{name:'Delete assessment: Private paper'}),null);
+  result.unmount();
+ }
+});
 test('unavailable progress keeps the assessment list usable and retries without guessing a step',async()=>{
  let calls=0;globalThis.__assessmentProgress=async ids=>{if(++calls===1)throw new Error('Explicit outage');return{assessments:ids.map(id=>({id,step:3}))};};
  show();await screen.findByText('Step unavailable');assert.ok(screen.getByRole('link',{name:'Synthetic networking paper'}));assert.equal(screen.queryByText('Step 1 · Paper Upload'),null);

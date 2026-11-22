@@ -1,10 +1,11 @@
 import { isResearchId } from "@/lib/research-experiment-queue";
 import { researchApiBase } from "@/lib/research-workflow";
 import { requireAccessToken } from "@/lib/browser-auth";
+import { PRIVATE_ASSESSMENTS_API_PATH } from "@/lib/test-modules";
 
 const PAPER_WORKFLOW_STATUSES = ["running", "completed", "completed-with-blockers", "deadline", "budget", "cancelled"] as const;
 export type PaperWorkflowStatus = typeof PAPER_WORKFLOW_STATUSES[number];
-export type PaperAssessment = { id: string; title: string | null; authors?: string[] | null; initiated_by?: string | null; created_at: string; workflow_status: PaperWorkflowStatus | null };
+export type PaperAssessment = { id: string; title: string | null; authors?: string[] | null; initiated_by?: string | null; created_at: string; workflow_status: PaperWorkflowStatus | null; private_preview?: true };
 export type PaperMetadata = { title: string; authors: string[] | null };
 export type PaperCatalog = { version: "research-paper-catalog-v1"; access: "public-read-only" | "owner-read-only"; papers: PaperAssessment[]; coverage: { papers: number }; next_cursor: string | null };
 export type PaperDetail = { version: "research-paper-detail-v1"; access: "public-read-only"; paper: PaperAssessment; preparation_status: "preparing" | "ready" | "failed" | "confirmed" | null };
@@ -115,6 +116,22 @@ export async function loadMyPaperCatalog(userId: string, before?: string, signal
     : validatePaperCatalog(value, "owner-read-only");
   if (before && result.next_cursor === before) fail();
   return result;
+}
+
+export async function loadPrivatePaperCatalog(userId: string, before?: string, signal?: AbortSignal, fetcher: typeof fetch = fetch): Promise<PaperCatalog> {
+  if (before !== undefined && !cursor(before)) throw new Error("The assessment page link is invalid.");
+  signal?.throwIfAborted();
+  const token = await requireAccessToken("Sign in to view your assessments.", userId);
+  const path = before ? `${PRIVATE_ASSESSMENTS_API_PATH}?${new URLSearchParams({ before })}` : PRIVATE_ASSESSMENTS_API_PATH;
+  const timeout = AbortSignal.timeout(30000);
+  const response = await fetcher(path, {
+    cache: "no-store", credentials: "omit", headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+    signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+  });
+  if (!response.ok) throw new Error("Private assessments could not be loaded. Try again.");
+  const result = validatePaperCatalog(await response.json(), "owner-read-only");
+  if (before && result.next_cursor === before) fail();
+  return { ...result, papers: result.papers.map(paper => ({ ...paper, private_preview: true })) };
 }
 
 export async function loadPaperDetail(id: string, signal?: AbortSignal, fetcher: typeof fetch = fetch): Promise<PaperDetail> {

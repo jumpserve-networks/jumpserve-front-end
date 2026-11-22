@@ -35,8 +35,8 @@ export default async function NewAssessment({ searchParams }: { searchParams: Pr
         <section className="space-y-3" aria-labelledby="paper-upload">
           <h2 id="paper-upload" className="text-lg font-semibold">Upload the research paper</h2>
           {result?.source && assessmentId ? <>
-            <p className="text-sm text-muted-foreground">Paste the prompt into Claude Code or Codex. The connected JumpServe plugin downloads the private PDF for this assessment.</p>
-            <p className="text-sm text-muted-foreground">To review permission requests yourself, select <strong>Ask for approval</strong> in the Codex app or <strong>Manual</strong> in Claude Code.</p>
+            <p className="text-sm text-muted-foreground">Paste the prompt into Claude Code or Codex. The JumpServe plugin downloads the private PDF and runs feasible local verification experiments.</p>
+            <p className="text-sm text-muted-foreground">If the client blocks access to a required resource, select <strong>Ask for approval</strong> in the Codex app or <strong>Manual</strong> in Claude Code to review its permission request.</p>
             <details className="space-y-2 text-sm">
               <summary className="cursor-pointer font-medium">Start Codex CLI with approval prompts</summary>
               <CopyBlock title="Run this in your assessment workspace" label="Codex human approval command" value={codexApprovalCommand} />
@@ -66,7 +66,7 @@ export default async function NewAssessment({ searchParams }: { searchParams: Pr
 
         <section className="space-y-3 border-t pt-4" aria-labelledby="share-assessment">
           <h2 id="share-assessment" className="text-lg font-semibold">Share an assessment</h2>
-          <p>When the local assessment finishes, open its results link to review the assessment and PDF. Approve the preview when you want to share it publicly.</p>
+          <p>When the assessment finishes, find it under My Assessments. It stays private until you choose to share it publicly.</p>
           <Link href={ASSESSMENTS_PATH} className="text-primary underline underline-offset-4">View saved assessments</Link>
         </section>
       </section>

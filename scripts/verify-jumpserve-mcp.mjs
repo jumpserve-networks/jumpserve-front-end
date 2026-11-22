@@ -116,6 +116,7 @@ const tokens = new Map();
 const previews = new Map();
 const papers = new Map();
 const sources = new Map();
+let uploadTickets = 0;
 let failNextSubmission = false;
 const fixture = createServer(async (req, res) => {
   const url = new URL(req.url, api);
@@ -144,7 +145,9 @@ const fixture = createServer(async (req, res) => {
     const [, kind, key] = storage;
     const signed = (prefix, id) => `/object/${prefix}/${key}?token=${id}`;
     if (kind === 'upload/sign' && req.method === 'POST' && service) {
+      assert.ok(key.startsWith('research-paper-uploads/local-assessment-sources/'));
       assert.notEqual(req.headers['x-upsert'], 'true');
+      uploadTickets++;
       return send(200, { url: signed('upload/sign', 'write-only-fixture') });
     }
     if (kind === 'upload/sign' && req.method === 'PUT' && url.searchParams.get('token') === 'write-only-fixture') {
@@ -188,7 +191,6 @@ const fixture = createServer(async (req, res) => {
     return send(200, record?.study_id && !record.deleted ? record.bundle : null);
   }
   if (!service) return send(403, { message: 'Fixture service only' });
-  if (path === 'rpc/research_skill_expired_pdfs') return send(200, []);
   if (path === 'jumpserve_mcp_codes') {
     if (req.method === 'POST') codes.set(input.code_hash, input);
     return send(200, null);
@@ -215,50 +217,47 @@ const fixture = createServer(async (req, res) => {
     const source = sources.get(url.searchParams.get('id')?.slice(3));
     return send(200, source && url.searchParams.get('owner_id') === 'eq.' + source.owner_id ? [source] : []);
   }
-  if (path === 'rpc/research_skill_preview' || path === 'rpc/research_skill_preview_for_source') {
+  if (path === 'rpc/research_skill_save_from_source') {
     const assessmentId = input.p_assessment_id;
-    if (assessmentId) {
-      const source = sources.get(assessmentId);
-      const paper = input.p_bundle.paper;
-      if (source?.owner_id !== input.p_owner || source.sha256 !== paper.sha256 || source.byte_count !== paper.byte_count || !paper.pdf_copy) {
-        return send(400, { code: '22023' });
-      }
+    const source = sources.get(assessmentId);
+    const paper = input.p_bundle.paper;
+    if (source?.owner_id !== input.p_owner || source.sha256 !== paper.sha256 || source.byte_count !== paper.byte_count || !paper.pdf_copy ||
+        !papers.has(`research-paper-uploads/jumpserve-mcp/${assessmentId}.pdf`)) {
+      return send(400, { code: '22023' });
     }
-    let row = assessmentId ? previews.get(assessmentId) : [...previews.values()]
-      .find(record => !record.source_id && record.owner_id === input.p_owner && record.bundle_sha256 === input.p_hash);
+    let row = previews.get(assessmentId);
     if (row && row.bundle_sha256 !== input.p_hash) return send(409, { code: '23505' });
     if (!row) {
-      row = { id: assessmentId ?? randomUUID(), source_id: assessmentId, owner_id: input.p_owner, bundle_sha256: input.p_hash, bundle: input.p_bundle,
-        approved_at: null, pdf_verified_at: null, study_id: null, expires_at: new Date(Date.now() + 30 * 60_000).toISOString() };
+      const completedAt = new Date().toISOString();
+      row = { id: assessmentId, source_id: assessmentId, owner_id: input.p_owner, bundle_sha256: input.p_hash, bundle: input.p_bundle,
+        approved_at: null, pdf_verified_at: completedAt, study_id: null, completed_at: completedAt };
       previews.set(row.id, row);
     }
     return send(200, { preview_id: row.id, study_id: row.study_id });
   }
   if (path === 'research_skill_submissions') {
+    if (url.searchParams.get('select') === 'id,completed_at,title:bundle->paper->>title,authors:bundle->paper->authors') {
+      assert.equal(url.searchParams.get('completed_at'), 'not.is.null');
+      assert.equal(url.searchParams.get('study_id'), 'is.null');
+      const rows = [...previews.values()].filter(row => !row.study_id && row.completed_at && url.searchParams.get('owner_id') === 'eq.' + row.owner_id);
+      return send(200, rows.map(row => ({ id: row.id, completed_at: row.completed_at, title: row.bundle.paper.title, authors: row.bundle.paper.authors })));
+    }
     const record = previews.get(url.searchParams.get('id')?.slice(3));
     if (!record || url.searchParams.get('owner_id') !== 'eq.' + record.owner_id) return send(200, []);
     if (req.method === 'PATCH') {
-      const expiration = url.searchParams.get('expires_at')?.slice(3);
-      if (!(record.expires_at > expiration) || record.study_id ||
+      if (record.study_id || !record.completed_at ||
           url.searchParams.get('bundle_sha256') !== 'eq.' + record.bundle_sha256) return send(200, []);
-      if (input.pdf_verified_at) {
-        if (record.pdf_verified_at) return send(200, []);
-        record.pdf_verified_at = input.pdf_verified_at;
-      } else {
-        if (record.bundle.paper.pdf_copy && !record.pdf_verified_at) return send(400, { code: '23514' });
-        record.approved_at = input.approved_at;
-      }
+      record.approved_at = input.approved_at;
       return send(200, [{ id: record.id }]);
     }
     if (url.searchParams.get('select') === 'pdf_verified_at') return send(200, [{ pdf_verified_at: record.pdf_verified_at }]);
-    const expiration = url.searchParams.get('or')?.match(/^\(expires_at\.gt\.([^,]+),study_id\.not\.is\.null\)$/)?.[1];
-    return send(200, record.expires_at > expiration || record.study_id ? [record] : []);
+    return send(200, record.completed_at || record.study_id ? [record] : []);
   }
   if (path === 'rpc/research_skill_submit') {
     const row = previews.get(input.p_preview);
     if (!row || row.owner_id !== input.p_owner) return send(404, { code: 'P0002' });
     if (row.study_id) return send(200, row.study_id);
-    if (!row.approved_at || row.expires_at <= new Date().toISOString()) return send(400, { code: '55000' });
+    if (!row.completed_at || !row.approved_at) return send(400, { code: '55000' });
     if (failNextSubmission) {
       failNextSubmission = false;
       return send(503, { code: 'fixture_retry' });
@@ -400,8 +399,23 @@ try {
   await client.connect(new StreamableHTTPClientTransport(new URL(resource), {
     requestInit: { headers: { Authorization: 'Bearer ' + credentials.access_token } },
   }));
-  const preview = await client.callTool({ name: 'preview_assessment', arguments: { bundle } });
+  const noSource = await client.callTool({ name: 'preview_assessment', arguments: { bundle } });
+  assert.equal(noSource.isError, true);
+  assert.match(noSource.content[0].text, /JumpServe Step 1/);
+  const fixturePdf = Buffer.from('%PDF-1.4\n% MCP fixture\n%%EOF\n');
+  const linkedBundle = { ...bundle, paper: { ...bundle.paper, sha256: sha256(fixturePdf), byte_count: fixturePdf.length, pdf_copy: true } };
+  const registerFixtureSource = (pdf, available = true) => {
+    const id = randomUUID();
+    const digest = sha256(pdf);
+    sources.set(id, { id, owner_id: owner, sha256: digest, byte_count: pdf.length });
+    if (available) papers.set(`research-paper-uploads/local-assessment-sources/${owner}/${digest}.pdf`, pdf);
+    return id;
+  };
+  const save = (assessmentId, value) => client.callTool({ name: 'preview_assessment', arguments: { bundle: value, assessment_id: assessmentId } });
+  const fixtureId = registerFixtureSource(fixturePdf);
+  const preview = await save(fixtureId, linkedBundle);
   const { preview_id, review_url } = preview.structuredContent;
+  assert.equal(preview_id, fixtureId);
   const submission = { name: 'submit_assessment', arguments: { preview_id } };
   assert.equal((await client.callTool(submission)).isError, true);
   const otherContext = await browser.newContext();
@@ -412,12 +426,13 @@ try {
   await verifyAssessmentWizard(page, review_url);
   assert.equal(previews.get(preview_id).study_id, null);
   const publicUrl = origin + '/research-verification/assessment/' + preview_id;
-  await page.getByRole('button', { name: 'Approve public sharing' }).click();
+  await page.getByText('Private', { exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Share publicly', exact: true }).click();
   await page.waitForURL(publicUrl);
   const shared = await client.callTool(submission);
   assert.equal(shared.structuredContent.assessment_url, publicUrl);
   assert.deepEqual(await client.callTool(submission), shared);
-  const alreadyShared = await client.callTool({ name: 'preview_assessment', arguments: { bundle } });
+  const alreadyShared = await save(fixtureId, linkedBundle);
   assert.deepEqual(alreadyShared.structuredContent, { assessment_url: publicUrl, status: 'already_shared' });
   previews.get(preview_id).expires_at = '2000-01-01T00:00:00.000Z';
   await page.goto(review_url + '?step=results');
@@ -425,81 +440,24 @@ try {
   const viewer = await browser.newContext();
   const publicPage = await viewer.newPage();
   await verifyAssessmentWizard(publicPage, publicUrl);
-  assert.deepEqual(previews.get(preview_id).bundle, bundle);
+  assert.deepEqual(previews.get(preview_id).bundle, linkedBundle);
   console.log('PASS private and public Steps 2–5, one-click sharing, idempotent MCP submission and measurement display');
 
-  const retryBundle = { ...bundle, summary: 'Verify a recoverable sharing failure.' };
-  const retryPreview = (await client.callTool({ name: 'preview_assessment', arguments: { bundle: retryBundle } })).structuredContent;
+  const retryBundle = { ...linkedBundle, summary: 'Verify a recoverable sharing failure.' };
+  const retryPreview = (await save(registerFixtureSource(fixturePdf), retryBundle)).structuredContent;
   const retryRow = previews.get(retryPreview.preview_id);
-  const expiration = retryRow.expires_at;
   retryRow.expires_at = '2000-01-01T00:00:00.000Z';
-  assert.equal((await page.goto(retryPreview.review_url)).status(), 404);
-  retryRow.expires_at = expiration;
-  await page.goto(retryPreview.review_url);
+  assert.equal((await page.goto(retryPreview.review_url)).status(), 200);
   failNextSubmission = true;
-  await page.getByRole('button', { name: 'Approve public sharing' }).click();
-  const retry = page.getByRole('button', { name: 'Share approved assessment' });
+  await page.getByRole('button', { name: 'Share publicly', exact: true }).click();
+  const retry = page.getByRole('button', { name: 'Finish sharing publicly' });
   await retry.waitFor();
   assert.ok(retryRow.approved_at);
   assert.equal(retryRow.study_id, null);
+  assert.equal(retryRow.expires_at, '2000-01-01T00:00:00.000Z');
   await retry.click();
   await page.waitForURL(origin + '/research-verification/assessment/' + retryPreview.preview_id);
-  console.log('PASS expired private previews and retry of an approved submission');
-
-  const pdf = Buffer.from('\n%PDF-1.4\n% Synthetic transport fixture\n%%EOF\n');
-  const pdfBundle = { ...bundle, paper: { ...bundle.paper, sha256: sha256(pdf), byte_count: pdf.length, pdf_copy: true } };
-  const stagePdf = (value = pdfBundle) => client.callTool({ name: 'preview_assessment', arguments: { bundle: value } });
-  const ticket = (await stagePdf()).structuredContent;
-  assert.equal(ticket.status, 'pdf_upload_required');
-  const privatePdf = origin + '/research-verification/share/' + ticket.preview_id;
-  const publicPdf = origin + '/research-verification/assessment/' + ticket.preview_id;
-  await page.goto(privatePdf);
-  await page.getByText('The assessment skill is waiting to verify the source PDF upload.').waitFor();
-  assert.equal(await page.getByRole('button', { name: 'Approve public sharing' }).count(), 0);
-  assert.equal((await viewer.request.get(publicPdf + '/paper')).status(), 404);
-  assert.equal((await stagePdf()).structuredContent.preview_id, ticket.preview_id);
-  const pdfPath = join(workspace, 'source.pdf'), bundlePath = join(workspace, 'assessment.json');
-  await writeFile(pdfPath, pdf);
-  await writeFile(bundlePath, JSON.stringify(pdfBundle));
-  const upload = spawn('python3', ['-B', resolve('skills/jumpserve-paper-assessment/scripts/upload_paper.py'), '--pdf', pdfPath, '--bundle', bundlePath], { stdio: ['pipe', 'inherit', 'inherit'] });
-  upload.stdin.end(JSON.stringify(ticket));
-  assert.deepEqual(await once(upload, 'exit'), [0, null]);
-  const verified = (await stagePdf()).structuredContent;
-  assert.deepEqual(verified, { status: 'review_required', preview_id: ticket.preview_id, review_url: privatePdf });
-  assert.ok(previews.get(ticket.preview_id).pdf_verified_at);
-  const unauthorized = await viewer.request.get(privatePdf + '/paper', { maxRedirects: 0 });
-  assert.equal(unauthorized.status(), 307);
-  assert.match(unauthorized.headers().location, /^\/login\?/);
-  const nonOwner = await browser.newContext();
-  await nonOwner.addCookies([cookie(other)]);
-  assert.equal((await nonOwner.request.get(privatePdf + '/paper')).status(), 404);
-  await nonOwner.close();
-  await page.goto(privatePdf);
-  await page.getByText('Public sharing includes the attached source PDF.').waitFor();
-  assert.equal(await page.getByRole('link', { name: 'Download source PDF' }).getAttribute('href'), new URL(privatePdf).pathname + '/paper');
-  const ownerDownload = await context.request.get(privatePdf + '/paper', { maxRedirects: 0 });
-  assert.equal(ownerDownload.status(), 303);
-  assert.equal(ownerDownload.headers()['cache-control'], 'private, no-store');
-  assert.deepEqual(await (await context.request.get(privatePdf + '/paper')).body(), pdf);
-  assert.equal((await viewer.request.get(publicPdf + '/paper')).status(), 404);
-  await page.getByRole('button', { name: 'Approve public sharing' }).click();
-  await page.waitForURL(publicPdf);
-  await publicPage.goto(publicPdf + '?step=results');
-  assert.equal(await publicPage.getByRole('link', { name: 'Download source PDF' }).getAttribute('href'), new URL(publicPdf).pathname + '/paper');
-  assert.deepEqual(await (await viewer.request.get(publicPdf + '/paper')).body(), pdf);
-  previews.get(ticket.preview_id).deleted = true;
-  assert.equal((await viewer.request.get(publicPdf + '/paper')).status(), 404);
-
-  const otherBundle = { ...pdfBundle, summary: 'Verify mismatched upload rejection.' };
-  const wrong = (await stagePdf(otherBundle)).structuredContent;
-  const changed = Buffer.from(pdf);
-  changed[10] ^= 1;
-  assert.equal((await fetch(wrong.upload_url, { method: 'PUT', headers: { 'content-type': 'application/pdf' }, body: changed })).status, 200);
-  const rejected = await stagePdf(otherBundle);
-  assert.equal(rejected.isError, true);
-  assert.match(rejected.content[0].text, /differs from the assessed PDF/);
-  assert.equal(previews.get(wrong.preview_id).pdf_verified_at, null);
-  console.log('PASS verified PDF upload, owner-only preview, public download, deletion and mismatched byte rejection');
+  console.log('PASS a completed private assessment can be shared after the old deadline');
 
   const uploadPage = origin + '/research-verification/new-assessment';
   const sourcePdf = Buffer.from('%PDF-1.4\n% Step 1 browser fixture\n%%EOF\n');
@@ -517,9 +475,7 @@ try {
   const sourceDownload = origin + '/research-verification/api/assessment-source?assessment_id=' + assessmentId;
   const prompt = page.locator('[aria-label="assessment prompt"]');
   await prompt.waitFor();
-  assert.match(await prompt.textContent(), /download_assessment_pdf/);
-  assert.match(await prompt.textContent(), new RegExp(`paper-${assessmentId}\\.pdf`));
-  assert.doesNotMatch(await prompt.textContent(), new RegExp(sourceSha));
+  assert.equal(await prompt.textContent(), `Use the JumpServe paper assessment skill for ${assessmentId}.`);
   await page.evaluate(() => {
     let copied = '';
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
@@ -543,7 +499,7 @@ try {
   await stranger.addCookies([cookie(other)]);
   assert.equal((await stranger.request.get(sourceDownload)).status(), 404);
   await stranger.close();
-  const sourceBundle = { ...pdfBundle, paper: { ...pdfBundle.paper, sha256: sourceSha, byte_count: sourcePdf.length } };
+  const sourceBundle = { ...linkedBundle, paper: { ...linkedBundle.paper, sha256: sourceSha, byte_count: sourcePdf.length } };
   const downloadCall = { name: 'download_assessment_pdf', arguments: { assessment_id: assessmentId } };
   const downloadTicket = (await client.callTool(downloadCall)).structuredContent;
   assert.equal(downloadTicket.expires_in, 180);
@@ -590,25 +546,71 @@ try {
   const otherDownload = await (await directDownload(otherToken)).json();
   assert.equal(otherDownload.result.isError, true);
   assert.equal(otherDownload.result.structuredContent, undefined);
-  const stageSource = bundle => client.callTool({ name: 'preview_assessment', arguments: { bundle, assessment_id: assessmentId } });
-  const wrongSource = await stageSource(pdfBundle);
+  const stageSource = value => save(assessmentId, value);
+  const wrongSource = await stageSource(linkedBundle);
   assert.equal(wrongSource.isError, true);
-  assert.match(wrongSource.content[0].text, /supplied PDF is different/);
+  assert.match(wrongSource.content[0].text, /assessed PDF is different/);
+  const unuploadedPdf = Buffer.from('%PDF-1.4\n% Unfinished Step 1 fixture\n%%EOF\n');
+  const unuploadedId = registerFixtureSource(unuploadedPdf, false);
+  const unfinished = await save(unuploadedId, { ...linkedBundle, paper: {
+    ...linkedBundle.paper, sha256: sha256(unuploadedPdf), byte_count: unuploadedPdf.length,
+  } });
+  assert.equal(unfinished.isError, true);
+  assert.match(unfinished.content[0].text, /Finish uploading the matching PDF in JumpServe Step 1/);
+  assert.equal(previews.has(unuploadedId), false);
+  const ticketsAfterStepOne = uploadTickets;
   const autoAttached = (await stageSource(sourceBundle)).structuredContent;
   assert.equal(autoAttached.status, 'review_required');
   assert.equal(autoAttached.preview_id, assessmentId);
   assert.deepEqual((await stageSource(sourceBundle)).structuredContent, autoAttached);
+  const attachmentKey = `research-paper-uploads/jumpserve-mcp/${assessmentId}.pdf`;
+  assert.equal(papers.delete(attachmentKey), true);
+  assert.deepEqual((await stageSource(sourceBundle)).structuredContent, autoAttached);
+  assert.deepEqual(papers.get(attachmentKey), sourcePdf);
+  assert.equal(uploadTickets, ticketsAfterStepOne);
   assert.ok(previews.get(autoAttached.preview_id).pdf_verified_at);
+  previews.get(assessmentId).expires_at = new Date(Date.now() - 60_000).toISOString();
+  const myPrivate = origin + '/research-verification/api/private-assessments';
+  const catalogueRequest = actor => context.request.get(myPrivate, { headers: { Authorization: `Bearer ${token(actor)}` } });
+  assert.equal((await viewer.request.get(myPrivate)).status(), 401);
+  const mine = await catalogueRequest(owner);
+  assert.equal(mine.status(), 200);
+  assert.equal(mine.headers()['cache-control'], 'private, no-store');
+  const mineRows = (await mine.json()).papers;
+  assert.ok(mineRows.some(paper => paper.id === assessmentId));
+  assert.ok(!mineRows.some(paper => paper.id === unuploadedId));
+  for (const paper of mineRows) assert.deepEqual(Object.keys(paper).sort(), ['authors', 'created_at', 'id', 'initiated_by', 'title', 'workflow_status']);
+  assert.deepEqual((await (await catalogueRequest(other)).json()).papers, []);
   assert.equal((await viewer.request.get(`${origin}/research-verification/assessment/${autoAttached.preview_id}/paper`)).status(), 404);
+  const privatePaper = autoAttached.review_url + '/paper';
+  const anonymousDownload = await viewer.request.get(privatePaper, { maxRedirects: 0 });
+  assert.equal(anonymousDownload.status(), 307);
+  assert.match(anonymousDownload.headers().location, /^\/login\?/);
+  const nonOwner = await browser.newContext();
+  await nonOwner.addCookies([cookie(other)]);
+  assert.equal((await nonOwner.request.get(privatePaper)).status(), 404);
+  await nonOwner.close();
+  const privateDownload = await context.request.get(privatePaper, { maxRedirects: 0 });
+  assert.equal(privateDownload.status(), 303);
+  assert.equal(privateDownload.headers()['cache-control'], 'private, no-store');
   assert.deepEqual(await (await context.request.get(autoAttached.review_url + '/paper')).body(), sourcePdf);
   await page.getByRole('link', { name: 'Upload another paper' }).click();
   await page.waitForURL(uploadPage);
   await fileInput.waitFor();
   await page.goto(autoAttached.review_url);
-  await page.getByRole('button', { name: 'Approve public sharing' }).click();
+  await page.getByText('Public sharing includes the attached source PDF.').waitFor();
+  await page.getByRole('button', { name: 'Share publicly', exact: true }).click();
   await page.waitForURL(`${origin}/research-verification/assessment/${assessmentId}`);
-  assert.deepEqual(await (await viewer.request.get(`${page.url()}/paper`)).body(), sourcePdf);
-  console.log('PASS one assessment ID across the upload, local prompt, private preview and shared assessment');
+  const publicPaper = page.url() + '/paper';
+  const publicDownload = await viewer.request.get(publicPaper, { maxRedirects: 0 });
+  assert.equal(publicDownload.status(), 303);
+  assert.ok(new URL(publicDownload.headers().location).pathname.endsWith(`/jumpserve-mcp/${assessmentId}.pdf`));
+  assert.deepEqual(await (await viewer.request.get(publicPaper)).body(), sourcePdf);
+  assert.ok(!(await (await catalogueRequest(owner)).json()).papers.some(paper => paper.id === assessmentId));
+  previews.get(assessmentId).deleted = true;
+  assert.equal((await viewer.request.get(publicPaper)).status(), 404);
+  console.log('PASS owner-only catalogue retains completed private assessments and omits them after sharing');
+  console.log('PASS one assessment ID and one PDF upload across Step 1, private saving and public sharing');
 } finally {
   await client?.close();
   await browser?.close();
