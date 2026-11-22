@@ -13,15 +13,15 @@ const hook=registerHooks({resolve(specifier,context,next){
 const {PaperAssessmentSteps}=await import('../app/components/research-workflow/paper-assessment-steps.tsx');
 const {SkillAssessment}=await import('../app/components/research-workflow/skill-assessment.tsx');hook.deregister();
 afterEach(cleanup);
-test('upload starts at step one with all four stages visible and later stages disabled',()=>{
+test('upload starts at step one with all five stages visible and later stages disabled',()=>{
  const selected=[];render(React.createElement(PaperAssessmentSteps,{onStep:step=>selected.push(step)}));
  const upload=screen.getByRole('button',{name:'Step 1: Paper Upload'});assert.equal(upload.getAttribute('href'),'/research-verification/new-assessment');assert.equal(upload.getAttribute('aria-current'),'step');
- for(const name of ['Step 2: Paper Breakdown','Step 3: Experiment Steps','Step 4: Setup & Run Commands']){const button=screen.getByRole('button',{name});assert.equal(button.disabled,true);fireEvent.click(button);}
+ for(const name of ['Step 2: Paper Breakdown','Step 3: Experiment Steps','Step 4: Setup','Step 5: Experiment Results']){const button=screen.getByRole('button',{name});assert.equal(button.disabled,true);fireEvent.click(button);}
  assert.deepEqual(selected,[]);
 });
 test('a ready plan enables step four navigation while upload remains a separate route',()=>{
  const selected=[];render(React.createElement(PaperAssessmentSteps,{current:'implementation',assessment:true,implementation:true,execution:true,onStep:step=>selected.push(step)}));
- assert.equal(screen.getByRole('button',{name:'Step 3: Experiment Steps'}).getAttribute('aria-current'),'step');fireEvent.click(screen.getByRole('button',{name:'Step 4: Setup & Run Commands'}));assert.deepEqual(selected,['execution']);
+ assert.equal(screen.getByRole('button',{name:'Step 3: Experiment Steps'}).getAttribute('aria-current'),'step');fireEvent.click(screen.getByRole('button',{name:'Step 4: Setup'}));assert.deepEqual(selected,['execution']);
  assert.equal(screen.getByRole('button',{name:'Step 1: Paper Upload'}).getAttribute('href'),'/research-verification/new-assessment');
 });
 
@@ -43,6 +43,14 @@ test('legacy JumpServe bundles show their saved claims, methods and excerpts in 
  assert.equal(screen.getByRole('button',{name:'Step 3: Experiment Steps'}).getAttribute('aria-current'),'step');
  view.rerender(React.createElement(SkillAssessment,{bundle,path,query:{step:'execution'}}));
  assert.ok(screen.getByText('printf 0'));
+ assert.equal(screen.queryByText('Execution was outside scope.'),null);
+ assert.equal(screen.queryByText(bundle.summary),null);
+ assert.equal(screen.getByRole('button',{name:'Step 5: Experiment Results'}).getAttribute('href'),`${path}?step=results`);
+ view.rerender(React.createElement(SkillAssessment,{bundle,path,query:{step:'results'}}));
+ assert.equal(screen.getByRole('button',{name:'Step 5: Experiment Results'}).getAttribute('aria-current'),'step');
+ assert.equal(screen.queryByText('printf 0'),null);
+ assert.ok(screen.getByText(bundle.summary));
  assert.ok(screen.getByText('Execution was outside scope.'));
  assert.ok(screen.getByText('No measurements were included in this assessment.'));
+ assert.ok(screen.getByText('Fixture limitation.'));
 });

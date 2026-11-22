@@ -12,20 +12,23 @@ const {GET}=await import('../app/(modules)/research-verification/api/assessment-
 const uid=index=>'00000000-0000-4000-8000-'+String(index).padStart(12,'0');
 const request=ids=>new Request('https://example.test/research-verification/api/assessment-progress?'+new URLSearchParams(ids.map(id=>['id',id])));
 let records,calls,override;
+const valueAt=(row,path)=>path.split(/->>?/).reduce((entry,part)=>entry?.[part],row)??null;
 beforeEach(()=>{
   calls=[];override=()=>null;
   records={research_studies:[{id:uid(1),study_kind:'paper',deleted_at:null}],research_paper_intakes:[],research_experiment_plans:[],research_paper_reviews:[],research_autonomy_workflows:[],research_experiment_plan_link_reviews:[],research_skill_submissions:[]};
   globalThis.__wizardProgressDatabase={from(table){
     assert.ok(Object.hasOwn(records,table));const query={table,filters:[]};calls.push(query);
-    const builder={select(columns,options){query.columns=columns;query.count=options.count;return builder;},in(key,values){query.filters.push([key,'in',values]);return builder;},eq(key,value){query.filters.push([key,'eq',value]);return builder;},is(key,value){query.filters.push([key,'is',value]);return builder;},not(key,op,value){query.filters.push([key,`not.${op}`,value]);return builder;},limit(value){query.limit=value;return builder;},then(resolve,reject){
+    const builder={select(columns,options){query.columns=columns;query.count=options.count;return builder;},in(key,values){query.filters.push([key,'in',values]);return builder;},eq(key,value){query.filters.push([key,'eq',value]);return builder;},is(key,value){query.filters.push([key,'is',value]);return builder;},limit(value){query.limit=value;return builder;},then(resolve,reject){
       const special=override(query);
       if(special)return Promise.resolve(special).then(resolve,reject);
       const rows=records[table].filter(row=>query.filters.every(([key,op,value])=>{
-        const field=key.split('->').reduce((entry,part)=>entry?.[part],row);
-        if(op==='not.is')return (field??null)!==value;
+        const field=valueAt(row,key);
         return op==='in'?value.includes(field):field===value;
       }));
-      const data=rows.slice(0,query.limit).map(row=>Object.fromEntries(query.columns.split(',').map(key=>[key,row[key]])));
+      const data=rows.slice(0,query.limit).map(row=>Object.fromEntries(query.columns.split(',').map(column=>{
+        const [key,path=key]=column.split(':');
+        return [key,valueAt(row,path)];
+      })));
       return Promise.resolve({data,count:rows.length,error:null}).then(resolve,reject);
     }};return builder;
   }};
@@ -56,12 +59,22 @@ test('complete local imports reach step four through a bounded metadata projecti
     assert.notEqual((await(await GET(request([uid(1)]))).json()).assessments[0].step,4);
   }
 });
-test('only shared JumpServe submissions with wizard data report step four',async()=>{
-  records.research_studies.push({id:uid(2),study_kind:'paper',deleted_at:null},{id:uid(3),study_kind:'paper',deleted_at:null});
-  records.research_skill_submissions=[{study_id:uid(1),bundle:{wizard:{}}},{study_id:uid(2),bundle:{}},{id:uid(3),study_id:null,bundle:{wizard:{}}}];
-  const response=await GET(request([uid(1),uid(2),uid(3)]));assert.equal(response.status,200);
-  assert.deepEqual((await response.json()).assessments.map(item=>item.step),[4,null,null]);
-  assert.equal(calls.find(query=>query.table==='research_skill_submissions').columns,'study_id');
+test('shared JumpServe measurements reach step five while plan-only imports stay on setup',async()=>{
+  const ids=[uid(1),uid(2),uid(3),uid(4),uid(5)];
+  records.research_studies=ids.map(id=>({id,study_kind:'paper',deleted_at:null}));
+  const wizard={experiments:[{claim_ids:['C1']}]}, runs=[{id:'local-run',measurements:[{observed_value:0}]}];
+  records.research_skill_submissions=[
+    {study_id:uid(1),bundle:{wizard,runs:[]}},
+    {study_id:uid(2),bundle:{wizard,runs}},
+    {id:uid(3),study_id:null,bundle:{wizard,runs}},
+    {study_id:uid(4),bundle:{runs}},
+    {study_id:uid(5),bundle:{runs:[]}},
+  ];
+  const response=await GET(request(ids));assert.equal(response.status,200);
+  const value=await response.json();
+  assert.deepEqual(value.assessments.map(item=>item.step),[4,5,null,5,null]);
+  assert.ok(value.assessments.every(item=>Object.keys(item).length===2));
+  assert.equal(calls.find(query=>query.table==='research_skill_submissions').columns,'study_id,first_run_id:bundle->runs->0->>id,first_setup_claim:bundle->wizard->experiments->0->claim_ids->>0');
   override=query=>query.table==='research_skill_submissions'?{data:null,count:null,error:{code:'PGRST205'}}:null;
   assert.equal((await GET(request([uid(1)]))).status,200);
 });

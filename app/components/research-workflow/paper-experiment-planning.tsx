@@ -83,7 +83,9 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, header, wizard, t
   const saved = view?.confirmed_breakdown ?? breakdown;
   const hasConfirmation = Boolean(view && !awaiting);
   const requestedStep = wizard?.requestedStep ?? (hasConfirmation ? "implementation" : "breakdown");
-  const step = !hasConfirmation || requestedStep === "upload" ? "breakdown" : requestedStep === "execution" && view?.stage !== "ready" ? "implementation" : requestedStep;
+  const step = !hasConfirmation || requestedStep === "upload" ? "breakdown"
+    : requestedStep === "execution" && view?.stage === "ready" ? "execution"
+    : requestedStep === "breakdown" ? "breakdown" : "implementation";
   const isWizard = Boolean(wizard);
   useEffect(() => { if (isWizard) stepPanel.current?.focus(); }, [step, isWizard]);
   const feedback = error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null;
@@ -114,7 +116,7 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, header, wizard, t
         {implementationPanel}
         <div className="flex flex-wrap justify-between gap-3 border-t pt-4"><Button variant="outline" disabled={busy} onClick={() => wizard.navigate("breakdown")}>Back to Paper Breakdown</Button><Button disabled={busy || view?.stage !== "ready"} onClick={() => wizard.navigate("execution")}>Continue to Step 4</Button></div>
       </> : <>
-        <section aria-labelledby="experiment-execution-title" className="space-y-6"><h2 id="experiment-execution-title" className="text-lg font-semibold">Setup &amp; Run Commands</h2>
+        <section aria-labelledby="experiment-execution-title" className="space-y-6"><h2 id="experiment-execution-title" className="text-lg font-semibold">Setup</h2>
           {view?.plan?.experiments.length === 0 ? <p>No experiments were included in the confirmed assessment.</p> : view?.plan?.experiments.map((_, index) => <PaperExperimentScripts key={`${assessmentId}:${ownerId}:${index + 1}`} assessmentId={assessmentId} ownerId={ownerId} title={title} index={index + 1} plan={view.plan!} breakdown={saved} onQualityChange={updateScriptHistory} />)}
         </section>
         <div className="border-t pt-4"><Button variant="outline" onClick={() => wizard.navigate("implementation")}>Back to Experiment Steps</Button></div>

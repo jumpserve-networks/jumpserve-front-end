@@ -17,7 +17,7 @@ website link when your assessment finishes.
 
 Claude Code and Codex run paper assessments locally with the standalone
 [JumpServe paper assessment skill](skills/jumpserve-paper-assessment/SKILL.md).
-[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.3.0.zip)
+[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.3.1.zip)
 from JumpServe. Place the extracted skill
 directory under `~/.claude/skills/` for Claude Code or `~/.agents/skills/` for
 Codex. The skill uses the [Access, Experiment, Data, and Validate workflow](skills/jumpserve-paper-assessment/references/modules.md)
@@ -28,9 +28,10 @@ local workspace can still use a hosted model provider.
 
 The Next.js app serves a Streamable HTTP MCP connector at `/mcp`. When a
 JumpServe assessment finishes, the connected skill calls `preview_assessment`
-and replies with a completion message and the results URL. Steps 2–4 show
-the paper breakdown, experiment steps, and setup and run commands in the
-private preview and on the approved page at `/research-verification/assessment/<id>`.
+and replies with a completion message and the results URL. The private preview
+and the approved page at `/research-verification/assessment/<id>` show the
+paper breakdown, experiment steps, setup, and experiment results in Steps 2–5.
+Setup includes local commands and any script files supplied with the assessment.
 The account owner can approve the exact copy on JumpServe. The MCP
 `submit_assessment` tool also accepts already approved previews. JumpServe
 stores the approved copy and its measurements in Supabase. Original PDFs, raw

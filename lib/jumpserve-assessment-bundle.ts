@@ -18,6 +18,7 @@ export type AssessmentBundle = {
       setup?: string;
       cleanup?: string;
       command_notes?: string;
+      scripts?: Array<{ path: string; content: string }>;
       steps: Array<{ title: string; instructions: string; commands?: string }>;
     }>;
   };
@@ -75,8 +76,14 @@ export function prepareAssessmentBundle(input: unknown): { bundle: AssessmentBun
   if (claims.size !== input.claims.length || new Set(input.runs.map(run => run.id)).size !== input.runs.length) {
     throw new Error("Claim and run identifiers must be unique.");
   }
-  if (input.wizard?.experiments.some(experiment => experiment.claim_ids.some(id => !claims.has(id)))) {
-    throw new Error("Every wizard experiment must refer to claims in this bundle.");
+  for (const experiment of input.wizard?.experiments ?? []) {
+    if (experiment.claim_ids.some(id => !claims.has(id))) {
+      throw new Error("Every wizard experiment must refer to claims in this bundle.");
+    }
+    const scripts = experiment.scripts ?? [];
+    if (new Set(scripts.map(script => script.path)).size !== scripts.length) {
+      throw new Error("Script paths must be unique within each experiment.");
+    }
   }
   const measured = new Set<string>();
   const compared = new Set<string>();

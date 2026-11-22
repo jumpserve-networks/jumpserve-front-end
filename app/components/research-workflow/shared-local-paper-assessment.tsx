@@ -9,7 +9,7 @@ import { PaperClaimCriterion } from "./paper-evidence";
 import { CommandBlock, TerminalInputs } from "./paper-terminal-commands";
 import { SHARED_TERMINAL_LAYOUT } from "@/lib/paper-terminal-commands";
 
-const steps = [{ id: "breakdown", label: "Step 2 · Paper Breakdown" }, { id: "implementation", label: "Step 3 · Experiment Steps" }, { id: "execution", label: "Step 4 · Setup & Run Commands" }] as const;
+const steps = [{ id: "breakdown", label: "Step 2 · Paper Breakdown" }, { id: "implementation", label: "Step 3 · Experiment Steps" }, { id: "execution", label: "Step 4 · Setup" }] as const;
 function SharedCommand({ block, label, study, index, initiallyOpen = false }: { block: SharedTerminalBlock; label: string; study: string; index: number; initiallyOpen?: boolean }) {
   return block.redacted_preview !== undefined ? <details open={initiallyOpen} className="space-y-2 text-sm">
     <summary className="cursor-pointer text-xs font-medium focus-visible:outline-2 focus-visible:outline-offset-2">Shared command text · {label}</summary>
@@ -45,7 +45,7 @@ export function SharedLocalPaperAssessment({ value }: { value: SharedLocalPaperA
       {value.implementation_choices.length ? <section className="space-y-3"><h3 className="font-semibold">Implementation choices</h3><ul className="space-y-3 text-sm">{value.implementation_choices.map(choice => <li key={choice.name}><p className="font-medium">{choice.name}</p><p>{choice.reason}</p></li>)}</ul></section> : null}
       <p className="text-sm text-muted-foreground">{value.limitation}</p>
     </div> : <div className="space-y-8">
-      <h2 className="text-lg font-semibold">{current === "execution" ? "Setup & Run Commands" : "Experiment Steps"}</h2>
+      <h2 className="text-lg font-semibold">{current === "execution" ? "Setup" : "Experiment Steps"}</h2>
       {value.plan.experiments.map((experiment, i) => {
         const index = i + 1, scripts = value.scripts[i];
         const stages = experiment.stages ?? [{ title: "Steps", steps: experiment.steps }];

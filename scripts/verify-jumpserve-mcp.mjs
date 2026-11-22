@@ -6,7 +6,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';
 import { once } from 'node:events';
-import { cp, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { chromium } from 'playwright';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -32,6 +32,7 @@ const cookie = id => ({
     refresh_token: 'fixture', expires_in: 3600, expires_at: 4102444800,
   }),
 });
+const script = { path: 'scripts/record.sh', content: '#!/bin/sh\nprintf "%s\\n" 0\n' };
 const bundle = {
   version: 'jumpserve-assessment-v1',
   paper: { title: 'Local MCP fixture', authors: ['Test Author'], domain: 'Networking', byte_count: 20, sha256: 'a'.repeat(64) },
@@ -43,7 +44,8 @@ const bundle = {
     experiments: [{
       title: 'Matched counter test', claim_ids: ['c1'], prerequisites: ['POSIX shell'],
       setup: 'mkdir -p fixture-samples', cleanup: 'rmdir fixture-samples',
-      steps: [{ title: 'Record the count', instructions: 'Compare two matched counter values.', commands: 'printf 0' }],
+      scripts: [script],
+      steps: [{ title: 'Record the count', instructions: 'Compare two matched counter values.', commands: `sh ${script.path}` }],
     }],
   },
   runs: [{
@@ -63,13 +65,33 @@ async function verifyAssessmentWizard(page, url) {
   await steps.getByRole('button', { name: 'Step 3: Experiment Steps' }).click();
   await page.waitForURL(url + '?step=implementation');
   await page.getByText('Compare two matched counter values.').waitFor();
-  await steps.getByRole('button', { name: 'Step 4: Setup & Run Commands' }).click();
+  await steps.getByRole('button', { name: 'Step 4: Setup' }).click();
   await page.waitForURL(url + '?step=execution');
   await page.getByText('Setup commands', { exact: true }).click();
   await page.getByText('mkdir -p fixture-samples', { exact: true }).waitFor();
   await page.getByText('Step 1 · Record the count', { exact: true }).click();
-  await page.getByText('printf 0', { exact: true }).waitFor();
+  await page.getByText(`sh ${script.path}`, { exact: true }).waitFor();
+  await page.getByText(script.path, { exact: true }).click();
+  const source = page.getByLabel(`Source for ${script.path}`);
+  await source.waitFor();
+  assert.equal(await source.textContent(), script.content);
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: `Download ${script.path}` }).click(),
+  ]);
+  assert.equal(download.suggestedFilename(), 'record.sh');
+  assert.deepEqual(await readFile(await download.path()), Buffer.from(script.content));
+  assert.equal(await page.getByRole('table').count(), 0);
+  await steps.getByRole('button', { name: 'Step 5: Experiment Results' }).click();
+  await page.waitForURL(url + '?step=results');
+  await page.getByRole('heading', { name: 'Experiment Results', exact: true }).waitFor();
+  await page.getByText('Both counters measured zero.').waitFor();
+  await page.getByRole('cell', { name: '0', exact: true }).first().waitFor();
   assert.equal(await page.getByRole('cell', { name: '0', exact: true }).count(), 2);
+  assert.equal(await page.getByText('Setup commands', { exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: `Download ${script.path}` }).count(), 0);
+  await page.goBack();
+  await page.getByRole('heading', { name: 'Setup', exact: true }).waitFor();
   await page.goBack();
   await page.getByRole('heading', { name: 'Experiment Steps', exact: true }).waitFor();
 }
@@ -297,13 +319,13 @@ try {
   const alreadyShared = await client.callTool({ name: 'preview_assessment', arguments: { bundle } });
   assert.deepEqual(alreadyShared.structuredContent, { assessment_url: publicUrl, status: 'already_shared' });
   previews.get(preview_id).expires_at = '2000-01-01T00:00:00.000Z';
-  await page.goto(review_url);
-  assert.equal(page.url(), publicUrl);
+  await page.goto(review_url + '?step=results');
+  assert.equal(page.url(), publicUrl + '?step=results');
   const viewer = await browser.newContext();
   const publicPage = await viewer.newPage();
   await verifyAssessmentWizard(publicPage, publicUrl);
   assert.deepEqual(previews.get(preview_id).bundle, bundle);
-  console.log('PASS private and public Steps 2–4, one-click sharing, idempotent MCP submission and measurement display');
+  console.log('PASS private and public Steps 2–5, one-click sharing, idempotent MCP submission and measurement display');
 
   const retryBundle = { ...bundle, summary: 'Verify a recoverable sharing failure.' };
   const retryPreview = (await client.callTool({ name: 'preview_assessment', arguments: { bundle: retryBundle } })).structuredContent;
