@@ -1,17 +1,17 @@
 {
   "name": "jumpserve",
-  "description": "Assess research papers locally and view the results on JumpServe.",
+  "description": "Recreate research testbeds, run experiments locally, and view the results on JumpServe.",
   "owner": {
     "name": "JumpServe"
   },
   "plugins": [
     {
       "name": "jumpserve",
-      "description": "Assess research papers locally and view the results on JumpServe.",
+      "description": "Recreate research testbeds, run experiments locally, and view the results on JumpServe.",
       "source": {
         "source": "archive",
-        "url": "https://jumpserve.quaint-lab.org/downloads/jumpserve-plugin-v1.3.14.zip",
-        "sha256": "d6c5c8527e20f974eef4ac45fe1880c625985a41e28a9ee4b2585b5fc3ce996d"
+        "url": "https://jumpserve.quaint-lab.org/downloads/jumpserve-plugin-v1.5.0.zip",
+        "sha256": "b94786f02dc0aac20d96b8172d90aeef2af47c44381d8ebe0de7a18d442fc420"
       }
     }
   ]

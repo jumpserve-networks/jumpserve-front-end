@@ -11,14 +11,15 @@ implement a role. Select the smallest combination that can answer the claim.
    actual availability, permissions, and fit to the paper's parameters, metrics,
    and replication unit. Pin executable code and inputs by version or digest.
    If nothing fits, record the replacement as `improvised`, retain its code and
-   tests, and give its evidence additional scrutiny. Treat an infeasible design
-   as plan-only.
+   tests, and give its evidence additional scrutiny. Use the [testbed
+   workflow](testbed.md) to resolve missing components and find claim-relevant
+   reconstructions. Record blockers for experiments that remain infeasible.
 2. Record the composition in private `composition.json` using the contract below.
    Save a separate specification with the exact parameters, comparison,
    conditions, repetitions and order, duration, stopping rules, and resource
    roles. Select validators and their reference sources before the run. Record
    the assessment request, applicable limits, and the chosen validators. The
-   assessment request covers in-scope local execution. Before acquiring experiment
+   assessment request covers in-scope execution. Before acquiring experiment
    resources, run the checker from the installed skill and record the composition
    digest it prints alongside the specification and reference digests.
 
@@ -43,7 +44,7 @@ private run record.
 | Role | Input and output |
 | --- | --- |
 | **Access** | Receive the resource needs. Obtain least-privilege access in the approved scope. Hand Experiment a lease for each resource set with its ID, actual capabilities, version, permitted use, and expiry. Record the actual environment, hardware or image, and cleanup or release outcome. Record unavailable or unreconciled resources explicitly. |
-| **Experiment** | Check that actual leases satisfy the frozen requirements. Run the specified parameters, roles, schedule, repetitions, and stopping conditions. Hand Data observations plus run IDs, lease IDs, timestamps, implementation version, configuration digest, and run status. Keep original logs, including failures and uncertain attempts. |
+| **Experiment** | Check that actual leases satisfy the frozen requirements. Build the testbed and execute the specified workload, roles, schedule, repetitions, and stopping conditions. Hand Data the fresh observations plus run IDs, lease IDs, timestamps, implementation version, configuration digest, and run status. Keep original logs, including failures and uncertain attempts. |
 | **Data** | Define instruments, sample schema, units, collection rate, storage, and retention before execution. Keep raw observations locally, hash them, and record each derived measurement's source and transformation. Preserve zero, missing values, invalid trials, and exclusions with reasons. Store the approved projection through the existing JumpServe connector. |
 | **Validate** | Read the frozen specification, recorded leases, run receipts, and stored observations. Use a reference supplied directly, such as the original paper, prior data, a preregistered hypothesis, an independently acquired rerun, or an instrument invariant. Check that runs occurred and numbers trace to stored records, then apply the stated comparison. Return a read-only report with the reference, checked runs, method, verdict, and limitations. A requested rerun goes back through Experiment under the existing scope. |
 
@@ -107,8 +108,8 @@ can recompute the rate. Only claim checks that actually ran.
 
 Summarize Access, Experiment, Data, and any Validate reports in `methods` with
 their shareable versions and status. Put the actual shareable configuration and
-provenance in `runs[].configuration`, the evidence digest in
-`runs[].artifact_sha256`, and the approved decision rule and evidence-backed
+provenance in `runs[].configuration`, the [run receipt digest](testbed.md#record-fresh-experiment-evidence) in
+`runs[].artifact_sha256`, and the frozen decision rule and evidence-backed
 verdict in the matching claim. Use `limitations` for unverified assumptions,
 uncovered claims, improvised implementations, and missing or post hoc checks.
 Keep full leases, specifications, raw records, and evidence reports local. The

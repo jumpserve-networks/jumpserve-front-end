@@ -10,21 +10,25 @@ from zipfile import ZipFile, ZipInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = "https://jumpserve.quaint-lab.org"
-VERSION = "1.3.14"
+VERSION = "1.5.0"
 SKILL = "jumpserve-paper-assessment"
 ARCHIVE = f"jumpserve-plugin-v{VERSION}.zip"
 SKILL_ARCHIVE = f"{SKILL}-v{VERSION}.zip"
 SKILL_FILES = (
     "SKILL.md",
     "references/assessment.schema.json",
+    "references/aws-testbeds.md",
     "references/modules.md",
     "references/permissions.md",
     "references/sharing.md",
+    "references/testbed.md",
+    "scripts/aws_testbed.py",
     "scripts/check_composition.py",
+    "scripts/check_experiment_evidence.py",
     "scripts/check_local_docker.py",
     "scripts/download_paper.py",
 )
-DESCRIPTION = "Assess research papers locally and view the results on JumpServe."
+DESCRIPTION = "Recreate research testbeds, run experiments locally, and view the results on JumpServe."
 
 
 def json_bytes(value):
