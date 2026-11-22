@@ -43,8 +43,8 @@ try{
  await page.setViewportSize({width:390,height:844});await page.goto(new URL('/research-verification/assessment/'+studies[0].id,origin).href);
  for(const theme of ['Light Mode','Dark Mode']){
   await page.getByRole('button',{name:theme,exact:true}).click();
-  await page.getByRole('navigation',{name:'Shared assessment steps'}).getByRole('link',{name:'Step 4 · Setup',exact:true}).click();
-  await page.getByRole('heading',{name:'Setup',exact:true}).waitFor();
+  await page.getByRole('navigation',{name:'Shared assessment steps'}).getByRole('link',{name:'Step 4 · Experiment Setup',exact:true}).click();
+  await page.getByRole('heading',{name: 'Experiment Setup',exact:true}).waitFor();
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.screenshot({path:directory+'/shared-mobile-'+(theme==='Dark Mode'?'dark':'light')+'.png',fullPage:true});
  }

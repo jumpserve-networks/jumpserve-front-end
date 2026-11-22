@@ -71,6 +71,29 @@ test('wizard fields remain part of the approved bundle and require valid source 
   assert.throws(() => prepareAssessmentBundle(bundle), /private paths/);
 });
 
+test('breakdown substeps retain their own citations and require unique parents in the same section', () => {
+  const bundle = { ...fixture(), wizard: wizard() };
+  const [original] = bundle.wizard.breakdown;
+  const flat = prepareAssessmentBundle(bundle).hash;
+  const parent = { ...original, id: 'capture', title: 'Capture measurements' };
+  const child = { ...original, id: 'counts', parent_id: 'capture', title: 'Record counts', pages: [6] };
+  bundle.wizard.breakdown = [parent, child];
+  const prepared = prepareAssessmentBundle(bundle);
+  assert.deepEqual(prepared.bundle.wizard.breakdown, [parent, child]);
+  assert.notEqual(prepared.hash, flat);
+  for (const [first, second] of [
+    [{ ...parent, section: 'access' }, child],
+    [parent, { ...child, parent_id: 'missing' }],
+    [{ ...parent, parent_id: 'counts' }, child],
+    [parent, { ...child, id: parent.id }],
+  ]) {
+    bundle.wizard.breakdown = [first, second];
+    assert.throws(() => prepareAssessmentBundle(bundle), /parent references must stay in the same section without cycles/);
+  }
+  bundle.wizard.breakdown = [parent, { ...child, pages: [0] }];
+  assert.throws(() => prepareAssessmentBundle(bundle), /wizard\/breakdown\/1\/pages/);
+});
+
 test('script source is part of the exact approval and requires safe relative, unique file paths', () => {
   const bundle = { ...fixture(), wizard: wizard() };
   const originalHash = prepareAssessmentBundle(bundle).hash;

@@ -2,14 +2,17 @@
 
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { EXPERIMENT_SETUP_TITLE } from "@/lib/paper-assessment-wizard";
+import { paperDetailTree } from "@/lib/paper-detail-dependencies";
 import { PAPER_BREAKDOWN_SECTIONS } from "@/lib/research-paper-breakdown";
 import { researchAssessmentPath } from "@/lib/research-pathways";
 import type { SharedLocalPaperAssessment, SharedTerminalBlock } from "@/lib/shared-local-paper-assessment";
 import { PaperClaimCriterion } from "./paper-evidence";
+import { PaperDetailOutline } from "./paper-detail-outline";
 import { CommandBlock, TerminalInputs } from "./paper-terminal-commands";
 import { SHARED_TERMINAL_LAYOUT } from "@/lib/paper-terminal-commands";
 
-const steps = [{ id: "breakdown", label: "Step 2 · Paper Breakdown" }, { id: "implementation", label: "Step 3 · Experiment Steps" }, { id: "execution", label: "Step 4 · Setup" }] as const;
+const steps = [{ id: "breakdown", label: "Step 2 · Paper Breakdown" }, { id: "implementation", label: "Step 3 · Experiment Steps" }, { id: "execution", label: `Step 4 · ${EXPERIMENT_SETUP_TITLE}` }] as const;
 function SharedCommand({ block, label, study, index, initiallyOpen = false }: { block: SharedTerminalBlock; label: string; study: string; index: number; initiallyOpen?: boolean }) {
   return block.redacted_preview !== undefined ? <details open={initiallyOpen} className="space-y-2 text-sm">
     <summary className="cursor-pointer text-xs font-medium focus-visible:outline-2 focus-visible:outline-offset-2">Shared command text · {label}</summary>
@@ -31,21 +34,21 @@ export function SharedLocalPaperAssessment({ value }: { value: SharedLocalPaperA
     {current === "breakdown" ? <div className="space-y-6">
       <h2 className="text-lg font-semibold">Paper Breakdown</h2>
       {value.provenance ? <p className="text-sm">{value.provenance.statement}</p> : null}
-      {PAPER_BREAKDOWN_SECTIONS.map(section => <section key={section.id} aria-labelledby={`shared-${section.id}`} className="space-y-3">
-        <h3 id={`shared-${section.id}`} className="font-semibold">{section.title}</h3>
-        <ul className="space-y-4 pl-4 text-sm">{value.sections[section.id].map(item => <li key={item.id} className="space-y-2 [overflow-wrap:anywhere]">
+      {PAPER_BREAKDOWN_SECTIONS.map((section, index) => <section key={section.id} aria-labelledby={`shared-${section.id}`} className="space-y-3">
+        <h3 id={`shared-${section.id}`} className="font-semibold">{index + 1}. {section.title}</h3>
+        <PaperDetailOutline nodes={paperDetailTree(value.sections[section.id], String(index + 1))} renderDetail={item => <>
           {item.label ? <h4 className="font-medium">{item.label}</h4> : null}
           {item.kind === "reported_result" ? <p className="text-xs text-muted-foreground">Paper-reported assertion{value.provenance?.classification === "synthetic" ? " · Fabricated value" : ""}</p> : null}
           <p>{item.description}</p>
           {item.specification ? <dl className="space-y-2">{Object.entries(item.specification).map(([key, text]) => <div key={key}><dt className="font-medium capitalize">{key}</dt><dd>{text}</dd></div>)}</dl> : null}
           {item.criterion ? <PaperClaimCriterion criterion={item.criterion} /> : null}
           <p className="text-xs text-muted-foreground">Source PDF {item.pages.length === 1 ? "page" : "pages"} {item.pages.join(", ")}. Source quotations are omitted from this shared copy.</p>
-        </li>)}</ul>
+        </>} />
       </section>)}
       {value.implementation_choices.length ? <section className="space-y-3"><h3 className="font-semibold">Implementation choices</h3><ul className="space-y-3 text-sm">{value.implementation_choices.map(choice => <li key={choice.name}><p className="font-medium">{choice.name}</p><p>{choice.reason}</p></li>)}</ul></section> : null}
       <p className="text-sm text-muted-foreground">{value.limitation}</p>
     </div> : <div className="space-y-8">
-      <h2 className="text-lg font-semibold">{current === "execution" ? "Setup" : "Experiment Steps"}</h2>
+      <h2 className="text-lg font-semibold">{current === "execution" ? EXPERIMENT_SETUP_TITLE : "Experiment Steps"}</h2>
       {value.plan.experiments.map((experiment, i) => {
         const index = i + 1, scripts = value.scripts[i];
         const stages = experiment.stages ?? [{ title: "Steps", steps: experiment.steps }];

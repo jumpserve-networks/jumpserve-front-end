@@ -1,8 +1,10 @@
+export const EXPERIMENT_SETUP_TITLE = "Experiment Setup";
+
 export const PAPER_ASSESSMENT_STEPS = [
   { id: "upload", title: "Paper Upload" },
   { id: "breakdown", title: "Paper Breakdown" },
   { id: "implementation", title: "Experiment Steps" },
-  { id: "execution", title: "Setup" },
+  { id: "execution", title: EXPERIMENT_SETUP_TITLE },
   { id: "results", title: "Experiment Results" },
 ] as const;
 export type PaperAssessmentStep = typeof PAPER_ASSESSMENT_STEPS[number]["id"];

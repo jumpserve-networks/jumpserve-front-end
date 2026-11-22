@@ -59,6 +59,10 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 10000000
+        },
+        "pdf_copy": {
+          "description": "Attach a verified copy of the assessed PDF to the owner-reviewed assessment.",
+          "const": true
         }
       }
     },
@@ -83,6 +87,17 @@
             "required": ["section", "description", "pages"],
             "properties": {
               "section": { "enum": ["access", "experiment", "data", "validate"] },
+              "id": {
+                "description": "Identifier unique within this section. Use it when another step references this one as its parent.",
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$"
+              },
+              "parent_id": {
+                "description": "ID of the enclosing step in the same section. Omit for a top-level step.",
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$"
+              },
+              "title": { "type": "string", "minLength": 1, "maxLength": 300 },
               "description": { "type": "string", "minLength": 1, "maxLength": 2000 },
               "pages": {
                 "type": "array",

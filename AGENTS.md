@@ -10,6 +10,8 @@ execution and evidence capture. It saves a local bundle and optionally shares
 selected results through the JumpServe MCP connector. Preserve account-owner
 approval of the exact public preview, scoped credentials, and idempotent
 submission. Keep original PDFs, raw logs and other private material local.
+Attach verified PDF copies through private storage and make the attachment
+public only when the owner approves that exact assessment preview.
 Keep paper-reported values distinct from observations and preserve existing
 URLs and uncertain outcomes.
 

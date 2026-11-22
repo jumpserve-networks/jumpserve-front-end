@@ -8,7 +8,7 @@ import { EXPERIMENT_PLAN_PATH, planPending, reviewedSections, validateExperiment
 import { PAPER_BREAKDOWN_VERSION, type PaperBreakdown, type PaperBreakdownSection } from "@/lib/research-paper-breakdown";
 import { PaperBreakdownPanel } from "./paper-breakdown";
 import { PaperAssessmentSteps, PaperWizardRoute, type PaperWizardNavigation } from "./paper-assessment-steps";
-import { PAPER_ASSESSMENT_STEPS } from "@/lib/paper-assessment-wizard";
+import { EXPERIMENT_SETUP_TITLE, PAPER_ASSESSMENT_STEPS } from "@/lib/paper-assessment-wizard";
 import { PaperExperimentPlanOutline } from "./paper-experiment-plan-outline";
 import { PaperExperimentScripts } from "./paper-experiment-scripts";
 import { usePaperWork } from "./paper-work-provider";
@@ -116,7 +116,7 @@ function PaperPlanningView({ assessmentId, ownerId, breakdown, header, wizard, t
         {implementationPanel}
         <div className="flex flex-wrap justify-between gap-3 border-t pt-4"><Button variant="outline" disabled={busy} onClick={() => wizard.navigate("breakdown")}>Back to Paper Breakdown</Button><Button disabled={busy || view?.stage !== "ready"} onClick={() => wizard.navigate("execution")}>Continue to Step 4</Button></div>
       </> : <>
-        <section aria-labelledby="experiment-execution-title" className="space-y-6"><h2 id="experiment-execution-title" className="text-lg font-semibold">Setup</h2>
+        <section aria-labelledby="experiment-execution-title" className="space-y-6"><h2 id="experiment-execution-title" className="text-lg font-semibold">{EXPERIMENT_SETUP_TITLE}</h2>
           {view?.plan?.experiments.length === 0 ? <p>No experiments were included in the confirmed assessment.</p> : view?.plan?.experiments.map((_, index) => <PaperExperimentScripts key={`${assessmentId}:${ownerId}:${index + 1}`} assessmentId={assessmentId} ownerId={ownerId} title={title} index={index + 1} plan={view.plan!} breakdown={saved} onQualityChange={updateScriptHistory} />)}
         </section>
         <div className="border-t pt-4"><Button variant="outline" onClick={() => wizard.navigate("implementation")}>Back to Experiment Steps</Button></div>

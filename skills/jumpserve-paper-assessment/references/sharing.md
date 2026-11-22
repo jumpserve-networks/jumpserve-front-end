@@ -12,16 +12,22 @@ Supply only the fields in [the bundle schema](assessment.schema.json). Include
 `wizard` in each new bundle so the preview and approved assessment show the
 same assessment steps.
 
-- **Step 2 · Paper Breakdown** uses `wizard.breakdown` for page-cited paraphrases.
-  Assign each entry to `access`, `experiment`, `data` or `validate` and cite
-  one-based PDF page numbers in `pages`. Put claims and their decision rules
-  in `claims`. Identify paper-reported or fabricated values as such.
+- **Step 2 · Paper Breakdown** uses `wizard.breakdown` for numbered steps and
+  substeps in Access, Experiment, Data, and Validate. For each step, supply a
+  short `title`, a source-grounded `description`, one-based PDF page numbers
+  in `pages`, and an `id` unique within its `section`. Reference the enclosing
+  step's `id` in `parent_id` for a substep. Omit `parent_id` for top-level
+  steps and put siblings in reading order. For example, a Data step titled
+  “Record measurements” can have separate substeps for time and throughput.
+  JumpServe assigns numbers such as 3.1 and 3.1.1. Cite each substep's own
+  evidence and tie the hierarchy to the paper's methods. Put claims and their
+  decision rules in `claims`. Identify paper-reported or fabricated values as such.
 - **Step 3 · Experiment Steps** uses `wizard.experiments` for the ordered design.
   Link each experiment to its `claim_ids`. Write each step's `title` and
   `instructions` from the frozen procedure. Record any unresolved inputs or
   proposed design choices in the instructions. Use `methods` for module
   versions, acquisition procedures and validation reports.
-- **Step 4 · Setup** uses the experiment's `prerequisites`,
+- **Step 4 · Experiment Setup** uses the experiment's `prerequisites`,
   optional `setup` and `cleanup`, and `commands` on the step they implement.
   Include complete shareable script files from the local experiment package
   in the experiment's `scripts` array. Use a relative `path` matching the
@@ -33,13 +39,39 @@ same assessment steps.
   exact units and evidence digests for measured runs. For plan-only assessments,
   leave `runs` empty and use the claim findings to explain what remains untested.
 
-Keep original PDFs, full paper text, raw logs, credentials, account details,
-private paths and any commands or scripts unsuitable for sharing in the local evidence
-directory. The account owner reviews the exact material before public sharing.
+Keep the original PDF and local evidence directory. Raw logs, credentials,
+account details, private paths and unsuitable commands or scripts stay local.
+The account owner reviews the exact assessment and attached PDF before public sharing.
+
+## Attach the source PDF
+
+When sharing an assessment prepared from a local PDF, set `paper.pdf_copy` to
+`true` in the saved bundle. Omit it if the user asks to exclude the PDF or the
+copy is unsuitable for sharing. Use the exact source file identified by
+`paper.sha256` and `paper.byte_count`. The upload limit is 10,000,000 bytes.
+Keep PDF bytes and upload credentials outside the bundle.
+
+Call `preview_assessment` with the saved bundle. If it returns
+`pdf_upload_required`, pass its JSON result object to
+`scripts/upload_paper.py` through standard input. Use the helper from the
+installed skill, with the path to the exact local PDF and the saved bundle.
+Keep the signed upload ticket private and out of retained logs.
+
+```sh
+python3 "$SKILL_DIR/scripts/upload_paper.py" --pdf "$PDF" --bundle "$BUNDLE" < "$PRIVATE_TICKET"
+```
+
+Call `preview_assessment` again with the identical bundle to verify the bytes
+and retrieve the review link. After an uncertain upload, check the identical
+bundle before trying another upload. If verification still requires an upload,
+use the newly returned ticket. For an older connector without PDF support,
+stage the supported bundle with `pdf_copy` omitted and explain why the copy
+could not be attached. If the PDF exceeds the bundle size limit for a source
+paper, retain the assessment locally. A local-only assessment uploads nothing.
 
 ## Stage and return the assessment
 
-Call `preview_assessment` with the saved bundle JSON. Use `assessment_url` for
+Once staging and any PDF verification finish, use `assessment_url` for
 `already_shared` and `review_url` for `review_required`. The review page guides
 the owner through approval. Send only the exact completion message below as
 plain text. Replace `{assessmentUrlHere}` with the selected URL. End the reply

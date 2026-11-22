@@ -60,7 +60,7 @@ citations, criteria and confirmed sections remain read-only.
 
 The owner flow shows four wizard steps starting at
 `/research-verification/new-assessment`: Paper Upload, Paper Breakdown,
-Experiment Steps, and Setup & Run Commands. Upload remains batch-capable. Each
+Experiment Steps, and Experiment Setup. Upload remains batch-capable. Each
 screen places the wizard navigation before its heading and paper metadata.
 Public readers retain the paper metadata without private wizard controls. Each
 retained paper links to its own Paper Breakdown screen at

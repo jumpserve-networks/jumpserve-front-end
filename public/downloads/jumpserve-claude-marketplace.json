@@ -10,8 +10,8 @@
       "description": "Assess research papers locally and view the results on JumpServe.",
       "source": {
         "source": "archive",
-        "url": "https://jumpserve.quaint-lab.org/downloads/jumpserve-plugin-v1.3.1.zip",
-        "sha256": "c8afade97e0d377b04a449191609bfd309ecc5fc5ab3c1ec6b0417b6b6723cce"
+        "url": "https://jumpserve.quaint-lab.org/downloads/jumpserve-plugin-v1.3.2.zip",
+        "sha256": "0b8b2aa2dffb0b47d87326c43554873d46d0766941f393dda060f20e07e90a69"
       }
     }
   ]
