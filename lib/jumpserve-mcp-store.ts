@@ -80,7 +80,8 @@ export async function readAssessmentPreview(owner: string, id: string) {
   const db = await serviceDatabase();
   const { data, error } = await db.from("research_skill_submissions")
     .select("bundle,bundle_sha256,approved_at,study_id")
-    .eq("owner_id", owner).eq("id", id).gt("expires_at", new Date().toISOString()).maybeSingle();
+    .eq("owner_id", owner).eq("id", id)
+    .or(`expires_at.gt.${new Date().toISOString()},study_id.not.is.null`).maybeSingle();
   if (error) throw new Error("JumpServe could not load the preview.");
   if (!data) return null;
   const { bundle } = prepareAssessmentBundle(data.bundle);

@@ -244,9 +244,10 @@ test('the retired upload route explains local assessments publicly without mount
  const document=await renderPage('newPaper',props({}, {step:'execution'}));
  assert.equal(capture('PaperIntake'),undefined);assert.equal(capture('PaperAssessmentSteps'),undefined);
  assert.match(document.body.textContent,/assess papers and run experiments in your local workspace/);
- assert.ok(document.querySelector('a[href="/downloads/jumpserve-paper-assessment-v1.zip"][download]'));
- assert.match(document.body.textContent,/claude mcp add -t http -s user jumpserve https:\/\/jumpserve\.quaint-lab\.org\/mcp/);
- assert.match(document.body.textContent,/codex mcp add jumpserve --url https:\/\/jumpserve\.quaint-lab\.org\/mcp/);
+ assert.ok(document.querySelector('a[href="https://github.com/jumpserve-networks/jumpserve-plugins"]'));
+ assert.match(document.body.textContent,/claude plugin install jumpserve --marketplace jumpserve-networks\/jumpserve-plugins/);
+ assert.match(document.body.textContent,/codex plugin add jumpserve@jumpserve/);
+ assert.doesNotMatch(document.body.textContent,/manual setup|mcp add|install from a zip/i);
  assert.ok(document.querySelector('a[href="/research-verification/assessments"]'));
  assert.deepEqual(state.authPaths,[]);
 });

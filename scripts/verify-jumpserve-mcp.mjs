@@ -47,6 +47,7 @@ const bundle = {
 const codes = new Map();
 const tokens = new Map();
 const previews = new Map();
+let failNextSubmission = false;
 const fixture = createServer(async (req, res) => {
   const url = new URL(req.url, api);
   const send = (status, value) => {
@@ -85,22 +86,34 @@ const fixture = createServer(async (req, res) => {
   if (path === 'rpc/research_skill_preview') {
     let row = [...previews.values()].find(record => record.owner_id === input.p_owner && record.bundle_sha256 === input.p_hash);
     if (!row) {
-      row = { id: randomUUID(), owner_id: input.p_owner, bundle_sha256: input.p_hash, bundle: input.p_bundle, approved_at: null, study_id: null };
+      row = { id: randomUUID(), owner_id: input.p_owner, bundle_sha256: input.p_hash, bundle: input.p_bundle,
+        approved_at: null, study_id: null, expires_at: new Date(Date.now() + 30 * 60_000).toISOString() };
       previews.set(row.id, row);
     }
     return send(200, { preview_id: row.id, study_id: row.study_id });
   }
   if (path === 'research_skill_submissions') {
     const record = previews.get(url.searchParams.get('id')?.slice(3));
-    const matches = record && url.searchParams.get('owner_id') === 'eq.' + record.owner_id;
-    if (matches && req.method === 'PATCH' &&
-        url.searchParams.get('bundle_sha256') === 'eq.' + record.bundle_sha256) record.approved_at = input.approved_at;
-    return send(200, matches ? [record] : []);
+    if (!record || url.searchParams.get('owner_id') !== 'eq.' + record.owner_id) return send(200, []);
+    if (req.method === 'PATCH') {
+      const expiration = url.searchParams.get('expires_at')?.slice(3);
+      if (!(record.expires_at > expiration) || record.study_id ||
+          url.searchParams.get('bundle_sha256') !== 'eq.' + record.bundle_sha256) return send(200, []);
+      record.approved_at = input.approved_at;
+      return send(200, [{ id: record.id }]);
+    }
+    const expiration = url.searchParams.get('or')?.match(/^\(expires_at\.gt\.([^,]+),study_id\.not\.is\.null\)$/)?.[1];
+    return send(200, record.expires_at > expiration || record.study_id ? [record] : []);
   }
   if (path === 'rpc/research_skill_submit') {
     const row = previews.get(input.p_preview);
     if (!row || row.owner_id !== input.p_owner) return send(404, { code: 'P0002' });
-    if (!row.approved_at) return send(400, { code: '55000' });
+    if (row.study_id) return send(200, row.study_id);
+    if (!row.approved_at || row.expires_at <= new Date().toISOString()) return send(400, { code: '55000' });
+    if (failNextSubmission) {
+      failNextSubmission = false;
+      return send(503, { code: 'fixture_retry' });
+    }
     row.study_id = row.id;
     return send(200, row.id);
   }
@@ -151,10 +164,12 @@ try {
   const auth = await authResponse.json();
   assert.equal(auth.issuer, origin);
   assert.equal(auth.registration_endpoint, origin + '/oauth/jumpserve/register');
-  const setup = await (await fetch(origin + '/research-verification/new-assessment')).text();
-  assert.ok(setup.includes('claude mcp add -t http -s user jumpserve ' + resource));
-  assert.ok(setup.includes('codex mcp add jumpserve --url ' + resource));
-  assert.ok(!setup.includes('Local sharing is disabled'));
+  const marketplace = await fetch(origin + '/downloads/jumpserve-claude-marketplace.json');
+  assert.equal(marketplace.status, 200);
+  const source = (await marketplace.json()).plugins[0].source;
+  const plugin = await fetch(origin + new URL(source.url).pathname);
+  assert.equal(plugin.status, 200);
+  assert.equal(source.sha256, sha256(Buffer.from(await plugin.arrayBuffer())));
 
   async function register(redirectUri, options = {}) {
     return fetch(auth.registration_endpoint, { method: 'POST', headers: { 'content-type': 'application/json' },
@@ -176,8 +191,35 @@ try {
   browser = await chromium.launch({ executablePath: existsSync(chrome) ? chrome : undefined });
   const context = await browser.newContext();
   await context.route('**/*', route => ['127.0.0.1', 'localhost'].includes(new URL(route.request().url()).hostname) ? route.continue() : route.abort());
-  await context.addCookies([cookie(owner)]);
   const page = await context.newPage();
+  await page.goto(origin + '/research-verification/new-assessment');
+  await page.evaluate(() => {
+    let copied = '';
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async text => { copied = text; },
+        readText: async () => copied,
+      },
+    });
+  });
+  const copyCommands = [
+    ['Claude Code install', 'claude plugin install jumpserve --marketplace jumpserve-networks/jumpserve-plugins'],
+    ['Codex install', 'codex plugin marketplace add jumpserve-networks/jumpserve-plugins && codex plugin add jumpserve@jumpserve'],
+  ];
+  for (const [index, [label, command]] of copyCommands.entries()) {
+    await page.getByRole('button', { name: `Copy ${label} command` }).click();
+    await page.getByText('Copied.', { exact: true }).nth(index).waitFor();
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), command);
+  }
+  await page.evaluate(() => {
+    navigator.clipboard.writeText = async () => { throw new DOMException('Denied', 'NotAllowedError'); };
+  });
+  await page.getByRole('button', { name: 'Copy Codex install command' }).press('Enter');
+  await page.getByText('Copy failed. Select the command and copy it manually.').waitFor();
+  console.log('PASS setup buttons copy the displayed command and report denied clipboard access');
+
+  await context.addCookies([cookie(owner)]);
   const verifier = 'v'.repeat(43);
   await page.route(redirect + '?*', route => route.fulfill({ body: 'Callback captured' }));
   const consent = new URL(auth.authorization_endpoint);
@@ -217,17 +259,43 @@ try {
   await otherContext.close();
   await page.goto(review_url);
   await page.getByRole('heading', { name: bundle.paper.title }).waitFor();
+  assert.equal(previews.get(preview_id).study_id, null);
+  const publicUrl = origin + '/research-verification/assessment/' + preview_id;
   await page.getByRole('button', { name: 'Approve public sharing' }).click();
-  await page.getByText('Approved. Return to Claude Code or Codex and tell it to finish sharing.').waitFor();
+  await page.waitForURL(publicUrl);
   const shared = await client.callTool(submission);
+  assert.equal(shared.structuredContent.assessment_url, publicUrl);
   assert.deepEqual(await client.callTool(submission), shared);
+  const alreadyShared = await client.callTool({ name: 'preview_assessment', arguments: { bundle } });
+  assert.deepEqual(alreadyShared.structuredContent, { assessment_url: publicUrl, status: 'already_shared' });
+  previews.get(preview_id).expires_at = '2000-01-01T00:00:00.000Z';
+  await page.goto(review_url);
+  assert.equal(page.url(), publicUrl);
   const viewer = await browser.newContext();
   const publicPage = await viewer.newPage();
-  await publicPage.goto(shared.structuredContent.assessment_url);
+  await publicPage.goto(publicUrl);
   await publicPage.getByRole('heading', { name: bundle.paper.title }).waitFor();
   assert.equal(await publicPage.getByRole('cell', { name: '0', exact: true }).count(), 2);
   assert.deepEqual(previews.get(preview_id).bundle, bundle);
-  console.log('PASS account-bound preview, browser approval, MCP submission and public measurement display');
+  console.log('PASS account-bound preview, one-click sharing, idempotent MCP submission and public measurement display');
+
+  const retryBundle = { ...bundle, summary: 'Verify a recoverable sharing failure.' };
+  const retryPreview = (await client.callTool({ name: 'preview_assessment', arguments: { bundle: retryBundle } })).structuredContent;
+  const retryRow = previews.get(retryPreview.preview_id);
+  const expiration = retryRow.expires_at;
+  retryRow.expires_at = '2000-01-01T00:00:00.000Z';
+  assert.equal((await page.goto(retryPreview.review_url)).status(), 404);
+  retryRow.expires_at = expiration;
+  await page.goto(retryPreview.review_url);
+  failNextSubmission = true;
+  await page.getByRole('button', { name: 'Approve public sharing' }).click();
+  const retry = page.getByRole('button', { name: 'Share approved assessment' });
+  await retry.waitFor();
+  assert.ok(retryRow.approved_at);
+  assert.equal(retryRow.study_id, null);
+  await retry.click();
+  await page.waitForURL(origin + '/research-verification/assessment/' + retryPreview.preview_id);
+  console.log('PASS expired private previews and retry of an approved submission');
 } finally {
   await client?.close();
   await browser?.close();

@@ -20,7 +20,7 @@ export async function serveJumpServeTools(request: Request, body: unknown, origi
     tools: [
       {
         name: "preview_assessment",
-        description: "Stage selected results privately and return a JumpServe review URL. Send only when the user asks to share. Exclude original PDFs, raw logs, private paths and credentials.",
+        description: "Stage a requested JumpServe assessment privately and return its results link for owner review. Honor local-only requests. Exclude original PDFs, raw logs, private paths and credentials.",
         inputSchema: { type: "object", additionalProperties: false, required: ["bundle"], properties: { bundle: ASSESSMENT_SCHEMA } },
         annotations: { title: "Preview assessment", idempotentHint: true },
       },

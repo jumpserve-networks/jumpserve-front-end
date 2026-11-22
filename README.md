@@ -9,22 +9,29 @@ Starter app using:
 
 ## Local paper assessments and JumpServe MCP
 
+The [public JumpServe marketplace](https://github.com/jumpserve-networks/jumpserve-plugins)
+installs the assessment skill and connector together in Claude Code or Codex.
+The marketplace README has the GitHub install commands for both clients.
+Start a new client session after installing. Connect JumpServe to receive a
+website link when your assessment finishes.
+
 Claude Code and Codex run paper assessments locally with the standalone
 [JumpServe paper assessment skill](skills/jumpserve-paper-assessment/SKILL.md).
-[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.zip)
+[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.1.0.zip)
 from JumpServe. Place the extracted skill
 directory under `~/.claude/skills/` for Claude Code or `~/.agents/skills/` for
 Codex. The skill produces a local bundle even when sharing is unavailable.
 Model inference follows the user's Claude Code or Codex configuration. A
 local workspace can still use a hosted model provider.
 
-The Next.js app serves an optional Streamable HTTP MCP connector at `/mcp`.
-It supports `preview_assessment` and `submit_assessment`. The user signs in
-with their JumpServe Google account, reviews the exact public copy, approves it,
-and tells the local client to finish sharing. The client gets the assessment URL
-without a file picker. JumpServe stores the approved copy and its measurements
-in Supabase. Original PDFs, raw logs and other local material stay with the
-user. The connector does not need a model-provider key.
+The Next.js app serves a Streamable HTTP MCP connector at `/mcp`. When a
+JumpServe assessment finishes, the connected skill calls `preview_assessment`
+and returns a link to the private results. The account owner can approve the
+exact copy on JumpServe and open the public assessment immediately. The MCP
+`submit_assessment` tool also accepts already approved previews. JumpServe
+stores the approved copy and its measurements in Supabase. Original PDFs, raw
+logs and other local material stay with the user. The connector does not need a
+model-provider key.
 
 ### Enable and connect
 
@@ -37,8 +44,8 @@ user. The connector does not need a model-provider key.
    `scripts/configure-paper-intake-runtime.mjs` build hook forwards the
    connector flag and origin into the SSR runtime.
 3. Add the connector in your local client. JumpServe registers each client
-   automatically. Use the local URL only when you enable an isolated local
-   connector. Otherwise, the new-assessment page shows the hosted URL.
+   automatically. Substitute the local URL when connecting to an isolated
+   local instance.
 
 ```bash
 codex mcp add jumpserve --url https://jumpserve.quaint-lab.org/mcp
@@ -54,9 +61,13 @@ Supabase instance with Google sign-in configured for your loopback app origin.
 Run `npm run verify:research:mcp` for the browser and MCP integration check
 with an isolated Next.js build and synthetic Supabase accounts.
 
-For a new skill release, package the `jumpserve-paper-assessment` directory from
-`skills/` into a versioned ZIP in `public/downloads/`. Update the download links
-here and on the new-assessment page to point to that archive.
+Run `python3 scripts/package-jumpserve-plugin.py` to build both ZIPs and the
+Claude marketplace catalog from the same skill. The catalog pins the plugin
+archive's SHA-256. Run the script with `--check` to verify the release files.
+For a new release, update the package version and the standalone download link
+in this README.
+Publish the extracted plugin files to the separate public marketplace repository
+with its installation README.
 
 ## Quick Start
 
