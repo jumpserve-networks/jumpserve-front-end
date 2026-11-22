@@ -66,6 +66,29 @@ Supply the ticket through private standard input and keep it out of logs,
 the bundle, and the reply. Request a fresh ticket if the signed URL expires.
 Use the verified PDF and retain the assessment ID when staging the result.
 
+### Recover from a blocked PDF download
+
+If DNS or sandbox access blocks the download, request native approval for the
+exact helper invocation once it is clear that access is needed. Describe the
+storage destination and local output while keeping the signed URL off the
+command line. If the request is rejected before reaching the user, follow the
+[approval recovery instructions](permissions.md#when-a-request-never-reaches-the-user).
+
+The user can also open **Step 1** for the same assessment in JumpServe, sign in
+with the original Google account, and click **Download PDF**. Ask for the path
+to the resulting file in the local workspace. Use the connector's metadata for
+the same assessment ID to verify and save it offline. The verification input
+needs only `assessment_id`, `filename`, `sha256`, and `byte_count` from the
+connector result. The signed URL and its expiry are irrelevant for this step.
+
+```sh
+python3 "$SKILL_DIR/scripts/download_paper.py" --assessment-id "$ASSESSMENT_ID" \
+  --from-file "$USER_PDF" --out "$PDF" < "$PRIVATE_METADATA"
+```
+
+Continue after local verification succeeds. If permission and file access both
+remain unavailable, save the handoff with the assessment ID and next action.
+
 ## Attach the source PDF
 
 When sharing an assessment prepared from a local PDF, set `paper.pdf_copy` to
