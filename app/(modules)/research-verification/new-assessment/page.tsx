@@ -48,7 +48,7 @@ export default async function NewAssessment({ searchParams }: { searchParams: Pr
             </div>
             <CopyBlock title="Claude Code or Codex prompt" label="assessment prompt" value={localAssessmentPrompt(assessmentId)} wrap />
           </> : <>
-            <p className="text-sm text-muted-foreground">Upload a PDF to get a prompt for assessing it locally in Claude Code or Codex.</p>
+            <p className="text-sm text-muted-foreground">Upload an academic research paper in PDF format.  JumpServe will run experiments to verify the claims in the paper.</p>
             {result?.error ? <p role="alert" className="text-sm text-destructive">{result.error}</p> : null}
             {owner ? <LocalAssessmentUpload ownerId={owner.id} /> : <Link href={signIn} className="text-primary underline underline-offset-4">Sign in with Google to upload</Link>}
           </>}
