@@ -22,7 +22,7 @@ Google account and authorize PDF downloads if your connection only supports shar
 
 Claude Code and Codex run paper assessments locally with the standalone
 [JumpServe paper assessment skill](skills/jumpserve-paper-assessment/SKILL.md).
-[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.3.8.zip)
+[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.3.11.zip)
 from JumpServe. Place the extracted skill
 directory under `~/.claude/skills/` for Claude Code or `~/.agents/skills/` for
 Codex. The skill uses the [Access, Experiment, Data, and Validate workflow](skills/jumpserve-paper-assessment/references/modules.md)
@@ -33,8 +33,13 @@ local workspace can still use a hosted model provider.
 
 When a required dependency, file, device, runtime, or service is blocked, the
 skill uses the client's [native approval or consent workflow](skills/jumpserve-paper-assessment/references/permissions.md)
-and continues once access is granted. If approvals are unavailable, it saves
+and continues once access is granted. Permission requests stay pending for your
+decision when automatic review blocks an attempt. Use [human approval mode](skills/jumpserve-paper-assessment/references/permissions.md#select-human-approval)
+to receive the prompts directly. If client policy blocks human review, the skill saves
 the assessment for an [interactive session that can resume it](skills/jumpserve-paper-assessment/references/permissions.md#resume-after-an-approval-blocker).
+If the PDF download is blocked, you can download it from the signed-in Step 1
+page and give the client its path for
+[offline verification](skills/jumpserve-paper-assessment/references/sharing.md#recover-from-a-blocked-pdf-download).
 
 The Next.js app serves a Streamable HTTP MCP connector at `/mcp`. When a
 JumpServe assessment finishes, the connected skill calls `preview_assessment`

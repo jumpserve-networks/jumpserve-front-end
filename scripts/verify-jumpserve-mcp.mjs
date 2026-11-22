@@ -526,6 +526,11 @@ try {
       writeText: async text => { copied = text; }, readText: async () => copied,
     } });
   });
+  await page.getByText('Start Codex CLI with approval prompts', { exact: true }).click();
+  const approvalCommand = page.getByLabel('Codex human approval command', { exact: true });
+  assert.equal(await approvalCommand.textContent(), `codex --sandbox workspace-write --ask-for-approval on-request -c 'approvals_reviewer="user"'`);
+  await page.getByRole('button', { name: 'Copy Codex human approval command' }).click();
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), await approvalCommand.textContent());
   await page.getByRole('button', { name: 'Copy assessment prompt' }).click();
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), await prompt.textContent());
   await page.reload();
@@ -546,12 +551,33 @@ try {
   assert.equal(downloadTicket.byte_count, sourcePdf.length);
   assert.equal(downloadTicket.assessment_id, assessmentId);
   const localPdf = join(workspace, downloadTicket.filename);
-  const helper = spawn('python3', ['-B', resolve('skills/jumpserve-paper-assessment/scripts/download_paper.py'),
-    '--assessment-id', assessmentId, '--out', localPdf], { stdio: ['pipe', 'inherit', 'inherit'] });
-  helper.stdin.end(JSON.stringify(downloadTicket));
-  assert.deepEqual(await once(helper, 'exit'), [0, null]);
+  const downloadWithHelper = (ticket, out, ...options) => {
+    const helper = spawn('python3', ['-B', resolve('skills/jumpserve-paper-assessment/scripts/download_paper.py'),
+      '--assessment-id', assessmentId, '--out', out, ...options], { stdio: ['pipe', 'inherit', 'pipe'] });
+    let error = '';
+    helper.stderr.setEncoding('utf8').on('data', data => { error += data; });
+    helper.stdin.end(JSON.stringify(ticket));
+    return once(helper, 'close').then(([code]) => ({ code, error }));
+  };
+  assert.deepEqual(await downloadWithHelper(downloadTicket, localPdf), { code: 0, error: '' });
   assert.deepEqual(await readFile(localPdf), sourcePdf);
   assert.deepEqual(await readFile(localPdf), await (await context.request.get(sourceDownload)).body());
+  const userPdf = join(workspace, 'browser-download.pdf');
+  const verifiedPdf = join(workspace, 'offline', downloadTicket.filename);
+  await mkdir(join(workspace, 'offline'));
+  await writeFile(userPdf, await downloaded.body());
+  const { assessment_id, filename, sha256: digest, byte_count } = downloadTicket;
+  const identity = { assessment_id, filename, sha256: digest, byte_count };
+  assert.deepEqual(await downloadWithHelper(identity, verifiedPdf, '--from-file', userPdf), { code: 0, error: '' });
+  assert.deepEqual(await readFile(verifiedPdf), sourcePdf);
+  const altered = Buffer.from(sourcePdf);
+  altered[10] ^= 1;
+  await writeFile(userPdf, altered);
+  const refused = await downloadWithHelper(identity, verifiedPdf, '--from-file', userPdf);
+  assert.equal(refused.code, 1);
+  assert.match(refused.error, /PDF bytes do not match/);
+  assert.deepEqual(await readFile(verifiedPdf), sourcePdf);
+  console.log('PASS offline verification of the browser-downloaded source using MCP metadata');
   const directDownload = token => fetch(resource, { method: 'POST', headers: { Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
   body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: downloadCall }) });
