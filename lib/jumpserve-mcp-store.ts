@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createStaticClient } from "@/lib/supabase/server";
 import { paperIntakeCredentials } from "@/lib/paper-intake-credentials";
 import { prepareAssessmentBundle, type AssessmentBundle } from "@/lib/jumpserve-assessment-bundle";
-import { clientInfo, credentialHash, isRegisteredClientId, opaqueCredential } from "@/lib/jumpserve-mcp-oauth";
+import { clientInfo, credentialHash, isRegisteredClientId, MCP_DOWNLOAD_SCOPE, MCP_SCOPE, opaqueCredential } from "@/lib/jumpserve-mcp-oauth";
 import { localAssessmentSourceFilename, PAPER_UPLOAD_BUCKET, type LocalAssessmentSource } from "@/lib/local-assessment-source";
 import { PAPER_UPLOAD_MAX_BYTES } from "@/lib/research-paper-upload";
 
@@ -79,14 +79,19 @@ export async function reserveLocalAssessmentSource(owner: string, assessmentId: 
   throw new Error("JumpServe could not prepare the private PDF upload.");
 }
 
-export async function localAssessmentSourceDownload(owner: string, assessmentId: string) {
+export async function localAssessmentSourceTicket(owner: string, assessmentId: string, expiresIn = 60) {
   const db = await serviceDatabase();
   const source = await sourceIdentity(db, owner, assessmentId);
   const storage = db.storage.from(PAPER_UPLOAD_BUCKET);
   if (!source || !await verifiedSource(storage, owner, source.sha256, source.byte_count)) return null;
-  const { data, error } = await storage.createSignedUrl(sourceObject(owner, source.sha256), 60, { download: localAssessmentSourceFilename(assessmentId) });
+  const filename = localAssessmentSourceFilename(assessmentId);
+  const { data, error } = await storage.createSignedUrl(sourceObject(owner, source.sha256), expiresIn, { download: filename });
   if (error || !data) throw new Error("JumpServe could not prepare the private PDF download.");
-  return data.signedUrl;
+  return { assessment_id: assessmentId, filename, ...source, download_url: data.signedUrl, expires_in: expiresIn };
+}
+
+export async function localAssessmentSourceDownload(owner: string, assessmentId: string) {
+  return (await localAssessmentSourceTicket(owner, assessmentId))?.download_url ?? null;
 }
 
 async function verifiedPdf(db: Awaited<ReturnType<typeof serviceDatabase>>, owner: string, id: string) {
@@ -132,14 +137,14 @@ async function preparePdfUpload(db: ServiceDatabase, owner: string, id: string, 
   return undefined;
 }
 
-export async function createAuthorizationCode(owner: string, request: { clientId: string; redirectUri: string; challenge: string }, resource: string) {
+export async function createAuthorizationCode(owner: string, request: { clientId: string; redirectUri: string; challenge: string; readSources: boolean }, resource: string) {
   const db = await serviceDatabase();
   const { error: cleanup } = await db.from("jumpserve_mcp_codes").delete().eq("owner_id", owner).lt("expires_at", new Date().toISOString());
   if (cleanup) throw new Error("Could not prepare connector sign-in.");
   const code = opaqueCredential();
   const { error } = await db.from("jumpserve_mcp_codes").insert({
     code_hash: credentialHash(code), owner_id: owner, client_id: request.clientId,
-    redirect_uri: request.redirectUri, resource, challenge: request.challenge,
+    redirect_uri: request.redirectUri, resource, challenge: request.challenge, read_sources: request.readSources,
   });
   if (error) throw new Error("Could not prepare connector sign-in.");
   return code;
@@ -147,18 +152,20 @@ export async function createAuthorizationCode(owner: string, request: { clientId
 
 export async function exchangeGrant(input: {
   grant: "authorization_code" | "refresh_token"; proof: string; client: string;
-  resource: string; redirect: string | null; challenge: string | null;
+  resource: string; redirect: string | null; challenge: string | null; readSources: boolean | null;
 }) {
   const db = await serviceDatabase();
   const access = opaqueCredential();
   const refresh = opaqueCredential();
-  const { data, error } = await db.rpc("jumpserve_mcp_exchange", {
+  const { data, error } = await db.rpc("jumpserve_mcp_exchange_scoped", {
     p_grant: input.grant, p_proof_hash: credentialHash(input.proof), p_client: input.client,
     p_resource: input.resource, p_access: credentialHash(access), p_refresh: credentialHash(refresh),
-    p_redirect: input.redirect, p_challenge: input.challenge,
+    p_redirect: input.redirect, p_challenge: input.challenge, p_read_sources: input.readSources,
   });
   if (error) throw new Error("Could not verify connector sign-in.");
-  return data === true ? { access_token: access, refresh_token: refresh } : null;
+  return data === "share" || data === "source"
+    ? { access_token: access, refresh_token: refresh, scope: data === "source" ? MCP_DOWNLOAD_SCOPE : MCP_SCOPE }
+    : null;
 }
 
 export async function connectorActor(token: string, resource: string) {
@@ -166,6 +173,13 @@ export async function connectorActor(token: string, resource: string) {
   const { data, error } = await db.rpc("jumpserve_mcp_actor", { p_access: credentialHash(token), p_resource: resource });
   if (error) throw new Error("Could not verify the connector session.");
   return typeof data === "string" ? data : null;
+}
+
+export async function connectorMayDownloadSource(token: string, resource: string) {
+  const db = await serviceDatabase();
+  const { data, error } = await db.rpc("jumpserve_mcp_can_read_sources", { p_access: credentialHash(token), p_resource: resource });
+  if (error) throw new Error("Could not verify the connector’s PDF download permission.");
+  return data === true;
 }
 
 export async function revokeConnector(owner: string, resource: string) {

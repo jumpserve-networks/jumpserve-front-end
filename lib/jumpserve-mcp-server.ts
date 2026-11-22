@@ -7,6 +7,7 @@ import { researchAssessmentPath } from "@/lib/research-pathways";
 import { RESEARCH_WORKFLOW_MODULE_PATH } from "@/lib/test-modules";
 
 export const SHARE_REVIEW_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/share`;
+export const DOWNLOAD_ASSESSMENT_PDF_TOOL = "download_assessment_pdf";
 const completionReply = "On success, send only the exact completion message below as plain text. End the reply immediately after the URL.";
 const completionMessage = `Your research paper assessment is finished!
 
@@ -14,17 +15,29 @@ View the assessment online using the JumpServe app at the following URL:
 
 {assessmentUrlHere}`;
 
-const result = (value: Record<string, string>) => ({
+const result = (value: Record<string, string | number>) => ({
   content: [{ type: "text" as const, text: JSON.stringify(value) }], structuredContent: value,
 });
 
+export function isAssessmentPdfDownloadRequest(body: unknown) {
+  const request = CallToolRequestSchema.safeParse(body);
+  return request.success && request.data.params.name === DOWNLOAD_ASSESSMENT_PDF_TOOL;
+}
+
 export async function serveJumpServeTools(request: Request, body: unknown, origin: string, tools: {
+  download: (id: string) => Promise<Record<string, string | number> | null>;
   preview: (data: ReturnType<typeof prepareAssessmentBundle>, assessmentId?: string) => Promise<{ previewId: string; studyId: string | null; pdfUploadUrl?: string }>;
   submit: (id: string) => Promise<string>;
 }) {
   const server = new Server({ name: "JumpServe", version: "1.0.0" }, { capabilities: { tools: {} } });
   server.setRequestHandler(ListToolsRequestSchema, () => ({
     tools: [
+      {
+        name: DOWNLOAD_ASSESSMENT_PDF_TOOL,
+        description: "Fetch a private Step 1 research PDF from your Google account by its assessment ID. Download the returned short-lived URL directly to your local workspace and verify the SHA-256 and byte count. Use the JumpServe skill download_paper.py helper when available. Keep the ticket out of the assessment bundle and user-facing output. If access expires, request a fresh ticket for the same ID.",
+        inputSchema: { type: "object", additionalProperties: false, required: ["assessment_id"], properties: { assessment_id: { type: "string", format: "uuid" } } },
+        annotations: { title: "Download assessment PDF", readOnlyHint: true },
+      },
       {
         name: "preview_assessment",
         description: `Stage a requested JumpServe assessment privately and return its results link for owner review. For a PDF uploaded in Step 1, pass the provided assessment_id alongside bundle. Set bundle.paper.pdf_copy to true to attach the exact PDF. For pdf_upload_required, upload the exact PDF to upload_url with the skill's upload helper, then retry the same bundle. Populate bundle.wizard with page-cited paper breakdown steps and substeps, ordered experiment steps, shareable local commands and any script files those commands need. Honor local-only requests. Exclude PDF bytes, raw logs, private paths and credentials from the bundle. Replace {assessmentUrlHere} with assessment_url for already_shared or review_url for review_required. ${completionReply}\n\n${completionMessage}`,
@@ -43,6 +56,11 @@ export async function serveJumpServeTools(request: Request, body: unknown, origi
   server.setRequestHandler(CallToolRequestSchema, async ({ params }) => {
     const args = params.arguments;
     try {
+      if (params.name === DOWNLOAD_ASSESSMENT_PDF_TOOL && args && Object.keys(args).length === 1 && isResearchId(args.assessment_id)) {
+        const ticket = await tools.download(args.assessment_id);
+        if (!ticket) throw new Error("This private Step 1 PDF is unavailable in the connected Google account.");
+        return result(ticket);
+      }
       if (params.name === "preview_assessment" && args && "bundle" in args &&
           Object.keys(args).every(key => key === "bundle" || key === "assessment_id") &&
           (!("assessment_id" in args) || isResearchId(args.assessment_id))) {

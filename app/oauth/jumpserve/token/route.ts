@@ -1,5 +1,5 @@
 import {
-  isOpaqueCredential, mcpConfig, MCP_SCOPE, readBoundedBody,
+  isOpaqueCredential, mcpConfig, MCP_DOWNLOAD_SCOPE, parseMcpScope, readBoundedBody,
   registeredRedirect, verifierChallenge,
 } from "@/lib/jumpserve-mcp-oauth";
 import { exchangeGrant, resolveMcpClient } from "@/lib/jumpserve-mcp-store";
@@ -23,7 +23,8 @@ export async function POST(request: Request) {
   }
   if ([...body.keys()].some(key => body.getAll(key).length > 1) || body.has("client_secret") ||
       (body.has("resource") && body.get("resource") !== config.resource)) return oauthError("invalid_request");
-  if (body.has("scope") && body.get("scope") !== MCP_SCOPE) return oauthError("invalid_scope");
+  const scope = parseMcpScope(body.get("scope"));
+  if (body.has("scope") && !scope) return oauthError("invalid_scope");
   const client = body.get("client_id");
   if (!client) return oauthError("invalid_client");
   const grant = body.get("grant_type");
@@ -42,9 +43,10 @@ export async function POST(request: Request) {
     const tokens = await exchangeGrant({
       grant, proof, client, resource: config.resource,
       redirect, challenge: verifier ? verifierChallenge(verifier) : null,
+      readSources: scope ? scope === MCP_DOWNLOAD_SCOPE : null,
     });
     return tokens
-      ? Response.json({ ...tokens, token_type: "Bearer", expires_in: 3600, scope: MCP_SCOPE }, { headers })
+      ? Response.json({ ...tokens, token_type: "Bearer", expires_in: 3600 }, { headers })
       : oauthError("invalid_grant");
   } catch {
     return oauthError("temporarily_unavailable", 503);

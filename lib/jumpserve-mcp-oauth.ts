@@ -2,6 +2,15 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 import { getConfiguredSiteUrl } from "@/lib/site-url";
 
 export const MCP_SCOPE = "assessments:share";
+export const MCP_SOURCE_SCOPE = "assessments:read-source";
+export const MCP_DOWNLOAD_SCOPE = `${MCP_SCOPE} ${MCP_SOURCE_SCOPE}`;
+export const MCP_SCOPES = [MCP_SCOPE, MCP_SOURCE_SCOPE];
+
+export function parseMcpScope(value: unknown) {
+  if (value === MCP_SCOPE) return MCP_SCOPE;
+  if (value === MCP_DOWNLOAD_SCOPE || value === `${MCP_SOURCE_SCOPE} ${MCP_SCOPE}`) return MCP_DOWNLOAD_SCOPE;
+  return null;
+}
 export const MCP_AUTHORIZE_PATH = "/oauth/jumpserve/authorize";
 export const MCP_TOKEN_PATH = "/oauth/jumpserve/token";
 export const MCP_REGISTRATION_PATH = "/oauth/jumpserve/register";
@@ -82,13 +91,14 @@ export function parseAuthorizationRequest(query: URLSearchParams, resource: stri
   const challenge = query.get("code_challenge");
   const state = query.get("state");
   const resourceIndicator = query.get("resource");
+  const scope = query.has("scope") ? parseMcpScope(query.get("scope")) : MCP_DOWNLOAD_SCOPE;
   if ([...query.keys()].some(key => query.getAll(key).length > 1) ||
       !client || !clientId || !registeredRedirect(client, redirectUri) ||
       query.get("response_type") !== "code" || query.get("code_challenge_method") !== "S256" ||
       !challenge || !/^[A-Za-z0-9_-]{43}$/.test(challenge) || !state || state.length > 512 ||
-      (query.has("scope") && query.get("scope") !== MCP_SCOPE) ||
+      !scope ||
       (resourceIndicator !== null && resourceIndicator !== resource)) return null;
-  return { clientId, clientName: client.name, redirectUri, challenge, state };
+  return { clientId, clientName: client.name, redirectUri, challenge, state, readSources: scope === MCP_DOWNLOAD_SCOPE };
 }
 
 export function opaqueCredential() {

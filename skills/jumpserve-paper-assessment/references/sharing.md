@@ -43,6 +43,27 @@ Keep the original PDF and local evidence directory. Raw logs, credentials,
 account details, private paths and unsuitable commands or scripts stay local.
 The account owner reviews the exact assessment and attached PDF before public sharing.
 
+## Download a Step 1 PDF
+
+Call JumpServe's `download_assessment_pdf` with the `assessment_id` from the
+prompt, using the same Google account that uploaded the PDF. If the connector
+requests additional permission, reconnect JumpServe and approve PDF downloads,
+then retry with the same ID. Existing sharing-only sessions retain their access
+to previews and submissions.
+
+Pass the JSON result to the local download helper over standard input. Save the
+PDF under the returned filename in the paper's private local directory. The
+helper verifies the assessment ID, SHA-256, byte count, and PDF signature before
+placing the file at the destination.
+
+```sh
+python3 "$SKILL_DIR/scripts/download_paper.py" --assessment-id "$ASSESSMENT_ID" --out "$PDF" < "$PRIVATE_TICKET"
+```
+
+Supply the ticket through private standard input and keep it out of logs,
+the bundle, and the reply. Request a fresh ticket if the signed URL expires.
+Use the verified PDF and retain the assessment ID when staging the result.
+
 ## Attach the source PDF
 
 When sharing an assessment prepared from a local PDF, set `paper.pdf_copy` to

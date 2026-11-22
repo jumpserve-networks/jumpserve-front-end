@@ -163,7 +163,7 @@ const fixture = createServer(async (req, res) => {
       return send(200, {});
     }
     if (kind === 'sign' && req.method === 'POST' && service && papers.has(key)) {
-      assert.equal(JSON.parse(body).expiresIn, 60);
+      assert.ok([60, 180].includes(JSON.parse(body).expiresIn));
       return send(200, { signedURL: signed('sign', 'read-only-fixture') });
     }
     if (req.method === 'HEAD' && service) {
@@ -193,17 +193,20 @@ const fixture = createServer(async (req, res) => {
     if (req.method === 'POST') codes.set(input.code_hash, input);
     return send(200, null);
   }
-  if (path === 'rpc/jumpserve_mcp_exchange') {
+  if (path === 'rpc/jumpserve_mcp_exchange_scoped') {
     const code = codes.get(input.p_proof_hash);
     const valid = code && code.client_id === input.p_client && code.redirect_uri === input.p_redirect &&
       code.challenge === input.p_challenge && code.resource === input.p_resource;
-    if (valid) {
+    if (valid && (input.p_read_sources !== true || code.read_sources)) {
       codes.delete(input.p_proof_hash);
-      tokens.set(input.p_access, code.owner_id);
+      const readSources = code.read_sources && input.p_read_sources !== false;
+      tokens.set(input.p_access, { owner: code.owner_id, readSources });
+      return send(200, readSources ? 'source' : 'share');
     }
-    return send(200, !!valid);
+    return send(200, null);
   }
-  if (path === 'rpc/jumpserve_mcp_actor') return send(200, tokens.get(input.p_access) ?? null);
+  if (path === 'rpc/jumpserve_mcp_actor') return send(200, tokens.get(input.p_access)?.owner ?? null);
+  if (path === 'rpc/jumpserve_mcp_can_read_sources') return send(200, tokens.get(input.p_access)?.readSources === true);
   if (path === 'research_skill_sources') {
     if (req.method === 'POST') {
       if (!sources.has(input.id)) sources.set(input.id, input);
@@ -328,7 +331,8 @@ try {
   });
   assert.equal(claude.status, 201);
   const redirect = 'http://127.0.0.1:48251/callback/Abcd1234efgh';
-  const codex = await register(redirect, { client_name: 'Codex', scope: 'assessments:share' });
+  const fullScope = 'assessments:share assessments:read-source';
+  const codex = await register(redirect, { client_name: 'Codex', scope: fullScope });
   assert.equal(codex.status, 201);
   const { client_id: clientId, token_endpoint_auth_method: method } = await codex.json();
   assert.equal(method, 'none');
@@ -371,9 +375,10 @@ try {
   const consent = new URL(auth.authorization_endpoint);
   consent.search = new URLSearchParams({
     client_id: clientId, redirect_uri: redirect, response_type: 'code', code_challenge_method: 'S256',
-    code_challenge: createHash('sha256').update(verifier).digest('base64url'), state: 'fixture-state', resource, scope: 'assessments:share',
+    code_challenge: createHash('sha256').update(verifier).digest('base64url'), state: 'fixture-state', resource, scope: fullScope,
   }).toString();
   await page.goto(consent.href);
+  await page.getByText(/It can also download private research PDFs/).waitFor();
   await page.getByRole('button', { name: 'Connect', exact: true }).click();
   await page.waitForURL(redirect + '?*');
   const callback = new URL(page.url());
@@ -387,6 +392,7 @@ try {
   const issued = await grant(verifier);
   assert.equal(issued.status, 200);
   const credentials = await issued.json();
+  assert.equal(credentials.scope, fullScope);
   assert.equal((await grant(verifier)).status, 400);
   console.log('PASS browser OAuth consent, discovery, PKCE and code replay rejection');
 
@@ -511,6 +517,7 @@ try {
   const sourceDownload = origin + '/research-verification/api/assessment-source?assessment_id=' + assessmentId;
   const prompt = page.locator('[aria-label="assessment prompt"]');
   await prompt.waitFor();
+  assert.match(await prompt.textContent(), /download_assessment_pdf/);
   assert.match(await prompt.textContent(), new RegExp(`paper-${assessmentId}\\.pdf`));
   assert.doesNotMatch(await prompt.textContent(), new RegExp(sourceSha));
   await page.evaluate(() => {
@@ -532,6 +539,31 @@ try {
   assert.equal((await stranger.request.get(sourceDownload)).status(), 404);
   await stranger.close();
   const sourceBundle = { ...pdfBundle, paper: { ...pdfBundle.paper, sha256: sourceSha, byte_count: sourcePdf.length } };
+  const downloadCall = { name: 'download_assessment_pdf', arguments: { assessment_id: assessmentId } };
+  const downloadTicket = (await client.callTool(downloadCall)).structuredContent;
+  assert.equal(downloadTicket.expires_in, 180);
+  assert.equal(downloadTicket.sha256, sourceSha);
+  assert.equal(downloadTicket.byte_count, sourcePdf.length);
+  assert.equal(downloadTicket.assessment_id, assessmentId);
+  const localPdf = join(workspace, downloadTicket.filename);
+  const helper = spawn('python3', ['-B', resolve('skills/jumpserve-paper-assessment/scripts/download_paper.py'),
+    '--assessment-id', assessmentId, '--out', localPdf], { stdio: ['pipe', 'inherit', 'inherit'] });
+  helper.stdin.end(JSON.stringify(downloadTicket));
+  assert.deepEqual(await once(helper, 'exit'), [0, null]);
+  assert.deepEqual(await readFile(localPdf), sourcePdf);
+  assert.deepEqual(await readFile(localPdf), await (await context.request.get(sourceDownload)).body());
+  const directDownload = token => fetch(resource, { method: 'POST', headers: { Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+  body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: downloadCall }) });
+  const shareOnlyToken = 'v'.repeat(43), otherToken = 'w'.repeat(43);
+  tokens.set(sha256(shareOnlyToken), { owner, readSources: false });
+  tokens.set(sha256(otherToken), { owner: other, readSources: true });
+  const denied = await directDownload(shareOnlyToken);
+  assert.equal(denied.status, 403);
+  assert.match(denied.headers.get('www-authenticate'), /insufficient_scope/);
+  const otherDownload = await (await directDownload(otherToken)).json();
+  assert.equal(otherDownload.result.isError, true);
+  assert.equal(otherDownload.result.structuredContent, undefined);
   const stageSource = bundle => client.callTool({ name: 'preview_assessment', arguments: { bundle, assessment_id: assessmentId } });
   const wrongSource = await stageSource(pdfBundle);
   assert.equal(wrongSource.isError, true);
