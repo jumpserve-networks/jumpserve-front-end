@@ -352,21 +352,48 @@ try {
       },
     });
   });
-  const copyCommands = [
-    ['Claude Code install', 'claude plugin install jumpserve --marketplace jumpserve-networks/jumpserve-plugins'],
-    ['Codex install', 'codex plugin marketplace add jumpserve-networks/jumpserve-plugins && codex plugin add jumpserve@jumpserve'],
+  const viewport = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 720 });
+  const pluginSetups = [
+    ['Claude', 'Claude Code', 'claude plugin install jumpserve --marketplace jumpserve-networks/jumpserve-plugins', '/mcp'],
+    ['Codex', 'Codex', 'codex plugin marketplace add jumpserve-networks/jumpserve-plugins && codex plugin add jumpserve@jumpserve', 'codex mcp login jumpserve'],
   ];
-  for (const [index, [label, command]] of copyCommands.entries()) {
-    await page.getByRole('button', { name: `Copy ${label} command` }).click();
-    await page.getByText('Copied.', { exact: true }).nth(index).waitFor();
+  assert.equal(await page.getByRole('dialog').count(), 0);
+  for (const [buttonClient, clientName, command, login] of pluginSetups) {
+    const buttonLabel = `Add Plugin to ${buttonClient}`;
+    const trigger = page.getByRole('button', { name: buttonLabel, exact: true });
+    await trigger.press('Enter');
+    const dialog = page.getByRole('dialog', { name: `Set up JumpServe in ${clientName}`, exact: true });
+    await dialog.waitFor();
+    const label = `${clientName} install command`;
+    assert.equal(await dialog.getByLabel(label, { exact: true }).textContent(), command);
+    await dialog.getByText(login, { exact: true }).waitFor();
+    assert.equal(await dialog.getByRole('link', { name: 'View the public marketplace and install instructions' }).getAttribute('href'),
+      'https://github.com/jumpserve-networks/jumpserve-plugins');
+    assert.equal(await dialog.getByRole('link', { name: 'Manage JumpServe connections' }).getAttribute('href'), origin + '/oauth/jumpserve/connections');
+    assert.ok(await dialog.evaluate(element => {
+      const { left, right } = element.getBoundingClientRect();
+      return left >= 0 && right <= window.innerWidth;
+    }));
+    const copy = dialog.getByRole('button', { name: `Copy ${label}` });
+    await copy.click();
+    await dialog.getByText('Copied.', { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), command);
+    if (buttonClient === 'Codex') {
+      await page.evaluate(() => {
+        navigator.clipboard.writeText = async () => { throw new DOMException('Denied', 'NotAllowedError'); };
+      });
+      await copy.press('Enter');
+      await dialog.getByText('Copy failed. Select the text and copy it manually.').waitFor();
+      await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+    } else {
+      await page.keyboard.press('Escape');
+    }
+    await dialog.waitFor({ state: 'hidden' });
+    await page.waitForFunction(label => document.activeElement?.textContent === label, buttonLabel);
   }
-  await page.evaluate(() => {
-    navigator.clipboard.writeText = async () => { throw new DOMException('Denied', 'NotAllowedError'); };
-  });
-  await page.getByRole('button', { name: 'Copy Codex install command' }).press('Enter');
-  await page.getByText('Copy failed. Select the text and copy it manually.').waitFor();
-  console.log('PASS setup buttons copy the displayed command and report denied clipboard access');
+  await page.setViewportSize(viewport);
+  console.log('PASS plugin setup modals show the client-specific commands, report clipboard errors and restore keyboard focus');
 
   await context.addCookies([cookie(owner)]);
   const verifier = 'v'.repeat(43);
