@@ -11,6 +11,7 @@ import { serveJumpServeTools } from '../lib/jumpserve-mcp-server.ts';
 const origin = 'https://jumpserve.example.test';
 const id = '22459c11-9be3-44d2-9b39-a0cb96a0d09f';
 const hash = 'b'.repeat(64);
+const script = { path: 'scripts/record.sh', content: '#!/bin/sh\nprintf "%s\\n" 0\n' };
 const fixture = () => ({
   version: 'jumpserve-assessment-v1',
   paper: { title: 'Synthetic paper', authors: ['Example Author'], domain: 'Systems', sha256: hash, byte_count: 523 },
@@ -68,6 +69,29 @@ test('wizard fields remain part of the approved bundle and require valid source 
   bundle.wizard = wizard();
   bundle.wizard.experiments[0].steps[0].commands = 'cat /Users/example/private-data';
   assert.throws(() => prepareAssessmentBundle(bundle), /private paths/);
+});
+
+test('script source is part of the exact approval and requires safe relative, unique file paths', () => {
+  const bundle = { ...fixture(), wizard: wizard() };
+  const originalHash = prepareAssessmentBundle(bundle).hash;
+  const experiment = bundle.wizard.experiments[0];
+  experiment.scripts = [script];
+  const prepared = prepareAssessmentBundle(bundle);
+  assert.deepEqual(prepared.bundle.wizard.experiments[0].scripts, [script]);
+  assert.notEqual(prepared.hash, originalHash);
+  experiment.scripts = [{ ...script, content: script.content + '# retained source\n' }];
+  assert.notEqual(prepareAssessmentBundle(bundle).hash, prepared.hash);
+
+  for (const path of ['../record.sh', 'scripts/../record.sh', '/record.sh', 'scripts\\record.sh', 'record.sh\n']) {
+    experiment.scripts = [{ ...script, path }];
+    assert.throws(() => prepareAssessmentBundle(bundle), /scripts\/0\/path/);
+  }
+  experiment.scripts = [script, { ...script, content: 'printf 1\n' }];
+  assert.throws(() => prepareAssessmentBundle(bundle), /Script paths must be unique/);
+  for (const content of ['cat /Users/example/private-data', 'API_KEY=private-example']) {
+    experiment.scripts = [{ ...script, content }];
+    assert.throws(() => prepareAssessmentBundle(bundle), /credentials.*private paths/);
+  }
 });
 
 test('OAuth requests require a registered loopback callback, PKCE and the JumpServe resource', () => {
@@ -139,9 +163,13 @@ test('a real MCP SDK client discovers both tools and completes preview and submi
       '{assessmentUrlHere}',
     ].join('\n\n');
     const sharingGuide = readFileSync(new URL('../skills/jumpserve-paper-assessment/references/sharing.md', import.meta.url), 'utf8');
-    assert.ok(sharingGuide.includes(`\n${completionMessage}\n`));
-    for (const tool of tools) assert.ok(tool.description.endsWith(`\n\n${completionMessage}`));
+    assert.ok(sharingGuide.includes(['```text', completionMessage, '```'].join('\n')));
+    assert.match(sharingGuide, /End the reply\s+immediately after the URL\./);
+    for (const tool of tools) {
+      assert.ok(tool.description.endsWith(`End the reply immediately after the URL.\n\n${completionMessage}`));
+    }
     const bundle = { ...fixture(), wizard: wizard() };
+    bundle.wizard.experiments[0].scripts = [script];
     const preview = await client.callTool({ name: 'preview_assessment', arguments: { bundle } });
     assert.equal(preview.structuredContent.review_url, origin + '/research-verification/share/' + id);
     assert.equal(previewed.hash, prepareAssessmentBundle(bundle).hash);

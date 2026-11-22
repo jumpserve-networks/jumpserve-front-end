@@ -10,7 +10,7 @@ delivery once the connector is available.
 
 Supply only the fields in [the bundle schema](assessment.schema.json). Include
 `wizard` in each new bundle so the preview and approved assessment show the
-same three steps.
+same assessment steps.
 
 - **Step 2 · Paper Breakdown** uses `wizard.breakdown` for page-cited paraphrases.
   Assign each entry to `access`, `experiment`, `data` or `validate` and cite
@@ -21,23 +21,29 @@ same three steps.
   `instructions` from the frozen procedure. Record any unresolved inputs or
   proposed design choices in the instructions. Use `methods` for module
   versions, acquisition procedures and validation reports.
-- **Step 4 · Setup & Run Commands** uses the experiment's `prerequisites`,
+- **Step 4 · Setup** uses the experiment's `prerequisites`,
   optional `setup` and `cleanup`, and `commands` on the step they implement.
-  Include safe, shareable excerpts from the actual local experiment package.
-  Use `command_notes` to identify drafted or unverified commands or explain
-  why commands are unavailable. Record outcomes in `claims` and measured
-  observations in `runs`, including exact units and evidence digests.
+  Include complete shareable script files from the local experiment package
+  in the experiment's `scripts` array. Use a relative `path` matching the
+  commands and put the full UTF-8 source in `content`. Include helper scripts
+  required by those commands. Use `command_notes` to identify any scripts
+  or commands that are drafted, unverified, or unavailable in the shared copy.
+- **Step 5 · Experiment Results** uses `summary`, claim outcomes and findings
+  in `claims`, measured observations in `runs`, and `limitations`. Include
+  exact units and evidence digests for measured runs. For plan-only assessments,
+  leave `runs` empty and use the claim findings to explain what remains untested.
 
 Keep original PDFs, full paper text, raw logs, credentials, account details,
-private paths and any commands unsuitable for sharing in the local evidence
+private paths and any commands or scripts unsuitable for sharing in the local evidence
 directory. The account owner reviews the exact material before public sharing.
 
 ## Stage and return the assessment
 
 Call `preview_assessment` with the saved bundle JSON. Use `assessment_url` for
 `already_shared` and `review_url` for `review_required`. The review page guides
-the owner through approval. Use the following exact chat reply, replacing
-`{assessmentUrlHere}` with the selected URL as plain text.
+the owner through approval. Send only the exact completion message below as
+plain text. Replace `{assessmentUrlHere}` with the selected URL. End the reply
+immediately after the URL.
 
 ```text
 Your research paper assessment is finished!

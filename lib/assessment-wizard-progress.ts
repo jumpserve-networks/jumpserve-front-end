@@ -4,7 +4,7 @@ import { RESEARCH_WORKFLOW_MODULE_PATH } from "./test-modules";
 
 export const ASSESSMENT_PROGRESS_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/api/assessment-progress`;
 export const ASSESSMENT_PROGRESS_VERSION = "assessment-wizard-progress-v1";
-export type AssessmentStep = 1 | 2 | 3 | 4;
+export type AssessmentStep = 1 | 2 | 3 | 4 | 5;
 export type AssessmentWizardProgress = { version: typeof ASSESSMENT_PROGRESS_VERSION; access: "public-read-only"; assessments: { id: string; step: AssessmentStep | null }[] };
 
 export function validateProgressIds(ids: string[]) {
@@ -25,6 +25,6 @@ export async function loadAssessmentWizardProgress(ids: string[], signal?: Abort
   if (new TextEncoder().encode(raw).byteLength > 10000) throw new Error("Assessment steps could not be verified.");
   const value = JSON.parse(raw) as AssessmentWizardProgress;
   if (!value || value.version !== ASSESSMENT_PROGRESS_VERSION || value.access !== "public-read-only" || !Array.isArray(value.assessments) || value.assessments.length !== ids.length ||
-      new Set(value.assessments.map(item => item?.id)).size !== ids.length || value.assessments.some(item => !item || !ids.includes(item.id) || item.step !== null && ![1, 2, 3, 4].includes(item.step))) throw new Error("Assessment steps could not be verified.");
+      new Set(value.assessments.map(item => item?.id)).size !== ids.length || value.assessments.some(item => !item || !ids.includes(item.id) || item.step !== null && ![1, 2, 3, 4, 5].includes(item.step))) throw new Error("Assessment steps could not be verified.");
   return value;
 }

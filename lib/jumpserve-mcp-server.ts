@@ -7,6 +7,7 @@ import { researchAssessmentPath } from "@/lib/research-pathways";
 import { RESEARCH_WORKFLOW_MODULE_PATH } from "@/lib/test-modules";
 
 export const SHARE_REVIEW_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/share`;
+const completionReply = "On success, send only the exact completion message below as plain text. End the reply immediately after the URL.";
 const completionMessage = `Your research paper assessment is finished!
 
 View the assessment online using the JumpServe app at the following URL:
@@ -26,13 +27,13 @@ export async function serveJumpServeTools(request: Request, body: unknown, origi
     tools: [
       {
         name: "preview_assessment",
-        description: `Stage a requested JumpServe assessment privately and return its results link for owner review. Populate bundle.wizard with the paper breakdown, ordered experiment steps and shareable local commands. Honor local-only requests. Exclude original PDFs, raw logs, private paths and credentials. On success, use the exact chat reply below. Replace {assessmentUrlHere} with assessment_url for already_shared or review_url for review_required.\n\n${completionMessage}`,
+        description: `Stage a requested JumpServe assessment privately and return its results link for owner review. Populate bundle.wizard with the paper breakdown, ordered experiment steps, shareable local commands and any script files those commands need. Honor local-only requests. Exclude original PDFs, raw logs, private paths and credentials. Replace {assessmentUrlHere} with assessment_url for already_shared or review_url for review_required. ${completionReply}\n\n${completionMessage}`,
         inputSchema: { type: "object", additionalProperties: false, required: ["bundle"], properties: { bundle: ASSESSMENT_SCHEMA } },
         annotations: { title: "Preview assessment", idempotentHint: true },
       },
       {
         name: "submit_assessment",
-        description: `Share the exact preview approved by the account owner on JumpServe. Retry the same preview ID after an uncertain result. On success, use the exact chat reply below. Replace {assessmentUrlHere} with assessment_url.\n\n${completionMessage}`,
+        description: `Share the exact preview approved by the account owner on JumpServe. Retry the same preview ID after an uncertain result. Replace {assessmentUrlHere} with assessment_url. ${completionReply}\n\n${completionMessage}`,
         inputSchema: { type: "object", additionalProperties: false, required: ["preview_id"], properties: { preview_id: { type: "string", format: "uuid" } } },
         annotations: { title: "Submit approved assessment", idempotentHint: true },
       },

@@ -38,12 +38,12 @@ export default async function SharePreviewPage({ params, searchParams }: { param
   const user = await requireGoogleUser(`${path}${researchSearchSuffix(query)}`);
   const preview = await readAssessmentPreview(user.id, previewId);
   if (!preview) notFound();
-  if (preview.studyId) redirect(researchAssessmentPath(preview.studyId));
+  if (preview.studyId) redirect(`${researchAssessmentPath(preview.studyId)}${researchSearchSuffix(query)}`);
   return <main className="mx-auto max-w-5xl space-y-6 px-4 py-8">
     <div className="content-panel space-y-3 rounded-xl border p-5">
       {preview.approved
         ? <p role="status">This copy is approved. You can finish sharing it publicly here.</p>
-        : <p>Review Steps 2–4 of this private assessment before approving this exact copy for public sharing.</p>}
+        : <p>Review Steps 2–5 of this private assessment before approving this exact copy for public sharing.</p>}
       <form action={share.bind(null, previewId, preview.hash)}>
         <Button type="submit">{preview.approved ? "Share approved assessment" : "Approve public sharing"}</Button>
       </form>

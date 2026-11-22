@@ -68,7 +68,7 @@
       "maxLength": 5000
     },
     "wizard": {
-      "description": "Paper breakdown, ordered experiment plans and shareable local commands for assessment Steps 2 through 4.",
+      "description": "Paper breakdown, ordered experiment plans, shareable local commands and script files for assessment Steps 2 through 4.",
       "type": "object",
       "additionalProperties": false,
       "required": ["breakdown", "experiments"],
@@ -119,6 +119,26 @@
               "setup": { "type": "string", "minLength": 1, "maxLength": 12000 },
               "cleanup": { "type": "string", "minLength": 1, "maxLength": 12000 },
               "command_notes": { "type": "string", "minLength": 1, "maxLength": 2000 },
+              "scripts": {
+                "description": "Complete UTF-8 script files used by the setup, run, analysis or cleanup commands.",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 30,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["path", "content"],
+                  "properties": {
+                    "path": {
+                      "description": "File path relative to the experiment directory.",
+                      "type": "string",
+                      "maxLength": 200,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*$"
+                    },
+                    "content": { "type": "string", "minLength": 1, "maxLength": 64000 }
+                  }
+                }
+              },
               "steps": {
                 "type": "array",
                 "minItems": 1,

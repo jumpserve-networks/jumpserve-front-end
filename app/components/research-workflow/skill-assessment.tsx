@@ -3,6 +3,7 @@ import { PAPER_ASSESSMENT_STEPS, parsePaperAssessmentStep } from "@/lib/paper-as
 import { PAPER_BREAKDOWN_SECTIONS } from "@/lib/research-paper-breakdown";
 import { researchSearchSuffix } from "@/lib/research-pathways";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/app/components/ui/table";
+import { ExperimentScript } from "./experiment-script";
 import { PaperAssessmentSteps } from "./paper-assessment-steps";
 
 const outcomeLabel = {
@@ -65,11 +66,10 @@ function SharedCommands({ label, commands }: { label: string; commands: string }
   </details>;
 }
 
-function SetupAndRuns({ claims, methods, runs, limitations, wizard }: AssessmentBundle) {
-  const claimsById = new Map(claims.map(claim => [claim.id, claim]));
+function ExperimentSetup({ methods, wizard }: Pick<AssessmentBundle, "methods" | "wizard">) {
   const hasMethodCommands = methods.some(method => method.commands);
   return <section className="space-y-6" aria-labelledby="skill-execution">
-    <h2 id="skill-execution" className="text-lg font-semibold">Setup &amp; Run Commands</h2>
+    <h2 id="skill-execution" className="text-lg font-semibold">Setup</h2>
     {wizard?.experiments.map((experiment, index) => <section key={index} className="space-y-3 border-t py-3">
       <h3 className="font-semibold">{experiment.title}</h3>
       {experiment.prerequisites.length ? <div className="space-y-1 text-sm">
@@ -77,6 +77,11 @@ function SetupAndRuns({ claims, methods, runs, limitations, wizard }: Assessment
         <ul className="list-disc space-y-1 pl-5">{experiment.prerequisites.map((item, i) => <li key={i}>{item}</li>)}</ul>
       </div> : null}
       {experiment.command_notes ? <p className="whitespace-pre-wrap text-sm text-muted-foreground">{experiment.command_notes}</p> : null}
+      {experiment.scripts?.length ? <div className="space-y-2">
+        <h4 className="text-sm font-medium">Experiment scripts</h4>
+        <p className="text-sm text-muted-foreground">Save each file at the path shown, relative to the experiment directory.</p>
+        <ul className="space-y-2">{experiment.scripts.map(script => <li key={script.path}><ExperimentScript {...script} /></li>)}</ul>
+      </div> : null}
       {experiment.setup ? <SharedCommands label="Setup commands" commands={experiment.setup} /> : null}
       {experiment.steps.map((step, i) => step.commands ? <SharedCommands key={i} label={`Step ${i + 1} · ${step.title}`} commands={step.commands} /> : null)}
       {experiment.cleanup ? <SharedCommands label="Cleanup commands" commands={experiment.cleanup} /> : null}
@@ -84,6 +89,14 @@ function SetupAndRuns({ claims, methods, runs, limitations, wizard }: Assessment
     </section>)}
     {methods.map((method, i) => method.commands ? <SharedCommands key={i} label={method.title} commands={method.commands} /> : null)}
     {!wizard && !hasMethodCommands ? <p className="text-sm">Shared commands are unavailable for this assessment.</p> : null}
+  </section>;
+}
+
+function ExperimentResults({ summary, claims, runs, limitations }: Pick<AssessmentBundle, "summary" | "claims" | "runs" | "limitations">) {
+  const claimsById = new Map(claims.map(claim => [claim.id, claim]));
+  return <section className="space-y-6" aria-labelledby="skill-results">
+    <h2 id="skill-results" className="text-lg font-semibold">Experiment Results</h2>
+    <p className="whitespace-pre-wrap">{summary}</p>
     <section className="space-y-3">
       <h3 className="font-semibold">Claim findings</h3>
       {claims.map(claim => <div key={claim.id} className="space-y-1 border-t py-3">
@@ -115,21 +128,20 @@ function SetupAndRuns({ claims, methods, runs, limitations, wizard }: Assessment
         </Table>
       </div>)}
     </section>
-    <section className="space-y-2">
+    {limitations.length ? <section className="space-y-2">
       <h3 className="font-semibold">Limitations</h3>
       <ul className="list-disc space-y-1 pl-5">{limitations.map((item, i) => <li key={i}>{item}</li>)}</ul>
-      <p className="text-sm text-muted-foreground">JumpServe checks the submission format. Findings and measurements come from the submitter.</p>
-    </section>
+    </section> : null}
   </section>;
 }
 
 export function SkillAssessment({ bundle, path, query }: { bundle: AssessmentBundle; path: string; query: Record<string, string | string[] | undefined> }) {
   const { paper } = bundle;
   const requested = parsePaperAssessmentStep(query.step);
-  const current = requested === "implementation" || requested === "execution" ? requested : "breakdown";
+  const current = requested && requested !== "upload" ? requested : "breakdown";
   const hrefs = Object.fromEntries(PAPER_ASSESSMENT_STEPS.map(step => [step.id, `${path}${researchSearchSuffix({ ...query, step: step.id })}`]));
   return <article className="min-w-0 space-y-7 break-words">
-    <PaperAssessmentSteps current={current} assessment implementation execution hrefs={hrefs} />
+    <PaperAssessmentSteps current={current} assessment implementation execution results hrefs={hrefs} />
     <header className="space-y-2">
       <p className="text-sm text-muted-foreground">Local JumpServe assessment</p>
       <h1 className="text-2xl font-semibold">{paper.title}</h1>
@@ -137,9 +149,10 @@ export function SkillAssessment({ bundle, path, query }: { bundle: AssessmentBun
       <p className="text-sm">{paper.domain}</p>
       {paper.url ? <a className="text-primary underline" href={paper.url} rel="noreferrer">Source paper</a> : null}
       <p className="text-sm text-muted-foreground">Source SHA-256 <code className="break-all">{paper.sha256}</code> · {paper.byte_count.toLocaleString("en-US")} bytes</p>
-      <p className="whitespace-pre-wrap">{bundle.summary}</p>
     </header>
-    {current === "breakdown" ? <PaperBreakdown claims={bundle.claims} wizard={bundle.wizard} /> :
-      current === "implementation" ? <ExperimentSteps methods={bundle.methods} wizard={bundle.wizard} /> : <SetupAndRuns {...bundle} />}
+    {current === "breakdown" ? <PaperBreakdown claims={bundle.claims} wizard={bundle.wizard} /> : null}
+    {current === "implementation" ? <ExperimentSteps methods={bundle.methods} wizard={bundle.wizard} /> : null}
+    {current === "execution" ? <ExperimentSetup methods={bundle.methods} wizard={bundle.wizard} /> : null}
+    {current === "results" ? <ExperimentResults summary={bundle.summary} claims={bundle.claims} runs={bundle.runs} limitations={bundle.limitations} /> : null}
   </article>;
 }

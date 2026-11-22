@@ -3,10 +3,10 @@ import {test} from 'node:test';
 import {assessmentStepLabel, loadAssessmentWizardProgress, ASSESSMENT_PROGRESS_VERSION} from '../lib/assessment-wizard-progress.ts';
 
 const id = '11111111-1111-4111-8111-111111111111', other = '22222222-2222-4222-8222-222222222222';
-const fixture = () => ({version: ASSESSMENT_PROGRESS_VERSION, access: 'public-read-only', assessments: [{id, step: 2}, {id: other, step: null}]});
+const fixture = () => ({version: ASSESSMENT_PROGRESS_VERSION, access: 'public-read-only', assessments: [{id, step: 5}, {id: other, step: null}]});
 
-test('wizard progress uses the same four numbered step names as the assessment', () => {
-  assert.deepEqual([1,2,3,4].map(assessmentStepLabel), ['Step 1 · Paper Upload','Step 2 · Paper Breakdown','Step 3 · Experiment Steps','Step 4 · Setup & Run Commands']);
+test('wizard progress uses the same five numbered step names as the assessment', () => {
+  assert.deepEqual([1,2,3,4,5].map(assessmentStepLabel), ['Step 1 · Paper Upload','Step 2 · Paper Breakdown','Step 3 · Experiment Steps','Step 4 · Setup','Step 5 · Experiment Results']);
 });
 test('one anonymous bounded GET verifies every requested identity without sending credentials', async () => {
   let calls = 0;
@@ -20,7 +20,7 @@ test('one anonymous bounded GET verifies every requested identity without sendin
 });
 test('invalid input never starts a request and malformed coverage cannot invent steps', async () => {
   for (const ids of [[],[id,id],['invalid'],Array(11).fill(id)]) await assert.rejects(loadAssessmentWizardProgress(ids,undefined,()=>assert.fail('No request')));
-  for (const assessments of [[],[{id,step:2}],[{id,step:2},{id,step:3}],[{id,step:5},{id:other,step:null}],[{id,step:'2'},{id:other,step:null}]]) {
+  for (const assessments of [[],[{id,step:2}],[{id,step:2},{id,step:3}],[{id,step:6},{id:other,step:null}],[{id,step:'2'},{id:other,step:null}]]) {
     await assert.rejects(loadAssessmentWizardProgress([id,other],undefined,async()=>Response.json({...fixture(),assessments})),/could not be verified/);
   }
   await assert.rejects(loadAssessmentWizardProgress([id],undefined,async()=>new Response('Private database details',{status:503})),/temporarily unavailable/);

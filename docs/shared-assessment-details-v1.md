@@ -54,9 +54,10 @@ The status field shows only the saved wizard step, without publication badges:
 **Step 1 · Paper Upload** for an
 upload reservation, **Step 2 · Paper Breakdown** while preparing or reviewing
 the breakdown, **Step 3 · Experiment Steps** after confirmation while a plan is
-pending or needs attention, and **Step 4 · Setup & Run Commands** when the plan is ready
-or an older experiment workflow exists. Step four names the next available
-stage; it does not assert that experiments ran. Returning to an earlier wizard
+pending or needs attention, and **Step 4 · Setup** when the plan is ready
+or an older experiment workflow exists. **Step 5 · Experiment Results** appears
+in the inventory when a shared JumpServe assessment includes recorded measurements.
+Returning to an earlier wizard
 screen does not undo saved progress. A single anonymous, bounded GET to
 `/research-verification/api/assessment-progress?id=...` refreshes the displayed
 page every ten seconds using only saved statuses. It reads no source text or
@@ -163,7 +164,7 @@ experiment outcomes. Native API-generated drafts keep their existing quality gat
 
 The owner can view the imported bundle through the existing wizard. Other visitors
 see a read-only projection on the same canonical assessment URL, with navigation
-between Paper Breakdown, Experiment Steps and Setup & Run Commands. The shared
+between Paper Breakdown, Experiment Steps and Setup. The shared
 view explicitly labels local authoring and absent independent/sandbox review.
 It does not load queues or mount owner actions, and cannot generate commands,
 launch work or change scope. Undefined claim criteria remain blocked.

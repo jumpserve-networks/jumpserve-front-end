@@ -50,7 +50,7 @@ test('each table row shows its saved wizard step instead of a shared workflow st
  const ids=Array.from({length:4},(_,i)=>`00000000-0000-4000-8000-${String(i+1).padStart(12,'0')}`);let reads=0;
  globalThis.__assessmentProgress=async requested=>{reads++;assert.deepEqual(requested,ids);return{assessments:ids.map((id,i)=>({id,step:i+1}))};};
  show({},catalog(ids.map((id,i)=>paper({id,title:'Paper '+(i+1)}))));
- for(const label of ['Step 1 · Paper Upload','Step 2 · Paper Breakdown','Step 3 · Experiment Steps','Step 4 · Setup & Run Commands'])await screen.findByText(label);
+ for(const label of ['Step 1 · Paper Upload','Step 2 · Paper Breakdown','Step 3 · Experiment Steps','Step 4 · Setup'])await screen.findByText(label);
  assert.equal(reads,1);assert.equal(screen.queryByText('In progress'),null);
 });
 test('unavailable progress keeps the assessment list usable and retries without guessing a step',async()=>{
@@ -64,12 +64,12 @@ test('progress refreshes serially and stale status remains labeled until a succe
  globalThis.__assessmentProgress=async ids=>{calls++;if(calls===2)throw new Error('Explicit outage');return{assessments:ids.map(id=>({id,step:calls===1?2:4}))};};
  await act(async()=>{show();});assert.ok(screen.getByText('Step 2 · Paper Breakdown'));
  await act(async()=>{t.mock.timers.tick(10000);});assert.ok(screen.getByText('Step 2 · Paper Breakdown'));assert.match(screen.getByRole('alert').textContent,/may be stale/);
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Retry steps'}));});assert.ok(screen.getByText('Step 4 · Setup & Run Commands'));assert.equal(screen.queryByRole('alert'),null);
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Retry steps'}));});assert.ok(screen.getByText('Step 4 · Setup'));assert.equal(screen.queryByRole('alert'),null);
 });
 test('unmount aborts a pending progress read and ignores its late response',async()=>{
  let signal,resolve;globalThis.__assessmentProgress=(_ids,value)=>{signal=value;return new Promise(done=>{resolve=done;});};
  const {unmount}=show();await screen.findByRole('table');await waitFor(()=>assert.equal(signal?.aborted,false));unmount();assert.equal(signal.aborted,true);
- await act(async()=>{resolve({assessments:[{id,step:4}]});});assert.equal(screen.queryByText('Step 4 · Setup & Run Commands'),null);
+ await act(async()=>{resolve({assessments:[{id,step:4}]});});assert.equal(screen.queryByText('Step 4 · Setup'),null);
 });
 test('owner deletion requires confirmation and refreshes the personal list only after persistence succeeds',async()=>{
  globalThis.__assessmentPreferences={userId:'owner'};let deleted=false;const calls=[];
