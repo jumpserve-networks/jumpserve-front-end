@@ -1,5 +1,6 @@
 import { ASSESSMENTS_PATH } from "@/lib/test-modules";
-import { loadMyPaperCatalog, loadPaperCatalog, loadPaperMetadata, validPaperAuthors, type PaperAssessment, type PaperCatalog } from "@/lib/research-paper-catalog";
+import { loadMyPaperCatalog, loadPaperCatalog, loadPaperMetadata, loadPrivatePaperCatalog, validPaperAuthors, type PaperAssessment, type PaperCatalog } from "@/lib/research-paper-catalog";
+import { encodeAssessmentCursor, newestAssessmentFirst } from "@/lib/research-assessment-cursor";
 
 export type AssessmentView = "card" | "table";
 export type AssessmentListOptions = { before?: string; mine?: boolean; name?: string; view?: AssessmentView };
@@ -16,13 +17,26 @@ export function assessmentListPath({ before, mine = false, name = "", view = "ta
 const normalize = (value: string) => value.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
 const matches = (paper: PaperAssessment, name: string) => normalize([paper.title, ...(paper.authors ?? []), paper.initiated_by].filter(Boolean).join(" ")).includes(name);
 
+async function personalPage(userId: string, before: string | undefined, signal: AbortSignal | undefined, fetcher: typeof fetch) {
+  const [catalog, privateCatalog] = await Promise.all([
+    loadMyPaperCatalog(userId, before, signal, fetcher),
+    loadPrivatePaperCatalog(userId, before, signal, fetcher),
+  ]);
+  // A preview may be shared while the two catalogues are loading. Keep the
+  // canonical assessment if both snapshots contain the same identity.
+  const merged = new Map([...privateCatalog.papers, ...catalog.papers].map(paper => [paper.id, paper]));
+  const papers = Array.from(merged.values()).sort(newestAssessmentFirst).slice(0, 10);
+  const more = merged.size > 10 || catalog.next_cursor !== null || privateCatalog.next_cursor !== null;
+  return { ...catalog, papers, coverage: { papers: papers.length }, next_cursor: more ? encodeAssessmentCursor(papers[9]) : null };
+}
+
 // Search the same public/owner catalogue used for cards. A matching page can
 // span several catalogue pages; its cursor belongs to the last displayed match,
 // so lookahead never skips matches that share the underlying page.
 export async function loadAssessmentList({ before, userId, name = "" }: { before?: string; userId?: string; name?: string }, signal?: AbortSignal, fetcher: typeof fetch = fetch): Promise<PaperCatalog> {
   if (name.length > 200) throw new Error("Use at most 200 characters in the name filter.");
   const search = normalize(name);
-  const read = (cursor: string | undefined, readSignal = signal) => userId ? loadMyPaperCatalog(userId, cursor, readSignal, fetcher) : loadPaperCatalog(cursor, readSignal, fetcher);
+  const read = (cursor: string | undefined, readSignal = signal) => userId ? personalPage(userId, cursor, readSignal, fetcher) : loadPaperCatalog(cursor, readSignal, fetcher);
   if (!search) return read(before);
   const controller = new AbortController();
   const relay = () => controller.abort(signal?.reason);
@@ -39,7 +53,7 @@ export async function loadAssessmentList({ before, userId, name = "" }: { before
       async function bibliography() {
         while (!controller.signal.aborted && index < papers.length) {
           const i = index++, paper = papers[i];
-          if (!matches(paper, search) && (paper.title === null || !validPaperAuthors(paper.authors))) {
+          if (!paper.private_preview && !matches(paper, search) && (paper.title === null || !validPaperAuthors(paper.authors))) {
             const metadata = await loadPaperMetadata(paper.id, controller.signal, fetcher);
             papers[i] = { ...paper, title: paper.title ?? metadata.title, authors: paper.authors ?? metadata.authors };
           }
@@ -54,7 +68,7 @@ export async function loadAssessmentList({ before, userId, name = "" }: { before
       }
       if (found.length > 10 || page.next_cursor === null) {
         const selected = found.slice(0, 10), last = selected.at(-1);
-        const next = found.length > 10 && last ? btoa(JSON.stringify({ created_at: last.created_at, id: last.id })).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "") : null;
+        const next = found.length > 10 && last ? encodeAssessmentCursor(last) : null;
         return { ...page, papers: selected, coverage: { papers: selected.length }, next_cursor: next };
       }
       if (cursors.has(page.next_cursor)) throw new Error("The assessment service repeated a page. Try again.");

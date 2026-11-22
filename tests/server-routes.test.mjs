@@ -268,15 +268,7 @@ test('Step 1 shows private PDF upload and reveals the local prompt only after ve
  const prompt=ready.querySelector('[aria-label="assessment prompt"]').textContent;
  const launch=ready.querySelector('[aria-label="Codex human approval command"]').textContent;
  assert.equal(launch,`codex --sandbox workspace-write --ask-for-approval on-request -c 'approvals_reviewer="user"'`);
- assert.match(prompt,new RegExp(ID));
- assert.doesNotMatch(prompt,new RegExp(sha256));
- assert.match(prompt,/confirm the experiment scope.+if an authorized action is blocked, use the client's native approval or consent mechanism for the specific resource or command and continue once granted/);
- assert.match(prompt,/Never automatically reject a permission request\. Only I can decline it\./);
- assert.match(prompt,/If the client reports automatic review, show me how to select human review before submitting the request/);
- assert.match(prompt,/If an automatic reviewer blocks an attempt,.+keep the request pending for my decision/);
- assert.match(prompt,/If I decline or the client prevents human review, record the outcome and save the assessment for resumption/);
- assert.match(prompt,/If the PDF download is blocked, offer to verify a local copy downloaded from Step 1 for this same assessment/);
- assert.match(prompt,/Stage a plan-only preview only if I choose it/);
+ assert.equal(prompt,`Use the JumpServe paper assessment skill for ${ID}.`);
  assert.ok(ready.querySelector(`a[href="${BASE}/api/assessment-source?assessment_id=${ID}"]`));
 });
 

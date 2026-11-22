@@ -9,6 +9,8 @@ export const RESEARCH_WORKFLOW_MODULE_PATH = "/research-verification";
 export const NEW_ASSESSMENT_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/new-assessment`;
 export const ASSESSMENTS_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/assessments`;
 export const ASSESSMENT_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/assessment`;
+export const ASSESSMENT_REVIEW_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/share`;
+export const PRIVATE_ASSESSMENTS_API_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/api/private-assessments`;
 export const MY_ASSESSMENTS_PATH = `${ASSESSMENTS_PATH}?mine=1`;
 export const RESEARCH_IDEAS_MODULE_PATH = "/research-ideas";
 

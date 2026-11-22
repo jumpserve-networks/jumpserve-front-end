@@ -73,9 +73,11 @@ core requirement when adding or changing tests and measurements.
 ## Local research assessment autonomy
 
 The goal of research assessments is **100% unattended autonomy** after the user
-provides the paper or idea and confirms the assessment scope. The local skill should
-plan, implement, validate and execute experiments, analyze measurements, and
-diagnose, repair and resume recoverable failures without routine user input.
+requests an assessment. That request authorizes feasible local verification
+experiments within its scope. Honor explicit plan-only requests, confirmation
+requirements, and client access controls. The local skill should plan, implement,
+validate and execute experiments, analyze measurements, and diagnose, repair and
+resume recoverable failures without routine user input.
 Installing dependencies, writing instrumentation and repairing experiment
 packages are local workflow responsibilities. Run claims in parallel where
 appropriate and share compatible acquisitions. Save prompts, responses,
@@ -243,10 +245,11 @@ to unchanged originals. Retired queue links without an assessment open the
 My Assessments filter. Launches, cancellation and every write retain Google/owner checks. See
 `docs/shared-assessment-details-v1.md` for current access rules and verification.
 
-Paper assessments have no Published/Not published state or publishing action.
-Use the wizard step as progress and the canonical assessment route for every
-paper; old report URLs redirect there. Ignore legacy publication flags at the
-client boundary while preserving historical records and wire compatibility.
+Completed local skill assessments stay private without expiration. The owner
+can share the exact saved assessment publicly from its private page. Use the
+wizard step as progress and the canonical assessment route for public papers;
+old report URLs redirect there. Ignore legacy publication flags at the client
+boundary while preserving historical records and wire compatibility.
 Source-paper reported values and bibliographic provenance remain distinct from
 our measurements. Owner-only editing, private PDFs and private ideas retain
 their existing authorization checks.

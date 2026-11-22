@@ -6,6 +6,7 @@ globalThis.catalogAuthCalls=[];
 const hook=registerHooks({resolve(s,c,next){return next(s==='@/lib/browser-auth'?auth:s.startsWith('@/lib/')?new URL('../lib/'+s.slice(6)+'.ts',import.meta.url).href:s,c);}});
 const {validatePaperCatalog,loadPaperCatalog,loadMyPaperCatalog,loadPaperMetadata,loadPaperDetail,paperWorkflowLabel}=await import('../lib/research-paper-catalog.ts');
 const {assessmentListPath,loadAssessmentList}=await import('../lib/research-assessment-list.ts');hook.deregister();
+const {encodeAssessmentCursor,newestAssessmentFirst}=await import('../lib/research-assessment-cursor.ts');
 const id='11111111-1111-4111-8111-111111111111';
 function fixture(){return {version:'research-paper-catalog-v1',access:'public-read-only',papers:[{id,title:null,created_at:'2026-10-22T00:00:00Z',workflow_status:'budget',published:false}],coverage:{papers:1},next_cursor:null};}
 
@@ -60,6 +61,7 @@ test('name filtering crosses catalogue pages without skipping matching lookahead
  const encode=paper=>Buffer.from(JSON.stringify({created_at:paper.created_at,id:paper.id})).toString('base64url');
  const owned=new Set(papers.filter((_,i)=>i%3===0).map(p=>p.id));let reads=0;
  const fetcher=async(url,options)=>{
+  if(url.startsWith('/research-verification/api/private-assessments'))return Response.json({...fixture(),access:'owner-read-only',papers:[],coverage:{papers:0}});
   const u=new URL(url);assert.equal(u.pathname,'/research/papers');reads++;
   const mine=u.searchParams.get('mine')==='1';assert.equal(options.headers.Authorization,mine?'Bearer synthetic-test-token':undefined);
   const before=u.searchParams.get('before'),boundary=before?JSON.parse(Buffer.from(before,'base64url').toString()):null;
@@ -76,6 +78,40 @@ test('name filtering crosses catalogue pages without skipping matching lookahead
   assert.equal((await loadAssessmentList({name:'absent-name'},undefined,fetcher)).papers.length,0);
   const cancelled=new AbortController();cancelled.abort(new Error('Cancelled'));await assert.rejects(()=>loadAssessmentList({name:'signal'},cancelled.signal,()=>assert.fail('No request')),/Cancelled/);
  }finally{if(old===undefined)delete process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL;else process.env.NEXT_PUBLIC_RESEARCH_WORKFLOW_API_URL=old;}
+});
+
+test('personal catalogue interleaves private and shared results without leaks, duplicates or page gaps',async t=>{
+ const old=process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL;
+ t.after(()=>{if(old===undefined)delete process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL;else process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL=old;});
+ process.env.NEXT_PUBLIC_RESEARCH_CATALOG_API_URL='https://catalog.example.test';
+ const papers=Array.from({length:24},(_,index)=>({
+  ...fixture().papers[0],id:`40000000-0000-4000-8000-${String(24-index).padStart(12,'0')}`,
+  title:`Paper ${index}`,authors:index%2?null:['Shared Author'],created_at:`2026-11-01T00:00:00.123${String(index).padStart(3,'0')}+00:00`,
+ }));
+ const shared=papers.filter((_,i)=>i%2===0), privateRows=[shared[0],...papers.filter((_,i)=>i%2===1)];
+ const calls=[];
+ const fetcher=async(url,options)=>{
+  const u=new URL(url,'https://jumpserve.example.test');calls.push(u.pathname);
+  const mine=u.hostname==='jumpserve.example.test'||u.searchParams.get('mine')==='1';
+  assert.equal(options.headers.Authorization,mine?'Bearer synthetic-test-token':undefined);
+  const before=u.searchParams.get('before'),edge=before?JSON.parse(Buffer.from(before,'base64url').toString()):null;
+  const rows=(u.hostname==='jumpserve.example.test'?privateRows:shared).filter(p=>!edge||newestAssessmentFirst(p,edge)>0).sort(newestAssessmentFirst);
+  const page=rows.slice(0,10);
+  return Response.json({...fixture(),access:mine?'owner-read-only':'public-read-only',papers:page,coverage:{papers:page.length},next_cursor:rows.length>10?encodeAssessmentCursor(page[9]):null});
+ };
+ let before, results=[];
+ do {
+  const page=await loadAssessmentList({userId:id,before},undefined,fetcher);
+  results.push(...page.papers);before=page.next_cursor??undefined;
+ } while(before);
+ assert.deepEqual(results.map(x=>x.id),[...papers].reverse().map(x=>x.id));
+ assert.equal(results.find(x=>x.id===shared[0].id).private_preview,undefined);
+ assert.deepEqual(results.filter(x=>x.private_preview).map(x=>x.id),[...privateRows.slice(1)].sort(newestAssessmentFirst).map(x=>x.id));
+ const matches=await loadAssessmentList({userId:id,name:'Paper 23'},undefined,fetcher);
+ assert.equal(matches.papers[0].private_preview,true);
+ assert.ok(calls.every(path=>path==='/research/papers'||path==='/research-verification/api/private-assessments'));
+ calls.length=0;await loadAssessmentList({},undefined,fetcher);
+ assert.deepEqual(calls,['/research/papers']);
 });
 
 test('name filtering resolves missing bibliography and reports failures instead of false empty results',async()=>{

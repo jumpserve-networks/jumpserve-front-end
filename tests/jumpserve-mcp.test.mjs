@@ -171,7 +171,7 @@ test('a real MCP SDK client discovers the PDF and assessment tools', async () =>
       if (request.method === 'GET') return new Response(null, { status: 405 });
       return serveJumpServeTools(request, await request.json(), origin, {
         download: async value => value === id ? { assessment_id: id, byte_count: 12 } : null,
-        preview: async prepared => { previewed = prepared; return { previewId: id, studyId: null }; },
+        preview: async (prepared, assessmentId) => { assert.equal(assessmentId, id); previewed = prepared; return { previewId: id, studyId: null }; },
         submit: async value => {
           assert.equal(value, id);
           if (!approved) throw new Error('Owner approval is required.');
@@ -185,6 +185,7 @@ test('a real MCP SDK client discovers the PDF and assessment tools', async () =>
     await client.connect(transport);
     const { tools } = await client.listTools();
     assert.deepEqual(tools.map(tool => tool.name), ['download_assessment_pdf', 'preview_assessment', 'submit_assessment']);
+    assert.ok(tools[1].inputSchema.required.includes('assessment_id'));
     assert.equal(tools[0].annotations.readOnlyHint, true);
     assert.deepEqual((await client.callTool({ name: tools[0].name, arguments: { assessment_id: id } })).structuredContent,
       { assessment_id: id, byte_count: 12 });
@@ -201,7 +202,11 @@ test('a real MCP SDK client discovers the PDF and assessment tools', async () =>
     }
     const bundle = { ...fixture(), wizard: wizard() };
     bundle.wizard.experiments[0].scripts = [script];
-    const preview = await client.callTool({ name: 'preview_assessment', arguments: { bundle } });
+    const missingId = await client.callTool({ name: 'preview_assessment', arguments: { bundle } });
+    assert.equal(missingId.isError, true);
+    assert.match(missingId.content[0].text, /Start the assessment in JumpServe Step 1/);
+    assert.equal(previewed, undefined);
+    const preview = await client.callTool({ name: 'preview_assessment', arguments: { bundle, assessment_id: id } });
     assert.equal(preview.structuredContent.review_url, origin + '/research-verification/share/' + id);
     assert.equal(previewed.hash, prepareAssessmentBundle(bundle).hash);
     assert.deepEqual(previewed.bundle, bundle);

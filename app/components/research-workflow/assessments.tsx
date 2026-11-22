@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Form from "next/form";
 import { LocalDateTime, useUserPreferences } from "@/app/components/user-preferences";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -43,8 +43,9 @@ export function Assessments({ before, mine = false, name = "", view = "table" }:
   </main>;
 }
 
-function AssessmentStepBadge({ step, unavailable }: { step: AssessmentStep | null | undefined; unavailable: boolean }) {
-  return <Badge variant="secondary">{step ? assessmentStepLabel(step) : step === null || unavailable ? "Step unavailable" : "Checking step…"}</Badge>;
+function AssessmentStepBadge({ step, unavailable, privatePreview }: { step: AssessmentStep | null | undefined; unavailable: boolean; privatePreview?: true }) {
+  const label = privatePreview ? "Private" : step ? assessmentStepLabel(step) : step === null || unavailable ? "Step unavailable" : "Checking step…";
+  return <Badge variant="secondary">{label}</Badge>;
 }
 
 function withoutDeleted(data: PaperCatalog, ids: Set<string>): PaperCatalog {
@@ -66,10 +67,11 @@ function AssessmentList({ before, userId, name, view }: { before?: string; userI
     setData(value => value ? withoutDeleted(value, deletedIds.current) : value);
     setRevision(value => value + 1);
   }
-  const bibliography = usePaperBibliography(data?.papers);
+  const cataloguePapers = useMemo(() => data?.papers.filter(paper => !paper.private_preview), [data?.papers]);
+  const bibliography = usePaperBibliography(cataloguePapers);
   const options = { mine: !!userId, name, view };
-  const papers = data?.papers.map(paper => ({ ...paper, displayTitle: paper.title ?? bibliography[paper.id]?.title ?? "Reading paper title…", authors: paper.authors ?? bibliography[paper.id]?.authors, authorsLoading: paper.authors == null && !bibliography[paper.id] }));
-  const progressIds = data?.papers.map(paper => paper.id).join(",") ?? "";
+  const papers = data?.papers.map(paper => ({ ...paper, displayTitle: paper.title ?? bibliography[paper.id]?.title ?? "Reading paper title…", authors: paper.authors ?? bibliography[paper.id]?.authors, authorsLoading: !paper.private_preview && paper.authors == null && !bibliography[paper.id] }));
+  const progressIds = cataloguePapers?.map(paper => paper.id).join(",") ?? "";
   useEffect(() => {
     if (!progressIds) return;
     const controller = new AbortController();
@@ -97,27 +99,27 @@ function AssessmentList({ before, userId, name, view }: { before?: string; userI
   }, [before, userId, name, revision]);
   return <>
     {deleted ? <p role="status" className="text-sm">Assessment deleted.</p> : null}
-    {data?.papers.length && progressError ? <div role="alert" className="flex flex-wrap items-center gap-2 text-sm"><p>{progressError}</p><Button size="sm" variant="outline" onClick={() => setProgressRevision(value => value + 1)}>Retry steps</Button></div> : null}
+    {progressIds && progressError ? <div role="alert" className="flex flex-wrap items-center gap-2 text-sm"><p>{progressError}</p><Button size="sm" variant="outline" onClick={() => setProgressRevision(value => value + 1)}>Retry steps</Button></div> : null}
     {error ? <div role="alert" className="content-panel space-y-3 rounded-lg border p-4 text-sm"><p>{error}</p><Button variant="outline" onClick={() => { setData(null); setError(""); setRevision(value => value + 1); }}>Try again</Button></div> : !data ? <p role="status">{name ? "Filtering assessments…" : "Loading paper assessments…"}</p> : <>
       {!data.papers.length ? <section className="content-panel space-y-3 rounded-lg border p-5"><h2 className="font-semibold">{name ? "No assessments match this name" : before ? "No assessments on this page" : userId ? "You have no assessments yet" : "No paper assessments submitted yet"}</h2>{name ? <Link className="text-sm underline" href={assessmentListPath({ ...options, name: "" })}>Clear name filter</Link> : <Link className="text-sm underline" href={NEW_ASSESSMENT_PATH}>Assess a paper</Link>}</section> : view === "table" ? <div className="content-panel rounded-lg border"><Table className="min-w-[48rem]">
         <TableCaption className="sr-only">Assessments</TableCaption>
         <TableHeader><TableRow><TableHead scope="col">Assessment</TableHead><TableHead scope="col">Status</TableHead><TableHead scope="col">Initiated by</TableHead><TableHead scope="col">Submitted</TableHead>{userId ? <TableHead scope="col">Actions</TableHead> : null}</TableRow></TableHeader>
         <TableBody>{papers?.map(paper => <TableRow key={paper.id} data-paper-id={paper.id} className="relative focus-within:bg-muted/50">
-          <TableCell className="min-w-64 max-w-lg space-y-2 whitespace-normal align-top"><Link className="break-words font-semibold underline after:absolute after:inset-0" href={researchAssessmentPath(paper.id)}>{paper.displayTitle}</Link><PaperAuthors authors={paper.authors} loading={paper.authorsLoading} /></TableCell>
-          <TableCell className="min-w-44 max-w-56 whitespace-normal align-top"><AssessmentStepBadge step={progress[paper.id]} unavailable={Boolean(progressError)} /></TableCell>
+          <TableCell className="min-w-64 max-w-lg space-y-2 whitespace-normal align-top"><Link className="break-words font-semibold underline after:absolute after:inset-0" href={researchAssessmentPath(paper.id, paper.private_preview)}>{paper.displayTitle}</Link><PaperAuthors authors={paper.authors} loading={paper.authorsLoading} /></TableCell>
+          <TableCell className="min-w-44 max-w-56 whitespace-normal align-top"><AssessmentStepBadge step={progress[paper.id]} unavailable={Boolean(progressError)} privatePreview={paper.private_preview} /></TableCell>
           <TableCell className="max-w-48 whitespace-normal break-words align-top">{paper.initiated_by ?? "Name unavailable"}</TableCell>
           <TableCell className="whitespace-normal align-top"><LocalDateTime value={paper.created_at} /></TableCell>
-          {userId ? <TableCell className="align-top"><DeleteAssessment id={paper.id} title={paper.displayTitle} userId={userId} onDeleted={() => removed(paper.id)} /></TableCell> : null}
+          {userId ? <TableCell className="align-top">{paper.private_preview ? null : <DeleteAssessment id={paper.id} title={paper.displayTitle} userId={userId} onDeleted={() => removed(paper.id)} />}</TableCell> : null}
         </TableRow>)}</TableBody>
       </Table></div> : <div className="grid gap-4 md:grid-cols-2">{papers?.map(paper => {
-          const assessment = researchAssessmentPath(paper.id);
+          const assessment = researchAssessmentPath(paper.id, paper.private_preview);
           return <article key={paper.id} data-paper-id={paper.id} className="content-panel relative space-y-3 rounded-lg border p-5 focus-within:ring-2 focus-within:ring-ring">
             <h2 className="break-words font-semibold"><Link className="underline after:absolute after:inset-0 after:rounded-lg" href={assessment}>{paper.displayTitle}</Link></h2>
             <PaperAuthors authors={paper.authors} loading={paper.authorsLoading} />
-            <AssessmentStepBadge step={progress[paper.id]} unavailable={Boolean(progressError)} />
+            <AssessmentStepBadge step={progress[paper.id]} unavailable={Boolean(progressError)} privatePreview={paper.private_preview} />
             <p className="break-words text-xs text-muted-foreground">Initiated by: {paper.initiated_by ?? "Name unavailable"}</p>
             <p className="text-xs text-muted-foreground">Submitted <LocalDateTime value={paper.created_at} /></p>
-            {userId ? <DeleteAssessment id={paper.id} title={paper.displayTitle} userId={userId} onDeleted={() => removed(paper.id)} /> : null}
+            {userId && !paper.private_preview ? <DeleteAssessment id={paper.id} title={paper.displayTitle} userId={userId} onDeleted={() => removed(paper.id)} /> : null}
           </article>;
         })}</div>}
       {before || data.next_cursor ? <nav aria-label="Assessment pages" className="flex flex-wrap gap-5 text-sm">{before ? <Link className="underline" href={assessmentListPath(options)}>Newest assessments</Link> : null}{data.next_cursor ? <Link className="underline" href={assessmentListPath({ ...options, before: data.next_cursor })}>Older assessments</Link> : null}</nav> : null}

@@ -1,17 +1,18 @@
 # Deliver an assessment on JumpServe
 
 Use the MCP connector registered for the user's chosen JumpServe instance.
-Stage the completed JumpServe assessment without a separate sharing request.
+Save the completed assessment privately without a separate sharing request.
+The saved assessment remains private until the account owner shares it publicly.
 Skip this step for local-only work. If the connector requires sign-in or consent,
 ask for the specific connection or scope and continue delivery once granted.
-Use the [approval workflow](permissions.md) if a local download or upload helper
+Use the [approval workflow](permissions.md) if the local download helper
 hits a sandbox restriction. Keep the saved bundle and exact assessment ID if
 delivery has to pause.
 
 ## Assessment wizard fields
 
 Supply only the fields in [the bundle schema](assessment.schema.json). Include
-`wizard` in each new bundle so the preview and approved assessment show the
+`wizard` in each new bundle so the private and public assessment pages show the
 same assessment steps.
 
 - **Step 2 · Paper Breakdown** uses `wizard.breakdown` for numbered steps and
@@ -51,7 +52,7 @@ Call JumpServe's `download_assessment_pdf` with the `assessment_id` from the
 prompt, using the same Google account that uploaded the PDF. If the connector
 requests additional permission, reconnect JumpServe and approve PDF downloads,
 then retry with the same ID. Existing sharing-only sessions retain their access
-to previews and submissions.
+to saving and submitting assessments.
 
 Pass the JSON result to the local download helper over standard input. Save the
 PDF under the returned filename in the paper's private local directory. The
@@ -64,7 +65,7 @@ python3 "$SKILL_DIR/scripts/download_paper.py" --assessment-id "$ASSESSMENT_ID" 
 
 Supply the ticket through private standard input and keep it out of logs,
 the bundle, and the reply. Request a fresh ticket if the signed URL expires.
-Use the verified PDF and retain the assessment ID when staging the result.
+Use the verified PDF and retain the assessment ID when saving the result.
 
 ### Recover from a blocked PDF download
 
@@ -89,42 +90,21 @@ python3 "$SKILL_DIR/scripts/download_paper.py" --assessment-id "$ASSESSMENT_ID" 
 Continue after local verification succeeds. If permission and file access both
 remain unavailable, save the handoff with the assessment ID and next action.
 
-## Attach the source PDF
+## Attach the existing Step 1 PDF
 
-When sharing an assessment prepared from a local PDF, set `paper.pdf_copy` to
-`true` in the saved bundle. Omit it if the user asks to exclude the PDF or the
-copy is unsuitable for sharing. Use the exact source file identified by
-`paper.sha256` and `paper.byte_count`. The upload limit is 10,000,000 bytes.
-Keep PDF bytes and upload credentials outside the bundle.
+Set `paper.pdf_copy` to `true` in the saved bundle. Use the SHA-256 and byte
+count of the verified Step 1 PDF. Pass its `assessment_id` alongside `bundle`
+in `preview_assessment` and repeat the same ID on every retry. JumpServe checks
+the identity against the connected owner's upload and attaches the existing PDF.
+The private and public pages use the same ID. Keep PDF bytes and credentials
+outside the bundle. If the user wants to keep the results or attachment out of
+the saved assessment, retain the assessment bundle locally.
 
-Call `preview_assessment` with the saved bundle. If it returns
-`pdf_upload_required`, pass its JSON result object to
-`scripts/upload_paper.py` through standard input. Use the helper from the
-installed skill, with the path to the exact local PDF and the saved bundle.
-Keep the signed upload ticket private and out of retained logs.
+## Save and return the assessment
 
-For a PDF uploaded in Step 1, use the file downloaded for that assessment ID.
-Pass `assessment_id` alongside `bundle` in `preview_assessment` and repeat the
-same ID on every retry. JumpServe checks the PDF against the private upload in
-the connected owner's account. The preview and shared assessment use the same ID.
-
-```sh
-python3 "$SKILL_DIR/scripts/upload_paper.py" --pdf "$PDF" --bundle "$BUNDLE" < "$PRIVATE_TICKET"
-```
-
-Call `preview_assessment` again with the identical bundle to verify the bytes
-and retrieve the review link. After an uncertain upload, check the identical
-bundle before trying another upload. If verification still requires an upload,
-use the newly returned ticket. For an older connector without PDF support,
-stage the supported bundle with `pdf_copy` omitted and explain why the copy
-could not be attached. If the PDF exceeds the bundle size limit for a source
-paper, retain the assessment locally. A local-only assessment uploads nothing.
-
-## Stage and return the assessment
-
-Once staging and any PDF verification finish, use `assessment_url` for
-`already_shared` and `review_url` for `review_required`. The review page guides
-the owner through approval. Send only the exact completion message below as
+Once saving finishes, use `assessment_url` for
+`already_shared` and `review_url` for `review_required`. The latter opens the
+saved private assessment. Send only the exact completion message below as
 plain text. Replace `{assessmentUrlHere}` with the selected URL. End the reply
 immediately after the URL.
 
@@ -138,8 +118,7 @@ View the assessment online using the JumpServe app at the following URL:
 
 On instances that ask the owner to return to the client after approving, use
 `submit_assessment` with the same `preview_id` after the owner confirms they
-approved the preview. Use the same completion message with the confirmed
+approved public sharing. Use the same completion message with the confirmed
 `assessment_url`. After a timeout or uncertain response, retry once with the
-identical bundle for staging or the same preview ID for submission. If the
-preview expires, stage the saved bundle again and use the same completion
-message with the new `review_url`.
+identical bundle for saving or the same `preview_id` for submission. A completed
+private assessment and its recorded sharing approval have no time limit.

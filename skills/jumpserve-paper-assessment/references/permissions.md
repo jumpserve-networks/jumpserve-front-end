@@ -26,10 +26,10 @@ to the user when a mode change is needed. Keep the sandbox and existing grants.
 
 ## Get access when it is needed
 
-1. Identify the resources the design needs while planning. Use existing grants
-   and early read-only checks in the normal sandbox. Confirm experiment scope
-   before acquiring experiment resources. A request to retrieve the source PDF
-   already authorizes that retrieval, so handle its permissions when they arise.
+1. Identify required resources while planning. Use existing grants and early
+   read-only checks in the normal sandbox. Proceed with the in-scope local
+   experiment under the assessment request. Handle any native permission needs
+   as they arise, starting with source PDF retrieval.
 2. When a required action is blocked by a confirmed or likely client restriction,
    use the client's native human approval mechanism. If the active mode is
    explicitly automatic, identify the pending action and ask the user to switch
@@ -49,9 +49,9 @@ to the user when a mode change is needed. Keep the sandbox and existing grants.
    can meet the frozen design, verify its equivalence and use it within the
    existing scope.
 
-Successful scope confirmation lets routine work proceed with existing grants.
-If the client's permission prompt is needed, show it directly. Use a separate
-scope decision for changes to the design, destinations, disclosure, or budget.
+Use the client's permission prompt when a specific operation requires one.
+Obtain separate authorization for work beyond the request, such as using
+unapproved external targets, sharing private data, or exceeding a stated limit.
 
 ## Match the request to the blocker
 
@@ -89,7 +89,7 @@ Tell the user which action is waiting and how to [select human approval](#select
 Record the blocked attempt and pending request in `resume.md`. Keep the action
 pending until the user resumes with an eligible approval mechanism. Once the user switches modes
 and asks to continue, reconcile any uncertain side effects, then submit the
-specific native request. A chat message can confirm scope or resume work.
+specific native request. A chat message can authorize scope or resume work.
 The client still needs to grant the permission. If policy prevents human review,
 record the restriction. A PDF the user supplies from Step 1 can be
 [verified offline](sharing.md#recover-from-a-blocked-pdf-download).
@@ -106,8 +106,8 @@ python3 "$SKILL_DIR/scripts/check_local_docker.py"
 
 - `ready` verifies a reachable Linux daemon. Check the experiment's capabilities
   when acquiring the runtime.
-- `socket_denied` identifies a possible sandbox restriction. After scope
-  confirmation, use native approval for the exact command in `retry_argv`.
+- `socket_denied` identifies a possible sandbox restriction. For an in-scope
+  experiment, use native approval for the exact command in `retry_argv`.
 - Other statuses identify a missing CLI, unavailable daemon or context, a
   different transport, or another preflight failure. Diagnose the indicated
   condition. The helper contacts only local sockets. Use the explicitly
@@ -115,10 +115,10 @@ python3 "$SKILL_DIR/scripts/check_local_docker.py"
 
 ## Resume after an approval blocker
 
-Save `resume.md` in the local assessment directory. Record the assessment ID or
-local PDF reference, next action and working directory, approval outcome, and
+Save `resume.md` in the local assessment directory. Record the JumpServe assessment
+ID, next action and working directory, approval outcome, and
 whether a launch or staging was attempted. Include the verified PDF identity,
-scope confirmation, frozen specification and digests as they become available.
+authorized scope, frozen specification and digests as they become available.
 Refer to local receipts and evidence by relative path, keeping credentials and
 tickets out of the handoff.
 Tell the user where the handoff is and give the relevant recovery action. If
@@ -129,14 +129,14 @@ Give the user this prompt for the new session:
 
 > Use the JumpServe paper assessment skill to resume the local assessment in
 > `resume.md`. Continue within the recorded scope and use native approval for
-> any blocked operation. Return the private review link after the assessment.
+> any blocked operation. Return the private assessment link after completion.
 
-Use the same verified PDF, assessment ID and confirmed design when resuming.
+Use the same verified PDF, assessment ID and frozen design when resuming.
 Recheck the saved digests and reconcile prior attempts before continuing. Request
 native access only for the next blocked operation. If policy still forbids it,
 keep the affected work paused until a permitted environment is available.
 
-An unresolved preview can reserve the assessment ID for that exact bundle.
-Keep a requested run pending locally unless the user chooses to stage the
-unresolved assessment. Mark a claim untested when its experiment never ran, or
+Saving an unresolved assessment can reserve the ID for that exact bundle.
+Keep a requested run pending locally unless the user chooses to save the
+unresolved assessment on JumpServe. Mark a claim untested when its experiment never ran, or
 inconclusive when evidence is insufficient after acquisition started.
