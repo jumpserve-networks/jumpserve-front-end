@@ -207,7 +207,7 @@ test('a real MCP SDK client discovers the PDF and assessment tools', async () =>
     assert.match(missingId.content[0].text, /Start the assessment in JumpServe Step 1/);
     assert.equal(previewed, undefined);
     const preview = await client.callTool({ name: 'preview_assessment', arguments: { bundle, assessment_id: id } });
-    assert.equal(preview.structuredContent.review_url, origin + '/research-verification/share/' + id);
+    assert.equal(preview.structuredContent.review_url, origin + '/research-verification/assessment/' + id);
     assert.equal(previewed.hash, prepareAssessmentBundle(bundle).hash);
     assert.deepEqual(previewed.bundle, bundle);
     assert.equal((await client.callTool({ name: 'submit_assessment', arguments: { preview_id: id } })).isError, true);

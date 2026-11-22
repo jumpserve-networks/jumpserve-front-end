@@ -4,9 +4,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 import { ASSESSMENT_SCHEMA, prepareAssessmentBundle } from "@/lib/jumpserve-assessment-bundle";
 import { isResearchId } from "@/lib/research-experiment-queue";
 import { researchAssessmentPath } from "@/lib/research-pathways";
-import { ASSESSMENT_REVIEW_PATH } from "@/lib/test-modules";
 
-export const SHARE_REVIEW_PATH = ASSESSMENT_REVIEW_PATH;
 export const DOWNLOAD_ASSESSMENT_PDF_TOOL = "download_assessment_pdf";
 const completionReply = "On success, send only the exact completion message below as plain text. End the reply immediately after the URL.";
 const completionMessage = `Your research paper assessment is finished!
@@ -69,7 +67,7 @@ export async function serveJumpServeTools(request: Request, body: unknown, origi
         const preview = await tools.preview(prepareAssessmentBundle(args.bundle), args.assessment_id);
         return preview.studyId
           ? result({ assessment_url: assessmentUrl(preview.studyId), status: "already_shared" })
-          : result({ preview_id: preview.previewId, review_url: new URL(`${SHARE_REVIEW_PATH}/${preview.previewId}`, origin).href, status: "review_required" });
+          : result({ preview_id: preview.previewId, review_url: assessmentUrl(preview.previewId), status: "review_required" });
       }
       if (params.name === "submit_assessment" && args && Object.keys(args).length === 1 && isResearchId(args.preview_id)) {
         return result({ assessment_url: assessmentUrl(await tools.submit(args.preview_id)), status: "shared" });

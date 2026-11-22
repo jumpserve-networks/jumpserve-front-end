@@ -1,10 +1,10 @@
 import type { NextConfig } from "next";
-import { LEGACY_EXACT_MODULE_ROUTES, LEGACY_MODULE_ROUTES } from "./lib/test-modules";
+import { ASSESSMENT_PATH, LEGACY_EXACT_MODULE_ROUTES, LEGACY_MODULE_ROUTES } from "./lib/test-modules";
 
 const nextConfig: NextConfig = {
   env: { JUMPSERVE_BUILD_REVISION: process.env.AWS_COMMIT_ID || process.env.JUMPSERVE_BUILD_REVISION || "local" },
   async headers() {
-    return ["/oauth/jumpserve/:path*", "/research-verification/share/:path*"].map(source => ({
+    return ["/oauth/jumpserve/:path*", `${ASSESSMENT_PATH}/:assessmentId`].map(source => ({
       source,
       headers: [
         { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },

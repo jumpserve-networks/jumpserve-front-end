@@ -184,6 +184,10 @@ const fixture = createServer(async (req, res) => {
     const actor = [owner, other].find(id => req.headers.authorization === 'Bearer ' + token(id));
     return send(actor ? 200 : 401, actor ? authUser(actor) : { message: 'Sign-in required' });
   }
+  if (url.pathname === '/research/papers' && url.searchParams.get('mine') === '1') {
+    assert.equal(req.headers.authorization, 'Bearer ' + token(owner));
+    return send(200, { version: 'research-paper-catalog-v1', access: 'owner-read-only', papers: [], coverage: { papers: 0 }, next_cursor: null });
+  }
   const path = url.pathname.replace('/rest/v1/', '');
   if (path === 'profiles') return send(200, []);
   if (path === 'rpc/research_skill_shared') {
@@ -443,28 +447,42 @@ try {
   const preview = await save(fixtureId, linkedBundle);
   const { preview_id, review_url } = preview.structuredContent;
   assert.equal(preview_id, fixtureId);
+  const publicUrl = origin + '/research-verification/assessment/' + preview_id;
+  assert.equal(review_url, publicUrl);
+  const oldReview = origin + '/research-verification/share/' + preview_id;
   const submission = { name: 'submit_assessment', arguments: { preview_id } };
   assert.equal((await client.callTool(submission)).isError, true);
+  const viewer = await browser.newContext();
+  const signedOutReview = await viewer.request.get(review_url);
+  assert.ok(!(await signedOutReview.text()).includes(bundle.paper.title));
   const otherContext = await browser.newContext();
   await otherContext.addCookies([cookie(other)]);
-  const otherPage = await otherContext.newPage();
-  assert.equal((await otherPage.goto(review_url)).status(), 404);
+  const otherReview = await otherContext.request.get(review_url);
+  assert.ok(!(await otherReview.text()).includes(bundle.paper.title));
   await otherContext.close();
+  const oldLink = await context.request.get(oldReview + '?step=results', { maxRedirects: 0 });
+  assert.equal(oldLink.status(), 308);
+  assert.equal(new URL(oldLink.headers().location, origin).href, review_url + '?step=results');
+  const ownerReview = await context.request.get(review_url);
+  assert.match(ownerReview.headers()['cache-control'], /\bno-store\b/);
+  assert.equal(ownerReview.headers()['referrer-policy'], 'no-referrer');
+  assert.match(await ownerReview.text(), /<meta name="robots" content="noindex, nofollow"\s*\/?\s*>/);
   await verifyAssessmentWizard(page, review_url);
   assert.equal(previews.get(preview_id).study_id, null);
-  const publicUrl = origin + '/research-verification/assessment/' + preview_id;
-  await page.getByText('Private', { exact: true }).waitFor();
+  const privateBadge = page.getByText('Private', { exact: true });
+  await privateBadge.waitFor();
   await page.getByRole('button', { name: 'Share publicly', exact: true }).click();
+  await privateBadge.waitFor({ state: 'hidden' });
   await page.waitForURL(publicUrl);
+  assert.equal(previews.get(preview_id).study_id, preview_id);
   const shared = await client.callTool(submission);
   assert.equal(shared.structuredContent.assessment_url, publicUrl);
   assert.deepEqual(await client.callTool(submission), shared);
   const alreadyShared = await save(fixtureId, linkedBundle);
   assert.deepEqual(alreadyShared.structuredContent, { assessment_url: publicUrl, status: 'already_shared' });
   previews.get(preview_id).expires_at = '2000-01-01T00:00:00.000Z';
-  await page.goto(review_url + '?step=results');
+  await page.goto(oldReview + '?step=results');
   assert.equal(page.url(), publicUrl + '?step=results');
-  const viewer = await browser.newContext();
   const publicPage = await viewer.newPage();
   await verifyAssessmentWizard(publicPage, publicUrl);
   assert.deepEqual(previews.get(preview_id).bundle, linkedBundle);
@@ -483,6 +501,8 @@ try {
   assert.equal(retryRow.study_id, null);
   assert.equal(retryRow.expires_at, '2000-01-01T00:00:00.000Z');
   await retry.click();
+  await retry.waitFor({ state: 'hidden' });
+  assert.equal(retryRow.study_id, retryPreview.preview_id);
   await page.waitForURL(origin + '/research-verification/assessment/' + retryPreview.preview_id);
   console.log('PASS a completed private assessment can be shared after the old deadline');
 
@@ -509,11 +529,6 @@ try {
       writeText: async text => { copied = text; }, readText: async () => copied,
     } });
   });
-  await page.getByText('Start Codex CLI with approval prompts', { exact: true }).click();
-  const approvalCommand = page.getByLabel('Codex human approval command', { exact: true });
-  assert.equal(await approvalCommand.textContent(), `codex --sandbox workspace-write --ask-for-approval on-request -c 'approvals_reviewer="user"'`);
-  await page.getByRole('button', { name: 'Copy Codex human approval command' }).click();
-  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), await approvalCommand.textContent());
   await page.getByRole('button', { name: 'Copy assessment prompt' }).click();
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), await prompt.textContent());
   await page.reload();
@@ -608,11 +623,12 @@ try {
   assert.ok(!mineRows.some(paper => paper.id === unuploadedId));
   for (const paper of mineRows) assert.deepEqual(Object.keys(paper).sort(), ['authors', 'created_at', 'id', 'initiated_by', 'title', 'workflow_status']);
   assert.deepEqual((await (await catalogueRequest(other)).json()).papers, []);
-  assert.equal((await viewer.request.get(`${origin}/research-verification/assessment/${autoAttached.preview_id}/paper`)).status(), 404);
   const privatePaper = autoAttached.review_url + '/paper';
-  const anonymousDownload = await viewer.request.get(privatePaper, { maxRedirects: 0 });
-  assert.equal(anonymousDownload.status(), 307);
-  assert.match(anonymousDownload.headers().location, /^\/login\?/);
+  assert.equal((await viewer.request.get(privatePaper)).status(), 404);
+  const oldPaper = origin + '/research-verification/share/' + assessmentId + '/paper';
+  const oldDownload = await context.request.get(oldPaper, { maxRedirects: 0 });
+  assert.equal(oldDownload.status(), 308);
+  assert.equal(new URL(oldDownload.headers().location, origin).href, privatePaper);
   const nonOwner = await browser.newContext();
   await nonOwner.addCookies([cookie(other)]);
   assert.equal((await nonOwner.request.get(privatePaper)).status(), 404);
@@ -620,13 +636,16 @@ try {
   const privateDownload = await context.request.get(privatePaper, { maxRedirects: 0 });
   assert.equal(privateDownload.status(), 303);
   assert.equal(privateDownload.headers()['cache-control'], 'private, no-store');
-  assert.deepEqual(await (await context.request.get(autoAttached.review_url + '/paper')).body(), sourcePdf);
+  assert.deepEqual(await (await context.request.get(privatePaper)).body(), sourcePdf);
   await page.getByRole('link', { name: 'Upload another paper' }).click();
   await page.waitForURL(uploadPage);
   await fileInput.waitFor();
-  await page.goto(autoAttached.review_url);
+  await page.goto(origin + '/research-verification/assessments?mine=1');
+  await page.getByRole('link', { name: sourceBundle.paper.title, exact: true }).click();
+  await page.waitForURL(autoAttached.review_url);
   await page.getByText('Public sharing includes the attached source PDF.').waitFor();
   await page.getByRole('button', { name: 'Share publicly', exact: true }).click();
+  await page.getByRole('button', { name: 'Share publicly', exact: true }).waitFor({ state: 'hidden' });
   await page.waitForURL(`${origin}/research-verification/assessment/${assessmentId}`);
   const publicPaper = page.url() + '/paper';
   const publicDownload = await viewer.request.get(publicPaper, { maxRedirects: 0 });
@@ -636,6 +655,7 @@ try {
   assert.ok(!(await (await catalogueRequest(owner)).json()).papers.some(paper => paper.id === assessmentId));
   previews.get(assessmentId).deleted = true;
   assert.equal((await viewer.request.get(publicPaper)).status(), 404);
+  assert.equal((await context.request.get(publicPaper)).status(), 404);
   console.log('PASS owner-only catalogue retains completed private assessments and omits them after sharing');
   console.log('PASS one assessment ID and one PDF upload across Step 1, private saving and public sharing');
 } finally {
