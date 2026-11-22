@@ -1,0 +1,18 @@
+{
+  "name": "jumpserve",
+  "description": "Assess research papers locally and view the results on JumpServe.",
+  "owner": {
+    "name": "JumpServe"
+  },
+  "plugins": [
+    {
+      "name": "jumpserve",
+      "description": "Assess research papers locally and view the results on JumpServe.",
+      "source": {
+        "source": "archive",
+        "url": "https://jumpserve.quaint-lab.org/downloads/jumpserve-plugin-v1.1.0.zip",
+        "sha256": "311147199287d2802223c8aa13e182e7ce50e83e808fc42feea39fba02c08c00"
+      }
+    }
+  ]
+}
