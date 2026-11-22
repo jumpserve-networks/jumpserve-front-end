@@ -6,7 +6,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';
 import { once } from 'node:events';
-import { cp, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { chromium } from 'playwright';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -40,7 +40,13 @@ const bundle = {
   claims: [{ id: 'c1', page: 1, claim: 'The count is zero.', criterion: 'Use the matched counter.', outcome: 'reproduced', finding: 'Both counters measured zero.' }],
   methods: [{ title: 'Fixture method', procedure: 'Compare the matched values.' }],
   wizard: {
-    breakdown: [{ section: 'data', description: 'Count events on the loopback fixture.', pages: [1, 2] }],
+    breakdown: [
+      { section: 'data', id: 'measure', title: 'Record measurements', description: 'Count events on the loopback fixture.', pages: [1, 2] },
+      { section: 'data', id: 'count', parent_id: 'measure', title: 'Record counter values', description: 'Read one counter per condition.', pages: [2] },
+      { section: 'data', id: 'unit', parent_id: 'count', title: 'Record the unit', description: 'Use the event count.', pages: [3] },
+      { section: 'data', id: 'match', parent_id: 'measure', title: 'Match observations', description: 'Associate each value with its test condition.', pages: [2, 3] },
+      { section: 'access', description: 'Use a local shell.', pages: [1] },
+    ],
     experiments: [{
       title: 'Matched counter test', claim_ids: ['c1'], prerequisites: ['POSIX shell'],
       setup: 'mkdir -p fixture-samples', cleanup: 'rmdir fixture-samples',
@@ -59,13 +65,23 @@ async function verifyAssessmentWizard(page, url) {
   await page.goto(url);
   await page.getByRole('heading', { name: bundle.paper.title }).waitFor();
   await page.getByRole('heading', { name: 'Paper Breakdown', exact: true }).waitFor();
-  await page.getByText('Count events on the loopback fixture.').waitFor();
-  await page.getByText('PDF pages 1, 2', { exact: true }).waitFor();
+  const data = page.getByRole('region', { name: '3. Data', exact: true });
+  await data.getByText('Count events on the loopback fixture.').waitFor();
+  await data.getByText('PDF pages 1, 2', { exact: true }).waitFor();
+  const measurements = data.getByRole('heading', { name: 'Record measurements' }).locator('xpath=ancestor::li[1]');
+  for (const number of ['3.1', '3.1.1', '3.1.1.1', '3.1.2']) {
+    await measurements.getByText(number, { exact: true }).waitFor();
+  }
+  const units = measurements.getByRole('heading', { name: 'Record the unit' }).locator('xpath=ancestor::li[1]');
+  await units.getByText('PDF page 3', { exact: true }).waitFor();
+  const access = page.getByRole('region', { name: '1. Access', exact: true });
+  await access.getByText('1.1', { exact: true }).waitFor();
+  await access.getByText('Use a local shell.').waitFor();
   const steps = page.getByRole('navigation', { name: 'Assessment steps' });
   await steps.getByRole('button', { name: 'Step 3: Experiment Steps' }).click();
   await page.waitForURL(url + '?step=implementation');
   await page.getByText('Compare two matched counter values.').waitFor();
-  await steps.getByRole('button', { name: 'Step 4: Setup' }).click();
+  await steps.getByRole('button', { name: 'Step 4: Experiment Setup' }).click();
   await page.waitForURL(url + '?step=execution');
   await page.getByText('Setup commands', { exact: true }).click();
   await page.getByText('mkdir -p fixture-samples', { exact: true }).waitFor();
@@ -91,13 +107,14 @@ async function verifyAssessmentWizard(page, url) {
   assert.equal(await page.getByText('Setup commands', { exact: true }).count(), 0);
   assert.equal(await page.getByRole('button', { name: `Download ${script.path}` }).count(), 0);
   await page.goBack();
-  await page.getByRole('heading', { name: 'Setup', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'Experiment Setup', exact: true }).waitFor();
   await page.goBack();
   await page.getByRole('heading', { name: 'Experiment Steps', exact: true }).waitFor();
 }
 const codes = new Map();
 const tokens = new Map();
 const previews = new Map();
+const papers = new Map();
 let failNextSubmission = false;
 const fixture = createServer(async (req, res) => {
   const url = new URL(req.url, api);
@@ -107,7 +124,36 @@ const fixture = createServer(async (req, res) => {
   };
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
-  const input = chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : null;
+  const body = Buffer.concat(chunks);
+  const service = req.headers.apikey === 'fixture-service';
+  const storage = url.pathname.match(/^\/storage\/v1\/object\/(?:(upload\/sign|sign)\/)?(research-paper-uploads\/jumpserve-mcp\/[a-f0-9-]+\.pdf)$/);
+  if (storage) {
+    const [, kind, key] = storage;
+    const signed = (prefix, id) => `/object/${prefix}/${key}?token=${id}`;
+    if (kind === 'upload/sign' && req.method === 'POST' && service) {
+      assert.notEqual(req.headers['x-upsert'], 'true');
+      return send(200, { url: signed('upload/sign', 'write-only-fixture') });
+    }
+    if (kind === 'upload/sign' && req.method === 'PUT' && url.searchParams.get('token') === 'write-only-fixture') {
+      assert.equal(req.headers['content-type'], 'application/pdf');
+      if (papers.has(key)) return send(409, { message: 'Fixture object exists' });
+      papers.set(key, body);
+      return send(200, {});
+    }
+    if (kind === 'sign' && req.method === 'POST' && service && papers.has(key)) {
+      assert.equal(JSON.parse(body).expiresIn, 60);
+      return send(200, { signedURL: signed('sign', 'read-only-fixture') });
+    }
+    if (req.method === 'HEAD' && service) {
+      return send(papers.has(key) ? 200 : 404, null);
+    }
+    if (req.method === 'GET' && papers.has(key) && (service || kind === 'sign' && url.searchParams.get('token') === 'read-only-fixture')) {
+      res.writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="source-paper.pdf"' });
+      return res.end(papers.get(key));
+    }
+    return send(403, {});
+  }
+  const input = body.length ? JSON.parse(body.toString()) : null;
   if (url.pathname === '/auth/v1/user') {
     const actor = [owner, other].find(id => req.headers.authorization === 'Bearer ' + token(id));
     return send(actor ? 200 : 401, actor ? authUser(actor) : { message: 'Sign-in required' });
@@ -116,9 +162,10 @@ const fixture = createServer(async (req, res) => {
   if (path === 'profiles') return send(200, []);
   if (path === 'rpc/research_skill_shared') {
     const record = previews.get(input.p_study);
-    return send(200, record?.study_id ? record.bundle : null);
+    return send(200, record?.study_id && !record.deleted ? record.bundle : null);
   }
-  if (req.headers.apikey !== 'fixture-service') return send(403, { message: 'Fixture service only' });
+  if (!service) return send(403, { message: 'Fixture service only' });
+  if (path === 'rpc/research_skill_expired_pdfs') return send(200, []);
   if (path === 'jumpserve_mcp_codes') {
     if (req.method === 'POST') codes.set(input.code_hash, input);
     return send(200, null);
@@ -138,7 +185,7 @@ const fixture = createServer(async (req, res) => {
     let row = [...previews.values()].find(record => record.owner_id === input.p_owner && record.bundle_sha256 === input.p_hash);
     if (!row) {
       row = { id: randomUUID(), owner_id: input.p_owner, bundle_sha256: input.p_hash, bundle: input.p_bundle,
-        approved_at: null, study_id: null, expires_at: new Date(Date.now() + 30 * 60_000).toISOString() };
+        approved_at: null, pdf_verified_at: null, study_id: null, expires_at: new Date(Date.now() + 30 * 60_000).toISOString() };
       previews.set(row.id, row);
     }
     return send(200, { preview_id: row.id, study_id: row.study_id });
@@ -150,9 +197,16 @@ const fixture = createServer(async (req, res) => {
       const expiration = url.searchParams.get('expires_at')?.slice(3);
       if (!(record.expires_at > expiration) || record.study_id ||
           url.searchParams.get('bundle_sha256') !== 'eq.' + record.bundle_sha256) return send(200, []);
-      record.approved_at = input.approved_at;
+      if (input.pdf_verified_at) {
+        if (record.pdf_verified_at) return send(200, []);
+        record.pdf_verified_at = input.pdf_verified_at;
+      } else {
+        if (record.bundle.paper.pdf_copy && !record.pdf_verified_at) return send(400, { code: '23514' });
+        record.approved_at = input.approved_at;
+      }
       return send(200, [{ id: record.id }]);
     }
+    if (url.searchParams.get('select') === 'pdf_verified_at') return send(200, [{ pdf_verified_at: record.pdf_verified_at }]);
     const expiration = url.searchParams.get('or')?.match(/^\(expires_at\.gt\.([^,]+),study_id\.not\.is\.null\)$/)?.[1];
     return send(200, record.expires_at > expiration || record.study_id ? [record] : []);
   }
@@ -344,6 +398,61 @@ try {
   await retry.click();
   await page.waitForURL(origin + '/research-verification/assessment/' + retryPreview.preview_id);
   console.log('PASS expired private previews and retry of an approved submission');
+
+  const pdf = Buffer.from('\n%PDF-1.4\n% Synthetic transport fixture\n%%EOF\n');
+  const pdfBundle = { ...bundle, paper: { ...bundle.paper, sha256: sha256(pdf), byte_count: pdf.length, pdf_copy: true } };
+  const stagePdf = (value = pdfBundle) => client.callTool({ name: 'preview_assessment', arguments: { bundle: value } });
+  const ticket = (await stagePdf()).structuredContent;
+  assert.equal(ticket.status, 'pdf_upload_required');
+  const privatePdf = origin + '/research-verification/share/' + ticket.preview_id;
+  const publicPdf = origin + '/research-verification/assessment/' + ticket.preview_id;
+  await page.goto(privatePdf);
+  await page.getByText('The assessment skill is waiting to verify the source PDF upload.').waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Approve public sharing' }).count(), 0);
+  assert.equal((await viewer.request.get(publicPdf + '/paper')).status(), 404);
+  assert.equal((await stagePdf()).structuredContent.preview_id, ticket.preview_id);
+  const pdfPath = join(workspace, 'source.pdf'), bundlePath = join(workspace, 'assessment.json');
+  await writeFile(pdfPath, pdf);
+  await writeFile(bundlePath, JSON.stringify(pdfBundle));
+  const upload = spawn('python3', ['-B', resolve('skills/jumpserve-paper-assessment/scripts/upload_paper.py'), '--pdf', pdfPath, '--bundle', bundlePath], { stdio: ['pipe', 'inherit', 'inherit'] });
+  upload.stdin.end(JSON.stringify(ticket));
+  assert.deepEqual(await once(upload, 'exit'), [0, null]);
+  const verified = (await stagePdf()).structuredContent;
+  assert.deepEqual(verified, { status: 'review_required', preview_id: ticket.preview_id, review_url: privatePdf });
+  assert.ok(previews.get(ticket.preview_id).pdf_verified_at);
+  const unauthorized = await viewer.request.get(privatePdf + '/paper', { maxRedirects: 0 });
+  assert.equal(unauthorized.status(), 307);
+  assert.match(unauthorized.headers().location, /^\/login\?/);
+  const nonOwner = await browser.newContext();
+  await nonOwner.addCookies([cookie(other)]);
+  assert.equal((await nonOwner.request.get(privatePdf + '/paper')).status(), 404);
+  await nonOwner.close();
+  await page.goto(privatePdf);
+  await page.getByText('Public sharing includes the attached source PDF.').waitFor();
+  assert.equal(await page.getByRole('link', { name: 'Download source PDF' }).getAttribute('href'), new URL(privatePdf).pathname + '/paper');
+  const ownerDownload = await context.request.get(privatePdf + '/paper', { maxRedirects: 0 });
+  assert.equal(ownerDownload.status(), 303);
+  assert.equal(ownerDownload.headers()['cache-control'], 'private, no-store');
+  assert.deepEqual(await (await context.request.get(privatePdf + '/paper')).body(), pdf);
+  assert.equal((await viewer.request.get(publicPdf + '/paper')).status(), 404);
+  await page.getByRole('button', { name: 'Approve public sharing' }).click();
+  await page.waitForURL(publicPdf);
+  await publicPage.goto(publicPdf + '?step=results');
+  assert.equal(await publicPage.getByRole('link', { name: 'Download source PDF' }).getAttribute('href'), new URL(publicPdf).pathname + '/paper');
+  assert.deepEqual(await (await viewer.request.get(publicPdf + '/paper')).body(), pdf);
+  previews.get(ticket.preview_id).deleted = true;
+  assert.equal((await viewer.request.get(publicPdf + '/paper')).status(), 404);
+
+  const otherBundle = { ...pdfBundle, summary: 'Verify mismatched upload rejection.' };
+  const wrong = (await stagePdf(otherBundle)).structuredContent;
+  const changed = Buffer.from(pdf);
+  changed[10] ^= 1;
+  assert.equal((await fetch(wrong.upload_url, { method: 'PUT', headers: { 'content-type': 'application/pdf' }, body: changed })).status, 200);
+  const rejected = await stagePdf(otherBundle);
+  assert.equal(rejected.isError, true);
+  assert.match(rejected.content[0].text, /differs from the assessed PDF/);
+  assert.equal(previews.get(wrong.preview_id).pdf_verified_at, null);
+  console.log('PASS verified PDF upload, owner-only preview, public download, deletion and mismatched byte rejection');
 } finally {
   await client?.close();
   await browser?.close();

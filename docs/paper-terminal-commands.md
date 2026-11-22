@@ -1,7 +1,7 @@
 # Step 4 shared setup and run commands
 
 Step 3 shows the saved hierarchical experiment plan without generating terminal
-commands. **Continue to Step 4** opens **Setup & Run Commands**. Each experiment
+commands. **Continue to Step 4** opens **Experiment Setup**. Each experiment
 gets one asynchronous package containing a complete shared setup/helper script,
 commands under its original numbered actions, cleanup, and required environment
 inputs. Opening Step 4 first reads saved status and explicitly POSTs generation

@@ -1,10 +1,12 @@
-import type { AssessmentBundle } from "@/lib/jumpserve-assessment-bundle";
-import { PAPER_ASSESSMENT_STEPS, parsePaperAssessmentStep } from "@/lib/paper-assessment-wizard";
+import { assessmentBreakdownSteps, type AssessmentBundle } from "@/lib/jumpserve-assessment-bundle";
+import { EXPERIMENT_SETUP_TITLE, PAPER_ASSESSMENT_STEPS, parsePaperAssessmentStep } from "@/lib/paper-assessment-wizard";
+import { paperDetailTree } from "@/lib/paper-detail-dependencies";
 import { PAPER_BREAKDOWN_SECTIONS } from "@/lib/research-paper-breakdown";
 import { researchSearchSuffix } from "@/lib/research-pathways";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/app/components/ui/table";
 import { ExperimentScript } from "./experiment-script";
 import { PaperAssessmentSteps } from "./paper-assessment-steps";
+import { PaperDetailOutline } from "./paper-detail-outline";
 
 const outcomeLabel = {
   untested: "Untested",
@@ -16,15 +18,17 @@ const outcomeLabel = {
 function PaperBreakdown({ claims, wizard }: Pick<AssessmentBundle, "claims" | "wizard">) {
   return <section className="space-y-6" aria-labelledby="skill-breakdown">
     <h2 id="skill-breakdown" className="text-lg font-semibold">Paper Breakdown</h2>
-    {wizard ? PAPER_BREAKDOWN_SECTIONS.map(section => {
-      const items = wizard.breakdown.filter(item => item.section === section.id);
-      return items.length ? <section key={section.id} className="space-y-3">
-        <h3 className="font-semibold">{section.title}</h3>
-        <ul className="space-y-3 pl-4 text-sm">{items.map((item, index) => <li key={index}>
+    {wizard ? PAPER_BREAKDOWN_SECTIONS.map((section, index) => {
+      const number = index + 1;
+      const items = assessmentBreakdownSteps(wizard.breakdown, section.id);
+      return <section key={section.id} aria-labelledby={`skill-breakdown-${section.id}`} className="space-y-3">
+        <h3 id={`skill-breakdown-${section.id}`} className="font-semibold">{number}. {section.title}</h3>
+        {items.length ? <PaperDetailOutline nodes={paperDetailTree(items, String(number))} renderDetail={item => <>
+          {item.title ? <h4 className="font-medium">{item.title}</h4> : null}
           <p className="whitespace-pre-wrap">{item.description}</p>
           <p className="text-xs text-muted-foreground">PDF {item.pages.length === 1 ? "page" : "pages"} {item.pages.join(", ")}</p>
-        </li>)}</ul>
-      </section> : null;
+        </>} /> : <p className="text-sm text-muted-foreground">No steps were recorded for this section.</p>}
+      </section>;
     }) : null}
     <section className="space-y-3">
       <h3 className="font-semibold">Claims and decision rules</h3>
@@ -69,7 +73,7 @@ function SharedCommands({ label, commands }: { label: string; commands: string }
 function ExperimentSetup({ methods, wizard }: Pick<AssessmentBundle, "methods" | "wizard">) {
   const hasMethodCommands = methods.some(method => method.commands);
   return <section className="space-y-6" aria-labelledby="skill-execution">
-    <h2 id="skill-execution" className="text-lg font-semibold">Setup</h2>
+    <h2 id="skill-execution" className="text-lg font-semibold">{EXPERIMENT_SETUP_TITLE}</h2>
     {wizard?.experiments.map((experiment, index) => <section key={index} className="space-y-3 border-t py-3">
       <h3 className="font-semibold">{experiment.title}</h3>
       {experiment.prerequisites.length ? <div className="space-y-1 text-sm">
@@ -135,7 +139,9 @@ function ExperimentResults({ summary, claims, runs, limitations }: Pick<Assessme
   </section>;
 }
 
-export function SkillAssessment({ bundle, path, query }: { bundle: AssessmentBundle; path: string; query: Record<string, string | string[] | undefined> }) {
+export function SkillAssessment({ bundle, path, query, pdfReady = true }: {
+  bundle: AssessmentBundle; path: string; query: Record<string, string | string[] | undefined>; pdfReady?: boolean;
+}) {
   const { paper } = bundle;
   const requested = parsePaperAssessmentStep(query.step);
   const current = requested && requested !== "upload" ? requested : "breakdown";
@@ -143,12 +149,11 @@ export function SkillAssessment({ bundle, path, query }: { bundle: AssessmentBun
   return <article className="min-w-0 space-y-7 break-words">
     <PaperAssessmentSteps current={current} assessment implementation execution results hrefs={hrefs} />
     <header className="space-y-2">
-      <p className="text-sm text-muted-foreground">Local JumpServe assessment</p>
       <h1 className="text-2xl font-semibold">{paper.title}</h1>
       {paper.authors.length ? <p>{paper.authors.join(", ")}</p> : null}
       <p className="text-sm">{paper.domain}</p>
       {paper.url ? <a className="text-primary underline" href={paper.url} rel="noreferrer">Source paper</a> : null}
-      <p className="text-sm text-muted-foreground">Source SHA-256 <code className="break-all">{paper.sha256}</code> · {paper.byte_count.toLocaleString("en-US")} bytes</p>
+      {paper.pdf_copy && pdfReady ? <p><a className="text-sm text-primary underline" href={`${path}/paper`}>Download source PDF</a></p> : null}
     </header>
     {current === "breakdown" ? <PaperBreakdown claims={bundle.claims} wizard={bundle.wizard} /> : null}
     {current === "implementation" ? <ExperimentSteps methods={bundle.methods} wizard={bundle.wizard} /> : null}

@@ -6,7 +6,7 @@ const id = '11111111-1111-4111-8111-111111111111', other = '22222222-2222-4222-8
 const fixture = () => ({version: ASSESSMENT_PROGRESS_VERSION, access: 'public-read-only', assessments: [{id, step: 5}, {id: other, step: null}]});
 
 test('wizard progress uses the same five numbered step names as the assessment', () => {
-  assert.deepEqual([1,2,3,4,5].map(assessmentStepLabel), ['Step 1 · Paper Upload','Step 2 · Paper Breakdown','Step 3 · Experiment Steps','Step 4 · Setup','Step 5 · Experiment Results']);
+  assert.deepEqual([1,2,3,4,5].map(assessmentStepLabel), ['Step 1 · Paper Upload','Step 2 · Paper Breakdown','Step 3 · Experiment Steps','Step 4 · Experiment Setup','Step 5 · Experiment Results']);
 });
 test('one anonymous bounded GET verifies every requested identity without sending credentials', async () => {
   let calls = 0;

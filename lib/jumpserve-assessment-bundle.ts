@@ -2,15 +2,24 @@ import Ajv from "ajv";
 import { createHash } from "node:crypto";
 import { isIP } from "node:net";
 import assessmentSchema from "@/skills/jumpserve-paper-assessment/references/assessment.schema.json" with { type: "json" };
-import type { PaperBreakdownSection } from "@/lib/research-paper-breakdown";
+import { validPaperDependencies } from "@/lib/paper-detail-dependencies";
+import { PAPER_BREAKDOWN_SECTIONS, type PaperBreakdownSection } from "@/lib/research-paper-breakdown";
 
 type Outcome = "untested" | "inconclusive" | "reproduced" | "discrepant";
+type AssessmentBreakdownItem = {
+  section: PaperBreakdownSection;
+  id?: string;
+  parent_id?: string;
+  title?: string;
+  description: string;
+  pages: number[];
+};
 export type AssessmentBundle = {
   version: "jumpserve-assessment-v1";
-  paper: { title: string; authors: string[]; domain: string; url?: string; sha256: string; byte_count: number };
+  paper: { title: string; authors: string[]; domain: string; url?: string; sha256: string; byte_count: number; pdf_copy?: true };
   summary: string;
   wizard?: {
-    breakdown: Array<{ section: PaperBreakdownSection; description: string; pages: number[] }>;
+    breakdown: AssessmentBreakdownItem[];
     experiments: Array<{
       title: string;
       claim_ids: string[];
@@ -30,6 +39,14 @@ export type AssessmentBundle = {
   }>;
   limitations: string[];
 };
+
+export function assessmentBreakdownSteps(breakdown: AssessmentBreakdownItem[], section: PaperBreakdownSection) {
+  return breakdown.filter(item => item.section === section).map((item, index) => ({
+    ...item,
+    id: item.id ?? `#${index}`,
+    depends_on: item.parent_id ? [item.parent_id] : [],
+  }));
+}
 
 export const ASSESSMENT_SCHEMA = assessmentSchema;
 export const MAX_BUNDLE_BYTES = 500_000;
@@ -75,6 +92,13 @@ export function prepareAssessmentBundle(input: unknown): { bundle: AssessmentBun
   const claims = new Map(input.claims.map(claim => [claim.id, claim]));
   if (claims.size !== input.claims.length || new Set(input.runs.map(run => run.id)).size !== input.runs.length) {
     throw new Error("Claim and run identifiers must be unique.");
+  }
+  if (input.wizard) {
+    for (const { id, title } of PAPER_BREAKDOWN_SECTIONS) {
+      if (!validPaperDependencies(assessmentBreakdownSteps(input.wizard.breakdown, id))) {
+        throw new Error(`${title} step IDs must be unique and parent references must stay in the same section without cycles.`);
+      }
+    }
   }
   for (const experiment of input.wizard?.experiments ?? []) {
     if (experiment.claim_ids.some(id => !claims.has(id))) {

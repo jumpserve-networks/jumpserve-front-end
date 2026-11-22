@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { createStaticClient } from "@/lib/supabase/server";
 import { paperIntakeCredentials } from "@/lib/paper-intake-credentials";
@@ -23,6 +24,49 @@ async function serviceDatabase() {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { fetch: (url, options) => fetch(url, { ...options, cache: "no-store", signal: AbortSignal.timeout(10000) }) },
   });
+}
+
+const paperBucket = "research-paper-uploads";
+const paperObject = (id: string) => `jumpserve-mcp/${id}.pdf`;
+
+async function verifiedPdf(db: Awaited<ReturnType<typeof serviceDatabase>>, owner: string, id: string) {
+  const { data, error } = await db.from("research_skill_submissions")
+    .select("pdf_verified_at").eq("owner_id", owner).eq("id", id).maybeSingle();
+  if (error) throw new Error("JumpServe could not check the PDF upload.");
+  return typeof data?.pdf_verified_at === "string";
+}
+
+async function preparePdfUpload(db: Awaited<ReturnType<typeof serviceDatabase>>, owner: string, id: string, hash: string, paper: AssessmentBundle["paper"]) {
+  if (await verifiedPdf(db, owner, id)) return undefined;
+  const storage = db.storage.from(paperBucket);
+  const path = paperObject(id);
+  const { data: exists } = await storage.exists(path).catch(() => {
+    throw new Error("JumpServe could not check the PDF upload.");
+  });
+  if (!exists) {
+    const { data: expired } = await db.rpc("research_skill_expired_pdfs");
+    if (Array.isArray(expired) && expired.length) await storage.remove(expired);
+    const { data, error } = await storage.createSignedUploadUrl(path, { upsert: false });
+    if (error || !data) throw new Error("JumpServe could not prepare the PDF upload. Retry the same bundle.");
+    return data.signedUrl;
+  }
+
+  const { data, error } = await storage.download(path);
+  if (error || !data) throw new Error("JumpServe could not read the uploaded PDF. Retry the same bundle.");
+  if (data.size !== paper.byte_count) throw new Error("The uploaded PDF size differs from the assessed paper.");
+  const bytes = Buffer.from(await data.arrayBuffer());
+  if (!/^[ \t\r\n\v\f]*%PDF-/.test(bytes.subarray(0, 1024).toString("latin1")) ||
+      createHash("sha256").update(bytes).digest("hex") !== paper.sha256) {
+    throw new Error("The uploaded file differs from the assessed PDF.");
+  }
+  const time = new Date().toISOString();
+  const { data: saved, error: saveError } = await db.from("research_skill_submissions").update({ pdf_verified_at: time })
+    .eq("owner_id", owner).eq("id", id).eq("bundle_sha256", hash).is("study_id", null)
+    .is("pdf_verified_at", null).gt("expires_at", time).select("id").maybeSingle();
+  if (saveError || (!saved && !await verifiedPdf(db, owner, id))) {
+    throw new Error("JumpServe could not verify the PDF for this preview. Retry the same bundle.");
+  }
+  return undefined;
 }
 
 export async function createAuthorizationCode(owner: string, request: { clientId: string; redirectUri: string; challenge: string }, resource: string) {
@@ -73,7 +117,9 @@ export async function previewAssessment(owner: string, bundle: AssessmentBundle,
   if (error?.code === "54000") throw new Error("Eight previews are pending. Submit an approved preview or wait for it to expire.");
   if (error?.code === "P0002") throw new Error("This assessment was deleted.");
   if (error || typeof data?.preview_id !== "string") throw new Error("JumpServe could not save the preview. Retry the same bundle.");
-  return { previewId: data.preview_id as string, studyId: (data.study_id ?? null) as string | null };
+  const previewId = data.preview_id as string, studyId = (data.study_id ?? null) as string | null;
+  const pdfUploadUrl = bundle.paper.pdf_copy && !studyId ? await preparePdfUpload(db, owner, previewId, hash, bundle.paper) : undefined;
+  return { previewId, studyId, pdfUploadUrl };
 }
 
 export async function readAssessmentPreview(owner: string, id: string) {
@@ -85,7 +131,8 @@ export async function readAssessmentPreview(owner: string, id: string) {
   if (error) throw new Error("JumpServe could not load the preview.");
   if (!data) return null;
   const { bundle } = prepareAssessmentBundle(data.bundle);
-  return { bundle, hash: data.bundle_sha256 as string, approved: !!data.approved_at, studyId: data.study_id as string | null };
+  const pdfReady = !!bundle.paper.pdf_copy && await verifiedPdf(db, owner, id);
+  return { bundle, hash: data.bundle_sha256 as string, approved: !!data.approved_at, studyId: data.study_id as string | null, pdfReady };
 }
 
 export async function approveAssessment(owner: string, id: string, hash: string) {
@@ -114,4 +161,19 @@ export async function readSharedSkillAssessment(id: string) {
   if (error?.code === "PGRST202") return null;
   if (error) throw new Error("JumpServe could not load the shared assessment.");
   return data === null ? null : prepareAssessmentBundle(data).bundle;
+}
+
+export async function assessmentPdfDownload(id: string, owner?: string) {
+  const headers = { "Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer" };
+  try {
+    const available = owner ? (await readAssessmentPreview(owner, id))?.pdfReady
+      : (await readSharedSkillAssessment(id))?.paper.pdf_copy;
+    if (!available) return new Response(null, { status: 404, headers });
+    const db = await serviceDatabase();
+    const { data, error } = await db.storage.from(paperBucket).createSignedUrl(paperObject(id), 60, { download: "source-paper.pdf" });
+    if (error || !data) throw new Error("The assessment PDF is unavailable.");
+    return new Response(null, { status: 303, headers: { ...headers, Location: data.signedUrl } });
+  } catch {
+    return new Response("The assessment PDF is temporarily unavailable.", { status: 503, headers });
+  }
 }
