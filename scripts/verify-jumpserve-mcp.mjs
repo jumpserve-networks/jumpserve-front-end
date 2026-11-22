@@ -38,12 +38,41 @@ const bundle = {
   summary: 'Recorded with a synthetic local runner.',
   claims: [{ id: 'c1', page: 1, claim: 'The count is zero.', criterion: 'Use the matched counter.', outcome: 'reproduced', finding: 'Both counters measured zero.' }],
   methods: [{ title: 'Fixture method', procedure: 'Compare the matched values.' }],
+  wizard: {
+    breakdown: [{ section: 'data', description: 'Count events on the loopback fixture.', pages: [1, 2] }],
+    experiments: [{
+      title: 'Matched counter test', claim_ids: ['c1'], prerequisites: ['POSIX shell'],
+      setup: 'mkdir -p fixture-samples', cleanup: 'rmdir fixture-samples',
+      steps: [{ title: 'Record the count', instructions: 'Compare two matched counter values.', commands: 'printf 0' }],
+    }],
+  },
   runs: [{
     id: 'r1', configuration: 'Loopback fixture', started_at: '2026-11-20T00:00:00Z', artifact_sha256: 'b'.repeat(64),
     measurements: [{ claim_id: 'c1', metric: 'Counter', units: 'count', paper_value: 0, observed_value: 0 }],
   }],
   limitations: ['Synthetic connector verification only.'],
 };
+
+async function verifyAssessmentWizard(page, url) {
+  await page.goto(url);
+  await page.getByRole('heading', { name: bundle.paper.title }).waitFor();
+  await page.getByRole('heading', { name: 'Paper Breakdown', exact: true }).waitFor();
+  await page.getByText('Count events on the loopback fixture.').waitFor();
+  await page.getByText('PDF pages 1, 2', { exact: true }).waitFor();
+  const steps = page.getByRole('navigation', { name: 'Assessment steps' });
+  await steps.getByRole('button', { name: 'Step 3: Experiment Steps' }).click();
+  await page.waitForURL(url + '?step=implementation');
+  await page.getByText('Compare two matched counter values.').waitFor();
+  await steps.getByRole('button', { name: 'Step 4: Setup & Run Commands' }).click();
+  await page.waitForURL(url + '?step=execution');
+  await page.getByText('Setup commands', { exact: true }).click();
+  await page.getByText('mkdir -p fixture-samples', { exact: true }).waitFor();
+  await page.getByText('Step 1 · Record the count', { exact: true }).click();
+  await page.getByText('printf 0', { exact: true }).waitFor();
+  assert.equal(await page.getByRole('cell', { name: '0', exact: true }).count(), 2);
+  await page.goBack();
+  await page.getByRole('heading', { name: 'Experiment Steps', exact: true }).waitFor();
+}
 const codes = new Map();
 const tokens = new Map();
 const previews = new Map();
@@ -257,8 +286,7 @@ try {
   const otherPage = await otherContext.newPage();
   assert.equal((await otherPage.goto(review_url)).status(), 404);
   await otherContext.close();
-  await page.goto(review_url);
-  await page.getByRole('heading', { name: bundle.paper.title }).waitFor();
+  await verifyAssessmentWizard(page, review_url);
   assert.equal(previews.get(preview_id).study_id, null);
   const publicUrl = origin + '/research-verification/assessment/' + preview_id;
   await page.getByRole('button', { name: 'Approve public sharing' }).click();
@@ -273,11 +301,9 @@ try {
   assert.equal(page.url(), publicUrl);
   const viewer = await browser.newContext();
   const publicPage = await viewer.newPage();
-  await publicPage.goto(publicUrl);
-  await publicPage.getByRole('heading', { name: bundle.paper.title }).waitFor();
-  assert.equal(await publicPage.getByRole('cell', { name: '0', exact: true }).count(), 2);
+  await verifyAssessmentWizard(publicPage, publicUrl);
   assert.deepEqual(previews.get(preview_id).bundle, bundle);
-  console.log('PASS account-bound preview, one-click sharing, idempotent MCP submission and public measurement display');
+  console.log('PASS private and public Steps 2–4, one-click sharing, idempotent MCP submission and measurement display');
 
   const retryBundle = { ...bundle, summary: 'Verify a recoverable sharing failure.' };
   const retryPreview = (await client.callTool({ name: 'preview_assessment', arguments: { bundle: retryBundle } })).structuredContent;

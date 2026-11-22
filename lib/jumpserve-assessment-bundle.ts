@@ -2,12 +2,25 @@ import Ajv from "ajv";
 import { createHash } from "node:crypto";
 import { isIP } from "node:net";
 import assessmentSchema from "@/skills/jumpserve-paper-assessment/references/assessment.schema.json" with { type: "json" };
+import type { PaperBreakdownSection } from "@/lib/research-paper-breakdown";
 
 type Outcome = "untested" | "inconclusive" | "reproduced" | "discrepant";
 export type AssessmentBundle = {
   version: "jumpserve-assessment-v1";
   paper: { title: string; authors: string[]; domain: string; url?: string; sha256: string; byte_count: number };
   summary: string;
+  wizard?: {
+    breakdown: Array<{ section: PaperBreakdownSection; description: string; pages: number[] }>;
+    experiments: Array<{
+      title: string;
+      claim_ids: string[];
+      prerequisites: string[];
+      setup?: string;
+      cleanup?: string;
+      command_notes?: string;
+      steps: Array<{ title: string; instructions: string; commands?: string }>;
+    }>;
+  };
   claims: Array<{ id: string; page: number; claim: string; criterion: string; outcome: Outcome; finding: string }>;
   methods: Array<{ title: string; procedure: string; commands?: string }>;
   runs: Array<{
@@ -61,6 +74,9 @@ export function prepareAssessmentBundle(input: unknown): { bundle: AssessmentBun
   const claims = new Map(input.claims.map(claim => [claim.id, claim]));
   if (claims.size !== input.claims.length || new Set(input.runs.map(run => run.id)).size !== input.runs.length) {
     throw new Error("Claim and run identifiers must be unique.");
+  }
+  if (input.wizard?.experiments.some(experiment => experiment.claim_ids.some(id => !claims.has(id)))) {
+    throw new Error("Every wizard experiment must refer to claims in this bundle.");
   }
   const measured = new Set<string>();
   const compared = new Set<string>();

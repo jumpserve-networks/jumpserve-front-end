@@ -14,13 +14,17 @@ const request=ids=>new Request('https://example.test/research-verification/api/a
 let records,calls,override;
 beforeEach(()=>{
   calls=[];override=()=>null;
-  records={research_studies:[{id:uid(1),study_kind:'paper',deleted_at:null}],research_paper_intakes:[],research_experiment_plans:[],research_paper_reviews:[],research_autonomy_workflows:[],research_experiment_plan_link_reviews:[]};
+  records={research_studies:[{id:uid(1),study_kind:'paper',deleted_at:null}],research_paper_intakes:[],research_experiment_plans:[],research_paper_reviews:[],research_autonomy_workflows:[],research_experiment_plan_link_reviews:[],research_skill_submissions:[]};
   globalThis.__wizardProgressDatabase={from(table){
     assert.ok(Object.hasOwn(records,table));const query={table,filters:[]};calls.push(query);
-    const builder={select(columns,options){query.columns=columns;query.count=options.count;return builder;},in(key,values){query.filters.push([key,'in',values]);return builder;},eq(key,value){query.filters.push([key,'eq',value]);return builder;},is(key,value){query.filters.push([key,'is',value]);return builder;},limit(value){query.limit=value;return builder;},then(resolve,reject){
+    const builder={select(columns,options){query.columns=columns;query.count=options.count;return builder;},in(key,values){query.filters.push([key,'in',values]);return builder;},eq(key,value){query.filters.push([key,'eq',value]);return builder;},is(key,value){query.filters.push([key,'is',value]);return builder;},not(key,op,value){query.filters.push([key,`not.${op}`,value]);return builder;},limit(value){query.limit=value;return builder;},then(resolve,reject){
       const special=override(query);
       if(special)return Promise.resolve(special).then(resolve,reject);
-      const rows=records[table].filter(row=>query.filters.every(([key,op,value])=>op==='in'?value.includes(row[key]):row[key]===value));
+      const rows=records[table].filter(row=>query.filters.every(([key,op,value])=>{
+        const field=key.split('->').reduce((entry,part)=>entry?.[part],row);
+        if(op==='not.is')return (field??null)!==value;
+        return op==='in'?value.includes(field):field===value;
+      }));
       const data=rows.slice(0,query.limit).map(row=>Object.fromEntries(query.columns.split(',').map(key=>[key,row[key]])));
       return Promise.resolve({data,count:rows.length,error:null}).then(resolve,reject);
     }};return builder;
@@ -34,7 +38,7 @@ test('anonymous progress maps saved upload review confirmation and plan readines
   records.research_paper_reviews=[{study_id:uid(8),status:'confirmed'}];records.research_autonomy_workflows=[{study_id:uid(9)}];
   const response=await GET(request(ids));assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');
   const value=await response.json();assert.deepEqual(value.assessments.map(item=>item.step),[1,2,2,3,4,2,2,3,4]);assert.ok(!JSON.stringify(value).includes('PRIVATE'));
-  assert.equal(calls.length,5);assert.ok(calls.every(query=>query.count==='exact'&&!query.columns.includes('*')&&query.limit<=11));
+  assert.equal(calls.length,6);assert.ok(calls.every(query=>query.count==='exact'&&!query.columns.includes('*')&&query.limit<=11));
   assert.deepEqual(calls[0].filters,[['id','in',ids],['study_kind','eq','paper'],['deleted_at','is',null]]);
 });
 test('failed uncertain and cancelled planning stays on step three rather than restarting review',async()=>{
@@ -52,12 +56,21 @@ test('complete local imports reach step four through a bounded metadata projecti
     assert.notEqual((await(await GET(request([uid(1)]))).json()).assessments[0].step,4);
   }
 });
+test('only shared JumpServe submissions with wizard data report step four',async()=>{
+  records.research_studies.push({id:uid(2),study_kind:'paper',deleted_at:null},{id:uid(3),study_kind:'paper',deleted_at:null});
+  records.research_skill_submissions=[{study_id:uid(1),bundle:{wizard:{}}},{study_id:uid(2),bundle:{}},{id:uid(3),study_id:null,bundle:{wizard:{}}}];
+  const response=await GET(request([uid(1),uid(2),uid(3)]));assert.equal(response.status,200);
+  assert.deepEqual((await response.json()).assessments.map(item=>item.step),[4,null,null]);
+  assert.equal(calls.find(query=>query.table==='research_skill_submissions').columns,'study_id');
+  override=query=>query.table==='research_skill_submissions'?{data:null,count:null,error:{code:'PGRST205'}}:null;
+  assert.equal((await GET(request([uid(1)]))).status,200);
+});
 test('ideas deleted papers missing records and unknown progress never reveal a guessed step',async()=>{
   records.research_studies.push({id:uid(2),study_kind:'idea',deleted_at:null},{id:uid(3),study_kind:'paper',deleted_at:'2026-11-14T00:00:00Z'});
   records.research_paper_intakes=[{study_id:uid(2),status:'ready'},{study_id:uid(3),status:'processing'}];
   const response=await GET(request([uid(1),uid(2),uid(3),uid(4)]));assert.equal(response.status,200);
   assert.deepEqual((await response.json()).assessments.map(item=>item.step),[null,null,null,null]);
-  assert.ok(calls.slice(1).every(query=>JSON.stringify(query.filters)==JSON.stringify([['study_id','in',[uid(1)]]])));
+  assert.ok(calls.slice(1).every(query=>JSON.stringify(query.filters[0])==JSON.stringify(['study_id','in',[uid(1)]])));
 });
 test('an immutable reviewed projection advances progress only for its exact original plan revision',async()=>{
   records.research_experiment_plans=[{study_id:uid(1),status:'failed',revision:4}];

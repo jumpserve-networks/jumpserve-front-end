@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import { test } from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -17,6 +18,13 @@ const fixture = () => ({
   claims: [{ id: 'c1', page: 5, claim: 'Measure a counter.', criterion: 'Compare matched counter values.', outcome: 'untested', finding: 'The run is pending.' }],
   methods: [{ title: 'Counter test', procedure: 'Record the counter in matched settings.' }],
   runs: [], limitations: ['This is a synthetic fixture.'],
+});
+const wizard = () => ({
+  breakdown: [{ section: 'data', description: 'The paper counts matching events.', pages: [5, 6] }],
+  experiments: [{
+    title: 'Check the counter', claim_ids: ['c1'], prerequisites: ['Local shell'],
+    steps: [{ title: 'Record the count', instructions: 'Record the fixture counter.', commands: 'printf 0' }],
+  }],
 });
 
 test('assessment schema preserves zero and missing values and requires matched evidence for conclusive claims', () => {
@@ -43,6 +51,23 @@ test('private fields, common credentials and unsafe paper links are rejected', (
   bundle.summary = 'Review this.';
   bundle.paper.url = 'https://127.0.0.1/source';
   assert.throws(() => prepareAssessmentBundle(bundle), /public HTTPS/);
+});
+
+test('wizard fields remain part of the approved bundle and require valid source and claim references', () => {
+  const original = fixture();
+  const bundle = { ...original, wizard: wizard() };
+  const prepared = prepareAssessmentBundle(bundle);
+  assert.deepEqual(prepared.bundle.wizard, wizard());
+  assert.notEqual(prepared.hash, prepareAssessmentBundle(original).hash);
+
+  bundle.wizard.breakdown[0].pages = [0];
+  assert.throws(() => prepareAssessmentBundle(bundle), /wizard\/breakdown\/0\/pages/);
+  bundle.wizard = wizard();
+  bundle.wizard.experiments[0].claim_ids = ['unknown'];
+  assert.throws(() => prepareAssessmentBundle(bundle), /must refer to claims in this bundle/);
+  bundle.wizard = wizard();
+  bundle.wizard.experiments[0].steps[0].commands = 'cat /Users/example/private-data';
+  assert.throws(() => prepareAssessmentBundle(bundle), /private paths/);
 });
 
 test('OAuth requests require a registered loopback callback, PKCE and the JumpServe resource', () => {
@@ -106,10 +131,21 @@ test('a real MCP SDK client discovers both tools and completes preview and submi
   const client = new Client({ name: 'local-jumpserve-test', version: '1.0.0' });
   try {
     await client.connect(transport);
-    assert.deepEqual((await client.listTools()).tools.map(tool => tool.name), ['preview_assessment', 'submit_assessment']);
-    const preview = await client.callTool({ name: 'preview_assessment', arguments: { bundle: fixture() } });
+    const { tools } = await client.listTools();
+    assert.deepEqual(tools.map(tool => tool.name), ['preview_assessment', 'submit_assessment']);
+    const completionMessage = [
+      'Your research paper assessment is finished!',
+      'View the assessment online using the JumpServe app at the following URL:',
+      '{assessmentUrlHere}',
+    ].join('\n\n');
+    const sharingGuide = readFileSync(new URL('../skills/jumpserve-paper-assessment/references/sharing.md', import.meta.url), 'utf8');
+    assert.ok(sharingGuide.includes(`\n${completionMessage}\n`));
+    for (const tool of tools) assert.ok(tool.description.endsWith(`\n\n${completionMessage}`));
+    const bundle = { ...fixture(), wizard: wizard() };
+    const preview = await client.callTool({ name: 'preview_assessment', arguments: { bundle } });
     assert.equal(preview.structuredContent.review_url, origin + '/research-verification/share/' + id);
-    assert.equal(previewed.hash, prepareAssessmentBundle(fixture()).hash);
+    assert.equal(previewed.hash, prepareAssessmentBundle(bundle).hash);
+    assert.deepEqual(previewed.bundle, bundle);
     assert.equal((await client.callTool({ name: 'submit_assessment', arguments: { preview_id: id } })).isError, true);
     approved = true;
     const submission = { name: 'submit_assessment', arguments: { preview_id: id } };
