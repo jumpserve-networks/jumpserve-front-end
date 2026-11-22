@@ -13,8 +13,6 @@ import { PRODUCTION_SITE_ORIGIN } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
-const codexApprovalCommand = `codex --sandbox workspace-write --ask-for-approval on-request -c 'approvals_reviewer="user"'`;
-
 export default async function NewAssessment({ searchParams }: { searchParams: Promise<{ assessment?: string | string[] }> }) {
   const [owner, query] = await Promise.all([getGoogleUser(), searchParams]);
   const assessmentId = isResearchId(query.assessment) ? query.assessment : undefined;
@@ -34,12 +32,6 @@ export default async function NewAssessment({ searchParams }: { searchParams: Pr
         <section className="space-y-3" aria-labelledby="paper-upload">
           <h2 id="paper-upload" className="text-lg font-semibold">Upload the research paper</h2>
           {result?.source && assessmentId ? <>
-            <p className="text-sm text-muted-foreground">Paste the prompt into Claude Code or Codex. The JumpServe plugin downloads the private PDF and runs feasible local verification experiments.</p>
-            <p className="text-sm text-muted-foreground">If the client blocks access to a required resource, select <strong>Ask for approval</strong> in the Codex app or <strong>Manual</strong> in Claude Code to review its permission request.</p>
-            <details className="space-y-2 text-sm">
-              <summary className="cursor-pointer font-medium">Start Codex CLI with approval prompts</summary>
-              <CopyBlock title="Run this in your assessment workspace" label="Codex human approval command" value={codexApprovalCommand} />
-            </details>
             <p className="break-all text-sm">Assessment ID <code>{assessmentId}</code></p>
             <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
               <a href={`${LOCAL_ASSESSMENT_SOURCE_API}?assessment_id=${assessmentId}`} className="text-primary underline underline-offset-4">Download PDF</a>

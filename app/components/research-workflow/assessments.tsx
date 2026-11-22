@@ -105,14 +105,14 @@ function AssessmentList({ before, userId, name, view }: { before?: string; userI
         <TableCaption className="sr-only">Assessments</TableCaption>
         <TableHeader><TableRow><TableHead scope="col">Assessment</TableHead><TableHead scope="col">Status</TableHead><TableHead scope="col">Initiated by</TableHead><TableHead scope="col">Submitted</TableHead>{userId ? <TableHead scope="col">Actions</TableHead> : null}</TableRow></TableHeader>
         <TableBody>{papers?.map(paper => <TableRow key={paper.id} data-paper-id={paper.id} className="relative focus-within:bg-muted/50">
-          <TableCell className="min-w-64 max-w-lg space-y-2 whitespace-normal align-top"><Link className="break-words font-semibold underline after:absolute after:inset-0" href={researchAssessmentPath(paper.id, paper.private_preview)}>{paper.displayTitle}</Link><PaperAuthors authors={paper.authors} loading={paper.authorsLoading} /></TableCell>
+          <TableCell className="min-w-64 max-w-lg space-y-2 whitespace-normal align-top"><Link className="break-words font-semibold underline after:absolute after:inset-0" href={researchAssessmentPath(paper.id)}>{paper.displayTitle}</Link><PaperAuthors authors={paper.authors} loading={paper.authorsLoading} /></TableCell>
           <TableCell className="min-w-44 max-w-56 whitespace-normal align-top"><AssessmentStepBadge step={progress[paper.id]} unavailable={Boolean(progressError)} privatePreview={paper.private_preview} /></TableCell>
           <TableCell className="max-w-48 whitespace-normal break-words align-top">{paper.initiated_by ?? "Name unavailable"}</TableCell>
           <TableCell className="whitespace-normal align-top"><LocalDateTime value={paper.created_at} /></TableCell>
           {userId ? <TableCell className="align-top">{paper.private_preview ? null : <DeleteAssessment id={paper.id} title={paper.displayTitle} userId={userId} onDeleted={() => removed(paper.id)} />}</TableCell> : null}
         </TableRow>)}</TableBody>
       </Table></div> : <div className="grid gap-4 md:grid-cols-2">{papers?.map(paper => {
-          const assessment = researchAssessmentPath(paper.id, paper.private_preview);
+          const assessment = researchAssessmentPath(paper.id);
           return <article key={paper.id} data-paper-id={paper.id} className="content-panel relative space-y-3 rounded-lg border p-5 focus-within:ring-2 focus-within:ring-ring">
             <h2 className="break-words font-semibold"><Link className="underline after:absolute after:inset-0 after:rounded-lg" href={assessment}>{paper.displayTitle}</Link></h2>
             <PaperAuthors authors={paper.authors} loading={paper.authorsLoading} />

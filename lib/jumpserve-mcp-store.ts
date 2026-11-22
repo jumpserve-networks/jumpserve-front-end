@@ -258,7 +258,8 @@ export async function readSharedSkillAssessment(id: string) {
 export async function assessmentPdfDownload(id: string, owner?: string) {
   const headers = { "Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer" };
   try {
-    const available = owner ? (await readAssessmentPreview(owner, id))?.pdfReady
+    const preview = owner ? await readAssessmentPreview(owner, id) : null;
+    const available = owner ? preview && !preview.studyId && preview.pdfReady
       : (await readSharedSkillAssessment(id))?.paper.pdf_copy;
     if (!available) return new Response(null, { status: 404, headers });
     const db = await serviceDatabase();

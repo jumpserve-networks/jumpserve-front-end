@@ -116,9 +116,10 @@ test("paper upload stays on new-assessment while saved detail links resolve to a
     const old = `${prefix}/research-verification/new-study`;
     assert.equal(LEGACY_MODULE_ROUTES.find(r => r.source === old)?.destination, NEW_ASSESSMENT_PATH);
     assert.equal(getTestModuleForPath(old), paperModule);
-    for (const path of ["new-assessment", "new-study"]) {
+    for (const path of ["new-assessment", "new-study", "share"]) {
       assert.equal(LEGACY_EXACT_MODULE_ROUTES.find(r => r.source === `${prefix}/research-verification/${path}/:assessmentId`)?.destination, "/research-verification/assessment/:assessmentId");
     }
+    assert.equal(LEGACY_EXACT_MODULE_ROUTES.find(r => r.source === `${prefix}/research-verification/share/:assessmentId/paper`)?.destination, "/research-verification/assessment/:assessmentId/paper");
   }
 });
 

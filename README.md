@@ -50,8 +50,9 @@ The Next.js app serves a Streamable HTTP MCP connector at `/mcp`. When a
 JumpServe assessment finishes, the connected skill calls `preview_assessment`
 to save it privately and returns the assessment link. The assessment stays
 private with no expiration until its owner chooses to share it publicly.
-The private page and the public page at `/research-verification/assessment/<id>` show the
+Private and public assessments use `/research-verification/assessment/<id>` and show the
 paper breakdown, experiment steps, experiment setup, and experiment results in Steps 2–5.
+Saved sharing links redirect to this address.
 The breakdown uses numbered sections, steps, and substeps with PDF page citations.
 Experiment Setup includes local commands and any script files supplied with the assessment.
 The account owner can share the exact copy publicly from JumpServe. The MCP
