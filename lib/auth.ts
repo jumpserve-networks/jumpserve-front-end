@@ -2,11 +2,11 @@ import { redirect } from "next/navigation";
 import { isGoogleAuthenticatedUser } from "@/lib/auth-provider";
 import { createClient } from "@/lib/supabase/server";
 
-export async function getGoogleUser() {
+export async function getGoogleUser(accessToken?: string) {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await supabase.auth.getUser(accessToken);
 
   return isGoogleAuthenticatedUser(user) ? user : null;
 }

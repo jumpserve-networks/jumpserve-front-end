@@ -16,7 +16,7 @@ const replacements = {
   '@/lib/supabase/server': 'export async function createClient(){return globalThis.__routeState.client;}',
   '@/lib/auth': "export async function getGoogleUser(){return globalThis.__routeState.user;}export async function requireGoogleUser(path){globalThis.__routeState.authPaths.push(path);if(globalThis.__routeState.authError)throw globalThis.__routeState.authError;return globalThis.__routeState.user;}",
   '@/lib/local-paper-assessment-server': "export async function loadSharedLocalPaperAssessment(id){globalThis.__routeState.localReads=(globalThis.__routeState.localReads??0)+1;return globalThis.__routeState.localAssessment??{status:'absent'};}",
-  '@/lib/jumpserve-mcp-store': "export async function readSharedSkillAssessment(){return globalThis.__routeState.skillAssessment??null;}",
+  '@/lib/jumpserve-mcp-store': "export async function readSharedSkillAssessment(){return globalThis.__routeState.skillAssessment??null;}export async function readLocalAssessmentSource(owner,assessmentId){globalThis.__routeState.sourceReads??=[];globalThis.__routeState.sourceReads.push({owner,assessmentId});return globalThis.__routeState.source??null;}",
   '@/app/components/research-workflow/shared-local-paper-assessment': boundary('SharedLocalPaperAssessment'),
   '@/app/components/research-workflow/skill-assessment': boundary('SkillAssessment'),
   '@/app/components/auth-button': boundary('AuthButton'),
@@ -39,6 +39,7 @@ const replacements = {
   '@/app/components/research-workflow/assessment-detail': boundary('AssessmentDetail'),
   '@/app/components/research-workflow/paper-assessment': "export function PaperAssessment(props){globalThis.__routeState.captures.push({name:'PaperAssessment',props});return globalThis.__routeReact.createElement(globalThis.__routeReact.Fragment,null,props.header,props.children);}",
   '@/app/components/research-workflow/paper-assessment-steps': boundary('PaperAssessmentSteps'),
+  '@/app/components/research-workflow/local-assessment-upload': boundary('LocalAssessmentUpload'),
   '@/app/components/research-workflow/paper-review': boundary('PaperReviewPanel'),
   '@/app/components/research-workflow/claim-designer': boundary('ClaimDesigner'),
   '@/app/components/research-workflow/design-claim': boundary('DesignClaim'),
@@ -241,9 +242,15 @@ test('paper wizard step links remain publicly readable and cannot authorize an a
   state.authError = Object.assign(new Error('Synthetic required login'), {code:'AUTH_REQUIRED'});
   await assert.rejects(pages.review.default(props({assessmentId: ID}, {gap: OTHER})), {code:'AUTH_REQUIRED'});
 });
-test('the retired upload route explains local assessments publicly without mounting hosted generation',async()=>{
- const document=await renderPage('newPaper',props({}, {step:'execution'}));
- assert.equal(capture('PaperIntake'),undefined);assert.equal(capture('PaperAssessmentSteps'),undefined);
+test('Step 1 shows private PDF upload and reveals the local prompt only after verification',async()=>{
+ const sha256='c'.repeat(64);
+ const document=await renderPage('newPaper',props({}, {assessment:ID}));
+ assert.equal(capture('PaperIntake'),undefined);assert.ok(capture('PaperAssessmentSteps'));
+ assert.equal(capture('LocalAssessmentUpload'),undefined);
+ assert.equal(document.querySelector('[aria-label="assessment prompt"]'),null);
+ assert.equal(state.sourceReads,undefined);
+ const signIn=document.querySelector('a[href^="/login?"]');
+ assert.equal(new URL(signIn.href,'https://example.test').searchParams.get('next'),BASE+'/new-assessment?assessment='+ID);
  assert.match(document.body.textContent,/assess papers and run experiments in your local workspace/);
  assert.ok(document.querySelector('a[href="https://github.com/jumpserve-networks/jumpserve-plugins"]'));
  assert.match(document.body.textContent,/claude plugin install jumpserve --marketplace jumpserve-networks\/jumpserve-plugins/);
@@ -251,6 +258,17 @@ test('the retired upload route explains local assessments publicly without mount
  assert.doesNotMatch(document.body.textContent,/manual setup|mcp add|install from a zip/i);
  assert.ok(document.querySelector('a[href="/research-verification/assessments"]'));
  assert.deepEqual(state.authPaths,[]);
+ state.user=google();
+ const unavailable=await renderPage('newPaper',props({}, {assessment:ID}));
+ assert.equal(capture('LocalAssessmentUpload').ownerId,state.user.id);
+ assert.match(unavailable.querySelector('[role="alert"]').textContent,/unavailable in your account/);
+ state.source={sha256,byte_count:9276};
+ const ready=await renderPage('newPaper',props({}, {assessment:ID}));
+ assert.deepEqual(state.sourceReads,[{owner:state.user.id,assessmentId:ID},{owner:state.user.id,assessmentId:ID}]);
+ const prompt=ready.querySelector('[aria-label="assessment prompt"]').textContent;
+ assert.match(prompt,new RegExp(ID));
+ assert.doesNotMatch(prompt,new RegExp(sha256));
+ assert.ok(ready.querySelector(`a[href="${BASE}/api/assessment-source?assessment_id=${ID}"]`));
 });
 
 test('paper review and experiment design validate frozen identities before requesting authorization', async () => {
