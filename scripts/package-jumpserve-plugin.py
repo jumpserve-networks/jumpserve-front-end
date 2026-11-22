@@ -10,14 +10,16 @@ from zipfile import ZipFile, ZipInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = "https://jumpserve.quaint-lab.org"
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 SKILL = "jumpserve-paper-assessment"
 ARCHIVE = f"jumpserve-plugin-v{VERSION}.zip"
 SKILL_ARCHIVE = f"{SKILL}-v{VERSION}.zip"
 SKILL_FILES = (
     "SKILL.md",
     "references/assessment.schema.json",
+    "references/modules.md",
     "references/sharing.md",
+    "scripts/check_composition.py",
 )
 DESCRIPTION = "Assess research papers locally and view the results on JumpServe."
 
