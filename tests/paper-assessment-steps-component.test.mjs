@@ -12,18 +12,37 @@ const hook=registerHooks({resolve(specifier,context,next){
 }});
 const {PaperAssessmentSteps}=await import('../app/components/research-workflow/paper-assessment-steps.tsx');
 const {SkillAssessment}=await import('../app/components/research-workflow/skill-assessment.tsx');
+const {VerifierResults}=await import('../app/components/research-workflow/skill-assessment-verifier.tsx');
 const {SharedLocalPaperAssessment}=await import('../app/components/research-workflow/shared-local-paper-assessment.tsx');hook.deregister();
 afterEach(cleanup);
-test('upload starts at step one with all five stages visible and later stages disabled',()=>{
+test('upload starts at step one with all seven stages visible and later stages disabled',()=>{
  const selected=[];render(React.createElement(PaperAssessmentSteps,{onStep:step=>selected.push(step)}));
  const upload=screen.getByRole('button',{name:'Step 1: Paper Upload'});assert.equal(upload.getAttribute('href'),'/research-verification/new-assessment');assert.equal(upload.getAttribute('aria-current'),'step');
- for(const name of ['Step 2: Paper Breakdown','Step 3: Experiment Steps','Step 4: Experiment Setup','Step 5: Experiment Results']){const button=screen.getByRole('button',{name});assert.equal(button.disabled,true);fireEvent.click(button);}
+ for(const name of ['Step 2: Paper Breakdown','Step 3: Experiment Steps','Step 4: Experiment Setup','Step 5: Experiment Results','Step 6: Run the Verifier','Step 7: Verifier Results']){const button=screen.getByRole('button',{name});assert.equal(button.disabled,true);fireEvent.click(button);}
  assert.deepEqual(selected,[]);
 });
 test('a ready plan enables step four navigation while upload remains a separate route',()=>{
  const selected=[];render(React.createElement(PaperAssessmentSteps,{current:'implementation',assessment:true,implementation:true,execution:true,onStep:step=>selected.push(step)}));
  assert.equal(screen.getByRole('button',{name:'Step 3: Experiment Steps'}).getAttribute('aria-current'),'step');fireEvent.click(screen.getByRole('button',{name:'Step 4: Experiment Setup'}));assert.deepEqual(selected,['execution']);
  assert.equal(screen.getByRole('button',{name:'Step 1: Paper Upload'}).getAttribute('href'),'/research-verification/new-assessment');
+});
+
+test('Verifier results distinguish zero points, blocked grading, and a failed read', () => {
+ const props = {runHref:'?step=verifier', newestHref:'?step=verifier-results', previousPage:false};
+ const result = {
+   id:'review-one', created_at:'2026-11-23T03:00:00Z', verifier_version:'1.0.0', status:'scored', mode:'replay',
+   split:'development', scenario:'baseline', evidence_integrity:{status:'fixture_only'},
+   score:{earned:0, applicable_maximum:5, rubric_maximum:10}, claims:[], rubric:[], blockers:[], critical_failures:[],
+   generator:{bundle_sha256:'a'.repeat(64), result_kind:'replay_analysis'},
+ };
+ const blocked = {...result, id:'review-two', status:'blocked', score:null, blockers:['Required evidence is missing.']};
+ const view = render(React.createElement(VerifierResults,{...props,data:{results:[result,blocked]}}));
+ assert.ok(screen.getByText('0 / 5 applicable points'));
+ assert.ok(screen.getByText('10 points in the full rubric'));
+ assert.ok(screen.getByText('No score recorded'));
+ assert.ok(screen.getByText('Required evidence is missing.'));
+ view.rerender(React.createElement(VerifierResults,{...props,data:'unavailable'}));
+ assert.match(screen.getByRole('alert').textContent,/could not load Verifier results/);
 });
 
 test('legacy JumpServe bundles show their saved claims, methods and excerpts in the wizard',()=>{

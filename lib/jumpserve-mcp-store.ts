@@ -9,7 +9,7 @@ import { localAssessmentSourceFilename, PAPER_UPLOAD_BUCKET, type LocalAssessmen
 import { PAPER_UPLOAD_MAX_BYTES } from "@/lib/research-paper-upload";
 import { encodeAssessmentCursor, type AssessmentCursor } from "@/lib/research-assessment-cursor";
 import { validPaperAuthors, type PaperCatalog } from "@/lib/research-paper-catalog";
-import type { prepareGeneratorResult, prepareVerifierResult } from "@/lib/jumpserve-verification";
+import type { prepareGeneratorResult, prepareVerifierResult, VerifierScorecard } from "@/lib/jumpserve-verification";
 
 export async function connectorServiceKey() {
   const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY ||
@@ -203,6 +203,40 @@ export async function readAssessmentPreview(owner: string, id: string) {
   const { bundle } = prepareAssessmentBundle(data.bundle);
   const pdfReady = !!bundle.paper.pdf_copy && await verifiedPdf(db, owner, id);
   return { bundle, studyId: data.study_id as string | null, pdfReady };
+}
+
+export async function isSharedSkillAssessmentOwner(owner: string, assessmentId: string) {
+  const db = await serviceDatabase();
+  const { data, error } = await db.from("research_skill_submissions").select("id")
+    .eq("owner_id", owner).eq("study_id", assessmentId).maybeSingle();
+  if (error) throw new Error("JumpServe could not check the assessment owner.");
+  return data !== null;
+}
+
+export type AssessmentVerifierResult = Pick<VerifierScorecard, "status" | "mode" | "scenario" | "split" |
+  "score" | "evidence_integrity" | "claims" | "rubric" | "blockers" | "critical_failures"> & AssessmentCursor & {
+  verifier_version: string;
+  generator: { bundle_sha256: string; result_kind: "assessment" | "replay_analysis" };
+};
+
+export async function readAssessmentVerifierResults(owner: string, assessmentId: string, before?: AssessmentCursor) {
+  const db = await serviceDatabase();
+  let query = db.from("research_skill_verifier_results").select(`
+    id,created_at,verifier_version,status,mode,scenario,split,
+    score:scorecard->score,evidence_integrity:scorecard->evidence_integrity,claims:scorecard->claims,
+    rubric:scorecard->rubric,blockers:scorecard->blockers,critical_failures:scorecard->critical_failures,
+    generator:research_skill_generator_results!inner(bundle_sha256,result_kind,
+      assessment:research_skill_submissions!inner(id))
+  `).eq("generator.assessment.id", assessmentId).eq("generator.assessment.owner_id", owner);
+  if (before) {
+    query = query.or(`created_at.lt.${before.created_at},and(created_at.eq.${before.created_at},id.lt.${before.id})`);
+  }
+  const pageSize = 5;
+  const { data, error } = await query.order("created_at", { ascending: false }).order("id", { ascending: false })
+    .limit(pageSize + 1).overrideTypes<AssessmentVerifierResult[], { merge: false }>();
+  if (error || !data) throw new Error("JumpServe could not load private Verifier results.");
+  const results = data.slice(0, pageSize);
+  return { results, nextCursor: data.length > pageSize ? encodeAssessmentCursor(results[pageSize - 1]) : null };
 }
 
 export async function saveGeneratorResult(owner: string, assessmentId: string, data: ReturnType<typeof prepareGeneratorResult>) {

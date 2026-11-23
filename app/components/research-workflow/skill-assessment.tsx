@@ -1,4 +1,5 @@
 import { assessmentBreakdownSteps, type AssessmentBundle } from "@/lib/jumpserve-assessment-bundle";
+import type { readAssessmentVerifierResults } from "@/lib/jumpserve-mcp-store";
 import { EXPERIMENT_SETUP_TITLE, PAPER_ASSESSMENT_STEPS, parsePaperAssessmentStep } from "@/lib/paper-assessment-wizard";
 import { paperDetailTree } from "@/lib/paper-detail-dependencies";
 import { PAPER_BREAKDOWN_SECTIONS } from "@/lib/research-paper-breakdown";
@@ -6,6 +7,7 @@ import { researchSearchSuffix } from "@/lib/research-pathways";
 import { PaperAssessmentSteps } from "./paper-assessment-steps";
 import { PaperDetailOutline } from "./paper-detail-outline";
 import { ClaimFindings, groupExperimentRuns, RunMeasurements, SharedCommands, SkillExperimentOutline, type ExperimentEvidence } from "./skill-assessment-experiments";
+import { RunVerifier, VerifierResults } from "./skill-assessment-verifier";
 
 type Wizard = NonNullable<AssessmentBundle["wizard"]>;
 type Stage = "breakdown" | "implementation" | "execution" | "results";
@@ -102,15 +104,22 @@ function ExperimentResults({ summary, claims, runs, limitations, wizard }: Pick<
   </section>;
 }
 
-export function SkillAssessment({ bundle, path, query, pdfReady = true }: {
+export function SkillAssessment({ bundle, path, query, pdfReady = true, verifier }: {
   bundle: AssessmentBundle; path: string; query: Record<string, string | string[] | undefined>; pdfReady?: boolean;
+  verifier?: {
+    assessmentId: string;
+    connectionsUrl: string;
+    viewingOlderResults?: boolean;
+    results?: Awaited<ReturnType<typeof readAssessmentVerifierResults>> | "unavailable";
+  };
 }) {
   const { paper, claims, methods, wizard, summary, runs, limitations } = bundle;
   const requested = parsePaperAssessmentStep(query.step);
-  const current = requested && requested !== "upload" ? requested : "breakdown";
-  const hrefs = Object.fromEntries(PAPER_ASSESSMENT_STEPS.map(step => [step.id, `${path}${researchSearchSuffix({ ...query, step: step.id })}`]));
+  const verifierStep = requested === "verifier" || requested === "verifier-results";
+  const current = requested && requested !== "upload" && (!verifierStep || verifier) ? requested : "breakdown";
+  const hrefs = Object.fromEntries(PAPER_ASSESSMENT_STEPS.map(step => [step.id, `${path}${researchSearchSuffix({ ...query, step: step.id, verifier_before: undefined })}`]));
   return <article className="min-w-0 space-y-7 break-words">
-    <PaperAssessmentSteps current={current} assessment implementation execution results hrefs={hrefs} />
+    <PaperAssessmentSteps current={current} assessment implementation execution results verifier={!!verifier} hrefs={hrefs} />
     <header className="space-y-2">
       <h1 className="text-2xl font-semibold">{paper.title}</h1>
       {paper.authors.length ? <p>{paper.authors.join(", ")}</p> : null}
@@ -121,5 +130,12 @@ export function SkillAssessment({ bundle, path, query, pdfReady = true }: {
     {current === "breakdown" ? <PaperBreakdown claims={claims} wizard={wizard} /> : null}
     {current === "implementation" || current === "execution" ? <ExperimentPlan methods={methods} wizard={wizard} stage={current} /> : null}
     {current === "results" ? <ExperimentResults summary={summary} claims={claims} runs={runs} limitations={limitations} wizard={wizard} /> : null}
+    {current === "verifier" && verifier ? <RunVerifier assessmentId={verifier.assessmentId} connectionsUrl={verifier.connectionsUrl} resultsHref={hrefs["verifier-results"]} /> : null}
+    {current === "verifier-results" && verifier ? <VerifierResults
+      data={verifier.results ?? "unavailable"} runHref={hrefs.verifier} newestHref={hrefs["verifier-results"]}
+      previousPage={!!verifier.viewingOlderResults}
+      olderHref={verifier.results && verifier.results !== "unavailable" && verifier.results.nextCursor
+        ? `${path}${researchSearchSuffix({ ...query, verifier_before: verifier.results.nextCursor })}` : undefined}
+    /> : null}
   </article>;
 }

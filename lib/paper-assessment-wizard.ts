@@ -6,6 +6,8 @@ export const PAPER_ASSESSMENT_STEPS = [
   { id: "implementation", title: "Experiment Steps" },
   { id: "execution", title: EXPERIMENT_SETUP_TITLE },
   { id: "results", title: "Experiment Results" },
+  { id: "verifier", title: "Run the Verifier" },
+  { id: "verifier-results", title: "Verifier Results" },
 ] as const;
 export type PaperAssessmentStep = typeof PAPER_ASSESSMENT_STEPS[number]["id"];
 export function parsePaperAssessmentStep(value: unknown): PaperAssessmentStep | undefined {
