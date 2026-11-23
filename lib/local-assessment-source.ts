@@ -18,5 +18,5 @@ export function localAssessmentSourceFilename(assessmentId: string) {
 }
 
 export function localAssessmentPrompt(assessmentId: string) {
-  return `Use the JumpServe paper assessment skill for ${assessmentId}. Recreate the paper's testbed and run experiments to test its claims with fresh measurements. Use published figures and tables only as reference values.`;
+  return `Use the JumpServe Generator skill (jumpserve-paper-assessment) for ${assessmentId}. Recreate the paper's testbed and run experiments to test its claims with fresh measurements. Use published figures and tables only as reference values.`;
 }

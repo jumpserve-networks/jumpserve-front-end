@@ -33,7 +33,7 @@ export function McpSetupDialogs({ connectionsUrl }: { connectionsUrl: string }) 
           <DialogContent className="content-panel max-h-[calc(100dvh-2rem)] gap-4 overflow-y-auto rounded-xl border sm:max-w-xl">
             <div className="space-y-2 pr-8">
               <DialogTitle className="text-lg">Set up JumpServe in {client.name}</DialogTitle>
-              <DialogDescription>The plugin bundles the paper assessment skill and hosted JumpServe connector. Use it to assess papers and run experiments in your local workspace.</DialogDescription>
+              <DialogDescription>The plugin includes the Generator skill and the hosted JumpServe connector. The Generator assesses papers and runs experiments in your local workspace.</DialogDescription>
             </div>
             <CopyBlock title="Install command" label={`${client.name} install command`} value={client.command} />
             <p>Connect with Google {client.signIn}. Use the same Google account you used to upload the paper.</p>

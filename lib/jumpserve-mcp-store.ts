@@ -9,6 +9,7 @@ import { localAssessmentSourceFilename, PAPER_UPLOAD_BUCKET, type LocalAssessmen
 import { PAPER_UPLOAD_MAX_BYTES } from "@/lib/research-paper-upload";
 import { encodeAssessmentCursor, type AssessmentCursor } from "@/lib/research-assessment-cursor";
 import { validPaperAuthors, type PaperCatalog } from "@/lib/research-paper-catalog";
+import type { prepareGeneratorResult, prepareVerifierResult } from "@/lib/jumpserve-verification";
 
 export async function connectorServiceKey() {
   const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY ||
@@ -202,6 +203,29 @@ export async function readAssessmentPreview(owner: string, id: string) {
   const { bundle } = prepareAssessmentBundle(data.bundle);
   const pdfReady = !!bundle.paper.pdf_copy && await verifiedPdf(db, owner, id);
   return { bundle, studyId: data.study_id as string | null, pdfReady };
+}
+
+export async function saveGeneratorResult(owner: string, assessmentId: string, data: ReturnType<typeof prepareGeneratorResult>) {
+  const db = await serviceDatabase();
+  const { data: id, error } = await db.rpc("research_skill_save_generator_result", {
+    p_owner: owner, p_assessment_id: assessmentId, p_hash: data.hash, p_bundle: data.bundle,
+  });
+  if (error?.code === "P0002") throw new Error("Complete the matching assessment in JumpServe before saving additional results.");
+  if (error?.code === "22023") throw new Error("The Generator result does not match the saved assessment's paper.");
+  if (error || typeof id !== "string") throw new Error("JumpServe could not save the private Generator result. Retry with the identical result.");
+  return id;
+}
+
+export async function saveVerifierResult(owner: string, assessmentId: string, version: string, data: ReturnType<typeof prepareVerifierResult>) {
+  const db = await serviceDatabase();
+  const { data: id, error } = await db.rpc("research_skill_save_verifier_result", {
+    p_owner: owner, p_assessment_id: assessmentId, p_generator_hash: data.generatorHash, p_bundle: data.bundle,
+    p_verifier_version: version, p_hash: data.hash, p_scorecard: data.scorecard,
+  });
+  if (error?.code === "P0002") throw new Error("The exact reviewed Generator result is unavailable. Save that result in the same account before retrying.");
+  if (error?.code === "22023") throw new Error("The scorecard does not match the saved Generator result.");
+  if (error || typeof id !== "string") throw new Error("JumpServe could not save the private Verifier scorecard. Retry with the identical inputs.");
+  return id;
 }
 
 export async function readPrivateAssessmentCatalog(owner: string, before?: AssessmentCursor): Promise<PaperCatalog> {

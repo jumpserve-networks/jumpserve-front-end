@@ -127,7 +127,7 @@ from the saved assessment directory.
 
 Give the user this prompt for the new session:
 
-> Use the JumpServe paper assessment skill to resume the local assessment in
+> Use the JumpServe Generator skill (`jumpserve-paper-assessment`) to resume the local assessment in
 > `resume.md`. Continue within the recorded scope and use native approval for
 > any blocked operation. Return the private assessment link after completion.
 

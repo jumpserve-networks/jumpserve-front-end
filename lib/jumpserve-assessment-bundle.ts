@@ -53,7 +53,7 @@ export const ASSESSMENT_SCHEMA = assessmentSchema;
 export const MAX_BUNDLE_BYTES = 500_000;
 const validateSchema = new Ajv({ strict: true }).compile<AssessmentBundle>(assessmentSchema);
 
-function canonicalJson(value: unknown): string {
+export function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   if (value !== null && typeof value === "object") {
     return `{${Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
@@ -66,13 +66,13 @@ function canonicalJson(value: unknown): string {
 // common accidental disclosures in otherwise valid free-text fields.
 const privateText = /\b(?:sk-[A-Za-z0-9_-]{12,}|sb_secret_[A-Za-z0-9_-]{8,}|AKIA[A-Z0-9]{16}|ASIA[A-Z0-9]{16}|gh[pousr]_[A-Za-z0-9]{12,}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)\b|BEGIN (?:[A-Z]+ )*PRIVATE KEY|\bBearer\s+[\w.+/~=-]+|\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b|\/(?:Users|home|private|var|tmp|mnt|root|workspace)\/|[A-Z]:\\(?:Users|Documents)\\|\b(?:password|client[_-]?secret|access[_-]?token|api[_-]?key)\s*[:=]\s*\S+|[?&](?:token|signature|x-amz-signature)=/i;
 
-function checkText(value: unknown): void {
+export function checkAssessmentText(value: unknown): void {
   if (typeof value === "string") {
     if (!value.trim() || privateText.test(value) || /[\u0000-\u0008\u000b-\u001f\u007f]/.test(value)) {
-      throw new Error("Remove blank fields, credentials, contact details and private paths from the shared bundle.");
+      throw new Error("Remove blank fields, credentials, contact details and private paths from the assessment record.");
     }
   } else if (value !== null && typeof value === "object") {
-    for (const item of Object.values(value)) checkText(item);
+    for (const item of Object.values(value)) checkAssessmentText(item);
   }
 }
 
@@ -81,7 +81,7 @@ export function prepareAssessmentBundle(input: unknown): { bundle: AssessmentBun
     const problem = validateSchema.errors?.[0];
     throw new Error(`Bundle does not match jumpserve-assessment-v1 at ${problem?.instancePath || "/"} (${problem?.keyword ?? "schema"}).`);
   }
-  checkText(input);
+  checkAssessmentText(input);
   if (input.paper.url) {
     const url = URL.parse(input.paper.url);
     const host = url?.hostname.replace(/^\[|\]$/g, "") ?? "";

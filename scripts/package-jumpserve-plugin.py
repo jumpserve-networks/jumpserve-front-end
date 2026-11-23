@@ -1,4 +1,4 @@
-"""Build the standalone assessment skill and the Claude Code and Codex plugin."""
+"""Build the standalone Generator skill and the Claude Code and Codex plugin."""
 
 import argparse
 from hashlib import sha256
@@ -10,12 +10,14 @@ from zipfile import ZipFile, ZipInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = "https://jumpserve.quaint-lab.org"
-VERSION = "1.5.1"
+VERSION = "1.6.0"
 SKILL = "jumpserve-paper-assessment"
+VERIFIER = "jumpserve-assessment-verifier"
 ARCHIVE = f"jumpserve-plugin-v{VERSION}.zip"
 SKILL_ARCHIVE = f"{SKILL}-v{VERSION}.zip"
 SKILL_FILES = (
     "SKILL.md",
+    "agents/openai.yaml",
     "references/assessment.schema.json",
     "references/aws-testbeds.md",
     "references/modules.md",
@@ -27,6 +29,12 @@ SKILL_FILES = (
     "scripts/check_experiment_evidence.py",
     "scripts/check_local_docker.py",
     "scripts/download_paper.py",
+)
+VERIFIER_FILES = (
+    "SKILL.md",
+    "agents/openai.yaml",
+    "references/grading.md",
+    "scripts/prepare_review.py",
 )
 DESCRIPTION = "Recreate research testbeds, run experiments locally, and view the results on JumpServe."
 
@@ -85,6 +93,8 @@ def build_release():
     skill_dir = ROOT / "skills" / SKILL
     skill_files = {name: (skill_dir / name).read_bytes() for name in SKILL_FILES}
     entries.update({f"skills/{SKILL}/{name}": content for name, content in skill_files.items()})
+    verifier_dir = ROOT / "skills" / VERIFIER
+    entries.update({f"skills/{VERIFIER}/{name}": (verifier_dir / name).read_bytes() for name in VERIFIER_FILES})
     bundle = zip_bytes("jumpserve-plugin", entries)
     catalog = {
         **claude_market,

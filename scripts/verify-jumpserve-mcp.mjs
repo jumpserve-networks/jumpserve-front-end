@@ -121,6 +121,8 @@ async function verifyAssessmentWizard(page, url) {
 const codes = new Map();
 const tokens = new Map();
 const previews = new Map();
+const generatorResults = new Map();
+const verifierResults = new Map();
 const papers = new Map();
 const sources = new Map();
 let uploadTickets = 0;
@@ -243,8 +245,25 @@ const fixture = createServer(async (req, res) => {
       row = { id: assessmentId, source_id: assessmentId, owner_id: input.p_owner, bundle_sha256: input.p_hash, bundle: input.p_bundle,
         approved_at: null, pdf_verified_at: completedAt, study_id: null, completed_at: completedAt };
       previews.set(row.id, row);
+      generatorResults.set(`${row.id}/${row.bundle_sha256}`, randomUUID());
     }
     return send(200, { preview_id: row.id, study_id: row.study_id });
+  }
+  if (path === 'rpc/research_skill_save_generator_result' || path === 'rpc/research_skill_save_verifier_result') {
+    const saved = previews.get(input.p_assessment_id);
+    if (!saved || saved.owner_id !== input.p_owner || saved.deleted) return send(404, { code: 'P0002' });
+    assert.equal(input.p_bundle.paper.sha256, saved.bundle.paper.sha256);
+    if (path.endsWith('save_generator_result')) {
+      const key = `${saved.id}/${input.p_hash}`;
+      if (!generatorResults.has(key)) generatorResults.set(key, randomUUID());
+      return send(200, generatorResults.get(key));
+    }
+    const generator = generatorResults.get(`${saved.id}/${input.p_generator_hash}`);
+    if (!generator) return send(404, { code: 'P0002' });
+    assert.equal(input.p_scorecard.paper_sha256, saved.bundle.paper.sha256);
+    const key = `${generator}/${input.p_verifier_version}/${input.p_hash}`;
+    if (!verifierResults.has(key)) verifierResults.set(key, randomUUID());
+    return send(200, verifierResults.get(key));
   }
   if (path === 'research_skill_submissions') {
     if (url.searchParams.get('select') === 'id,completed_at,title:bundle->paper->>title,authors:bundle->paper->authors') {
@@ -448,6 +467,28 @@ try {
   const preview = await save(fixtureId, linkedBundle);
   const { preview_id, review_url } = preview.structuredContent;
   assert.equal(preview_id, fixtureId);
+  const revision = { ...linkedBundle, summary: 'Another private Generator version of this source.' };
+  const assessmentJson = JSON.stringify(revision, null, 2) + '\n';
+  const grade = { version: 'jumpserve-verifier-scorecard-v1', paper_id: 'fixture', paper_sha256: revision.paper.sha256,
+    assessment_sha256: sha256(assessmentJson), answer_key_sha256: 'c'.repeat(64),
+    split: 'development', mode: 'fresh', scenario: null, evidence_integrity: { status: 'verified', verified_runs: 1 },
+    status: 'scored', claims: [{ key_claim_id: 'C1', assessment_claim_id: 'c1', reported_outcome: 'reproduced',
+      supported_outcome: 'reproduced', assessment: 'correct', evidence: ['data/counts.csv'], finding: 'Both counters measured zero.' }],
+    rubric: [{ criterion: 'Verdict', earned: 2, maximum: 2, reason: 'The evidence supports the verdict.' }],
+    score: { earned: 2, applicable_maximum: 2, rubric_maximum: 2 }, critical_failures: [], blockers: [] };
+  const reviewSave = { name: 'save_verifier_result', arguments: {
+    assessment_id: fixtureId, assessment_json: assessmentJson, scorecard: grade, verifier_version: '1.0.0',
+  } };
+  assert.match((await client.callTool(reviewSave)).content[0].text, /exact reviewed Generator result is unavailable/);
+  const generatorSave = { name: 'save_generator_result', arguments: { assessment_id: fixtureId, bundle: revision } };
+  const savedGenerator = (await client.callTool(generatorSave)).structuredContent;
+  assert.ok(savedGenerator.generator_result_id);
+  assert.deepEqual((await client.callTool(generatorSave)).structuredContent, savedGenerator);
+  const savedReview = (await client.callTool(reviewSave)).structuredContent;
+  assert.ok(savedReview.verification_id);
+  assert.deepEqual((await client.callTool(reviewSave)).structuredContent, savedReview);
+  assert.deepEqual(previews.get(fixtureId).bundle, linkedBundle);
+  console.log('PASS exact assessment binding and private Generator and Verifier save retries through MCP');
   const publicUrl = origin + '/research-verification/assessment/' + preview_id;
   assert.equal(review_url, publicUrl);
   const oldReview = origin + '/research-verification/share/' + preview_id;
@@ -520,7 +561,7 @@ try {
   const sourceDownload = origin + '/research-verification/api/assessment-source?assessment_id=' + assessmentId;
   const prompt = page.locator('[aria-label="assessment prompt"]');
   await prompt.waitFor();
-  assert.equal(await prompt.textContent(), `Use the JumpServe paper assessment skill for ${assessmentId}. Recreate the paper's testbed and run experiments to test its claims with fresh measurements. Use published figures and tables only as reference values.`);
+  assert.equal(await prompt.textContent(), `Use the JumpServe Generator skill (jumpserve-paper-assessment) for ${assessmentId}. Recreate the paper's testbed and run experiments to test its claims with fresh measurements. Use published figures and tables only as reference values.`);
   await page.evaluate(() => {
     let copied = '';
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {

@@ -43,7 +43,7 @@ export default async function AuthorizePage({ searchParams }: {
   await requireGoogleUser(`${MCP_AUTHORIZE_PATH}?${values}`);
   return <main className="mx-auto max-w-xl space-y-5 px-4 py-10">
     <h1 className="text-2xl font-semibold">Connect {details.clientName} to JumpServe</h1>
-    <p>This connection can send assessment previews and submit assessments you approve on JumpServe.</p>
+    <p>This connection can save assessments, additional Generator results, and Verifier scorecards privately. It can share assessments you approve on JumpServe.</p>
     {details.readSources ? <p>It can also download private research PDFs you uploaded to Step 1 when you give the client the assessment ID.</p> : null}
     <form className="flex gap-3" action={authorize.bind(null, values)}>
       <Button type="submit" name="decision" value="allow">Connect</Button>
