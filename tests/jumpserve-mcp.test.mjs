@@ -71,6 +71,26 @@ test('wizard fields remain part of the approved bundle and require valid source 
   assert.throws(() => prepareAssessmentBundle(bundle), /private paths/);
 });
 
+test('explicit run links resolve unique experiments and require claims assigned to the experiment', () => {
+  const bundle = { ...fixture(), wizard: wizard() };
+  bundle.claims[0].outcome = 'inconclusive';
+  bundle.claims.push({ ...bundle.claims[0], id: 'c2' });
+  bundle.wizard.experiments[0].id = 'baseline';
+  bundle.wizard.experiments.push({ ...bundle.wizard.experiments[0], id: 'follow-up', claim_ids: ['c1', 'c2'] });
+  const run = {
+    id: 'r1', experiment_id: 'follow-up', configuration: 'Fixture environment', started_at: '2026-10-01T10:00:00Z', artifact_sha256: hash,
+    measurements: [{ claim_id: 'c2', metric: 'Counter', units: 'count', paper_value: 0, observed_value: 0 }],
+  };
+  bundle.runs = [run];
+  assert.equal(prepareAssessmentBundle(bundle).bundle.runs[0].experiment_id, 'follow-up');
+  run.experiment_id = 'missing';
+  assert.throws(() => prepareAssessmentBundle(bundle), /must identify an experiment/);
+  run.experiment_id = 'baseline';
+  assert.throws(() => prepareAssessmentBundle(bundle), /claim assigned to its experiment/);
+  bundle.wizard.experiments[1].id = 'baseline';
+  assert.throws(() => prepareAssessmentBundle(bundle), /experiment identifiers must be unique/);
+});
+
 test('breakdown substeps retain their own citations and require unique parents in the same section', () => {
   const bundle = { ...fixture(), wizard: wizard() };
   const [original] = bundle.wizard.breakdown;

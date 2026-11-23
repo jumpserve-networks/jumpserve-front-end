@@ -56,6 +56,80 @@ test('legacy JumpServe bundles show their saved claims, methods and excerpts in 
  assert.ok(screen.getByText('Fixture limitation.'));
 });
 
+test('the same experiment branches gain steps, commands and attributable results as the wizard advances',()=>{
+ const path='/research-verification/assessment/fixture';
+ const bundle={
+   paper:{title:'Assessment outline',authors:[],domain:'Networking'},
+   summary:'Recorded observations.',
+   wizard:{
+     breakdown:[
+       {section:'experiment',title:'Paper testbed',description:'Use the topology in the paper.',pages:[2]},
+       {section:'data',title:'Reported counters',description:'The paper reports event counts.',pages:[3]},
+     ],
+     experiments:[
+       {id:'baseline',title:'Baseline',claim_ids:['shared','baseline'],prerequisites:[],steps:[
+         {title:'Capture counters',instructions:'Record the baseline counters.',commands:'printf 0'},
+         {title:'Review logs',instructions:'Check each record.'},
+       ]},
+       {id:'follow-up',title:'Follow-up',claim_ids:['shared'],prerequisites:[],steps:[
+         {title:'Repeat the measurement',instructions:'Record the follow-up counters.',commands:'printf 1'},
+       ]},
+       {title:'Unrun experiment',claim_ids:['pending'],prerequisites:[],steps:[
+         {title:'Set up the condition',instructions:'Prepare the final condition.'},
+       ]},
+     ],
+   },
+   claims:[
+     {id:'shared',outcome:'inconclusive',finding:'The shared claim remains inconclusive.'},
+     {id:'baseline',outcome:'reproduced',finding:'The baseline claim matched.'},
+     {id:'pending',outcome:'untested',finding:'This claim was untested.'},
+   ],
+   methods:[],
+   runs:[
+     {id:'explicit',experiment_id:'follow-up',measurements:[{claim_id:'shared',metric:'Counter',units:'count',paper_value:null,observed_value:1}]},
+     {id:'unique',measurements:[{claim_id:'baseline',metric:'Counter',units:'count',paper_value:0,observed_value:0}]},
+     {id:'ambiguous',measurements:[{claim_id:'shared',metric:'Counter',units:'count',paper_value:2,observed_value:2}]},
+   ].map(run=>({...run,configuration:'Fixture',started_at:'2026-11-20T00:00:00Z',artifact_sha256:'a'.repeat(64)})),
+   limitations:[],
+ };
+ const page=step=>React.createElement(SkillAssessment,{bundle,path,query:{step}});
+ const view=render(page('breakdown'));
+ const experiment=name=>within(screen.getByRole('region',{name}));
+ let baseline=experiment('2.2 Baseline');
+ assert.ok(screen.getByRole('heading',{name:'Paper testbed'}));
+ assert.ok(screen.getByRole('heading',{name:'Reported counters'}));
+ assert.equal(baseline.queryByText('Record the baseline counters.'),null);
+
+ view.rerender(page('implementation'));
+ baseline=experiment('2.2 Baseline');
+ const capture=()=>within(baseline.getByRole('heading',{name:'2.2.1 Capture counters'}).closest('li'));
+ assert.ok(capture().getByText('Record the baseline counters.'));
+ assert.equal(capture().queryByText('printf 0'),null);
+ assert.ok(screen.getByText('3. Data'));
+
+ view.rerender(page('execution'));
+ baseline=experiment('2.2 Baseline');
+ assert.ok(capture().getByText('Record the baseline counters.'));
+ assert.equal(capture().getByLabelText('Commands for step 2.2.1').textContent,'printf 0');
+ assert.ok(baseline.getByText('No commands were recorded for this step.'));
+ assert.equal(screen.queryByRole('table'),null);
+
+ view.rerender(page('results'));
+ baseline=experiment('2.2 Baseline');
+ const followUp=experiment('2.3 Follow-up');
+ const unrun=experiment('2.4 Unrun experiment');
+ assert.ok(capture().getByLabelText('Commands for step 2.2.1'));
+ assert.ok(baseline.getByText('The baseline claim matched.'));
+ assert.ok(baseline.getByText('Matched to this experiment by recorded claim references.'));
+ assert.equal(within(baseline.getByRole('table',{name:'Measurements for run unique'})).getAllByRole('cell',{name:'0'}).length,2);
+ assert.ok(followUp.getByRole('table',{name:'Measurements for run explicit'}));
+ assert.equal(baseline.queryByRole('table',{name:'Measurements for run explicit'}),null);
+ assert.equal(followUp.queryByRole('table',{name:'Measurements for run ambiguous'}),null);
+ assert.ok(unrun.getByText('No measurement runs are linked to this experiment.'));
+ const assessmentResults=screen.getByRole('heading',{name:'Assessment-level measurements'}).closest('section');
+ assert.ok(within(assessmentResults).getByRole('table',{name:'Measurements for run ambiguous'}));
+});
+
 test('older shared imports render the hierarchy from their saved detail dependencies',()=>{
  const value={
   study_id:'11111111-1111-4111-8111-111111111111',

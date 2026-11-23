@@ -194,14 +194,14 @@ export async function previewAssessment(owner: string, bundle: AssessmentBundle,
 export async function readAssessmentPreview(owner: string, id: string) {
   const db = await serviceDatabase();
   const { data, error } = await db.from("research_skill_submissions")
-    .select("bundle,bundle_sha256,completed_at,approved_at,study_id")
+    .select("bundle,study_id")
     .eq("owner_id", owner).eq("id", id)
     .or("completed_at.not.is.null,study_id.not.is.null").maybeSingle();
   if (error) throw new Error("JumpServe could not load the private assessment.");
   if (!data) return null;
   const { bundle } = prepareAssessmentBundle(data.bundle);
   const pdfReady = !!bundle.paper.pdf_copy && await verifiedPdf(db, owner, id);
-  return { bundle, hash: data.bundle_sha256 as string, complete: !!data.completed_at, approved: !!data.approved_at, studyId: data.study_id as string | null, pdfReady };
+  return { bundle, studyId: data.study_id as string | null, pdfReady };
 }
 
 export async function readPrivateAssessmentCatalog(owner: string, before?: AssessmentCursor): Promise<PaperCatalog> {
@@ -228,19 +228,10 @@ export async function readPrivateAssessmentCatalog(owner: string, before?: Asses
   };
 }
 
-export async function approveAssessment(owner: string, id: string, hash: string) {
-  const db = await serviceDatabase();
-  const { data, error } = await db.from("research_skill_submissions").update({ approved_at: new Date().toISOString() })
-    .eq("owner_id", owner).eq("id", id).eq("bundle_sha256", hash).is("study_id", null)
-    .not("completed_at", "is", null).select("id").maybeSingle();
-  if (error) throw new Error("JumpServe could not record approval to share the assessment.");
-  return !!data;
-}
-
 export async function submitAssessment(owner: string, id: string) {
   const db = await serviceDatabase();
   const { data, error } = await db.rpc("research_skill_submit", { p_owner: owner, p_preview: id });
-  if (error?.code === "55000") throw new Error("The assessment must be complete and approved by its owner before public sharing. Open its private link.");
+  if (error?.code === "55000") throw new Error("The assessment must be complete and approved by its owner before public sharing.");
   if (error?.code === "P0002") throw new Error("This assessment is unavailable.");
   if (error || typeof data !== "string") throw new Error("JumpServe could not confirm public sharing. Retry the same assessment ID.");
   return data;

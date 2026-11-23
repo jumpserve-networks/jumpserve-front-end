@@ -245,10 +245,10 @@ to unchanged originals. Retired queue links without an assessment open the
 My Assessments filter. Launches, cancellation and every write retain Google/owner checks. See
 `docs/shared-assessment-details-v1.md` for current access rules and verification.
 
-Completed local skill assessments stay private without expiration. The owner
-can share the exact saved assessment publicly from its private page. Use the
-wizard step as progress and the canonical assessment route for public papers;
-old report URLs redirect there. Ignore legacy publication flags at the client
+Completed local skill assessments stay private without expiration. Public sharing
+requires owner approval of the exact saved assessment. Use the wizard step as
+progress and the canonical assessment route for private and public papers.
+Old report URLs redirect there. Ignore legacy publication flags at the client
 boundary while preserving historical records and wire compatibility.
 Source-paper reported values and bibliographic provenance remain distinct from
 our measurements. Owner-only editing, private PDFs and private ideas retain

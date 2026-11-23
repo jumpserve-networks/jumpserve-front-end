@@ -21,6 +21,7 @@ export type AssessmentBundle = {
   wizard?: {
     breakdown: AssessmentBreakdownItem[];
     experiments: Array<{
+      id?: string;
       title: string;
       claim_ids: string[];
       prerequisites: string[];
@@ -34,7 +35,7 @@ export type AssessmentBundle = {
   claims: Array<{ id: string; page: number; claim: string; criterion: string; outcome: Outcome; finding: string }>;
   methods: Array<{ title: string; procedure: string; commands?: string }>;
   runs: Array<{
-    id: string; configuration: string; started_at: string; artifact_sha256: string;
+    id: string; experiment_id?: string; configuration: string; started_at: string; artifact_sha256: string;
     measurements: Array<{ claim_id: string; metric: string; units: string; paper_value: number | null; observed_value: number }>;
   }>;
   limitations: string[];
@@ -100,7 +101,12 @@ export function prepareAssessmentBundle(input: unknown): { bundle: AssessmentBun
       }
     }
   }
+  const experimentsById = new Map<string, Set<string>>();
   for (const experiment of input.wizard?.experiments ?? []) {
+    if (experiment.id) {
+      if (experimentsById.has(experiment.id)) throw new Error("Wizard experiment identifiers must be unique.");
+      experimentsById.set(experiment.id, new Set(experiment.claim_ids));
+    }
     if (experiment.claim_ids.some(id => !claims.has(id))) {
       throw new Error("Every wizard experiment must refer to claims in this bundle.");
     }
@@ -112,6 +118,13 @@ export function prepareAssessmentBundle(input: unknown): { bundle: AssessmentBun
   const measured = new Set<string>();
   const compared = new Set<string>();
   for (const run of input.runs) {
+    if (run.experiment_id) {
+      const experimentClaims = experimentsById.get(run.experiment_id);
+      if (!experimentClaims) throw new Error("Every run experiment ID must identify an experiment in this bundle.");
+      if (run.measurements.some(entry => !experimentClaims.has(entry.claim_id))) {
+        throw new Error("Every linked run measurement must refer to a claim assigned to its experiment.");
+      }
+    }
     const date = new Date(run.started_at);
     const seconds = run.started_at.replace(/(?:\.\d{1,3})?Z$/, "");
     if (!Number.isFinite(date.getTime()) || !date.toISOString().startsWith(`${seconds}.`)) {
