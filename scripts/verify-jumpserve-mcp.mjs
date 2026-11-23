@@ -46,16 +46,17 @@ const bundle = {
       { section: 'data', id: 'unit', parent_id: 'count', title: 'Record the unit', description: 'Use the event count.', pages: [3] },
       { section: 'data', id: 'match', parent_id: 'measure', title: 'Match observations', description: 'Associate each value with its test condition.', pages: [2, 3] },
       { section: 'access', description: 'Use a local shell.', pages: [1] },
+      { section: 'experiment', title: 'Paper counter test', description: 'Use matched counters.', pages: [2] },
     ],
     experiments: [{
-      title: 'Matched counter test', claim_ids: ['c1'], prerequisites: ['POSIX shell'],
+      id: 'matched-counters', title: 'Matched counter test', claim_ids: ['c1'], prerequisites: ['POSIX shell'],
       setup: 'mkdir -p fixture-samples', cleanup: 'rmdir fixture-samples',
       scripts: [script],
       steps: [{ title: 'Record the count', instructions: 'Compare two matched counter values.', commands: `sh ${script.path}` }],
     }],
   },
   runs: [{
-    id: 'r1', configuration: 'Loopback fixture', started_at: '2026-11-20T00:00:00Z', artifact_sha256: 'b'.repeat(64),
+    id: 'r1', experiment_id: 'matched-counters', configuration: 'Loopback fixture', started_at: '2026-11-20T00:00:00Z', artifact_sha256: 'b'.repeat(64),
     measurements: [{ claim_id: 'c1', metric: 'Counter', units: 'count', paper_value: 0, observed_value: 0 }],
   }],
   limitations: ['Synthetic connector verification only.'],
@@ -78,15 +79,20 @@ async function verifyAssessmentWizard(page, url) {
   await access.getByText('1.1', { exact: true }).waitFor();
   await access.getByText('Use a local shell.').waitFor();
   const steps = page.getByRole('navigation', { name: 'Assessment steps' });
+  const experiment = page.getByRole('region', { name: '2.2 Matched counter test', exact: true });
+  const action = experiment.getByRole('heading', { name: '2.2.1 Record the count', exact: true }).locator('xpath=ancestor::li[1]');
+  await experiment.waitFor();
+  assert.equal(await action.count(), 0);
   await steps.getByRole('button', { name: 'Step 3: Experiment Steps' }).click();
   await page.waitForURL(url + '?step=implementation');
-  await page.getByText('Compare two matched counter values.').waitFor();
+  await action.getByText('Compare two matched counter values.').waitFor();
+  assert.equal(await action.getByText('Commands for step 2.2.1', { exact: true }).count(), 0);
   await steps.getByRole('button', { name: 'Step 4: Experiment Setup' }).click();
   await page.waitForURL(url + '?step=execution');
   await page.getByText('Setup commands', { exact: true }).click();
   await page.getByText('mkdir -p fixture-samples', { exact: true }).waitFor();
-  await page.getByText('Step 1 · Record the count', { exact: true }).click();
-  await page.getByText(`sh ${script.path}`, { exact: true }).waitFor();
+  await action.getByText('Commands for step 2.2.1', { exact: true }).click();
+  await action.getByText(`sh ${script.path}`, { exact: true }).waitFor();
   await page.getByText(script.path, { exact: true }).click();
   const source = page.getByLabel(`Source for ${script.path}`);
   await source.waitFor();
@@ -101,11 +107,12 @@ async function verifyAssessmentWizard(page, url) {
   await steps.getByRole('button', { name: 'Step 5: Experiment Results' }).click();
   await page.waitForURL(url + '?step=results');
   await page.getByRole('heading', { name: 'Experiment Results', exact: true }).waitFor();
-  await page.getByText('Both counters measured zero.').waitFor();
-  await page.getByRole('cell', { name: '0', exact: true }).first().waitFor();
-  assert.equal(await page.getByRole('cell', { name: '0', exact: true }).count(), 2);
-  assert.equal(await page.getByText('Setup commands', { exact: true }).count(), 0);
-  assert.equal(await page.getByRole('button', { name: `Download ${script.path}` }).count(), 0);
+  await experiment.getByText('Both counters measured zero.').waitFor();
+  await experiment.getByRole('cell', { name: '0', exact: true }).first().waitFor();
+  assert.equal(await experiment.getByRole('cell', { name: '0', exact: true }).count(), 2);
+  assert.equal(await action.getByText('Commands for step 2.2.1', { exact: true }).count(), 1);
+  assert.equal(await experiment.getByText('Setup commands', { exact: true }).count(), 1);
+  assert.equal(await experiment.getByRole('button', { name: `Download ${script.path}` }).count(), 1);
   await page.goBack();
   await page.getByRole('heading', { name: 'Experiment Setup', exact: true }).waitFor();
   await page.goBack();
@@ -248,12 +255,6 @@ const fixture = createServer(async (req, res) => {
     }
     const record = previews.get(url.searchParams.get('id')?.slice(3));
     if (!record || url.searchParams.get('owner_id') !== 'eq.' + record.owner_id) return send(200, []);
-    if (req.method === 'PATCH') {
-      if (record.study_id || !record.completed_at ||
-          url.searchParams.get('bundle_sha256') !== 'eq.' + record.bundle_sha256) return send(200, []);
-      record.approved_at = input.approved_at;
-      return send(200, [{ id: record.id }]);
-    }
     if (url.searchParams.get('select') === 'pdf_verified_at') return send(200, [{ pdf_verified_at: record.pdf_verified_at }]);
     return send(200, record.completed_at || record.study_id ? [record] : []);
   }
@@ -469,14 +470,13 @@ try {
   assert.match(await ownerReview.text(), /<meta name="robots" content="noindex, nofollow"\s*\/?\s*>/);
   await verifyAssessmentWizard(page, review_url);
   assert.equal(previews.get(preview_id).study_id, null);
-  const privateBadge = page.getByText('Private', { exact: true });
-  await privateBadge.waitFor();
-  await page.getByRole('button', { name: 'Share publicly', exact: true }).click();
-  await privateBadge.waitFor({ state: 'hidden' });
-  await page.waitForURL(publicUrl);
-  assert.equal(previews.get(preview_id).study_id, preview_id);
+  assert.equal(await page.getByText('Private', { exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: /share publicly|finish sharing publicly/i }).count(), 0);
+  // Seed a previously recorded owner approval in the isolated database fixture.
+  previews.get(preview_id).approved_at = new Date().toISOString();
   const shared = await client.callTool(submission);
   assert.equal(shared.structuredContent.assessment_url, publicUrl);
+  assert.equal(previews.get(preview_id).study_id, preview_id);
   assert.deepEqual(await client.callTool(submission), shared);
   const alreadyShared = await save(fixtureId, linkedBundle);
   assert.deepEqual(alreadyShared.structuredContent, { assessment_url: publicUrl, status: 'already_shared' });
@@ -486,25 +486,23 @@ try {
   const publicPage = await viewer.newPage();
   await verifyAssessmentWizard(publicPage, publicUrl);
   assert.deepEqual(previews.get(preview_id).bundle, linkedBundle);
-  console.log('PASS private and public Steps 2–5, one-click sharing, idempotent MCP submission and measurement display');
+  console.log('PASS private and public Steps 2–5, hidden sharing controls, approved MCP submission and measurement display');
 
   const retryBundle = { ...linkedBundle, summary: 'Verify a recoverable sharing failure.' };
   const retryPreview = (await save(registerFixtureSource(fixturePdf), retryBundle)).structuredContent;
   const retryRow = previews.get(retryPreview.preview_id);
   retryRow.expires_at = '2000-01-01T00:00:00.000Z';
+  retryRow.approved_at = new Date().toISOString();
   assert.equal((await page.goto(retryPreview.review_url)).status(), 200);
+  const retrySubmission = { name: 'submit_assessment', arguments: { preview_id: retryPreview.preview_id } };
   failNextSubmission = true;
-  await page.getByRole('button', { name: 'Share publicly', exact: true }).click();
-  const retry = page.getByRole('button', { name: 'Finish sharing publicly' });
-  await retry.waitFor();
-  assert.ok(retryRow.approved_at);
+  assert.equal((await client.callTool(retrySubmission)).isError, true);
   assert.equal(retryRow.study_id, null);
   assert.equal(retryRow.expires_at, '2000-01-01T00:00:00.000Z');
-  await retry.click();
-  await retry.waitFor({ state: 'hidden' });
+  const retried = await client.callTool(retrySubmission);
+  assert.equal(retried.structuredContent.assessment_url, retryPreview.review_url);
   assert.equal(retryRow.study_id, retryPreview.preview_id);
-  await page.waitForURL(origin + '/research-verification/assessment/' + retryPreview.preview_id);
-  console.log('PASS a completed private assessment can be shared after the old deadline');
+  console.log('PASS a recorded approval can be retried after a submission failure and the old deadline');
 
   const uploadPage = origin + '/research-verification/new-assessment';
   const sourcePdf = Buffer.from('%PDF-1.4\n% Step 1 browser fixture\n%%EOF\n');
@@ -643,11 +641,12 @@ try {
   await page.goto(origin + '/research-verification/assessments?mine=1');
   await page.getByRole('link', { name: sourceBundle.paper.title, exact: true }).click();
   await page.waitForURL(autoAttached.review_url);
-  await page.getByText('Public sharing includes the attached source PDF.').waitFor();
-  await page.getByRole('button', { name: 'Share publicly', exact: true }).click();
-  await page.getByRole('button', { name: 'Share publicly', exact: true }).waitFor({ state: 'hidden' });
-  await page.waitForURL(`${origin}/research-verification/assessment/${assessmentId}`);
-  const publicPaper = page.url() + '/paper';
+  await page.getByRole('link', { name: 'Download source PDF', exact: true }).waitFor();
+  assert.equal(await page.getByText('Public sharing includes the attached source PDF.', { exact: true }).count(), 0);
+  previews.get(assessmentId).approved_at = new Date().toISOString();
+  const sourceSubmission = await client.callTool({ name: 'submit_assessment', arguments: { preview_id: assessmentId } });
+  assert.equal(sourceSubmission.structuredContent.assessment_url, autoAttached.review_url);
+  const publicPaper = sourceSubmission.structuredContent.assessment_url + '/paper';
   const publicDownload = await viewer.request.get(publicPaper, { maxRedirects: 0 });
   assert.equal(publicDownload.status(), 303);
   assert.ok(new URL(publicDownload.headers().location).pathname.endsWith(`/jumpserve-mcp/${assessmentId}.pdf`));

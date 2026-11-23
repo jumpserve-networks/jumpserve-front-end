@@ -12,12 +12,11 @@ const boundary = name => `export function ${name}(props){globalThis.__routeState
 const replacements = {
   'server-only': 'export {};',
   'next/link': "export default function Link({prefetch, ...props}){return globalThis.__routeReact.createElement('a',props);}",
-  'next/cache': 'export function revalidatePath(){}',
   'next/navigation': "export function notFound(){throw Object.assign(new Error('Synthetic notFound'),{code:'NEXT_NOT_FOUND'});}export function redirect(url){throw Object.assign(new Error('Synthetic redirect'),{code:'NEXT_REDIRECT',url});}export const permanentRedirect=redirect;",
   '@/lib/supabase/server': 'export async function createClient(){return globalThis.__routeState.client;}',
   '@/lib/auth': "export async function getGoogleUser(){return globalThis.__routeState.user;}export async function requireGoogleUser(path){globalThis.__routeState.authPaths.push(path);if(globalThis.__routeState.authError)throw globalThis.__routeState.authError;return globalThis.__routeState.user;}",
   '@/lib/local-paper-assessment-server': "export async function loadSharedLocalPaperAssessment(id){globalThis.__routeState.localReads=(globalThis.__routeState.localReads??0)+1;return globalThis.__routeState.localAssessment??{status:'absent'};}",
-  '@/lib/jumpserve-mcp-store': "export async function readSharedSkillAssessment(){return globalThis.__routeState.skillAssessment??null;}export async function readAssessmentPreview(owner,id){const state=globalThis.__routeState;state.previewReads??=[];state.previewReads.push({owner,id});return owner===state.previewOwner?state.preview??null:null;}export async function readLocalAssessmentSource(owner,assessmentId){globalThis.__routeState.sourceReads??=[];globalThis.__routeState.sourceReads.push({owner,assessmentId});return globalThis.__routeState.source??null;}export function approveAssessment(){}export function submitAssessment(){}",
+  '@/lib/jumpserve-mcp-store': "export async function readSharedSkillAssessment(){return globalThis.__routeState.skillAssessment??null;}export async function readAssessmentPreview(owner,id){const state=globalThis.__routeState;state.previewReads??=[];state.previewReads.push({owner,id});return owner===state.previewOwner?state.preview??null:null;}export async function readLocalAssessmentSource(owner,assessmentId){globalThis.__routeState.sourceReads??=[];globalThis.__routeState.sourceReads.push({owner,assessmentId});return globalThis.__routeState.source??null;}",
   '@/app/components/research-workflow/shared-local-paper-assessment': boundary('SharedLocalPaperAssessment'),
   '@/app/components/research-workflow/skill-assessment': boundary('SkillAssessment'),
   '@/app/components/auth-button': boundary('AuthButton'),
@@ -119,7 +118,7 @@ test('the canonical assessment renders a private skill bundle only for its signe
   const options = props({ assessmentId: ID }, query);
   const path = `${BASE}/assessment/${ID}`;
   state.previewOwner = owner.id;
-  state.preview = { bundle, hash: 'a'.repeat(64), complete: true, approved: false, studyId: null, pdfReady: true };
+  state.preview = { bundle, studyId: null, pdfReady: true };
 
   await renderPage('review', options);
   assert.equal(state.previewReads, undefined);
@@ -135,7 +134,8 @@ test('the canonical assessment renders a private skill bundle only for its signe
   assert.deepEqual(state.previewReads.at(-1), { owner: owner.id, id: ID });
   assert.deepEqual(capture('SkillAssessment'), { bundle, path, query, pdfReady: true });
   assert.equal(document.querySelector('meta[name="robots"]')?.content, 'noindex, nofollow');
-  assert.equal(document.querySelector('form button[type="submit"]')?.textContent, 'Share publicly');
+  assert.doesNotMatch(document.body.textContent, /Private|Public sharing includes|Share publicly/i);
+  assert.equal(document.querySelector('main form'), null);
 
   state.captures = [];
   state.preview.studyId = ID;

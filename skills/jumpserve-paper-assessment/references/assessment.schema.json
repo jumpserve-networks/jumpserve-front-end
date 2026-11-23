@@ -118,6 +118,11 @@
             "additionalProperties": false,
             "required": ["title", "claim_ids", "prerequisites", "steps"],
             "properties": {
+              "id": {
+                "description": "Stable identifier unique among the planned experiments. Set it when a run references this experiment.",
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$"
+              },
               "title": { "type": "string", "minLength": 1, "maxLength": 300 },
               "claim_ids": {
                 "type": "array",
@@ -271,6 +276,11 @@
           "id": {
             "type": "string",
             "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,39}$"
+          },
+          "experiment_id": {
+            "description": "The saved experiment ID for this run. Use it to report measurements under the correct experiment, especially when experiments test the same claims.",
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$"
           },
           "configuration": {
             "type": "string",

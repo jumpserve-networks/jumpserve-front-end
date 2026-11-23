@@ -3,33 +3,46 @@ import { EXPERIMENT_SETUP_TITLE, PAPER_ASSESSMENT_STEPS, parsePaperAssessmentSte
 import { paperDetailTree } from "@/lib/paper-detail-dependencies";
 import { PAPER_BREAKDOWN_SECTIONS } from "@/lib/research-paper-breakdown";
 import { researchSearchSuffix } from "@/lib/research-pathways";
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/app/components/ui/table";
-import { ExperimentScript } from "./experiment-script";
 import { PaperAssessmentSteps } from "./paper-assessment-steps";
 import { PaperDetailOutline } from "./paper-detail-outline";
+import { ClaimFindings, groupExperimentRuns, RunMeasurements, SharedCommands, SkillExperimentOutline, type ExperimentEvidence } from "./skill-assessment-experiments";
 
-const outcomeLabel = {
-  untested: "Untested",
-  inconclusive: "Inconclusive",
-  reproduced: "Reproduced",
-  discrepant: "Discrepant",
-};
+type Wizard = NonNullable<AssessmentBundle["wizard"]>;
+type Stage = "breakdown" | "implementation" | "execution" | "results";
+
+function AssessmentOutline({ wizard, stage, evidence }: {
+  wizard: Wizard;
+  stage: Stage;
+  evidence?: ExperimentEvidence;
+}) {
+  return <div className="space-y-5">{PAPER_BREAKDOWN_SECTIONS.map((section, index) => {
+    const prefix = String(index + 1);
+    const title = `${prefix}. ${section.title}`;
+    const id = `skill-breakdown-${section.id}`;
+    const nodes = paperDetailTree(assessmentBreakdownSteps(wizard.breakdown, section.id), prefix);
+    const sourceSteps = nodes.length ? <PaperDetailOutline nodes={nodes} renderDetail={item => <>
+      {item.title ? <h4 className="font-medium">{item.title}</h4> : null}
+      <p className="whitespace-pre-wrap">{item.description}</p>
+      <p className="text-xs text-muted-foreground">PDF {item.pages.length === 1 ? "page" : "pages"} {item.pages.join(", ")}</p>
+    </>} /> : <p className="text-sm text-muted-foreground">No paper breakdown steps were recorded for this section.</p>;
+    if (stage !== "breakdown" && section.id !== "experiment") return <details key={section.id}>
+      <summary className="cursor-pointer font-semibold">{title}</summary>
+      <div className="pt-3">{sourceSteps}</div>
+    </details>;
+    return <section key={section.id} aria-labelledby={id} className="space-y-3">
+      <h3 id={id} className="font-semibold">{title}</h3>
+      {sourceSteps}
+      {section.id === "experiment" ? <SkillExperimentOutline
+        experiments={wizard.experiments} prefix={prefix} sourceCount={nodes.length} stage={stage} evidence={evidence}
+      /> : null}
+    </section>;
+  })}</div>;
+}
 
 function PaperBreakdown({ claims, wizard }: Pick<AssessmentBundle, "claims" | "wizard">) {
   return <section className="space-y-6" aria-labelledby="skill-breakdown">
     <h2 id="skill-breakdown" className="text-lg font-semibold">Paper Breakdown</h2>
-    {wizard ? PAPER_BREAKDOWN_SECTIONS.map((section, index) => {
-      const number = index + 1;
-      const items = assessmentBreakdownSteps(wizard.breakdown, section.id);
-      return <section key={section.id} aria-labelledby={`skill-breakdown-${section.id}`} className="space-y-3">
-        <h3 id={`skill-breakdown-${section.id}`} className="font-semibold">{number}. {section.title}</h3>
-        {items.length ? <PaperDetailOutline nodes={paperDetailTree(items, String(number))} renderDetail={item => <>
-          {item.title ? <h4 className="font-medium">{item.title}</h4> : null}
-          <p className="whitespace-pre-wrap">{item.description}</p>
-          <p className="text-xs text-muted-foreground">PDF {item.pages.length === 1 ? "page" : "pages"} {item.pages.join(", ")}</p>
-        </>} /> : <p className="text-sm text-muted-foreground">No steps were recorded for this section.</p>}
-      </section>;
-    }) : null}
+    {wizard ? <AssessmentOutline wizard={wizard} stage="breakdown" /> : null}
     <section className="space-y-3">
       <h3 className="font-semibold">Claims and decision rules</h3>
       {claims.map(claim => <div key={claim.id} className="space-y-1 border-t py-3">
@@ -41,100 +54,50 @@ function PaperBreakdown({ claims, wizard }: Pick<AssessmentBundle, "claims" | "w
   </section>;
 }
 
-function ExperimentSteps({ methods, wizard }: Pick<AssessmentBundle, "methods" | "wizard">) {
+function ExperimentPlan({ methods, wizard, stage }: Pick<AssessmentBundle, "methods" | "wizard"> & {
+  stage: "implementation" | "execution";
+}) {
+  const setup = stage === "execution";
+  const savedMethods = setup ? methods.filter(method => method.commands) : methods;
   return <section className="space-y-5" aria-labelledby="skill-plan">
-    <h2 id="skill-plan" className="text-lg font-semibold">Experiment Steps</h2>
-    {wizard?.experiments.map((experiment, index) => <section key={index} className="space-y-2 border-t py-3">
-      <h3 className="font-semibold">{experiment.title}</h3>
-      <p className="text-sm text-muted-foreground">Claims {experiment.claim_ids.join(", ")}</p>
-      <ol className="list-decimal space-y-3 pl-5 text-sm">{experiment.steps.map((step, stepIndex) => <li key={stepIndex}>
-        <h4 className="font-medium">{step.title}</h4>
-        <p className="whitespace-pre-wrap">{step.instructions}</p>
-      </li>)}</ol>
-    </section>)}
-    {methods.length ? <section className="space-y-3">
+    <h2 id="skill-plan" className="text-lg font-semibold">{setup ? EXPERIMENT_SETUP_TITLE : "Experiment Steps"}</h2>
+    {wizard ? <AssessmentOutline wizard={wizard} stage={stage} /> : null}
+    {savedMethods.length ? <section className="space-y-3">
       <h3 className="font-semibold">{wizard ? "Recorded methods" : "Experiment methods"}</h3>
-      {methods.map((method, index) => <div key={index} className="space-y-2 border-t py-3">
+      {savedMethods.map((method, index) => <div key={index} className="space-y-2 border-t py-3">
         <h4 className="font-medium">{method.title}</h4>
         <p className="whitespace-pre-wrap">{method.procedure}</p>
+        {setup && method.commands ? <SharedCommands label="Commands" commands={method.commands} /> : null}
       </div>)}
     </section> : null}
-    {!wizard && methods.length === 0 ? <p>Experiment steps are unavailable for this assessment.</p> : null}
+    {!wizard && savedMethods.length === 0 ? <p>{setup
+      ? "Shared commands are unavailable for this assessment."
+      : "Experiment steps are unavailable for this assessment."}</p> : null}
   </section>;
 }
 
-function SharedCommands({ label, commands }: { label: string; commands: string }) {
-  return <details className="space-y-2">
-    <summary className="cursor-pointer text-sm font-medium">{label}</summary>
-    <pre tabIndex={0} aria-label={label} className="max-h-80 overflow-auto rounded bg-muted p-3 text-xs"><code>{commands}</code></pre>
-  </details>;
-}
-
-function ExperimentSetup({ methods, wizard }: Pick<AssessmentBundle, "methods" | "wizard">) {
-  const hasMethodCommands = methods.some(method => method.commands);
-  return <section className="space-y-6" aria-labelledby="skill-execution">
-    <h2 id="skill-execution" className="text-lg font-semibold">{EXPERIMENT_SETUP_TITLE}</h2>
-    {wizard?.experiments.map((experiment, index) => <section key={index} className="space-y-3 border-t py-3">
-      <h3 className="font-semibold">{experiment.title}</h3>
-      {experiment.prerequisites.length ? <div className="space-y-1 text-sm">
-        <p className="font-medium">Prerequisites</p>
-        <ul className="list-disc space-y-1 pl-5">{experiment.prerequisites.map((item, i) => <li key={i}>{item}</li>)}</ul>
-      </div> : null}
-      {experiment.command_notes ? <p className="whitespace-pre-wrap text-sm text-muted-foreground">{experiment.command_notes}</p> : null}
-      {experiment.scripts?.length ? <div className="space-y-2">
-        <h4 className="text-sm font-medium">Experiment scripts</h4>
-        <p className="text-sm text-muted-foreground">Save each file at the path shown, relative to the experiment directory.</p>
-        <ul className="space-y-2">{experiment.scripts.map(script => <li key={script.path}><ExperimentScript {...script} /></li>)}</ul>
-      </div> : null}
-      {experiment.setup ? <SharedCommands label="Setup commands" commands={experiment.setup} /> : null}
-      {experiment.steps.map((step, i) => step.commands ? <SharedCommands key={i} label={`Step ${i + 1} · ${step.title}`} commands={step.commands} /> : null)}
-      {experiment.cleanup ? <SharedCommands label="Cleanup commands" commands={experiment.cleanup} /> : null}
-      {!experiment.setup && !experiment.cleanup && !experiment.steps.some(step => step.commands) && !experiment.command_notes ? <p className="text-sm">Shared commands are unavailable for this experiment.</p> : null}
-    </section>)}
-    {methods.map((method, i) => method.commands ? <SharedCommands key={i} label={method.title} commands={method.commands} /> : null)}
-    {!wizard && !hasMethodCommands ? <p className="text-sm">Shared commands are unavailable for this assessment.</p> : null}
-  </section>;
-}
-
-function ExperimentResults({ summary, claims, runs, limitations }: Pick<AssessmentBundle, "summary" | "claims" | "runs" | "limitations">) {
+function ExperimentResults({ summary, claims, runs, limitations, wizard }: Pick<AssessmentBundle, "summary" | "claims" | "runs" | "limitations" | "wizard">) {
   const claimsById = new Map(claims.map(claim => [claim.id, claim]));
+  const { byExperiment, unassigned } = groupExperimentRuns(wizard?.experiments ?? [], runs);
+  const experimentClaims = new Set(wizard?.experiments.flatMap(experiment => experiment.claim_ids));
+  const otherClaims = claims.filter(claim => !experimentClaims.has(claim.id));
   return <section className="space-y-6" aria-labelledby="skill-results">
     <h2 id="skill-results" className="text-lg font-semibold">Experiment Results</h2>
     <p className="whitespace-pre-wrap">{summary}</p>
-    <section className="space-y-3">
+    {wizard ? <AssessmentOutline wizard={wizard} stage="results" evidence={{ claims: claimsById, byExperiment }} /> : null}
+    {otherClaims.length ? <section className="space-y-3">
       <h3 className="font-semibold">Claim findings</h3>
-      {claims.map(claim => <div key={claim.id} className="space-y-1 border-t py-3">
-        <p className="text-sm font-medium">{claim.id} · {outcomeLabel[claim.outcome]}</p>
-        <p className="text-sm whitespace-pre-wrap">{claim.finding}</p>
-      </div>)}
-    </section>
-    <section className="space-y-4">
-      <h3 className="font-semibold">Local measurements</h3>
+      <ClaimFindings claims={otherClaims} />
+    </section> : null}
+    {unassigned.length || !wizard ? <section className="space-y-4">
+      <h3 className="font-semibold">{wizard ? "Assessment-level measurements" : "Local measurements"}</h3>
+      {wizard ? <p className="text-sm text-muted-foreground">These runs stay at assessment level because their saved claim references are insufficient to identify one experiment.</p> : null}
       {runs.length === 0 ? <p>No measurements were included in this assessment.</p> : null}
-      {runs.map(run => <div key={run.id} className="space-y-2 border-t py-3">
-        <h4 className="font-medium">Run {run.id} · {run.started_at}</h4>
-        <p className="whitespace-pre-wrap text-sm">{run.configuration}</p>
-        <p className="text-sm text-muted-foreground">Evidence SHA-256 <code className="break-all">{run.artifact_sha256}</code></p>
-        <Table className="text-left">
-          <TableCaption className="sr-only">Measurements for run {run.id}</TableCaption>
-          <TableHeader><TableRow>
-            <TableHead scope="col">Claim</TableHead>
-            <TableHead scope="col">Metric</TableHead>
-            <TableHead scope="col">Units</TableHead>
-            <TableHead scope="col">Paper reported</TableHead>
-            <TableHead scope="col">Locally measured</TableHead>
-          </TableRow></TableHeader>
-          <TableBody>{run.measurements.map((entry, index) => <TableRow key={index}>
-            <TableCell title={claimsById.get(entry.claim_id)?.claim}>{entry.claim_id}</TableCell>
-            <TableCell>{entry.metric}</TableCell><TableCell>{entry.units}</TableCell>
-            <TableCell>{entry.paper_value ?? "Unavailable"}</TableCell><TableCell>{entry.observed_value}</TableCell>
-          </TableRow>)}</TableBody>
-        </Table>
-      </div>)}
-    </section>
+      {unassigned.map(run => <RunMeasurements key={run.id} run={run} claims={claimsById} />)}
+    </section> : null}
     {limitations.length ? <section className="space-y-2">
       <h3 className="font-semibold">Limitations</h3>
-      <ul className="list-disc space-y-1 pl-5">{limitations.map((item, i) => <li key={i}>{item}</li>)}</ul>
+      <ul className="list-disc space-y-1 pl-5">{limitations.map((item, index) => <li key={index}>{item}</li>)}</ul>
     </section> : null}
   </section>;
 }
@@ -142,7 +105,7 @@ function ExperimentResults({ summary, claims, runs, limitations }: Pick<Assessme
 export function SkillAssessment({ bundle, path, query, pdfReady = true }: {
   bundle: AssessmentBundle; path: string; query: Record<string, string | string[] | undefined>; pdfReady?: boolean;
 }) {
-  const { paper } = bundle;
+  const { paper, claims, methods, wizard, summary, runs, limitations } = bundle;
   const requested = parsePaperAssessmentStep(query.step);
   const current = requested && requested !== "upload" ? requested : "breakdown";
   const hrefs = Object.fromEntries(PAPER_ASSESSMENT_STEPS.map(step => [step.id, `${path}${researchSearchSuffix({ ...query, step: step.id })}`]));
@@ -155,9 +118,8 @@ export function SkillAssessment({ bundle, path, query, pdfReady = true }: {
       {paper.url ? <a className="text-primary underline" href={paper.url} rel="noreferrer">Source paper</a> : null}
       {paper.pdf_copy && pdfReady ? <p><a className="text-sm text-primary underline" href={`${path}/paper`}>Download source PDF</a></p> : null}
     </header>
-    {current === "breakdown" ? <PaperBreakdown claims={bundle.claims} wizard={bundle.wizard} /> : null}
-    {current === "implementation" ? <ExperimentSteps methods={bundle.methods} wizard={bundle.wizard} /> : null}
-    {current === "execution" ? <ExperimentSetup methods={bundle.methods} wizard={bundle.wizard} /> : null}
-    {current === "results" ? <ExperimentResults summary={bundle.summary} claims={bundle.claims} runs={bundle.runs} limitations={bundle.limitations} /> : null}
+    {current === "breakdown" ? <PaperBreakdown claims={claims} wizard={wizard} /> : null}
+    {current === "implementation" || current === "execution" ? <ExperimentPlan methods={methods} wizard={wizard} stage={current} /> : null}
+    {current === "results" ? <ExperimentResults summary={summary} claims={claims} runs={runs} limitations={limitations} wizard={wizard} /> : null}
   </article>;
 }

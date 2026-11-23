@@ -28,7 +28,7 @@ plan-only instructions you give it.
 
 Claude Code and Codex run paper assessments locally with the standalone
 [JumpServe paper assessment skill](skills/jumpserve-paper-assessment/SKILL.md).
-[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.5.0.zip)
+[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.5.1.zip)
 from JumpServe. Place the extracted skill
 directory under `~/.claude/skills/` for Claude Code or `~/.agents/skills/` for
 Codex. The skill uses the [Access, Experiment, Data, and Validate workflow](skills/jumpserve-paper-assessment/references/modules.md)
@@ -57,11 +57,16 @@ to save it privately and returns the assessment link. The assessment stays
 private with no expiration until its owner chooses to share it publicly.
 Private and public assessments use `/research-verification/assessment/<id>` and show the
 paper breakdown, experiment steps, experiment setup, and experiment results in Steps 2–5.
+The same numbered outline carries forward. Step 3 adds steps beneath each experiment,
+Step 4 adds commands beneath those steps, and Step 5 adds the experiment’s results.
+Saved run references identify the experiment directly. Older runs can be matched by
+their recorded claims when exactly one experiment fits. Other runs appear under
+assessment-level measurements.
 Saved sharing links redirect to this address.
 The breakdown uses numbered sections, steps, and substeps with PDF page citations.
 Experiment Setup includes local commands and any script files supplied with the assessment.
-The account owner can share the exact copy publicly from JumpServe. The MCP
-`submit_assessment` tool also accepts assessments the owner approved for sharing. JumpServe
+Public sharing requires owner approval of the exact saved copy. The MCP
+`submit_assessment` tool accepts assessments the owner approved for sharing. JumpServe
 stores the approved copy and its measurements in Supabase. Public sharing
 makes the attached Step 1 PDF downloadable with the assessment. The original PDF, raw logs, and other local
 evidence stay with the user. The connector does not need a model-provider key.

@@ -27,7 +27,7 @@ same assessment steps.
   claims and their decision rules in `claims`. Label reported values and
   identify any synthetic reference data.
 - **Step 3 · Experiment Steps** uses `wizard.experiments` for the ordered design.
-  Link each experiment to its `claim_ids`. Write each step's `title` and
+  Give each experiment a stable `id` and link it to its `claim_ids`. Write each step's `title` and
   `instructions` from the frozen procedure. Record any unresolved inputs or
   proposed design choices in the instructions. Use `methods` for module
   versions, acquisition procedures and validation reports.
@@ -40,7 +40,8 @@ same assessment steps.
   or commands that are drafted, unverified, or unavailable in the shared copy.
 - **Step 5 · Experiment Results** uses `summary`, claim outcomes and findings
   in `claims`, fresh testbed measurements in `runs`, and `limitations`. Include
-  exact units and evidence digests. Keep values extracted from the paper as
+  the experiment's `id` as `experiment_id` on each run, along with exact units
+  and evidence digests. Keep values extracted from the paper as
   reference values in `paper_value`. Leave `runs` empty if no trial produced
   eligible measurements and use the claim findings to explain coverage.
   Run the [local evidence check](testbed.md#check-the-saved-bundle) before saving.
