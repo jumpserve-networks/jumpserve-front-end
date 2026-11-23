@@ -16,7 +16,13 @@ const replacements = {
   '@/lib/supabase/server': 'export async function createClient(){return globalThis.__routeState.client;}',
   '@/lib/auth': "export async function getGoogleUser(){return globalThis.__routeState.user;}export async function requireGoogleUser(path){globalThis.__routeState.authPaths.push(path);if(globalThis.__routeState.authError)throw globalThis.__routeState.authError;return globalThis.__routeState.user;}",
   '@/lib/local-paper-assessment-server': "export async function loadSharedLocalPaperAssessment(id){globalThis.__routeState.localReads=(globalThis.__routeState.localReads??0)+1;return globalThis.__routeState.localAssessment??{status:'absent'};}",
-  '@/lib/jumpserve-mcp-store': "export async function readSharedSkillAssessment(){return globalThis.__routeState.skillAssessment??null;}export async function readAssessmentPreview(owner,id){const state=globalThis.__routeState;state.previewReads??=[];state.previewReads.push({owner,id});return owner===state.previewOwner?state.preview??null:null;}export async function readLocalAssessmentSource(owner,assessmentId){globalThis.__routeState.sourceReads??=[];globalThis.__routeState.sourceReads.push({owner,assessmentId});return globalThis.__routeState.source??null;}",
+  '@/lib/jumpserve-mcp-store': `
+    export async function readSharedSkillAssessment(){return globalThis.__routeState.skillAssessment??null;}
+    export async function readAssessmentPreview(owner,id){const state=globalThis.__routeState;state.previewReads??=[];state.previewReads.push({owner,id});return owner===state.previewOwner?state.preview??null:null;}
+    export async function isSharedSkillAssessmentOwner(owner,id){return owner===globalThis.__routeState.previewOwner;}
+    export async function readAssessmentVerifierResults(owner,id,before){const state=globalThis.__routeState;state.verifierReads??=[];state.verifierReads.push({owner,id,before});if(state.verifierError)throw state.verifierError;return state.verifierResults;}
+    export async function readLocalAssessmentSource(owner,assessmentId){globalThis.__routeState.sourceReads??=[];globalThis.__routeState.sourceReads.push({owner,assessmentId});return globalThis.__routeState.source??null;}
+  `,
   '@/app/components/research-workflow/shared-local-paper-assessment': boundary('SharedLocalPaperAssessment'),
   '@/app/components/research-workflow/skill-assessment': boundary('SkillAssessment'),
   '@/app/components/auth-button': boundary('AuthButton'),
@@ -105,7 +111,7 @@ test('shared skill assessments use the canonical page and its approved projectio
   state.skillAssessment = { summary: 'Approved evidence' };
   const query = { step: 'execution' };
   await renderPage('review', props({ assessmentId: ID }, query));
-  assert.deepEqual(capture('SkillAssessment'), { bundle: state.skillAssessment, path: `/research-verification/assessment/${ID}`, query });
+  assert.deepEqual(capture('SkillAssessment'), { bundle: state.skillAssessment, path: `/research-verification/assessment/${ID}`, query, pdfReady: undefined, verifier: undefined });
   assert.equal(capture('PaperAssessment'), undefined);
 });
 
@@ -132,7 +138,9 @@ test('the canonical assessment renders a private skill bundle only for its signe
   state.user = owner;
   const document = await renderPage('review', options);
   assert.deepEqual(state.previewReads.at(-1), { owner: owner.id, id: ID });
-  assert.deepEqual(capture('SkillAssessment'), { bundle, path, query, pdfReady: true });
+  assert.deepEqual(capture('SkillAssessment'), { bundle, path, query, pdfReady: true, verifier: {
+    assessmentId: ID, connectionsUrl: 'https://jumpserve.example.test/oauth/jumpserve/connections', results: undefined,
+  } });
   assert.equal(document.querySelector('meta[name="robots"]')?.content, 'noindex, nofollow');
   assert.doesNotMatch(document.body.textContent, /Private|Public sharing includes|Share publicly/i);
   assert.equal(document.querySelector('main form'), null);
@@ -141,6 +149,38 @@ test('the canonical assessment renders a private skill bundle only for its signe
   state.preview.studyId = ID;
   await renderPage('review', options);
   assert.equal(capture('SkillAssessment'), undefined);
+});
+
+test('Verifier results are read only on Step 7 for the owner, including on a shared assessment', async () => {
+  process.env.JUMPSERVE_MCP_ENABLED = 'true';
+  process.env.NEXT_PUBLIC_SITE_URL = 'https://jumpserve.example.test';
+  const owner = google();
+  state.previewOwner = owner.id;
+  state.skillAssessment = { summary: 'Approved evidence' };
+  state.verifierResults = { results: [{ id: OTHER }], nextCursor: null };
+  const before = { created_at: '2026-11-22T18:00:00.123456+00:00', id: OTHER };
+  const cursor = Buffer.from(JSON.stringify(before)).toString('base64url');
+  for (const user of [null, { ...owner, id: OTHER }]) {
+    state.user = user;
+    await renderPage('review', props({ assessmentId: ID }, { step: 'verifier-results', verifier_before: cursor }));
+    assert.equal(capture('SkillAssessment').verifier, undefined);
+    assert.equal(state.verifierReads, undefined);
+  }
+  state.user = owner;
+  await renderPage('review', props({ assessmentId: ID }, { step: 'verifier' }));
+  assert.equal(capture('SkillAssessment').verifier.assessmentId, ID);
+  assert.equal(state.verifierReads, undefined);
+  await renderPage('review', props({ assessmentId: ID }, { step: 'verifier-results', verifier_before: cursor }));
+  assert.deepEqual(state.verifierReads, [{ owner: owner.id, id: ID, before }]);
+  assert.deepEqual(capture('SkillAssessment').verifier.results, state.verifierResults);
+  assert.equal(capture('SkillAssessment').verifier.viewingOlderResults, true);
+  state.skillAssessment = null;
+  state.preview = { bundle: {}, studyId: null, pdfReady: false };
+  state.verifierError = new Error('Private backend details');
+  await renderPage('review', props({ assessmentId: ID }, { step: 'verifier-results', verifier_before: 'invalid' }));
+  assert.deepEqual(state.verifierReads.at(-1), { owner: owner.id, id: ID, before: undefined });
+  assert.equal(capture('SkillAssessment').verifier.results, 'unavailable');
+  assert.equal(capture('SkillAssessment').verifier.viewingOlderResults, undefined);
 });
 
 test('retired real-world execution keeps local guidance and public result pages',async()=>{

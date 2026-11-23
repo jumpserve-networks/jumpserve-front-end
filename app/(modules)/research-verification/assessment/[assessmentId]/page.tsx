@@ -9,7 +9,8 @@ import { loadSharedLocalPaperAssessment } from "@/lib/local-paper-assessment-ser
 import { SharedLocalPaperAssessment } from "@/app/components/research-workflow/shared-local-paper-assessment";
 import { SkillAssessment } from "@/app/components/research-workflow/skill-assessment";
 import { mcpConfig } from "@/lib/jumpserve-mcp-oauth";
-import { readAssessmentPreview, readSharedSkillAssessment } from "@/lib/jumpserve-mcp-store";
+import { isSharedSkillAssessmentOwner, readAssessmentPreview, readAssessmentVerifierResults, readSharedSkillAssessment } from "@/lib/jumpserve-mcp-store";
+import { decodeAssessmentCursor } from "@/lib/research-assessment-cursor";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Assessment" };
@@ -22,16 +23,30 @@ export default async function AssessmentPage({ params, searchParams }: { params:
   const { job, gap, run } = query;
   if ([job, gap, run].some(value => value !== undefined && !isResearchId(value)) || (run && !gap)) notFound();
   if (gap) await requireGoogleUser(path + researchSearchSuffix(query));
-  const sharedSkill = gap ? null : await readSharedSkillAssessment(assessmentId).catch(() => null);
-  if (sharedSkill) return <main className="mx-auto max-w-6xl px-4 py-6" data-testid="assessment-detail">
-    <SkillAssessment bundle={sharedSkill} path={path} query={query} />
-  </main>;
-  const user = !gap && mcpConfig() ? await getGoogleUser() : undefined;
-  const preview = user ? await readAssessmentPreview(user.id, assessmentId).catch(() => null) : null;
-  if (preview && !preview.studyId) return <main className="mx-auto max-w-5xl px-4 py-8" data-testid="assessment-detail">
-    <meta name="robots" content="noindex, nofollow" />
-    <SkillAssessment bundle={preview.bundle} path={path} query={query} pdfReady={preview.pdfReady} />
-  </main>;
+  const connector = !gap ? mcpConfig() : null;
+  const [sharedSkill, user] = await Promise.all([
+    gap ? null : readSharedSkillAssessment(assessmentId).catch(() => null),
+    connector ? getGoogleUser().catch(() => null) : undefined,
+  ]);
+  const preview = !sharedSkill && user ? await readAssessmentPreview(user.id, assessmentId).catch(() => null) : null;
+  const privateSkill = preview && !preview.studyId ? preview : null;
+  const bundle = sharedSkill ?? privateSkill?.bundle;
+  if (bundle) {
+    const owner = user && (sharedSkill ? await isSharedSkillAssessmentOwner(user.id, assessmentId).catch(() => false) : privateSkill);
+    const before = query.step === "verifier-results" && typeof query.verifier_before === "string"
+      ? decodeAssessmentCursor(query.verifier_before) ?? undefined : undefined;
+    const verifier = connector && owner && user ? {
+      assessmentId,
+      connectionsUrl: `${connector.issuer}/oauth/jumpserve/connections`,
+      ...(before ? { viewingOlderResults: true } : {}),
+      results: query.step === "verifier-results" ? await readAssessmentVerifierResults(user.id, assessmentId, before)
+        .catch(() => "unavailable" as const) : undefined,
+    } : undefined;
+    return <main className={sharedSkill ? "mx-auto max-w-6xl px-4 py-6" : "mx-auto max-w-5xl px-4 py-8"} data-testid="assessment-detail">
+      {privateSkill ? <meta name="robots" content="noindex, nofollow" /> : null}
+      <SkillAssessment bundle={bundle} path={path} query={query} pdfReady={privateSkill?.pdfReady} verifier={verifier} />
+    </main>;
+  }
   const local = gap ? { status: "absent" as const } : await loadSharedLocalPaperAssessment(assessmentId);
   if (local.status === "available" && (user === undefined ? await getGoogleUser() : user)?.id !== local.owner) return <main className="mx-auto max-w-6xl space-y-6 px-4 py-6" data-testid="assessment-detail">
     <AssessmentDetail assessmentId={assessmentId} embedded />

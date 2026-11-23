@@ -18,16 +18,16 @@ export function PaperWizardRoute({ children }: { children: (navigation: PaperWiz
   return children({ requestedStep: parsePaperAssessmentStep(params.get("step")), navigate });
 }
 
-export function PaperAssessmentSteps({ current = "upload", assessment = false, implementation = false, execution = false, results = false, busy = false, onStep, hrefs }: {
-  current?: PaperAssessmentStep; assessment?: boolean; implementation?: boolean; execution?: boolean; results?: boolean; busy?: boolean; onStep?: (step: PaperAssessmentStep) => void; hrefs?: Partial<Record<PaperAssessmentStep, string>>;
+export function PaperAssessmentSteps({ current = "upload", assessment = false, implementation = false, execution = false, results = false, verifier = false, busy = false, onStep, hrefs }: {
+  current?: PaperAssessmentStep; assessment?: boolean; implementation?: boolean; execution?: boolean; results?: boolean; verifier?: boolean; busy?: boolean; onStep?: (step: PaperAssessmentStep) => void; hrefs?: Partial<Record<PaperAssessmentStep, string>>;
 }) {
-  const available = { upload: true, breakdown: assessment, implementation, execution, results };
+  const available = { upload: true, breakdown: assessment, implementation, execution, results, verifier, "verifier-results": verifier };
   return <nav aria-label="Assessment steps" className="border-b pb-4">
-    <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+    <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
       {PAPER_ASSESSMENT_STEPS.map((step, index) => {
-        const href = step.id === "upload" ? NEW_ASSESSMENT_PATH : hrefs?.[step.id];
+        const href = step.id === "upload" ? NEW_ASSESSMENT_PATH : available[step.id] ? hrefs?.[step.id] : undefined;
         return <li key={step.id}>
-          <Button nativeButton={!href} render={href ? <Link href={href} scroll={step.id === "upload" ? undefined : false} /> : undefined} variant={current === step.id ? "secondary" : "ghost"} className="h-auto w-full justify-start gap-3 whitespace-normal px-3 py-3 text-left" aria-current={current === step.id ? "step" : undefined}
+          <Button nativeButton={!href} render={href ? <Link href={href} scroll={step.id === "upload" ? undefined : false} prefetch={step.id === "verifier-results" ? false : undefined} /> : undefined} variant={current === step.id ? "secondary" : "ghost"} className="h-auto w-full justify-start gap-3 whitespace-normal px-3 py-3 text-left" aria-current={current === step.id ? "step" : undefined}
             disabled={busy || !available[step.id]} onClick={href ? undefined : () => onStep?.(step.id)}>
             <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">{index + 1}</span>
             <span><span className="sr-only">Step {index + 1}: </span>{step.title}</span>

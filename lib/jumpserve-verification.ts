@@ -52,22 +52,22 @@ type ReplayAnalysis = {
   scenario: string;
   claims: Array<{ id: string; outcome: Outcome }>;
 };
-type Scorecard = {
+export type VerifierScorecard = {
   version: "jumpserve-verifier-scorecard-v1";
   paper_sha256: string; assessment_sha256: string; answer_key_sha256: string;
   split: "development" | "held_out"; mode: "fresh" | "replay"; scenario: string | null;
-  evidence_integrity: { status: "verified" | "legacy_archive_matched" | "fixture_only" | "failed" };
+  evidence_integrity: { status: "verified" | "legacy_archive_matched" | "fixture_only" | "failed"; detail?: string; archive_detail?: string };
   status: "scored" | "blocked" | "failed";
   claims: Array<{ key_claim_id: string; assessment_claim_id: string | null; reported_outcome: Outcome | null;
-    supported_outcome: Outcome | null; assessment: "correct" | "incorrect" | "unscored"; evidence: string[] }>;
-  rubric: Array<{ criterion: string; earned: number | null; maximum: number }>;
+    supported_outcome: Outcome | null; assessment: "correct" | "incorrect" | "unscored"; evidence: string[]; finding: string }>;
+  rubric: Array<{ criterion: string; earned: number | null; maximum: number; reason: string }>;
   score: { earned: number; applicable_maximum: number; rubric_maximum: number } | null;
   critical_failures: string[]; blockers: string[];
 };
 
 const ajv = new Ajv({ strict: true });
 const validateReplay = ajv.compile<ReplayAnalysis>(REPLAY_ANALYSIS_SCHEMA);
-const validateScorecard = ajv.compile<Scorecard>(VERIFIER_SCORECARD_SCHEMA);
+const validateScorecard = ajv.compile<VerifierScorecard>(VERIFIER_SCORECARD_SCHEMA);
 export const MAX_REVIEWED_ASSESSMENT_BYTES = 650_000;
 export const MAX_VERIFIER_REQUEST_BYTES = 1_500_000;
 export const VERIFIER_VERSION_SCHEMA = { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._+-]{0,79}$" } as const;

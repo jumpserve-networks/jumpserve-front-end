@@ -262,10 +262,28 @@ const fixture = createServer(async (req, res) => {
     if (!generator) return send(404, { code: 'P0002' });
     assert.equal(input.p_scorecard.paper_sha256, saved.bundle.paper.sha256);
     const key = `${generator}/${input.p_verifier_version}/${input.p_hash}`;
-    if (!verifierResults.has(key)) verifierResults.set(key, randomUUID());
-    return send(200, verifierResults.get(key));
+    if (!verifierResults.has(key)) {
+      const { status, mode, scenario, split, score, evidence_integrity, claims, rubric, blockers, critical_failures } = input.p_scorecard;
+      verifierResults.set(key, { id: randomUUID(), created_at: new Date().toISOString(), verifier_version: input.p_verifier_version,
+        status, mode, scenario, split, score, evidence_integrity, claims, rubric, blockers, critical_failures,
+        generator: { bundle_sha256: input.p_generator_hash, result_kind: 'assessment', assessment: { id: saved.id } } });
+    }
+    return send(200, verifierResults.get(key).id);
+  }
+  if (path === 'research_skill_verifier_results') {
+    assert.equal(url.searchParams.get('order'), 'created_at.desc,id.desc');
+    assert.equal(url.searchParams.get('limit'), '6');
+    assert.match(url.searchParams.get('select'), /generator:research_skill_generator_results!inner\(.*assessment:research_skill_submissions!inner\(id\)\)/);
+    assert.doesNotMatch(url.searchParams.get('select'), /answer_key_sha256|assessment_sha256/);
+    const assessment = previews.get(url.searchParams.get('generator.assessment.id')?.slice(3));
+    if (!assessment || url.searchParams.get('generator.assessment.owner_id') !== 'eq.' + assessment.owner_id) return send(200, []);
+    return send(200, [...verifierResults.values()].filter(row => row.generator.assessment.id === assessment.id));
   }
   if (path === 'research_skill_submissions') {
+    if (url.searchParams.get('select') === 'id' && url.searchParams.get('study_id')?.startsWith('eq.')) {
+      const record = previews.get(url.searchParams.get('study_id').slice(3));
+      return send(200, record?.study_id && url.searchParams.get('owner_id') === 'eq.' + record.owner_id ? [{ id: record.id }] : []);
+    }
     if (url.searchParams.get('select') === 'id,completed_at,title:bundle->paper->>title,authors:bundle->paper->authors') {
       assert.equal(url.searchParams.get('completed_at'), 'not.is.null');
       assert.equal(url.searchParams.get('study_id'), 'is.null');
@@ -467,13 +485,23 @@ try {
   const preview = await save(fixtureId, linkedBundle);
   const { preview_id, review_url } = preview.structuredContent;
   assert.equal(preview_id, fixtureId);
+  const verifierUrl = review_url + '?step=verifier-results';
+  await page.goto(review_url);
+  await page.getByRole('button', { name: 'Step 6: Run the Verifier' }).click();
+  await page.waitForURL(review_url + '?step=verifier');
+  const verifierPrompt = page.getByLabel('Verifier prompt', { exact: true });
+  assert.match(await verifierPrompt.textContent(), /jumpserve-assessment-verifier/);
+  assert.ok((await verifierPrompt.textContent()).includes(fixtureId));
+  await page.getByRole('link', { name: 'Step 7 · Verifier Results' }).click();
+  await page.waitForURL(verifierUrl);
+  await page.getByText('No Verifier scorecards have been saved for this assessment.').waitFor();
   const revision = { ...linkedBundle, summary: 'Another private Generator version of this source.' };
   const assessmentJson = JSON.stringify(revision, null, 2) + '\n';
   const grade = { version: 'jumpserve-verifier-scorecard-v1', paper_id: 'fixture', paper_sha256: revision.paper.sha256,
     assessment_sha256: sha256(assessmentJson), answer_key_sha256: 'c'.repeat(64),
     split: 'development', mode: 'fresh', scenario: null, evidence_integrity: { status: 'verified', verified_runs: 1 },
     status: 'scored', claims: [{ key_claim_id: 'C1', assessment_claim_id: 'c1', reported_outcome: 'reproduced',
-      supported_outcome: 'reproduced', assessment: 'correct', evidence: ['data/counts.csv'], finding: 'Both counters measured zero.' }],
+      supported_outcome: 'reproduced', assessment: 'correct', evidence: ['data/counts.csv'], finding: 'The independent review confirmed both zero counts.' }],
     rubric: [{ criterion: 'Verdict', earned: 2, maximum: 2, reason: 'The evidence supports the verdict.' }],
     score: { earned: 2, applicable_maximum: 2, rubric_maximum: 2 }, critical_failures: [], blockers: [] };
   const reviewSave = { name: 'save_verifier_result', arguments: {
@@ -488,6 +516,15 @@ try {
   assert.ok(savedReview.verification_id);
   assert.deepEqual((await client.callTool(reviewSave)).structuredContent, savedReview);
   assert.deepEqual(previews.get(fixtureId).bundle, linkedBundle);
+  await page.getByRole('link', { name: 'Refresh results' }).click();
+  await page.getByText('2 / 2 applicable points', { exact: true }).waitFor();
+  await page.getByText(savedReview.verification_id, { exact: true }).waitFor();
+  await page.getByText('Claim findings (1)', { exact: true }).click();
+  await page.getByText(grade.claims[0].finding, { exact: true }).waitFor();
+  await page.getByText('data/counts.csv', { exact: true }).waitFor();
+  await page.getByText('Scoring rubric (1)', { exact: true }).click();
+  await page.getByText(grade.rubric[0].reason, { exact: true }).waitFor();
+  assert.doesNotMatch(await page.content(), new RegExp(grade.answer_key_sha256));
   console.log('PASS exact assessment binding and private Generator and Verifier save retries through MCP');
   const publicUrl = origin + '/research-verification/assessment/' + preview_id;
   assert.equal(review_url, publicUrl);
@@ -501,7 +538,6 @@ try {
   await otherContext.addCookies([cookie(other)]);
   const otherReview = await otherContext.request.get(review_url);
   assert.ok(!(await otherReview.text()).includes(bundle.paper.title));
-  await otherContext.close();
   const oldLink = await context.request.get(oldReview + '?step=results', { maxRedirects: 0 });
   assert.equal(oldLink.status(), 308);
   assert.equal(new URL(oldLink.headers().location, origin).href, review_url + '?step=results');
@@ -527,6 +563,18 @@ try {
   const publicPage = await viewer.newPage();
   await verifyAssessmentWizard(publicPage, publicUrl);
   assert.deepEqual(previews.get(preview_id).bundle, linkedBundle);
+  const ownedPublicReview = await page.goto(verifierUrl);
+  assert.match(ownedPublicReview.headers()['cache-control'], /\bno-store\b/);
+  await page.getByText('2 / 2 applicable points', { exact: true }).waitFor();
+  for (const visitor of [viewer, otherContext]) {
+    const response = await visitor.request.get(verifierUrl);
+    const html = await response.text();
+    assert.ok(html.includes(bundle.paper.title));
+    assert.ok(!html.includes(grade.claims[0].finding));
+    assert.ok(!html.includes(grade.rubric[0].reason));
+  }
+  await otherContext.close();
+  console.log('PASS Verifier prompt, empty and saved scorecards, and owner-only results on shared assessments');
   console.log('PASS private and public Steps 2–5, hidden sharing controls, approved MCP submission and measurement display');
 
   const retryBundle = { ...linkedBundle, summary: 'Verify a recoverable sharing failure.' };
