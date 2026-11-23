@@ -2,10 +2,12 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { ASSESSMENT_SCHEMA, prepareAssessmentBundle } from "@/lib/jumpserve-assessment-bundle";
+import { isVerifierVersion, MAX_REVIEWED_ASSESSMENT_BYTES, prepareGeneratorResult, prepareVerifierResult, REPLAY_ANALYSIS_SCHEMA, VERIFIER_SCORECARD_SCHEMA, VERIFIER_VERSION_SCHEMA } from "@/lib/jumpserve-verification";
 import { isResearchId } from "@/lib/research-experiment-queue";
 import { researchAssessmentPath } from "@/lib/research-pathways";
 
 export const DOWNLOAD_ASSESSMENT_PDF_TOOL = "download_assessment_pdf";
+export const SAVE_VERIFIER_RESULT_TOOL = "save_verifier_result";
 const completionReply = "On success, send only the exact completion message below as plain text. End the reply immediately after the URL.";
 const completionMessage = `Your research paper assessment is finished!
 
@@ -22,9 +24,16 @@ export function isAssessmentPdfDownloadRequest(body: unknown) {
   return request.success && request.data.params.name === DOWNLOAD_ASSESSMENT_PDF_TOOL;
 }
 
+export function isVerifierSaveRequest(body: unknown) {
+  const request = CallToolRequestSchema.safeParse(body);
+  return request.success && request.data.params.name === SAVE_VERIFIER_RESULT_TOOL;
+}
+
 export async function serveJumpServeTools(request: Request, body: unknown, origin: string, tools: {
   download: (id: string) => Promise<Record<string, string | number> | null>;
   preview: (data: ReturnType<typeof prepareAssessmentBundle>, assessmentId: string) => Promise<{ previewId: string; studyId: string | null }>;
+  saveGenerator: (data: ReturnType<typeof prepareGeneratorResult>, assessmentId: string) => Promise<string>;
+  saveVerifier: (data: ReturnType<typeof prepareVerifierResult>, assessmentId: string, verifierVersion: string) => Promise<string>;
   submit: (id: string) => Promise<string>;
 }) {
   const server = new Server({ name: "JumpServe", version: "1.0.0" }, { capabilities: { tools: {} } });
@@ -47,6 +56,23 @@ export async function serveJumpServeTools(request: Request, body: unknown, origi
         description: `Share the exact assessment approved by the account owner on JumpServe. Retry with the same preview_id after an uncertain result. Replace {assessmentUrlHere} with assessment_url. ${completionReply}\n\n${completionMessage}`,
         inputSchema: { type: "object", additionalProperties: false, required: ["preview_id"], properties: { preview_id: { type: "string", format: "uuid" } } },
         annotations: { title: "Submit approved assessment", idempotentHint: true },
+      },
+      {
+        name: "save_generator_result",
+        description: "Save an additional private Generator result for an existing completed assessment in your account. Use the same Step 1 assessment ID and matching paper. Pass a completed assessment bundle or synthetic replay analysis after the owner authorizes saving it. The original assessment and its publication stay as saved. Retry with the identical result. Keep PDFs, raw logs, and answer keys local.",
+        inputSchema: { type: "object", additionalProperties: false, required: ["assessment_id", "bundle"], properties: {
+          assessment_id: { type: "string", format: "uuid" }, bundle: { anyOf: [ASSESSMENT_SCHEMA, REPLAY_ANALYSIS_SCHEMA] },
+        } },
+        annotations: { title: "Save private Generator result", destructiveHint: false, idempotentHint: true },
+      },
+      {
+        name: SAVE_VERIFIER_RESULT_TOOL,
+        description: "Save a private Verifier scorecard for an exact Generator result already saved under this assessment ID. Pass the original UTF-8 text of the reviewed JSON file as assessment_json, the validated scorecard JSON, and the actual Verifier version. Use only when the owner authorizes a private save. Retry with identical inputs. Keep answer keys, raw observations, and PDFs local.",
+        inputSchema: { type: "object", additionalProperties: false, required: ["assessment_id", "assessment_json", "scorecard", "verifier_version"], properties: {
+          assessment_id: { type: "string", format: "uuid" }, assessment_json: { type: "string", maxLength: MAX_REVIEWED_ASSESSMENT_BYTES },
+          scorecard: VERIFIER_SCORECARD_SCHEMA, verifier_version: VERIFIER_VERSION_SCHEMA,
+        } },
+        annotations: { title: "Save private Verifier scorecard", destructiveHint: false, idempotentHint: true },
       },
     ],
   }));
@@ -71,6 +97,18 @@ export async function serveJumpServeTools(request: Request, body: unknown, origi
       }
       if (params.name === "submit_assessment" && args && Object.keys(args).length === 1 && isResearchId(args.preview_id)) {
         return result({ assessment_url: assessmentUrl(await tools.submit(args.preview_id)), status: "shared" });
+      }
+      if (params.name === "save_generator_result" && args && Object.keys(args).length === 2 &&
+          isResearchId(args.assessment_id) && "bundle" in args) {
+        const generatorResultId = await tools.saveGenerator(prepareGeneratorResult(args.bundle), args.assessment_id);
+        return result({ generator_result_id: generatorResultId, status: "saved_private" });
+      }
+      if (params.name === SAVE_VERIFIER_RESULT_TOOL && args && Object.keys(args).length === 4 &&
+          isResearchId(args.assessment_id) && "assessment_json" in args && "scorecard" in args &&
+          isVerifierVersion(args.verifier_version)) {
+        const verificationId = await tools.saveVerifier(prepareVerifierResult(args.assessment_json, args.scorecard),
+          args.assessment_id, args.verifier_version);
+        return result({ verification_id: verificationId, status: "saved_private" });
       }
       return { isError: true, content: [{ type: "text", text: "Unknown tool or invalid arguments." }] };
     } catch (error) {

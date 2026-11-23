@@ -10,7 +10,7 @@ Starter app using:
 ## Local paper assessments and JumpServe MCP
 
 The [public JumpServe marketplace](https://github.com/jumpserve-networks/jumpserve-plugins)
-installs the assessment skill and connector together in Claude Code or Codex.
+installs the Generator and Verifier skills with the connector in Claude Code or Codex.
 The marketplace README has the GitHub install commands for both clients.
 Start a new client session after installing. Connect JumpServe to receive a
 website link when your assessment finishes.
@@ -27,8 +27,9 @@ documents substitutions and blocked claims, and respects any limits or
 plan-only instructions you give it.
 
 Claude Code and Codex run paper assessments locally with the standalone
-[JumpServe paper assessment skill](skills/jumpserve-paper-assessment/SKILL.md).
-[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.5.1.zip)
+[Generator skill](skills/jumpserve-paper-assessment/SKILL.md). Its skill ID is
+`jumpserve-paper-assessment`.
+[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.6.0.zip)
 from JumpServe. Place the extracted skill
 directory under `~/.claude/skills/` for Claude Code or `~/.agents/skills/` for
 Codex. The skill uses the [Access, Experiment, Data, and Validate workflow](skills/jumpserve-paper-assessment/references/modules.md)
@@ -50,6 +51,16 @@ the assessment for an [interactive session that can resume it](skills/jumpserve-
 If the PDF download is blocked, you can download it from the signed-in Step 1
 page and give the client its path for
 [offline verification](skills/jumpserve-paper-assessment/references/sharing.md#recover-from-a-blocked-pdf-download).
+
+To grade a completed assessment, open a separate session and use the
+[Verifier skill](skills/jumpserve-assessment-verifier/SKILL.md) with the saved
+`jumpserve-assessment.json` and the matching private answer key for the benchmark.
+Point the client to that skill file in this checkout or invoke
+`$jumpserve-assessment-verifier` in Codex with a plugin build that includes it.
+The Verifier reads local evidence and saves a separate claim-level scorecard.
+The connector can store an owner-authorized scorecard privately against the exact
+saved Generator result. For another version of a completed assessment, save it
+with `save_generator_result` before saving the corresponding review.
 
 The Next.js app serves a Streamable HTTP MCP connector at `/mcp`. When a
 JumpServe assessment finishes, the connected skill calls `preview_assessment`
@@ -84,6 +95,9 @@ evidence stay with the user. The connector does not need a model-provider key.
    Apply `database/202611220004_jumpserve_private_assessments.sql` before releasing
    the Step 1-only saving flow and completed private assessment list. Completed
    assessments and sharing approvals remain available without time limits.
+   Apply `database/202611230001_jumpserve_private_evaluation_results.sql` before
+   releasing private Generator projections and Verifier scorecard saves. It
+   backfills completed assessment results and keeps these tables service-role only.
 2. Set `NEXT_PUBLIC_SITE_URL` to the app's actual origin and
    `JUMPSERVE_MCP_ENABLED=true` in the server runtime. Use the existing
    `PAPER_INTAKE_SECRET_ID` on Amplify or set a server-only

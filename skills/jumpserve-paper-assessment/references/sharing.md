@@ -104,6 +104,15 @@ The private and public pages use the same ID. Keep PDF bytes and credentials
 outside the bundle. If the user wants to keep the results or attachment out of
 the saved assessment, retain the assessment bundle locally.
 
+For an owner-authorized additional Generator result under a completed assessment,
+use `save_generator_result` with that Step 1 `assessment_id` and the final `bundle`.
+Use the exact reviewed JSON as the source when a Verifier will grade the result.
+The returned `generator_result_id` identifies this private version. For an
+uncertain response, retry once with the identical ID and bundle. For an explicitly
+requested synthetic replay, pass its separate `jumpserve-replay-analysis-v1`
+artifact through this tool. Use ordinary `preview_assessment` for the initial
+private JumpServe assessment.
+
 ## Save and return the assessment
 
 Once saving finishes, use `assessment_url` for

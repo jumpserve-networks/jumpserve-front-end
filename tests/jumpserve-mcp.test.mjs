@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 import { test } from 'node:test';
@@ -7,6 +8,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { prepareAssessmentBundle } from '../lib/jumpserve-assessment-bundle.ts';
 import { clientInfo, issueClientId, parseAuthorizationRequest, registeredRedirect, verifierChallenge } from '../lib/jumpserve-mcp-oauth.ts';
 import { serveJumpServeTools } from '../lib/jumpserve-mcp-server.ts';
+import { prepareVerifierResult } from '../lib/jumpserve-verification.ts';
 
 const origin = 'https://jumpserve.example.test';
 const id = '22459c11-9be3-44d2-9b39-a0cb96a0d09f';
@@ -26,6 +28,40 @@ const wizard = () => ({
     title: 'Check the counter', claim_ids: ['c1'], prerequisites: ['Local shell'],
     steps: [{ title: 'Record the count', instructions: 'Record the fixture counter.', commands: 'printf 0' }],
   }],
+});
+const scorecard = (raw, changes = {}) => ({
+  version: 'jumpserve-verifier-scorecard-v1', paper_id: 'fixture', paper_sha256: hash,
+  assessment_sha256: createHash('sha256').update(raw).digest('hex'), answer_key_sha256: 'c'.repeat(64),
+  split: 'development', mode: 'fresh', scenario: null, evidence_integrity: { status: 'verified', verified_runs: 0 },
+  status: 'scored', claims: [{ key_claim_id: 'C1', assessment_claim_id: 'c1', reported_outcome: 'untested',
+    supported_outcome: 'untested', assessment: 'correct', evidence: ['notes/status.txt'], finding: 'The run never began.' }],
+  rubric: [{ criterion: 'Verdict', earned: 2, maximum: 2, reason: 'The assessment retained the untested verdict.' }],
+  score: { earned: 2, applicable_maximum: 2, rubric_maximum: 2 }, critical_failures: [], blockers: [], ...changes,
+});
+
+test('scorecard binding checks the exact original bytes, claim verdicts, and private boundaries', () => {
+  const bundle = fixture();
+  const raw = JSON.stringify(bundle, null, 2) + '\n';
+  const grade = scorecard(raw);
+  assert.equal(prepareVerifierResult(raw, grade).generatorHash, prepareAssessmentBundle(bundle).hash);
+  assert.throws(() => prepareVerifierResult(raw.trim(), grade), /does not match the assessment SHA-256/);
+  assert.throws(() => prepareVerifierResult(raw, { ...grade, paper_sha256: 'd'.repeat(64) }), /different paper/);
+  assert.throws(() => prepareVerifierResult(raw, { ...grade, answer_key: {} }), /Scorecard does not match/);
+  assert.throws(() => prepareVerifierResult(raw, { ...grade, score: { ...grade.score, earned: 1 } }), /Score totals/);
+  assert.throws(() => prepareVerifierResult(raw, { ...grade, claims: [{ ...grade.claims[0], evidence: ['../trace.csv'] }] }), /relative evidence/);
+  grade.claims[0].reported_outcome = 'inconclusive';
+  assert.throws(() => prepareVerifierResult(raw, grade), /inconsistent/);
+});
+
+test('synthetic replay scorecards bind to an analysis artifact without experiment runs', () => {
+  const analysis = { version: 'jumpserve-replay-analysis-v1', paper: { sha256: hash },
+    scenario: 'synthetic_decision_fixture', claims: [{ id: 'c1', claim: 'A synthetic comparison.',
+      criterion: 'Apply the stated rule.', outcome: 'untested', finding: 'The fixture has no run.' }] };
+  const raw = JSON.stringify(analysis);
+  const grade = scorecard(raw, { mode: 'replay', scenario: analysis.scenario, evidence_integrity: { status: 'fixture_only' } });
+  assert.deepEqual(prepareVerifierResult(raw, grade).bundle, analysis);
+  assert.throws(() => prepareVerifierResult(raw, { ...grade, scenario: 'other' }), /mode and scenario/);
+  assert.throws(() => prepareVerifierResult(raw, { ...grade, evidence_integrity: { status: 'verified' } }), /mode and scenario/);
 });
 
 test('assessment schema preserves zero and missing values and requires matched evidence for conclusive claims', () => {
@@ -185,6 +221,8 @@ test('automatic registration binds a client ID to the connector and loopback cal
 test('a real MCP SDK client discovers the PDF and assessment tools', async () => {
   let approved = false;
   let previewed;
+  let generatorResult;
+  let verifierResult;
   const transport = new StreamableHTTPClientTransport(new URL(origin + '/mcp'), {
     fetch: async (target, options) => {
       const request = new Request(target, options);
@@ -192,6 +230,8 @@ test('a real MCP SDK client discovers the PDF and assessment tools', async () =>
       return serveJumpServeTools(request, await request.json(), origin, {
         download: async value => value === id ? { assessment_id: id, byte_count: 12 } : null,
         preview: async (prepared, assessmentId) => { assert.equal(assessmentId, id); previewed = prepared; return { previewId: id, studyId: null }; },
+        saveGenerator: async (prepared, assessmentId) => { assert.equal(assessmentId, id); generatorResult = prepared; return id; },
+        saveVerifier: async (prepared, assessmentId, version) => { assert.equal(assessmentId, id); assert.equal(version, '1.0.0'); verifierResult = prepared; return id; },
         submit: async value => {
           assert.equal(value, id);
           if (!approved) throw new Error('Owner approval is required.');
@@ -204,7 +244,7 @@ test('a real MCP SDK client discovers the PDF and assessment tools', async () =>
   try {
     await client.connect(transport);
     const { tools } = await client.listTools();
-    assert.deepEqual(tools.map(tool => tool.name), ['download_assessment_pdf', 'preview_assessment', 'submit_assessment']);
+    assert.deepEqual(tools.map(tool => tool.name), ['download_assessment_pdf', 'preview_assessment', 'submit_assessment', 'save_generator_result', 'save_verifier_result']);
     assert.ok(tools[1].inputSchema.required.includes('assessment_id'));
     assert.equal(tools[0].annotations.readOnlyHint, true);
     assert.deepEqual((await client.callTool({ name: tools[0].name, arguments: { assessment_id: id } })).structuredContent,
@@ -217,7 +257,7 @@ test('a real MCP SDK client discovers the PDF and assessment tools', async () =>
     const sharingGuide = readFileSync(new URL('../skills/jumpserve-paper-assessment/references/sharing.md', import.meta.url), 'utf8');
     assert.ok(sharingGuide.includes(['```text', completionMessage, '```'].join('\n')));
     assert.match(sharingGuide, /End the reply\s+immediately after the URL\./);
-    for (const tool of tools.slice(1)) {
+    for (const tool of tools.slice(1, 3)) {
       assert.ok(tool.description.endsWith(`End the reply immediately after the URL.\n\n${completionMessage}`));
     }
     const bundle = { ...fixture(), wizard: wizard() };
@@ -230,6 +270,16 @@ test('a real MCP SDK client discovers the PDF and assessment tools', async () =>
     assert.equal(preview.structuredContent.review_url, origin + '/research-verification/assessment/' + id);
     assert.equal(previewed.hash, prepareAssessmentBundle(bundle).hash);
     assert.deepEqual(previewed.bundle, bundle);
+    const saved = await client.callTool({ name: 'save_generator_result', arguments: { bundle, assessment_id: id } });
+    assert.deepEqual(saved.structuredContent, { generator_result_id: id, status: 'saved_private' });
+    const raw = JSON.stringify(bundle, null, 2);
+    const grade = scorecard(raw);
+    const verified = await client.callTool({ name: 'save_verifier_result', arguments: {
+      assessment_id: id, assessment_json: raw, scorecard: grade, verifier_version: '1.0.0',
+    } });
+    assert.deepEqual(verified.structuredContent, { verification_id: id, status: 'saved_private' });
+    assert.equal(verifierResult.generatorHash, generatorResult.hash);
+    assert.deepEqual(verifierResult.scorecard, grade);
     assert.equal((await client.callTool({ name: 'submit_assessment', arguments: { preview_id: id } })).isError, true);
     approved = true;
     const submission = { name: 'submit_assessment', arguments: { preview_id: id } };
@@ -244,7 +294,7 @@ test('a real MCP SDK client discovers the PDF and assessment tools', async () =>
 test('the HTTP route challenges missing tokens and rejects untrusted origins and oversized bodies', async () => {
   const scope = registerHooks({ resolve(name, context, next) {
     if (name === '@/lib/jumpserve-mcp-store') return { shortCircuit: true, url: 'data:text/javascript,' + encodeURIComponent(
-      'export async function connectorActor(){return "fixture-owner"}; export async function connectorMayDownloadSource(){return false}; export function localAssessmentSourceTicket(){throw Error("Must not download")}; export function previewAssessment(){throw Error("Must not preview")}; export function submitAssessment(){throw Error("Must not submit")};'
+      'export async function connectorActor(){return "fixture-owner"}; export async function connectorMayDownloadSource(){return false}; export function localAssessmentSourceTicket(){throw Error("Must not download")}; export function previewAssessment(){throw Error("Must not preview")}; export function submitAssessment(){throw Error("Must not submit")}; export function saveGeneratorResult(){throw Error("Must not save")}; export function saveVerifierResult(){throw Error("Must not save")};'
     ) };
     return next(name, context);
   } });

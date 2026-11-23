@@ -301,7 +301,7 @@ test('Step 1 shows private PDF upload and reveals the local prompt only after ve
  const prompt=ready.querySelector('[aria-label="assessment prompt"]').textContent;
  const upload=ready.querySelector('section[aria-labelledby="paper-upload"]');
  assert.doesNotMatch(upload.textContent,/Start Codex CLI with approval prompts|Paste the prompt into Claude Code or Codex|If the client blocks access to a required resource/);
- assert.equal(prompt,`Use the JumpServe paper assessment skill for ${ID}. Recreate the paper's testbed and run experiments to test its claims with fresh measurements. Use published figures and tables only as reference values.`);
+ assert.equal(prompt,`Use the JumpServe Generator skill (jumpserve-paper-assessment) for ${ID}. Recreate the paper's testbed and run experiments to test its claims with fresh measurements. Use published figures and tables only as reference values.`);
  assert.ok(ready.querySelector(`a[href="${BASE}/api/assessment-source?assessment_id=${ID}"]`));
 });
 

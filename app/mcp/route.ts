@@ -1,6 +1,7 @@
 import { BoundedBodyError, isOpaqueCredential, mcpConfig, MCP_DOWNLOAD_SCOPE, readBoundedBody } from "@/lib/jumpserve-mcp-oauth";
-import { connectorActor, connectorMayDownloadSource, localAssessmentSourceTicket, previewAssessment, submitAssessment } from "@/lib/jumpserve-mcp-store";
-import { isAssessmentPdfDownloadRequest, serveJumpServeTools } from "@/lib/jumpserve-mcp-server";
+import { connectorActor, connectorMayDownloadSource, localAssessmentSourceTicket, previewAssessment, saveGeneratorResult, saveVerifierResult, submitAssessment } from "@/lib/jumpserve-mcp-store";
+import { isAssessmentPdfDownloadRequest, isVerifierSaveRequest, serveJumpServeTools } from "@/lib/jumpserve-mcp-server";
+import { MAX_VERIFIER_REQUEST_BYTES } from "@/lib/jumpserve-verification";
 
 export const runtime = "nodejs";
 
@@ -28,11 +29,15 @@ export async function POST(request: Request) {
     return new Response(null, { status: 415 });
   }
   let body: unknown;
+  let exceedsAssessmentLimit = false;
   try {
-    body = JSON.parse(await readBoundedBody(request, 600_000));
+    const json = await readBoundedBody(request, MAX_VERIFIER_REQUEST_BYTES);
+    exceedsAssessmentLimit = Buffer.byteLength(json) > 600_000;
+    body = JSON.parse(json);
+    if (exceedsAssessmentLimit && !isVerifierSaveRequest(body)) throw new BoundedBodyError(413);
   } catch (error) {
     return Response.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Invalid request body." } },
-      { status: error instanceof BoundedBodyError ? error.status : 400 });
+      { status: error instanceof BoundedBodyError ? error.status : exceedsAssessmentLimit ? 413 : 400 });
   }
   let sourceAccess: Promise<boolean> | undefined;
   const mayDownload = () => sourceAccess ??= connectorMayDownloadSource(token, config.resource);
@@ -52,6 +57,8 @@ export async function POST(request: Request) {
       return localAssessmentSourceTicket(actor, id, 180);
     },
     preview: ({ bundle, hash }, assessmentId) => previewAssessment(actor, bundle, hash, assessmentId),
+    saveGenerator: (data, assessmentId) => saveGeneratorResult(actor, assessmentId, data),
+    saveVerifier: (data, assessmentId, version) => saveVerifierResult(actor, assessmentId, version, data),
     submit: id => submitAssessment(actor, id),
   });
   const headers = new Headers(response.headers);
