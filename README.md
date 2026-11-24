@@ -10,7 +10,7 @@ Starter app using:
 ## Local paper assessments and JumpServe MCP
 
 The [public JumpServe marketplace](https://github.com/jumpserve-networks/jumpserve-plugins)
-installs the Generator and Verifier skills with the connector in Claude Code or Codex.
+installs the Generator, Verifier, and Coach skills with the connector in Claude Code or Codex.
 The marketplace README has the GitHub install commands for both clients.
 Start a new client session after installing. Connect JumpServe to receive a
 website link when your assessment finishes.
@@ -29,7 +29,7 @@ plan-only instructions you give it.
 Claude Code and Codex run paper assessments locally with the standalone
 [Generator skill](skills/jumpserve-paper-assessment/SKILL.md). Its skill ID is
 `jumpserve-paper-assessment`.
-[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.6.0.zip)
+[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.7.0.zip)
 from JumpServe. Place the extracted skill
 directory under `~/.claude/skills/` for Claude Code or `~/.agents/skills/` for
 Codex. The skill uses the [Access, Experiment, Data, and Validate workflow](skills/jumpserve-paper-assessment/references/modules.md)
@@ -61,6 +61,18 @@ The Verifier reads local evidence and saves a separate claim-level scorecard.
 The connector can store an owner-authorized scorecard privately against the exact
 saved Generator result. For another version of a completed assessment, save it
 with `save_generator_result` before saving the corresponding review.
+
+For improvement proposals after a review, use the
+[Coach skill](skills/jumpserve-assessment-coach/SKILL.md) in a separate session.
+Point Claude Code or Codex to that skill file and one or more local Verifier
+scorecards from the development split. The Coach suggests focused changes and
+regression checks for owner review. The Coach's preparation script skips
+held-out scorecards before their findings reach the session. Each completed Coach
+report is saved privately through `save_coach_report` and linked to the exact
+saved development scorecards unless the owner explicitly requests local-only
+work. Apply the infrastructure migration
+`202611230002_jumpserve_private_coach_reports.sql` before releasing this tool.
+The combined JumpServe plugin includes the Coach.
 
 The Next.js app serves a Streamable HTTP MCP connector at `/mcp`. When a
 JumpServe assessment finishes, the connected skill calls `preview_assessment`

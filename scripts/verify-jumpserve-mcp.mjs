@@ -123,6 +123,7 @@ const tokens = new Map();
 const previews = new Map();
 const generatorResults = new Map();
 const verifierResults = new Map();
+const coachReports = new Map();
 const papers = new Map();
 const sources = new Map();
 let uploadTickets = 0;
@@ -265,10 +266,23 @@ const fixture = createServer(async (req, res) => {
     if (!verifierResults.has(key)) {
       const { status, mode, scenario, split, score, evidence_integrity, claims, rubric, blockers, critical_failures } = input.p_scorecard;
       verifierResults.set(key, { id: randomUUID(), created_at: new Date().toISOString(), verifier_version: input.p_verifier_version,
-        status, mode, scenario, split, score, evidence_integrity, claims, rubric, blockers, critical_failures,
+        status, mode, scenario, split, score, evidence_integrity, claims, rubric, blockers, critical_failures, assessment_sha256: input.p_scorecard.assessment_sha256,
         generator: { bundle_sha256: input.p_generator_hash, result_kind: 'assessment', assessment: { id: saved.id } } });
     }
     return send(200, verifierResults.get(key).id);
+  }
+  if (path === 'rpc/research_skill_save_coach_report') {
+    const { p_owner, p_report, p_hash } = input;
+    assert.equal(p_report.version, 'jumpserve-coach-report-v1');
+    for (const source of p_report.sources) {
+      const review = [...verifierResults.values()].find(row => row.id === source.verification_id);
+      const assessment = review && previews.get(review.generator.assessment.id);
+      if (!review || review.split !== 'development' || review.assessment_sha256 !== source.assessment_sha256 ||
+          assessment?.owner_id !== p_owner || assessment.deleted) return send(404, { code: 'P0002' });
+    }
+    const key = `${p_owner}/${p_hash}`;
+    if (!coachReports.has(key)) coachReports.set(key, randomUUID());
+    return send(200, coachReports.get(key));
   }
   if (path === 'research_skill_verifier_results') {
     assert.equal(url.searchParams.get('order'), 'created_at.desc,id.desc');
@@ -277,7 +291,12 @@ const fixture = createServer(async (req, res) => {
     assert.doesNotMatch(url.searchParams.get('select'), /answer_key_sha256|assessment_sha256/);
     const assessment = previews.get(url.searchParams.get('generator.assessment.id')?.slice(3));
     if (!assessment || url.searchParams.get('generator.assessment.owner_id') !== 'eq.' + assessment.owner_id) return send(200, []);
-    return send(200, [...verifierResults.values()].filter(row => row.generator.assessment.id === assessment.id));
+    return send(200, [...verifierResults.values()].filter(row => row.generator.assessment.id === assessment.id)
+      .map(row => {
+        const projected = { ...row };
+        delete projected.assessment_sha256;
+        return projected;
+      }));
   }
   if (path === 'research_skill_submissions') {
     if (url.searchParams.get('select') === 'id' && url.searchParams.get('study_id')?.startsWith('eq.')) {
@@ -516,6 +535,20 @@ try {
   assert.ok(savedReview.verification_id);
   assert.deepEqual((await client.callTool(reviewSave)).structuredContent, savedReview);
   assert.deepEqual(previews.get(fixtureId).bundle, linkedBundle);
+  const report = { version: 'jumpserve-coach-report-v1',
+    sources: [{ verification_id: savedReview.verification_id, assessment_sha256: grade.assessment_sha256 }],
+    summary: 'Retain the reported verdict and explain coverage.', limitations: ['One development paper.'],
+    recommendations: [{ title: 'Report coverage', finding: 'A condition lacks an attempt count.',
+      proposed_change: 'Report an attempt count for each condition.', regression_check: 'A short round has an explicit attempt count.' }] };
+  const coachSave = { name: 'save_coach_report', arguments: { report } };
+  const savedCoach = (await client.callTool(coachSave)).structuredContent;
+  assert.match(savedCoach.coach_report_id, /^[a-f0-9-]{36}$/);
+  assert.equal(savedCoach.status, 'saved_private');
+  assert.deepEqual((await client.callTool(coachSave)).structuredContent, savedCoach);
+  const mismatch = { ...report, sources: [{ ...report.sources[0], assessment_sha256: 'a'.repeat(64) }] };
+  assert.match((await client.callTool({ ...coachSave, arguments: { report: mismatch } })).content[0].text, /matching development/);
+  assert.equal(coachReports.size, 1);
+  console.log('PASS private Coach report save, exact-source validation and idempotent MCP retry');
   await page.getByRole('link', { name: 'Refresh results' }).click();
   await page.getByText('2 / 2 applicable points', { exact: true }).waitFor();
   await page.getByText(savedReview.verification_id, { exact: true }).waitFor();

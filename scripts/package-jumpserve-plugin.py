@@ -10,9 +10,10 @@ from zipfile import ZipFile, ZipInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = "https://jumpserve.quaint-lab.org"
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 SKILL = "jumpserve-paper-assessment"
 VERIFIER = "jumpserve-assessment-verifier"
+COACH = "jumpserve-assessment-coach"
 ARCHIVE = f"jumpserve-plugin-v{VERSION}.zip"
 SKILL_ARCHIVE = f"{SKILL}-v{VERSION}.zip"
 SKILL_FILES = (
@@ -36,6 +37,7 @@ VERIFIER_FILES = (
     "references/grading.md",
     "scripts/prepare_review.py",
 )
+COACH_FILES = ("SKILL.md", "agents/openai.yaml", "references/saving.md", "scripts/prepare_feedback.py")
 DESCRIPTION = "Recreate research testbeds, run experiments locally, and view the results on JumpServe."
 
 
@@ -95,6 +97,8 @@ def build_release():
     entries.update({f"skills/{SKILL}/{name}": content for name, content in skill_files.items()})
     verifier_dir = ROOT / "skills" / VERIFIER
     entries.update({f"skills/{VERIFIER}/{name}": (verifier_dir / name).read_bytes() for name in VERIFIER_FILES})
+    coach_dir = ROOT / "skills" / COACH
+    entries.update({f"skills/{COACH}/{name}": (coach_dir / name).read_bytes() for name in COACH_FILES})
     bundle = zip_bytes("jumpserve-plugin", entries)
     catalog = {
         **claude_market,

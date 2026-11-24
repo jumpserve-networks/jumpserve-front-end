@@ -10,6 +10,7 @@ import { PAPER_UPLOAD_MAX_BYTES } from "@/lib/research-paper-upload";
 import { encodeAssessmentCursor, type AssessmentCursor } from "@/lib/research-assessment-cursor";
 import { validPaperAuthors, type PaperCatalog } from "@/lib/research-paper-catalog";
 import type { prepareGeneratorResult, prepareVerifierResult, VerifierScorecard } from "@/lib/jumpserve-verification";
+import type { prepareCoachReport } from "@/lib/jumpserve-coach";
 
 export async function connectorServiceKey() {
   const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY ||
@@ -259,6 +260,18 @@ export async function saveVerifierResult(owner: string, assessmentId: string, ve
   if (error?.code === "P0002") throw new Error("The exact reviewed Generator result is unavailable. Save that result in the same account before retrying.");
   if (error?.code === "22023") throw new Error("The scorecard does not match the saved Generator result.");
   if (error || typeof id !== "string") throw new Error("JumpServe could not save the private Verifier scorecard. Retry with the identical inputs.");
+  return id;
+}
+
+export async function saveCoachReport(owner: string, { report, hash }: ReturnType<typeof prepareCoachReport>) {
+  const db = await serviceDatabase();
+  const { data: id, error } = await db.rpc("research_skill_save_coach_report", {
+    p_owner: owner, p_hash: hash, p_report: report,
+  });
+  if (error?.code === "P0002") throw new Error("A matching development Verifier scorecard is unavailable in this account.");
+  if (error?.code === "22023") throw new Error("JumpServe rejected the private Coach report.");
+  if (error?.code === "PGRST202") throw new Error("JumpServe Coach storage is unavailable on this installation.");
+  if (error || typeof id !== "string") throw new Error("JumpServe could not confirm the private Coach save. Retry with the identical report.");
   return id;
 }
 
