@@ -14,6 +14,7 @@ import { prepareCoachReport } from '../lib/jumpserve-coach.ts';
 const origin = 'https://jumpserve.example.test';
 const id = '22459c11-9be3-44d2-9b39-a0cb96a0d09f';
 const hash = 'b'.repeat(64);
+const provenance = { source: 'supabase', version_id: id, sha256: hash };
 const coachReport = () => ({
   version: 'jumpserve-coach-report-v1', sources: [{ verification_id: id, assessment_sha256: hash }],
   summary: 'The review found a reporting gap.', limitations: [],
@@ -72,7 +73,7 @@ test('scorecard binding checks the exact original bytes, claim verdicts, and pri
 });
 
 test('synthetic replay scorecards bind to an analysis artifact without experiment runs', () => {
-  const analysis = { version: 'jumpserve-replay-analysis-v1', paper: { sha256: hash },
+  const analysis = { version: 'jumpserve-replay-analysis-v1', paper: { sha256: hash }, skill_instructions: provenance,
     scenario: 'synthetic_decision_fixture', claims: [{ id: 'c1', claim: 'A synthetic comparison.',
       criterion: 'Apply the stated rule.', outcome: 'untested', finding: 'The fixture has no run.' }] };
   const raw = JSON.stringify(analysis);
@@ -80,6 +81,19 @@ test('synthetic replay scorecards bind to an analysis artifact without experimen
   assert.deepEqual(prepareVerifierResult(raw, grade).bundle, analysis);
   assert.throws(() => prepareVerifierResult(raw, { ...grade, scenario: 'other' }), /mode and scenario/);
   assert.throws(() => prepareVerifierResult(raw, { ...grade, evidence_integrity: { status: 'verified' } }), /mode and scenario/);
+});
+
+test('skill provenance accepts pinned and local guidance identities without accepting instruction bodies', () => {
+  for (const skill_instructions of [provenance, { source: 'bundled', sha256: hash }, { source: 'candidate', sha256: hash }]) {
+    const bundle = { ...fixture(), skill_instructions };
+    const raw = JSON.stringify(bundle);
+    const grade = scorecard(raw, { skill_instructions });
+    assert.deepEqual(prepareAssessmentBundle(bundle).bundle.skill_instructions, skill_instructions);
+    assert.deepEqual(prepareVerifierResult(raw, grade).scorecard.skill_instructions, skill_instructions);
+    assert.deepEqual(prepareCoachReport({ ...coachReport(), skill_instructions }).report.skill_instructions, skill_instructions);
+  }
+  assert.throws(() => prepareAssessmentBundle({ ...fixture(), skill_instructions: { source: 'supabase', sha256: hash } }), /does not match/);
+  assert.throws(() => prepareCoachReport({ ...coachReport(), skill_instructions: { ...provenance, instructions: 'Private text' } }), /does not match/);
 });
 
 test('assessment schema preserves zero and missing values and requires matched evidence for conclusive claims', () => {
@@ -236,17 +250,20 @@ test('automatic registration binds a client ID to the connector and loopback cal
   ]) assert.equal(registeredRedirect(info, redirect), false);
 });
 
-test('a real MCP SDK client discovers the PDF and assessment tools', async () => {
+test('a real MCP SDK client discovers and calls the JumpServe tools', async () => {
   let approved = false;
   let previewed;
   let generatorResult;
   let verifierResult;
   let coachResult;
+  const activeGuidance = { role: 'generator', version_id: id, sha256: hash, instructions: 'Include a description of the fixture.\n' };
+  const pinnedGuidance = { ...activeGuidance, version_id: 'acdfb426-0c96-4a48-b593-5b27f44b5069' };
   const transport = new StreamableHTTPClientTransport(new URL(origin + '/mcp'), {
     fetch: async (target, options) => {
       const request = new Request(target, options);
       if (request.method === 'GET') return new Response(null, { status: 405 });
       return serveJumpServeTools(request, await request.json(), origin, {
+        getInstructions: async (role, versionId) => role === 'generator' ? (versionId ? pinnedGuidance : activeGuidance) : null,
         download: async value => value === id ? { assessment_id: id, byte_count: 12 } : null,
         preview: async (prepared, assessmentId) => { assert.equal(assessmentId, id); previewed = prepared; return { previewId: id, studyId: null }; },
         saveGenerator: async (prepared, assessmentId) => { assert.equal(assessmentId, id); generatorResult = prepared; return id; },
@@ -264,7 +281,15 @@ test('a real MCP SDK client discovers the PDF and assessment tools', async () =>
   try {
     await client.connect(transport);
     const { tools } = await client.listTools();
-    assert.deepEqual(tools.map(tool => tool.name), ['download_assessment_pdf', 'preview_assessment', 'submit_assessment', 'save_generator_result', 'save_verifier_result', 'save_coach_report']);
+    assert.deepEqual(tools.map(tool => tool.name), ['download_assessment_pdf', 'preview_assessment', 'submit_assessment', 'save_generator_result', 'save_verifier_result', 'save_coach_report', 'get_skill_instructions']);
+    const guidanceTool = tools.at(-1);
+    assert.equal(guidanceTool.annotations.readOnlyHint, true);
+    const guidance = args => client.callTool({ name: guidanceTool.name, arguments: args });
+    assert.deepEqual((await guidance({ role: 'generator' })).structuredContent, activeGuidance);
+    assert.deepEqual((await guidance({ role: 'generator', version_id: pinnedGuidance.version_id })).structuredContent, pinnedGuidance);
+    assert.equal((await guidance({ role: 'verifier', version_id: pinnedGuidance.version_id })).isError, true);
+    assert.equal((await guidance({ role: 'generator', version_id: 'unpublished' })).isError, true);
+    assert.equal((await guidance({ role: 'generator', publish: true })).isError, true);
     assert.ok(tools[1].inputSchema.required.includes('assessment_id'));
     assert.equal(tools[0].annotations.readOnlyHint, true);
     assert.deepEqual((await client.callTool({ name: tools[0].name, arguments: { assessment_id: id } })).structuredContent,
@@ -317,10 +342,44 @@ test('a real MCP SDK client discovers the PDF and assessment tools', async () =>
   }
 });
 
+test('the connector reads one published guidance version and validates the returned content hash', async t => {
+  const serverImports = registerHooks({ resolve(name, context, next) {
+    if (name === 'server-only') return { shortCircuit: true, url: 'data:text/javascript,export {};' };
+    if (name === '@/lib/supabase/server') return { shortCircuit: true, url: 'data:text/javascript,export function createStaticClient() {};' };
+    return next(name, context);
+  } });
+  t.after(() => serverImports.deregister());
+  const env = { NEXT_PUBLIC_SUPABASE_URL: 'https://fixture.supabase.test', SUPABASE_SECRET_KEY: 'fixture-key' };
+  for (const [key, value] of Object.entries(env)) {
+    const previous = process.env[key];
+    process.env[key] = value;
+    t.after(() => { if (previous === undefined) delete process.env[key]; else process.env[key] = previous; });
+  }
+
+  const instructions = 'Report the exact fixture result café.\n';
+  const active = { role: 'verifier', version_id: id, instructions, sha256: createHash('sha256').update(instructions).digest('hex') };
+  let rows = [active];
+  const fetch = t.mock.method(globalThis, 'fetch', (url, options) => {
+    assert.equal(String(url), env.NEXT_PUBLIC_SUPABASE_URL + '/rest/v1/rpc/research_skill_get_instructions');
+    assert.equal(options.cache, 'no-store');
+    assert.equal(new Headers(options.headers).get('apikey'), env.SUPABASE_SECRET_KEY);
+    return Promise.resolve(Response.json(rows));
+  });
+  const { getSkillInstructions } = await import('../lib/jumpserve-mcp-store.ts');
+  assert.deepEqual(await getSkillInstructions('verifier'), active);
+  assert.deepEqual(JSON.parse(fetch.mock.calls[0].arguments[1].body), { p_role: 'verifier', p_version_id: null });
+  assert.deepEqual(await getSkillInstructions('verifier', id), active);
+  assert.deepEqual(JSON.parse(fetch.mock.calls[1].arguments[1].body), { p_role: 'verifier', p_version_id: id });
+  rows = [{ ...active, instructions: instructions.trim() }];
+  await assert.rejects(getSkillInstructions('verifier'), /could not verify/);
+  rows = [];
+  assert.equal(await getSkillInstructions('verifier', id), null);
+});
+
 test('the HTTP route challenges missing tokens and rejects untrusted origins and oversized bodies', async () => {
   const scope = registerHooks({ resolve(name, context, next) {
     if (name === '@/lib/jumpserve-mcp-store') return { shortCircuit: true, url: 'data:text/javascript,' + encodeURIComponent(
-      'export async function connectorActor(){return "fixture-owner"}; export async function connectorMayDownloadSource(){return false}; export function localAssessmentSourceTicket(){throw Error("Must not download")}; export function previewAssessment(){throw Error("Must not preview")}; export function submitAssessment(){throw Error("Must not submit")}; export function saveGeneratorResult(){throw Error("Must not save")}; export function saveVerifierResult(){throw Error("Must not save")}; export function saveCoachReport(){throw Error("Must not save")};'
+      'export async function connectorActor(){return "fixture-owner"}; export async function connectorMayDownloadSource(){return false}; export function localAssessmentSourceTicket(){throw Error("Must not download")}; export function previewAssessment(){throw Error("Must not preview")}; export function submitAssessment(){throw Error("Must not submit")}; export function saveGeneratorResult(){throw Error("Must not save")}; export function saveVerifierResult(){throw Error("Must not save")}; export function saveCoachReport(){throw Error("Must not save")}; export function getSkillInstructions(role){return {role,instructions:"fixture"};}'
     ) };
     return next(name, context);
   } });
@@ -332,6 +391,14 @@ test('the HTTP route challenges missing tokens and rejects untrusted origins and
     const missing = await call({ 'content-type': 'application/json' });
     assert.equal(missing.status, 401);
     assert.match(missing.headers.get('www-authenticate'), /resource_metadata=.*oauth-protected-resource\/mcp/);
+    const guidanceBody = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: {
+      name: 'get_skill_instructions', arguments: { role: 'coach' },
+    } });
+    assert.equal((await call({ 'content-type': 'application/json' }, guidanceBody)).status, 401);
+    const published = await call({ authorization: 'Bearer ' + 'a'.repeat(43), 'content-type': 'application/json',
+      accept: 'application/json, text/event-stream' }, guidanceBody);
+    assert.equal(published.headers.get('cache-control'), 'no-store');
+    assert.equal((await published.json()).result.structuredContent.instructions, 'fixture');
     assert.equal((await call({ origin: 'https://other.example.test' })).status, 403);
     assert.equal((await call({ authorization: 'Bearer ' + 'a'.repeat(43), 'content-type': 'application/json' }, ' '.repeat(600001))).status, 413);
     const shareOnly = await call({ authorization: 'Bearer ' + 'a'.repeat(43), 'content-type': 'application/json' }, JSON.stringify({

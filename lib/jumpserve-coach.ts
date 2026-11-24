@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 import Ajv from "ajv";
-import { canonicalJson, checkAssessmentText } from "@/lib/jumpserve-assessment-bundle";
+import { canonicalJson, checkAssessmentText, SKILL_INSTRUCTION_SCHEMA, type SkillInstructionProvenance } from "@/lib/jumpserve-assessment-bundle";
 import { isResearchId } from "@/lib/research-experiment-queue";
 
 const text = (maxLength: number) => ({ type: "string", minLength: 1, maxLength });
-const object = (properties: Record<string, object>) => ({
-  type: "object", additionalProperties: false, properties, required: Object.keys(properties),
+const object = (properties: Record<string, object>, required = Object.keys(properties)) => ({
+  type: "object", additionalProperties: false, properties, required,
 });
 
 export const COACH_REPORT_SCHEMA = object({
@@ -19,10 +19,12 @@ export const COACH_REPORT_SCHEMA = object({
     title: text(160), finding: text(1600), proposed_change: text(2000), regression_check: text(1600),
   }) },
   limitations: { type: "array", maxItems: 20, items: text(1000) },
-});
+  skill_instructions: SKILL_INSTRUCTION_SCHEMA,
+}, ["version", "sources", "summary", "recommendations", "limitations"]);
 
 type CoachReport = {
   version: "jumpserve-coach-report-v1";
+  skill_instructions?: SkillInstructionProvenance;
   sources: Array<{ verification_id: string; assessment_sha256: string }>;
   summary: string;
   recommendations: Array<{ title: string; finding: string; proposed_change: string; regression_check: string }>;

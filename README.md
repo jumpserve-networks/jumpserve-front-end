@@ -29,7 +29,7 @@ plan-only instructions you give it.
 Claude Code and Codex run paper assessments locally with the standalone
 [Generator skill](skills/jumpserve-paper-assessment/SKILL.md). Its skill ID is
 `jumpserve-paper-assessment`.
-[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.7.1.zip)
+[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.7.2.zip)
 from JumpServe. Place the extracted skill
 directory under `~/.claude/skills/` for Claude Code or `~/.agents/skills/` for
 Codex. The skill uses the [Access, Experiment, Data, and Validate workflow](skills/jumpserve-paper-assessment/references/modules.md)
@@ -143,6 +143,12 @@ in this README. Release the connector that accepts `bundle.wizard` before
 distributing the plugin that sends it.
 Publish the extracted plugin files to the separate public marketplace repository
 with its installation README.
+
+The Generator, Verifier, and Coach load published workflow guidance through
+`get_skill_instructions` and record the selected version in their outputs.
+The plugin includes bundled guidance for local or disconnected runs. For initial
+release order, publication, and rollback, see
+[JumpServe skill instruction publishing](https://github.com/jumpserve-networks/jumpserve-infra/blob/main/docs/jumpserve-skill-instructions.md).
 
 ## Quick Start
 

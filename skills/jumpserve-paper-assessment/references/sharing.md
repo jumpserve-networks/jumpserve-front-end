@@ -13,7 +13,8 @@ delivery has to pause.
 
 Supply only the fields in [the bundle schema](assessment.schema.json). Include
 `wizard` in each new bundle so the private and public assessment pages show the
-same assessment steps.
+same assessment steps. Record the [guidance version](instruction-loading.md) in
+`skill_instructions`. Keep the Markdown itself with the local work.
 
 - **Step 2 · Paper Breakdown** uses `wizard.breakdown` for numbered steps and
   substeps in Access, Experiment, Data, and Validate. For each step, supply a

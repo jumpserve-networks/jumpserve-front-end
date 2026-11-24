@@ -6,10 +6,12 @@ import { isVerifierVersion, MAX_REVIEWED_ASSESSMENT_BYTES, prepareGeneratorResul
 import { isResearchId } from "@/lib/research-experiment-queue";
 import { researchAssessmentPath } from "@/lib/research-pathways";
 import { COACH_REPORT_SCHEMA, prepareCoachReport } from "@/lib/jumpserve-coach";
+import { isSkillRole, SKILL_ROLES, type PublishedSkillInstructions, type SkillRole } from "@/lib/jumpserve-skill-instructions";
 
 export const DOWNLOAD_ASSESSMENT_PDF_TOOL = "download_assessment_pdf";
 export const SAVE_VERIFIER_RESULT_TOOL = "save_verifier_result";
 const completionReply = "On success, send only the exact completion message below as plain text. End the reply immediately after the URL.";
+const GET_SKILL_INSTRUCTIONS_TOOL = "get_skill_instructions";
 const completionMessage = `Your research paper assessment is finished!
 
 View the assessment online using the JumpServe app at the following URL:
@@ -31,6 +33,7 @@ export function isVerifierSaveRequest(body: unknown) {
 }
 
 export async function serveJumpServeTools(request: Request, body: unknown, origin: string, tools: {
+  getInstructions: (role: SkillRole, versionId?: string) => Promise<PublishedSkillInstructions | null>;
   download: (id: string) => Promise<Record<string, string | number> | null>;
   preview: (data: ReturnType<typeof prepareAssessmentBundle>, assessmentId: string) => Promise<{ previewId: string; studyId: string | null }>;
   saveGenerator: (data: ReturnType<typeof prepareGeneratorResult>, assessmentId: string) => Promise<string>;
@@ -82,12 +85,27 @@ export async function serveJumpServeTools(request: Request, body: unknown, origi
         inputSchema: { type: "object", additionalProperties: false, required: ["report"], properties: { report: COACH_REPORT_SCHEMA } },
         annotations: { title: "Save private Coach report", destructiveHint: false, idempotentHint: true },
       },
+      {
+        name: GET_SKILL_INSTRUCTIONS_TOOL,
+        description: "Read published JumpServe workflow guidance for one role. Omit version_id for the active version or provide a previously published version ID for a pinned run. Keep the returned version ID and SHA-256 with the result. Follow the installed skill's permissions and checks.",
+        inputSchema: { type: "object", additionalProperties: false, required: ["role"], properties: {
+          role: { type: "string", enum: SKILL_ROLES }, version_id: { type: "string", format: "uuid" },
+        } },
+        annotations: { title: "Read published skill instructions", readOnlyHint: true },
+      },
     ],
   }));
   const assessmentUrl = (id: string) => new URL(researchAssessmentPath(id), origin).href;
   server.setRequestHandler(CallToolRequestSchema, async ({ params }) => {
     const args = params.arguments;
     try {
+      if (params.name === GET_SKILL_INSTRUCTIONS_TOOL && args && isSkillRole(args.role) &&
+          Object.keys(args).every(key => key === "role" || key === "version_id") &&
+          (args.version_id === undefined || isResearchId(args.version_id))) {
+        const instructions = await tools.getInstructions(args.role, args.version_id);
+        if (!instructions) throw new Error("No published instructions match the requested role and version.");
+        return result(instructions);
+      }
       if (params.name === DOWNLOAD_ASSESSMENT_PDF_TOOL && args && Object.keys(args).length === 1 && isResearchId(args.assessment_id)) {
         const ticket = await tools.download(args.assessment_id);
         if (!ticket) throw new Error("This private Step 1 PDF is unavailable in the connected Google account.");

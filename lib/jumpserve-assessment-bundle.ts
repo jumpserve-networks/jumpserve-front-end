@@ -6,6 +6,9 @@ import { validPaperDependencies } from "@/lib/paper-detail-dependencies";
 import { PAPER_BREAKDOWN_SECTIONS, type PaperBreakdownSection } from "@/lib/research-paper-breakdown";
 
 type Outcome = "untested" | "inconclusive" | "reproduced" | "discrepant";
+export type SkillInstructionProvenance =
+  | { source: "supabase"; version_id: string; sha256: string }
+  | { source: "bundled" | "candidate"; sha256: string };
 type AssessmentBreakdownItem = {
   section: PaperBreakdownSection;
   id?: string;
@@ -16,6 +19,7 @@ type AssessmentBreakdownItem = {
 };
 export type AssessmentBundle = {
   version: "jumpserve-assessment-v1";
+  skill_instructions?: SkillInstructionProvenance;
   paper: { title: string; authors: string[]; domain: string; url?: string; sha256: string; byte_count: number; pdf_copy?: true };
   summary: string;
   wizard?: {
@@ -50,6 +54,7 @@ export function assessmentBreakdownSteps(breakdown: AssessmentBreakdownItem[], s
 }
 
 export const ASSESSMENT_SCHEMA = assessmentSchema;
+export const SKILL_INSTRUCTION_SCHEMA = assessmentSchema.properties.skill_instructions;
 export const MAX_BUNDLE_BYTES = 500_000;
 const validateSchema = new Ajv({ strict: true }).compile<AssessmentBundle>(assessmentSchema);
 
