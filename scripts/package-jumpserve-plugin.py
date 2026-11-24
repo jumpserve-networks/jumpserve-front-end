@@ -10,7 +10,7 @@ from zipfile import ZipFile, ZipInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = "https://jumpserve.quaint-lab.org"
-VERSION = "1.7.0"
+VERSION = "1.7.1"
 SKILL = "jumpserve-paper-assessment"
 VERIFIER = "jumpserve-assessment-verifier"
 COACH = "jumpserve-assessment-coach"
@@ -37,7 +37,14 @@ VERIFIER_FILES = (
     "references/grading.md",
     "scripts/prepare_review.py",
 )
-COACH_FILES = ("SKILL.md", "agents/openai.yaml", "references/saving.md", "scripts/prepare_feedback.py")
+COACH_FILES = (
+    "SKILL.md",
+    "agents/openai.yaml",
+    "references/candidate.md",
+    "references/saving.md",
+    "scripts/prepare_candidate.py",
+    "scripts/prepare_feedback.py",
+)
 DESCRIPTION = "Recreate research testbeds, run experiments locally, and view the results on JumpServe."
 
 

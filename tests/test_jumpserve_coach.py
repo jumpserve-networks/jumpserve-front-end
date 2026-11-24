@@ -7,7 +7,9 @@ from tempfile import TemporaryDirectory
 import unittest
 
 
-COACH = Path(__file__).resolve().parents[1] / "skills/jumpserve-assessment-coach/scripts/prepare_feedback.py"
+COACH_SCRIPTS = Path(__file__).resolve().parents[1] / "skills/jumpserve-assessment-coach/scripts"
+COACH = COACH_SCRIPTS / "prepare_feedback.py"
+CANDIDATE = COACH_SCRIPTS / "prepare_candidate.py"
 
 
 def scorecard():
@@ -78,6 +80,63 @@ class CoachTests(unittest.TestCase):
         self.assertIsNone(output["reviews"][0]["score"])
         self.assertEqual(output["reviews"][1]["mode"], "replay")
         self.assertEqual(output["reviews"][1]["evidence_integrity"], "fixture_only")
+
+
+class CandidateTests(unittest.TestCase):
+    def setUp(self):
+        directory = TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        root = Path(directory.name)
+        self.source = root / "jumpserve-paper-assessment"
+        self.reviews = root / "reviews"
+        (self.source / "references").mkdir(parents=True)
+        self.skill = self.source / "SKILL.md"
+        self.skill.write_text("Baseline\n", encoding="utf-8")
+        self.skill.chmod(0o444)
+        (self.source / "references" / "testbed.md").write_bytes(b"Testbed\n")
+        (self.source / "private-notes.json").write_text("local evidence", encoding="utf-8")
+
+    def prepare(self, review_dir=None):
+        return subprocess.run(
+            [sys.executable, "-B", str(CANDIDATE), str(self.source), str(review_dir or self.reviews)],
+            capture_output=True, text=True,
+        )
+
+    def test_candidate_is_an_editable_snapshot_with_stable_baseline_and_fresh_directory(self):
+        first = self.prepare()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        result = json.loads(first.stdout)
+        candidate = Path(result["candidate_dir"])
+        self.assertEqual(candidate.name, self.source.name)
+        self.assertTrue(candidate.is_relative_to(self.reviews.resolve()))
+        self.assertEqual((candidate / "references" / "testbed.md").read_bytes(), b"Testbed\n")
+        self.assertFalse((candidate / "private-notes.json").exists())
+        (candidate / "SKILL.md").write_bytes(b"Proposed change\n")
+        self.assertEqual(self.skill.read_bytes(), b"Baseline\n")
+        self.assertEqual(self.skill.stat().st_mode & 0o777, 0o444)
+
+        second = self.prepare()
+        self.assertEqual(second.returncode, 0, second.stderr)
+        repeat = json.loads(second.stdout)
+        self.assertEqual(repeat["baseline_sha256"], result["baseline_sha256"])
+        self.assertNotEqual(repeat["candidate_dir"], result["candidate_dir"])
+        self.assertEqual((Path(repeat["candidate_dir"]) / "SKILL.md").read_bytes(), b"Baseline\n")
+        self.assertEqual((candidate / "SKILL.md").read_bytes(), b"Proposed change\n")
+
+    def test_review_directory_alias_cannot_put_a_candidate_inside_the_source(self):
+        alias = self.reviews
+        alias.symlink_to(self.source, target_is_directory=True)
+        result = self.prepare(alias / "drafts")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("outside the Generator skill", result.stderr)
+        self.assertFalse((self.source / "drafts").exists())
+
+    def test_symbolic_link_resources_are_rejected_without_a_partial_candidate(self):
+        (self.source / "references" / "linked.md").symlink_to(self.skill)
+        result = self.prepare()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("regular files or directories", result.stderr)
+        self.assertEqual(list(self.reviews.glob("generator-candidate-*")), [])
 
 
 if __name__ == "__main__":
