@@ -8,6 +8,7 @@ Pass a `report` object with these fields.
 | --- | --- |
 | `version` | `jumpserve-coach-report-v1` |
 | `sources` | One entry per development scorecard used, up to 20. Each entry has the `verification_id` from the original Verifier save and the `assessment_sha256` from that scorecard's prepared feedback. |
+| `skill_instructions` | The [version identity](instruction-loading.md) for this Coach review. |
 | `summary` | A short account of what the review supports. |
 | `recommendations` | In priority order, up to 20 entries, each with `title`, `finding`, `proposed_change`, and `regression_check`. Link each finding to the applicable rubric item or claim and use the source verification ID when several reviews informed the report. |
 | `limitations` | Concise qualifications or an empty array. |

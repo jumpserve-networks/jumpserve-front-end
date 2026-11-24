@@ -8,6 +8,8 @@ import { clientInfo, credentialHash, isRegisteredClientId, MCP_DOWNLOAD_SCOPE, M
 import { localAssessmentSourceFilename, PAPER_UPLOAD_BUCKET, type LocalAssessmentSource } from "@/lib/local-assessment-source";
 import { PAPER_UPLOAD_MAX_BYTES } from "@/lib/research-paper-upload";
 import { encodeAssessmentCursor, type AssessmentCursor } from "@/lib/research-assessment-cursor";
+import { isResearchId } from "@/lib/research-experiment-queue";
+import type { PublishedSkillInstructions, SkillRole } from "@/lib/jumpserve-skill-instructions";
 import { validPaperAuthors, type PaperCatalog } from "@/lib/research-paper-catalog";
 import type { prepareGeneratorResult, prepareVerifierResult, VerifierScorecard } from "@/lib/jumpserve-verification";
 import type { prepareCoachReport } from "@/lib/jumpserve-coach";
@@ -36,6 +38,21 @@ const paperObject = (id: string) => `jumpserve-mcp/${id}.pdf`;
 const sourceObject = (owner: string, sha256: string) => `local-assessment-sources/${owner}/${sha256}.pdf`;
 type PaperStorage = ReturnType<Awaited<ReturnType<typeof serviceDatabase>>["storage"]["from"]>;
 type ServiceDatabase = Awaited<ReturnType<typeof serviceDatabase>>;
+
+export async function getSkillInstructions(role: SkillRole, versionId?: string) {
+  const db = await serviceDatabase();
+  const { data, error } = await db.rpc("research_skill_get_instructions", {
+    p_role: role, p_version_id: versionId ?? null,
+  }).maybeSingle().overrideTypes<PublishedSkillInstructions, { merge: false }>();
+  if (error) throw new Error("JumpServe could not load published skill instructions.");
+  if (!data) return null;
+  if (data.role !== role || !isResearchId(data.version_id) || (versionId && data.version_id !== versionId) ||
+      typeof data.instructions !== "string" || !data.instructions.trim() || Buffer.byteLength(data.instructions) > 24_000 ||
+      createHash("sha256").update(data.instructions).digest("hex") !== data.sha256) {
+    throw new Error("JumpServe could not verify the published skill instructions.");
+  }
+  return { role, version_id: data.version_id, sha256: data.sha256, instructions: data.instructions };
+}
 
 function matchesPdf(bytes: Buffer, sha256: string) {
   return /^[ \t\r\n\v\f]*%PDF-/.test(bytes.subarray(0, 1024).toString("latin1")) &&

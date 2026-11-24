@@ -25,6 +25,7 @@ Write a new JSON file with the following fields. Keep raw logs, private paths, c
 | Field | Contents |
 | --- | --- |
 | `version` | `jumpserve-verifier-scorecard-v1` |
+| `skill_instructions` | The [version identity](instruction-loading.md) for this Verifier run. |
 | `paper_id`, `paper_sha256`, `assessment_sha256`, `answer_key_sha256` | Copy the verified input identities from preflight when available |
 | `split`, `mode`, `scenario` | Key split, `fresh` or `replay`, and replay scenario ID or `null` |
 | `evidence_integrity` | Preflight status and concise details |

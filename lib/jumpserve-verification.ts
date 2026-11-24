@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import Ajv from "ajv";
-import { canonicalJson, checkAssessmentText, prepareAssessmentBundle, type AssessmentBundle } from "@/lib/jumpserve-assessment-bundle";
+import { canonicalJson, checkAssessmentText, prepareAssessmentBundle, SKILL_INSTRUCTION_SCHEMA, type AssessmentBundle, type SkillInstructionProvenance } from "@/lib/jumpserve-assessment-bundle";
 
 const hash = { type: "string", pattern: "^[a-f0-9]{64}$" } as const;
 const identifier = { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$" } as const;
@@ -21,7 +21,8 @@ const replayClaimSchema = object({
 export const REPLAY_ANALYSIS_SCHEMA = object({
   version: { const: "jumpserve-replay-analysis-v1" }, paper: object({ sha256: hash }), scenario: identifier,
   claims: { type: "array", minItems: 1, maxItems: 50, items: replayClaimSchema },
-});
+  skill_instructions: SKILL_INSTRUCTION_SCHEMA,
+}, ["version", "paper", "scenario", "claims"]);
 
 const integritySchema = object({
   status: { enum: ["verified", "legacy_archive_matched", "fixture_only", "failed"] },
@@ -43,17 +44,21 @@ export const VERIFIER_SCORECARD_SCHEMA = object({
   }) },
   score: nullable(object({ earned: points, applicable_maximum: points, rubric_maximum: points })),
   critical_failures: strings(30, 1000), blockers: strings(30, 1000),
-});
+  skill_instructions: SKILL_INSTRUCTION_SCHEMA,
+}, ["version", "paper_id", "paper_sha256", "assessment_sha256", "answer_key_sha256", "split", "mode", "scenario",
+  "evidence_integrity", "status", "claims", "rubric", "score", "critical_failures", "blockers"]);
 
 type Outcome = typeof outcome.enum[number];
 type ReplayAnalysis = {
   version: "jumpserve-replay-analysis-v1";
+  skill_instructions?: SkillInstructionProvenance;
   paper: { sha256: string };
   scenario: string;
   claims: Array<{ id: string; outcome: Outcome }>;
 };
 export type VerifierScorecard = {
   version: "jumpserve-verifier-scorecard-v1";
+  skill_instructions?: SkillInstructionProvenance;
   paper_sha256: string; assessment_sha256: string; answer_key_sha256: string;
   split: "development" | "held_out"; mode: "fresh" | "replay"; scenario: string | null;
   evidence_integrity: { status: "verified" | "legacy_archive_matched" | "fixture_only" | "failed"; detail?: string; archive_detail?: string };

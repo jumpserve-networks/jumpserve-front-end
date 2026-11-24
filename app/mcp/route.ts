@@ -1,5 +1,5 @@
 import { BoundedBodyError, isOpaqueCredential, mcpConfig, MCP_DOWNLOAD_SCOPE, readBoundedBody } from "@/lib/jumpserve-mcp-oauth";
-import { connectorActor, connectorMayDownloadSource, localAssessmentSourceTicket, previewAssessment, saveCoachReport, saveGeneratorResult, saveVerifierResult, submitAssessment } from "@/lib/jumpserve-mcp-store";
+import { connectorActor, connectorMayDownloadSource, getSkillInstructions, localAssessmentSourceTicket, previewAssessment, saveCoachReport, saveGeneratorResult, saveVerifierResult, submitAssessment } from "@/lib/jumpserve-mcp-store";
 import { isAssessmentPdfDownloadRequest, isVerifierSaveRequest, serveJumpServeTools } from "@/lib/jumpserve-mcp-server";
 import { MAX_VERIFIER_REQUEST_BYTES } from "@/lib/jumpserve-verification";
 
@@ -52,6 +52,7 @@ export async function POST(request: Request) {
     }
   }
   const response = await serveJumpServeTools(request, body, config.issuer, {
+    getInstructions: getSkillInstructions,
     download: async id => {
       if (!await mayDownload()) throw new Error("Reconnect the JumpServe plugin to allow downloading Step 1 PDFs.");
       return localAssessmentSourceTicket(actor, id, 180);

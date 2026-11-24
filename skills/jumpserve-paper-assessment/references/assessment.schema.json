@@ -15,6 +15,29 @@
     "version": {
       "const": "jumpserve-assessment-v1"
     },
+    "skill_instructions": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source", "version_id", "sha256"],
+          "properties": {
+            "source": { "const": "supabase" },
+            "version_id": { "type": "string", "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$" },
+            "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source", "sha256"],
+          "properties": {
+            "source": { "enum": ["bundled", "candidate"] },
+            "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+          }
+        }
+      ]
+    },
     "paper": {
       "type": "object",
       "additionalProperties": false,
