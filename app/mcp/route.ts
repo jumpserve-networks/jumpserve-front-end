@@ -1,5 +1,5 @@
 import { BoundedBodyError, isOpaqueCredential, mcpConfig, MCP_DOWNLOAD_SCOPE, readBoundedBody } from "@/lib/jumpserve-mcp-oauth";
-import { connectorActor, connectorMayDownloadSource, localAssessmentSourceTicket, previewAssessment, saveGeneratorResult, saveVerifierResult, submitAssessment } from "@/lib/jumpserve-mcp-store";
+import { connectorActor, connectorMayDownloadSource, localAssessmentSourceTicket, previewAssessment, saveCoachReport, saveGeneratorResult, saveVerifierResult, submitAssessment } from "@/lib/jumpserve-mcp-store";
 import { isAssessmentPdfDownloadRequest, isVerifierSaveRequest, serveJumpServeTools } from "@/lib/jumpserve-mcp-server";
 import { MAX_VERIFIER_REQUEST_BYTES } from "@/lib/jumpserve-verification";
 
@@ -59,6 +59,7 @@ export async function POST(request: Request) {
     preview: ({ bundle, hash }, assessmentId) => previewAssessment(actor, bundle, hash, assessmentId),
     saveGenerator: (data, assessmentId) => saveGeneratorResult(actor, assessmentId, data),
     saveVerifier: (data, assessmentId, version) => saveVerifierResult(actor, assessmentId, version, data),
+    saveCoach: data => saveCoachReport(actor, data),
     submit: id => submitAssessment(actor, id),
   });
   const headers = new Headers(response.headers);

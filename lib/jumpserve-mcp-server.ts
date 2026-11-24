@@ -5,6 +5,7 @@ import { ASSESSMENT_SCHEMA, prepareAssessmentBundle } from "@/lib/jumpserve-asse
 import { isVerifierVersion, MAX_REVIEWED_ASSESSMENT_BYTES, prepareGeneratorResult, prepareVerifierResult, REPLAY_ANALYSIS_SCHEMA, VERIFIER_SCORECARD_SCHEMA, VERIFIER_VERSION_SCHEMA } from "@/lib/jumpserve-verification";
 import { isResearchId } from "@/lib/research-experiment-queue";
 import { researchAssessmentPath } from "@/lib/research-pathways";
+import { COACH_REPORT_SCHEMA, prepareCoachReport } from "@/lib/jumpserve-coach";
 
 export const DOWNLOAD_ASSESSMENT_PDF_TOOL = "download_assessment_pdf";
 export const SAVE_VERIFIER_RESULT_TOOL = "save_verifier_result";
@@ -34,6 +35,7 @@ export async function serveJumpServeTools(request: Request, body: unknown, origi
   preview: (data: ReturnType<typeof prepareAssessmentBundle>, assessmentId: string) => Promise<{ previewId: string; studyId: string | null }>;
   saveGenerator: (data: ReturnType<typeof prepareGeneratorResult>, assessmentId: string) => Promise<string>;
   saveVerifier: (data: ReturnType<typeof prepareVerifierResult>, assessmentId: string, verifierVersion: string) => Promise<string>;
+  saveCoach: (data: ReturnType<typeof prepareCoachReport>) => Promise<string>;
   submit: (id: string) => Promise<string>;
 }) {
   const server = new Server({ name: "JumpServe", version: "1.0.0" }, { capabilities: { tools: {} } });
@@ -74,6 +76,12 @@ export async function serveJumpServeTools(request: Request, body: unknown, origi
         } },
         annotations: { title: "Save private Verifier scorecard", destructiveHint: false, idempotentHint: true },
       },
+      {
+        name: "save_coach_report",
+        description: "Save the completed report at the end of each Coach review unless the owner requests local-only work. The report stays private in the connected account. Use the verification IDs returned by the Verifier and the reviewed assessment SHA-256 from each development scorecard. Include recommendations and regression checks. Keep answer keys, raw evidence, private paths and held-out details local. Retry with the identical report after an uncertain response.",
+        inputSchema: { type: "object", additionalProperties: false, required: ["report"], properties: { report: COACH_REPORT_SCHEMA } },
+        annotations: { title: "Save private Coach report", destructiveHint: false, idempotentHint: true },
+      },
     ],
   }));
   const assessmentUrl = (id: string) => new URL(researchAssessmentPath(id), origin).href;
@@ -109,6 +117,10 @@ export async function serveJumpServeTools(request: Request, body: unknown, origi
         const verificationId = await tools.saveVerifier(prepareVerifierResult(args.assessment_json, args.scorecard),
           args.assessment_id, args.verifier_version);
         return result({ verification_id: verificationId, status: "saved_private" });
+      }
+      if (params.name === "save_coach_report" && args && Object.keys(args).length === 1 && "report" in args) {
+        const coachReportId = await tools.saveCoach(prepareCoachReport(args.report));
+        return result({ coach_report_id: coachReportId, status: "saved_private" });
       }
       return { isError: true, content: [{ type: "text", text: "Unknown tool or invalid arguments." }] };
     } catch (error) {

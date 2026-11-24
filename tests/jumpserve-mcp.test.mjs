@@ -9,10 +9,28 @@ import { prepareAssessmentBundle } from '../lib/jumpserve-assessment-bundle.ts';
 import { clientInfo, issueClientId, parseAuthorizationRequest, registeredRedirect, verifierChallenge } from '../lib/jumpserve-mcp-oauth.ts';
 import { serveJumpServeTools } from '../lib/jumpserve-mcp-server.ts';
 import { prepareVerifierResult } from '../lib/jumpserve-verification.ts';
+import { prepareCoachReport } from '../lib/jumpserve-coach.ts';
 
 const origin = 'https://jumpserve.example.test';
 const id = '22459c11-9be3-44d2-9b39-a0cb96a0d09f';
 const hash = 'b'.repeat(64);
+const coachReport = () => ({
+  version: 'jumpserve-coach-report-v1', sources: [{ verification_id: id, assessment_sha256: hash }],
+  summary: 'The review found a reporting gap.', limitations: [],
+  recommendations: [{ title: 'Explain incomplete trials', finding: 'A timeout was implicit.',
+    proposed_change: 'List timeouts with their condition.', regression_check: 'A timed-out fixture names the failed attempt.' }],
+});
+
+test('Coach reports require unique sources, exclude raw inputs, and hash reordered sources identically', () => {
+  const report = coachReport();
+  const second = { verification_id: 'acdfb426-0c96-4a48-b593-5b27f44b5069', assessment_sha256: 'c'.repeat(64) };
+  const sources = [...report.sources, second];
+  assert.equal(prepareCoachReport({ ...report, sources }).hash, prepareCoachReport({ ...report, sources: sources.toReversed() }).hash);
+  assert.throws(() => prepareCoachReport({ ...report, sources: [...sources, second] }), /only once/);
+  assert.throws(() => prepareCoachReport({ ...report, sources: [] }), /does not match/);
+  assert.throws(() => prepareCoachReport({ ...report, raw_scorecard: {} }), /does not match/);
+  assert.throws(() => prepareCoachReport({ ...report, summary: 'Inspect /Users/owner/private.json' }), /private paths/);
+});
 const script = { path: 'scripts/record.sh', content: '#!/bin/sh\nprintf "%s\\n" 0\n' };
 const fixture = () => ({
   version: 'jumpserve-assessment-v1',
@@ -223,6 +241,7 @@ test('a real MCP SDK client discovers the PDF and assessment tools', async () =>
   let previewed;
   let generatorResult;
   let verifierResult;
+  let coachResult;
   const transport = new StreamableHTTPClientTransport(new URL(origin + '/mcp'), {
     fetch: async (target, options) => {
       const request = new Request(target, options);
@@ -232,6 +251,7 @@ test('a real MCP SDK client discovers the PDF and assessment tools', async () =>
         preview: async (prepared, assessmentId) => { assert.equal(assessmentId, id); previewed = prepared; return { previewId: id, studyId: null }; },
         saveGenerator: async (prepared, assessmentId) => { assert.equal(assessmentId, id); generatorResult = prepared; return id; },
         saveVerifier: async (prepared, assessmentId, version) => { assert.equal(assessmentId, id); assert.equal(version, '1.0.0'); verifierResult = prepared; return id; },
+        saveCoach: async prepared => { coachResult = prepared; return id; },
         submit: async value => {
           assert.equal(value, id);
           if (!approved) throw new Error('Owner approval is required.');
@@ -244,7 +264,7 @@ test('a real MCP SDK client discovers the PDF and assessment tools', async () =>
   try {
     await client.connect(transport);
     const { tools } = await client.listTools();
-    assert.deepEqual(tools.map(tool => tool.name), ['download_assessment_pdf', 'preview_assessment', 'submit_assessment', 'save_generator_result', 'save_verifier_result']);
+    assert.deepEqual(tools.map(tool => tool.name), ['download_assessment_pdf', 'preview_assessment', 'submit_assessment', 'save_generator_result', 'save_verifier_result', 'save_coach_report']);
     assert.ok(tools[1].inputSchema.required.includes('assessment_id'));
     assert.equal(tools[0].annotations.readOnlyHint, true);
     assert.deepEqual((await client.callTool({ name: tools[0].name, arguments: { assessment_id: id } })).structuredContent,
@@ -280,6 +300,12 @@ test('a real MCP SDK client discovers the PDF and assessment tools', async () =>
     assert.deepEqual(verified.structuredContent, { verification_id: id, status: 'saved_private' });
     assert.equal(verifierResult.generatorHash, generatorResult.hash);
     assert.deepEqual(verifierResult.scorecard, grade);
+    const report = coachReport();
+    assert.equal((await client.callTool({ name: 'save_coach_report', arguments: { report: { ...report, sources: [] } } })).isError, true);
+    assert.equal(coachResult, undefined);
+    const coached = await client.callTool({ name: 'save_coach_report', arguments: { report } });
+    assert.deepEqual(coached.structuredContent, { coach_report_id: id, status: 'saved_private' });
+    assert.deepEqual(coachResult, prepareCoachReport(report));
     assert.equal((await client.callTool({ name: 'submit_assessment', arguments: { preview_id: id } })).isError, true);
     approved = true;
     const submission = { name: 'submit_assessment', arguments: { preview_id: id } };
@@ -294,7 +320,7 @@ test('a real MCP SDK client discovers the PDF and assessment tools', async () =>
 test('the HTTP route challenges missing tokens and rejects untrusted origins and oversized bodies', async () => {
   const scope = registerHooks({ resolve(name, context, next) {
     if (name === '@/lib/jumpserve-mcp-store') return { shortCircuit: true, url: 'data:text/javascript,' + encodeURIComponent(
-      'export async function connectorActor(){return "fixture-owner"}; export async function connectorMayDownloadSource(){return false}; export function localAssessmentSourceTicket(){throw Error("Must not download")}; export function previewAssessment(){throw Error("Must not preview")}; export function submitAssessment(){throw Error("Must not submit")}; export function saveGeneratorResult(){throw Error("Must not save")}; export function saveVerifierResult(){throw Error("Must not save")};'
+      'export async function connectorActor(){return "fixture-owner"}; export async function connectorMayDownloadSource(){return false}; export function localAssessmentSourceTicket(){throw Error("Must not download")}; export function previewAssessment(){throw Error("Must not preview")}; export function submitAssessment(){throw Error("Must not submit")}; export function saveGeneratorResult(){throw Error("Must not save")}; export function saveVerifierResult(){throw Error("Must not save")}; export function saveCoachReport(){throw Error("Must not save")};'
     ) };
     return next(name, context);
   } });
