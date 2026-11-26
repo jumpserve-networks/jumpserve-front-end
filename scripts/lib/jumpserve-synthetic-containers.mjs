@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { BATCH_SKILLS, generatorPrompt, verifierPrompt } from './jumpserve-synthetic-batch.mjs';
+import { BATCH_SKILLS, batchCasePaths, generatorPrompt, verifierPrompt } from './jumpserve-synthetic-batch.mjs';
 
 const maxOutput = 8 * 1024 * 1024;
 
@@ -31,6 +31,8 @@ function mount(source, destination, readOnly = true) {
 export function createContainerWorkers({ image, snapshot, workflowFiles, timeoutMs, apiKey, model }) {
   const generatorSkill = `/skills/${BATCH_SKILLS.generator}`;
   const verifierSkill = `/skills/${BATCH_SKILLS.verifier}`;
+  const review = batchCasePaths('/case');
+  const reviewedAssessment = join(review.artifactDirectory, 'jumpserve-assessment.json');
   const generatorMount = mount(join(snapshot, BATCH_SKILLS.generator), generatorSkill);
   const skills = [
     ...generatorMount,
@@ -48,11 +50,11 @@ export function createContainerWorkers({ image, snapshot, workflowFiles, timeout
       '--tmpfs', '/tmp:rw,nosuid,nodev,size=512m',
       '--tmpfs', `/home/node:rw,nosuid,nodev,size=512m,uid=${process.getuid()},gid=${process.getgid()}`,
       '--network', isPreflight ? 'none' : 'bridge', '--workdir', isGenerator ? '/work' : '/tmp',
-      ...mount(paper, '/paper.pdf'),
+      ...mount(paper, isGenerator ? '/paper.pdf' : review.paper),
       ...(isGenerator ? generatorMount : skills),
       ...(isGenerator ? mount(output, '/work', false) : [
-        ...mount(key, '/answer-key.json'), ...mount(artifactDirectory, '/assessment'),
-        ...(!isPreflight ? mount(output, '/review', false) : []),
+        ...mount(key, review.key), ...mount(artifactDirectory, review.artifactDirectory),
+        ...(!isPreflight ? mount(output, review.output, false) : []),
       ]),
       ...(!isPreflight ? ['--env', 'CODEX_API_KEY'] : []),
       image, ...command];
@@ -79,11 +81,11 @@ export function createContainerWorkers({ image, snapshot, workflowFiles, timeout
         testbed: 'Keep test traffic inside the isolated container testbed. Public reference data may be read when the paper specifies it.' }),
     }),
     preflight: async input => JSON.parse(await run({ ...input, role: 'preflight', command: ['python3', '-B',
-      `${verifierSkill}/scripts/prepare_review.py`, '/assessment/jumpserve-assessment.json', '/answer-key.json', '--paper', '/paper.pdf'] })),
+      `${verifierSkill}/scripts/prepare_review.py`, reviewedAssessment, review.key, '--paper', review.paper] })),
     verify: input => run({ ...input, role: 'verifier', command: [...codex, '--sandbox', 'read-only',
-      '--output-last-message', '/review/scorecard.json', '-'],
+      '--output-last-message', join(review.output, 'scorecard.json'), '-'],
       prompt: verifierPrompt({ skillDirectory: verifierSkill, workflow: `${verifierSkill}/${workflowFiles.verifier}`,
-        paper: '/paper.pdf', key: '/answer-key.json', assessment: '/assessment/jumpserve-assessment.json',
+        caseDirectory: review.caseDirectory, paper: review.paper, key: review.key, assessment: reviewedAssessment,
         guidance: input.guidance, rubric: input.rubric }),
     }),
   };

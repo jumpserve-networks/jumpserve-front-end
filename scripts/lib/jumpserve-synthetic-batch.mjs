@@ -60,10 +60,14 @@ export function generatorPrompt({ skillDirectory, workflow, paper, paperSha256, 
     `Write the skill's assessment bundle and evidence in the current working directory. The parent runner confirms private saving.`;
 }
 
-export function verifierPrompt({ skillDirectory, workflow, paper, key, assessment, guidance, rubric }) {
+export function verifierPrompt({ skillDirectory, workflow, caseDirectory, paper, key, assessment, guidance, rubric }) {
   return `Follow the JumpServe Verifier skill at ${skillDirectory}/SKILL.md for a fresh batch review.\n` +
     `Use the pinned workflow at ${workflow}. Set skill_instructions to ${JSON.stringify(guidance)}.\n` +
     `Input PDF: ${paper}\nAssessment: ${assessment}\nAnswer key: ${key}\n` +
+    `Use ${caseDirectory} as the base directory for every path in claims[].evidence. ` +
+    `Cite files relative to that directory with precise page, line, or row selectors where applicable. ` +
+    `For example, use "paper.pdf pp. 1–2" or "generator/evidence/trace.jsonl lines 2–5". ` +
+    `Use this base regardless of your working directory. Omit absolute paths and parent directory segments (..).\n` +
     `Use the skill's evidence preflight with the supplied PDF. Record its status and verified_runs in evidence_integrity.\n` +
     `Use these exact rubric criteria and maxima: ${JSON.stringify(rubric)}. The parent runner confirms private saving.\n` +
     `Return the skill's scorecard JSON as your final response.`;
@@ -158,9 +162,13 @@ function artifactGuidance({ source, version_id, sha256 }) {
   return source === 'supabase' ? { source, version_id, sha256 } : { source, sha256 };
 }
 
-function reviewInputs(paperDirectory, guidance, rubric) {
-  return { paper: join(paperDirectory, 'paper.pdf'), key: join(paperDirectory, 'answer-key.json'),
-    artifactDirectory: join(paperDirectory, 'generator'), output: join(paperDirectory, 'verifier'), guidance, rubric };
+export function batchCasePaths(caseDirectory) {
+  return { caseDirectory, paper: join(caseDirectory, 'paper.pdf'), key: join(caseDirectory, 'answer-key.json'),
+    artifactDirectory: join(caseDirectory, 'generator'), output: join(caseDirectory, 'verifier') };
+}
+
+function reviewInputs(caseDirectory, guidance, rubric) {
+  return { ...batchCasePaths(caseDirectory), guidance, rubric };
 }
 
 async function checkedArtifact(testCase, review, guidance) {
