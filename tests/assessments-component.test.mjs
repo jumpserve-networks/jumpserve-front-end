@@ -34,6 +34,24 @@ function show(props = {}, value = catalog([paper()])) {
   return render(React.createElement(Assessments, props));
 }
 
+test('the synthetic batch button sends one request at a time and reports AWS acceptance', async t => {
+  globalThis.__assessmentPreferences = { userId: 'owner' };
+  let resolve;
+  const fetch = t.mock.method(globalThis, 'fetch', () => new Promise(done => { resolve = done; }));
+  const publicList = show({ canStartSyntheticBatch: true });
+  assert.equal(screen.queryByRole('button', { name: 'Start synthetic batch' }), null);
+  publicList.unmount();
+  show({ mine: true, canStartSyntheticBatch: true });
+  const button = screen.getByRole('button', { name: 'Start synthetic batch' });
+  fireEvent.click(button);
+  fireEvent.click(button);
+  assert.equal(fetch.mock.callCount(), 1);
+  assert.deepEqual(fetch.mock.calls[0].arguments, ['/research-verification/api/synthetic-batch/start', { method: 'POST' }]);
+  assert.ok(screen.getByRole('button', { name: 'Requesting start…' }).disabled);
+  await act(async () => resolve(new Response(null, { status: 202 })));
+  assert.ok(await screen.findByText('AWS accepted the batch start request.'));
+});
+
 test('table is the default view and recorded title, initiator, stage and detail link appear', async () => {
   show();
   const table = await screen.findByRole('table');

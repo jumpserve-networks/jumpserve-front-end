@@ -1,4 +1,6 @@
 import { Assessments } from "@/app/components/research-workflow/assessments";
+import { getGoogleUser } from "@/lib/auth";
+import { getSyntheticBatchConfiguration } from "@/lib/synthetic-batch-server";
 
 export const dynamic = "force-dynamic";
 
@@ -6,5 +8,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ b
   const { before, mine, name, view } = await searchParams;
   const cursor = Array.isArray(before) ? "invalid" : before;
   const filter = typeof name === "string" ? name.trim() : "";
-  return <Assessments key={`${mine === "1" ? "mine" : "all"}:${cursor ?? "newest"}:${filter}`} before={cursor} mine={mine === "1"} name={filter} view={view === "card" ? "card" : "table"} />;
+  const mineOnly = mine === "1";
+  const configuration = mineOnly ? getSyntheticBatchConfiguration() : null;
+  const canStartSyntheticBatch = configuration !== null &&
+    (await getGoogleUser().catch(() => null))?.id === configuration.ownerId;
+  return <Assessments
+    key={`${mineOnly ? "mine" : "all"}:${cursor ?? "newest"}:${filter}`}
+    before={cursor}
+    mine={mineOnly}
+    name={filter}
+    view={view === "card" ? "card" : "table"}
+    canStartSyntheticBatch={canStartSyntheticBatch}
+  />;
 }

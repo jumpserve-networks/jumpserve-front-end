@@ -15,10 +15,24 @@ if (connector === 'true') {
  updates.NEXT_PUBLIC_SITE_URL = origin.origin;
 }
 if (connector === 'true' || connector === 'false') updates.JUMPSERVE_MCP_ENABLED = connector;
-if (Object.keys(updates).length) {
- const path = '.env.production';
- const old = existsSync(path) ? readFileSync(path, 'utf8') : '';
- const retained = old.split(/\r?\n/).filter(line => !Object.hasOwn(updates, line.split('=')[0])).join('\n').trimEnd();
+const batchOwnerKey = 'JUMPSERVE_SYNTHETIC_BATCH_OWNER_ID';
+const batchInstanceKey = 'JUMPSERVE_SYNTHETIC_BATCH_INSTANCE_ID';
+const batchOwner = process.env[batchOwnerKey]?.trim().toLowerCase();
+const batchInstance = process.env[batchInstanceKey]?.trim();
+if (batchOwner || batchInstance) {
+ if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(batchOwner ?? '') || !/^i-[a-f0-9]{17}$/.test(batchInstance ?? '')) {
+  throw new Error('Set a valid synthetic batch owner ID and coordinator instance ID.');
+ }
+ updates[batchOwnerKey] = batchOwner;
+ updates[batchInstanceKey] = batchInstance;
+}
+const path = '.env.production';
+const old = existsSync(path) ? readFileSync(path, 'utf8') : '';
+const lines = old.split(/\r?\n/);
+const batchKeys = [batchOwnerKey, batchInstanceKey];
+if (Object.keys(updates).length || lines.some(line => batchKeys.includes(line.split('=')[0]))) {
+ const replaced = new Set([...Object.keys(updates), ...batchKeys]);
+ const retained = lines.filter(line => !replaced.has(line.split('=')[0])).join('\n').trimEnd();
  const configured = Object.entries(updates).map(([key,value]) => `${key}=${value}`);
  writeFileSync(path, [retained, ...configured].filter(Boolean).join('\n') + '\n', { mode: 0o600 });
  console.log('Configured the JumpServe SSR environment.');
