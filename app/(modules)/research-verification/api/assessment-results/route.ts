@@ -1,7 +1,7 @@
 import { prepareAssessmentBundle } from "@/lib/jumpserve-assessment-bundle";
 import { prepareCoachReport } from "@/lib/jumpserve-coach";
 import { BoundedBodyError, isOpaqueCredential, mcpConfig, readBoundedBody } from "@/lib/jumpserve-mcp-oauth";
-import { connectorActor, previewAssessment, readLocalAssessmentSource, reserveLocalAssessmentSource, saveCoachReport, saveGeneratorResult, saveVerifierResult } from "@/lib/jumpserve-mcp-store";
+import { connectorActor, getSkillInstructions, previewAssessment, readLocalAssessmentSource, reserveLocalAssessmentSource, saveCoachReport, saveGeneratorResult, saveVerifierResult } from "@/lib/jumpserve-mcp-store";
 import { isVerifierVersion, MAX_VERIFIER_REQUEST_BYTES, prepareVerifierResult } from "@/lib/jumpserve-verification";
 import { isPaperSha256 } from "@/lib/local-assessment-source";
 import { isResearchId } from "@/lib/research-experiment-queue";
@@ -41,7 +41,15 @@ export async function POST(request: Request) {
   const saved = (ids: Record<string, string>) => reply({ status: "saved_private", ...ids });
 
   try {
-    if (action === "check" && fields === "action") return reply({ status: "ready" });
+    if (action === "check" && fields === "action") return reply({ status: "ready", batch_guidance: true });
+    if (action === "batch_guidance" && fields === "action") {
+      const [generator, verifier] = await Promise.all([getSkillInstructions("generator"), getSkillInstructions("verifier")])
+        .catch(() => [null, null]);
+      if (!generator?.version_number || !verifier?.version_number) {
+        return reply({ error: "JumpServe could not load both numbered batch workflows." }, 503);
+      }
+      return reply({ status: "ready", guidance: { generator, verifier } });
+    }
     if (action === "coach" && fields === "action,report") {
       return saved({ coach_report_id: await saveCoachReport(owner, prepareCoachReport(input.report)) });
     }

@@ -1,16 +1,18 @@
 import { randomUUID } from 'node:crypto';
-import { cp, mkdir, mkdtemp, readFile, realpath } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, realpath } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { inventory, runSyntheticBatch, sha256 } from './lib/jumpserve-synthetic-batch.mjs';
+import { BATCH_SKILLS, inventory, runSyntheticBatch, stageBatchGuidance } from './lib/jumpserve-synthetic-batch.mjs';
 import { createContainerWorkers, inspectBatchImage } from './lib/jumpserve-synthetic-containers.mjs';
 import { createNativeWorkers, inspectNativeBatch } from './lib/jumpserve-synthetic-native.mjs';
+import { createBatchProgressReporter } from './lib/jumpserve-synthetic-progress.mjs';
 import { privateResultsClient } from './jumpserve-assessment.mjs';
 import { isVerifierVersion } from '../lib/jumpserve-verification.ts';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-const skills = { generator: 'jumpserve-paper-assessment', verifier: 'jumpserve-assessment-verifier' };
+const stopSteps = { generating: 'generation', saving_generator: 'the Generator save',
+  verifying: 'verification', saving_verifier: 'the Verifier save' };
 
 async function main() {
   const { values } = parseArgs({ options: {
@@ -58,7 +60,8 @@ async function main() {
   const output = join(await realpath(dirname(chosen)), basename(chosen));
   const previous = values['recover-format'] ? JSON.parse(await readFile(join(output, 'batch.json'), 'utf8')) : null;
   if (previous && (previous.runtime?.engine !== 'macos' || previous.runtime.codex !== native.codex ||
-      typeof previous.runtime.skill_snapshot !== 'string' || dirname(previous.runtime.skill_snapshot) !== dirname(output))) {
+      typeof previous.runtime.skill_snapshot !== 'string' || dirname(previous.runtime.skill_snapshot) !== dirname(output) ||
+      !previous.guidance?.generator || !previous.guidance?.verifier)) {
     throw new Error('Format recovery requires the original native runtime and local skill snapshot.');
   }
   const minutes = previous?.runtime.timeout_minutes ?? Number(values['timeout-minutes']);
@@ -68,39 +71,38 @@ async function main() {
   if (previous?.runtime.results_origin && previous.runtime.results_origin !== results.origin) {
     throw new Error('Use the original JumpServe origin to save this batch.');
   }
-  await results.check();
+  const supportsPublishedGuidance = await results.check();
+  const published = !previous && supportsPublishedGuidance ? await results.batchGuidance() : undefined;
   const snapshot = previous?.runtime.skill_snapshot ?? await mkdtemp(join(dirname(output), '.skills-'));
-  const guidance = {};
-  for (const [role, directory] of Object.entries(skills)) {
-    const staged = join(snapshot, directory);
-    if (!previous) await cp(join(root, 'skills', directory), staged, { recursive: true, errorOnExist: true, force: false });
-    guidance[role] = { source: 'bundled', sha256: sha256(await readFile(join(staged, 'references/workflow.md'))) };
-  }
-  const verifierSkill = await readFile(join(snapshot, skills.verifier, 'SKILL.md'), 'utf8');
+  const { guidance, workflowFiles } = await stageBatchGuidance({
+    skillsDirectory: join(root, 'skills'), snapshot, published, previous: previous?.guidance,
+  });
+  const verifierSkill = await readFile(join(snapshot, BATCH_SKILLS.verifier, 'SKILL.md'), 'utf8');
   const verifierVersion = /^\s+version: ["']?([A-Za-z0-9._+-]+)["']?\s*$/m.exec(verifierSkill.split('---', 2)[1] ?? '')?.[1];
   if (!isVerifierVersion(verifierVersion) || (previous?.runtime.verifier_skill_version && previous.runtime.verifier_skill_version !== verifierVersion)) {
     throw new Error('Could not verify the snapshotted Verifier skill version.');
   }
 
   console.log(`Batch results: ${output}`);
-  const options = { snapshot, timeoutMs: minutes * 60_000, model };
+  const options = { snapshot, workflowFiles, timeoutMs: minutes * 60_000, model };
   const runtime = previous?.runtime ?? { ...(native ? { engine: 'macos', codex: native.codex } : { engine: 'docker', image }),
     model: model ?? null, timeout_minutes: minutes, skill_snapshot: snapshot,
     verifier_skill_version: verifierVersion, results_origin: results.origin };
   const workers = native ? createNativeWorkers({ ...options, python: native.python }) : createContainerWorkers({ ...options, image, apiKey });
+  const progress = createBatchProgressReporter(guidance);
   const state = await runSyntheticBatch({ output, cases, guidance, runtime, recoverFormat: values['recover-format'],
     ...workers,
     persistence: {
       generator: results.generator,
       verifier: (id, artifact, grade) => results.verifier(id, artifact, grade, verifierVersion),
     },
-    progress: (paper, phase) => console.log(`${paper} ${phase}`),
-  });
+    progress: progress.update,
+  }).finally(progress.finish);
   if (state.status !== 'passed') {
-    console.error(`Stopped at ${state.stop.paper_id} during ${state.stop.phase}. ${state.stop.reason}`);
+    console.error(`Stopped at ${state.stop.paper_id} during ${stopSteps[state.stop.phase]}. ${state.stop.reason}`);
     process.exitCode = 1;
   } else {
-    console.log(`All ${cases.length} papers earned full credit.`);
+    console.log(`\nAll ${cases.length} papers earned full credit.`);
   }
 }
 

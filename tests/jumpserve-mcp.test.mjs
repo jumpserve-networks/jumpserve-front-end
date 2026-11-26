@@ -437,3 +437,57 @@ test('the HTTP route challenges missing tokens and rejects untrusted origins and
     }
   }
 });
+
+test('the CLI results route serves only active Generator and Verifier workflows to a results session', async t => {
+  const endpoint = origin + '/research-verification/api/assessment-results';
+  const token = 'a'.repeat(43);
+  const workflowCalls = [];
+  let verifierAvailable = true;
+  const stub = registerHooks({ resolve(name, context, next) {
+    if (name === 'server-only') return { shortCircuit: true, url: 'data:text/javascript,export {};' };
+    if (name === '@/lib/supabase/server') return { shortCircuit: true, url: 'data:text/javascript,export function createStaticClient() {};' };
+    return next(name, context);
+  } });
+  t.after(() => stub.deregister());
+  const env = { JUMPSERVE_MCP_ENABLED: 'true', NEXT_PUBLIC_SITE_URL: origin,
+    NEXT_PUBLIC_SUPABASE_URL: 'https://fixture.supabase.test', SUPABASE_SECRET_KEY: 'fixture-key' };
+  for (const [key, value] of Object.entries(env)) {
+    const previous = process.env[key];
+    process.env[key] = value;
+    t.after(() => { if (previous === undefined) delete process.env[key]; else process.env[key] = previous; });
+  }
+
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const input = JSON.parse(options.body);
+    const path = new URL(url).pathname;
+    if (path === '/rest/v1/rpc/jumpserve_mcp_actor') {
+      assert.equal(input.p_resource, endpoint);
+      return Response.json(input.p_access === createHash('sha256').update(token).digest('hex') ? id : null);
+    }
+    assert.equal(path, '/rest/v1/rpc/research_skill_get_instructions');
+    assert.equal(input.p_version_id, null);
+    workflowCalls.push(input.p_role);
+    if (input.p_role === 'verifier' && !verifierAvailable) return Response.json([], { status: 503 });
+    const instructions = `${input.p_role} fixture guidance.\n`;
+    return Response.json([{ role: input.p_role, version_id: id, version_number: input.p_role === 'generator' ? 4 : 1,
+      instructions, sha256: createHash('sha256').update(instructions).digest('hex') }]);
+  });
+
+  const { POST } = await import('../app/(modules)/research-verification/api/assessment-results/route.ts');
+  const call = (body, access = token) => POST(new Request(endpoint, { method: 'POST',
+    headers: { authorization: `Bearer ${access}`, 'content-type': 'application/json' }, body: JSON.stringify(body) }));
+  assert.equal((await call({ action: 'batch_guidance' }, 'b'.repeat(43))).status, 401);
+  assert.equal((await call({ action: 'batch_guidance', version_id: id })).status, 400);
+  assert.deepEqual(await (await call({ action: 'check' })).json(), { status: 'ready', batch_guidance: true });
+  assert.deepEqual(workflowCalls, []);
+  const response = await call({ action: 'batch_guidance' });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'private, no-store');
+  const { status, guidance } = await response.json();
+  assert.equal(status, 'ready');
+  assert.deepEqual(workflowCalls.sort(), ['generator', 'verifier']);
+  assert.equal(guidance.generator.version_number, 4);
+  assert.equal(guidance.verifier.version_number, 1);
+  verifierAvailable = false;
+  assert.equal((await call({ action: 'batch_guidance' })).status, 503);
+});

@@ -230,7 +230,14 @@ export function privateResultsClient(url = process.env.JUMPSERVE_URL ?? PRODUCTI
   return {
     origin,
     async check() {
-      if ((await post({ action: 'check' })).status !== 'ready') throw new Error('JumpServe private evaluation saves are unavailable.');
+      const response = await post({ action: 'check' });
+      if (response.status !== 'ready') throw new Error('JumpServe private evaluation saves are unavailable.');
+      return response.batch_guidance === true;
+    },
+    async batchGuidance() {
+      const response = await post({ action: 'batch_guidance' });
+      if (response.status !== 'ready' || !response.guidance) throw new Error('JumpServe published batch workflows are unavailable.');
+      return response.guidance;
     },
     async generator(id, paper, bundle) {
       await uploadPaper(post, paper, id, bundle.paper);
