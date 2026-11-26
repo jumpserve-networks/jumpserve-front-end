@@ -23,9 +23,10 @@ async function main() {
   const job = JSON.parse(await readFile('job.json', 'utf8'));
   const review = batchCasePaths(join(process.cwd(), 'case'));
   const onActivity = chatgpt ? event => console.log(JSON.stringify({ ...event, at: new Date().toISOString() })) : undefined;
+  const onTerminal = chatgpt && job.terminal === true ? line => process.stdout.write(line + '\n') : undefined;
   const workers = createContainerWorkers({ image: inspectBatchImage('jumpserve-batch'), snapshot: join(process.cwd(), 'skills'),
     workflowFiles: job.workflowFiles, timeoutMs: job.timeoutMs, apiKey,
-    chatgptAuthDirectory: chatgpt ? join(authVolume, 'session') : undefined, model: job.model, onActivity });
+    chatgptAuthDirectory: chatgpt ? join(authVolume, 'session') : undefined, model: job.model, onActivity, onTerminal });
 
   let input;
   if (job.role === 'generator') {

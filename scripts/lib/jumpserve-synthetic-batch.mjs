@@ -183,7 +183,7 @@ async function saveCorrectedGrade(review, grade) {
     { flag: 'wx', mode: 0o600 });
 }
 
-function perfectScore(testCase, artifact, grade, preflight, pinned) {
+function evaluateScorecard(testCase, artifact, grade, preflight, pinned) {
   const { scorecard } = prepareVerifierResult(artifact, grade);
   requireGuidance(scorecard.skill_instructions, pinned);
   if (scorecard.paper_id !== testCase.paperId || scorecard.split !== testCase.split ||
@@ -196,28 +196,47 @@ function perfectScore(testCase, artifact, grade, preflight, pinned) {
     throw new Error('Scorecard does not match the pinned paper, key, or evidence preflight.');
   }
   const score = scorecard.score;
-  return { score, perfect: scorecard.status === 'scored' && scorecard.evidence_integrity.status === 'verified' &&
-    !scorecard.blockers.length && !scorecard.critical_failures.length &&
-    score !== null && score.rubric_maximum === testCase.rubricMaximum &&
-    score.earned === score.applicable_maximum && score.earned === score.rubric_maximum &&
-    scorecard.rubric.length === testCase.rubric.length && testCase.rubric.every(([id, points]) =>
-      scorecard.rubric.some(item => item.criterion === id && item.maximum === points && item.earned === points)) &&
-    scorecard.claims.every(claim => claim.assessment === 'correct') };
+  if (!score) return { score, problem: 'Verifier did not award a score.' };
+  if (scorecard.status !== 'scored' || scorecard.evidence_integrity.status !== 'verified' ||
+      scorecard.blockers.length || scorecard.critical_failures.length) {
+    return { score, problem: 'Verifier could not complete scoring with verified evidence.' };
+  }
+  if (score.rubric_maximum !== testCase.rubricMaximum || scorecard.rubric.length !== testCase.rubric.length ||
+      !testCase.rubric.every(([id, points]) => scorecard.rubric.some(item => item.criterion === id && item.maximum === points))) {
+    return { score, problem: 'Scorecard does not match the pinned rubric.' };
+  }
+  const fullCredit = score.earned === score.applicable_maximum && score.earned === score.rubric_maximum &&
+    scorecard.rubric.every(item => item.earned === item.maximum) &&
+    scorecard.claims.every(claim => claim.assessment === 'correct');
+  return { score, status: fullCredit ? 'passed' : 'completed' };
 }
 
 async function runBatch({ output, cases, guidance, runtime, generate, preflight, verify, reviewOnInstance,
-  persistence, recoverFormat = false, progress = () => {} }) {
+  persistence, recoverFormat = false, parallel = false, signal: externalSignal, progress = () => {},
+  now = () => performance.now() }) {
+  if (parallel && recoverFormat) throw new Error('Format recovery requires the original sequential batch.');
+  const controller = new AbortController();
+  const signal = externalSignal ? AbortSignal.any([externalSignal, controller.signal]) : controller.signal;
+  const workerCancellation = parallel || externalSignal ? { signal } : {};
+  let stop;
   const statePath = join(output, 'batch.json');
   const generatorGuidance = artifactGuidance(guidance.generator);
   const verifierGuidance = artifactGuidance(guidance.verifier);
   const plan = cases.map(item => ({ paper_id: item.paperId, pdf: item.paperName, paper_sha256: item.paperSha256,
-    answer_key_sha256: item.keySha256, split: item.split, rubric_maximum: item.rubricMaximum, status: 'pending' }));
+    answer_key_sha256: item.keySha256, split: item.split, rubric_maximum: item.rubricMaximum }));
   const state = recoverFormat ? JSON.parse(await readArtifact(statePath, 256_000)) :
-    { mode: 'fresh', status: 'running', started_at: new Date().toISOString(), guidance, runtime, cases: plan };
-  const persist = async () => {
+    { mode: 'fresh', status: 'running', started_at: new Date().toISOString(), guidance, runtime,
+      cases: plan.map(item => ({ ...item, status: 'pending', steps: {} })) };
+  let journalWrites = Promise.resolve();
+  const persist = () => {
+    const snapshot = JSON.stringify(state, null, 2) + '\n';
     const temporary = `${statePath}.tmp`;
-    await writeFile(temporary, JSON.stringify(state, null, 2) + '\n', { mode: 0o600 });
-    await rename(temporary, statePath);
+    const write = journalWrites.then(async () => {
+      await writeFile(temporary, snapshot, { mode: 0o600 });
+      await rename(temporary, statePath);
+    });
+    journalWrites = write.catch(() => {});
+    return write;
   };
   const reportProgress = (item, phase) => progress(item.paper_id, phase, item.pdf, item.database?.assessment_id);
   async function saveGenerator(item, paper, artifact) {
@@ -239,9 +258,11 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
     if (state.mode !== 'fresh' || state.status !== 'stopped' || state.stop?.phase !== 'verifying' ||
         !recoverableFormats.has(state.stop.reason) || index < 0 || state.cases.length !== plan.length ||
         JSON.stringify(state.runtime) !== JSON.stringify(runtime) || JSON.stringify(state.guidance) !== JSON.stringify(guidance) ||
-        !plan.every((item, offset) => Object.entries(item).every(([key, value]) => key === 'status'
-          ? state.cases[offset].status === (offset < index ? 'passed' : offset === index ? 'stopped' : 'pending')
-          : state.cases[offset][key] === value))) {
+        !plan.every((item, offset) => {
+          const previous = state.cases[offset];
+          const validStatuses = offset < index ? ['passed', 'completed'] : [offset === index ? 'stopped' : 'pending'];
+          return validStatuses.includes(previous.status) && Object.entries(item).every(([key, value]) => previous[key] === value);
+        })) {
       throw new Error('Only a stopped scorecard with the known preflight-field error and the original batch inputs can be recovered.');
     }
     const testCase = cases[index];
@@ -249,8 +270,9 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
     const artifact = await checkedArtifact(testCase, review, generatorGuidance);
     const checked = await checkedPreflight(testCase, artifact, review, preflight);
     const { grade, corrected } = await readGrade(review, checked);
-    const { score, perfect } = perfectScore(testCase, artifact, grade, checked, verifierGuidance);
-    if (!corrected || !perfect) throw new Error('The saved scorecard did not validate as perfect after the format correction.');
+    const { score, status, problem } = evaluateScorecard(testCase, artifact, grade, checked, verifierGuidance);
+    if (!corrected) throw new Error('The saved scorecard did not contain the expected format error.');
+    if (problem) throw new Error(problem);
     await saveGenerator(state.cases[index], review.paper, artifact);
     await saveVerifier(state.cases[index], artifact, grade);
     await saveCorrectedGrade(review, grade);
@@ -260,67 +282,104 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
     delete state.stop;
     delete state.finished_at;
     state.status = 'running';
-    Object.assign(state.cases[index], { status: 'passed', score });
+    Object.assign(state.cases[index], { status, score });
     firstIndex = index + 1;
-    reportProgress(state.cases[index], 'passed (revalidated saved scorecard)');
+    reportProgress(state.cases[index], `${status} (revalidated saved scorecard)`);
   } else {
     // An existing output directory belongs to the previous attempt, including a recorded stop.
     await mkdir(output, { mode: 0o700 });
   }
   await persist();
-  for (let index = firstIndex; index < cases.length; index++) {
+  async function runPaper(index) {
     const testCase = cases[index];
     const item = state.cases[index];
     const paperDirectory = join(output, testCase.paperId);
     const review = reviewInputs(paperDirectory, verifierGuidance, testCase.rubric);
     let phase = 'generating';
+    let step;
+    function startStep(role) {
+      step = { role, startedAt: now() };
+      item.steps ??= {};
+      item.steps[role] = { status: 'running', durationMs: null };
+    }
+    function finishStep(status) {
+      if (!step) return;
+      item.steps[step.role] = { status, durationMs: Math.round(now() - step.startedAt) };
+      step = undefined;
+    }
     try {
+      signal.throwIfAborted();
       item.status = phase;
+      startStep('generator');
       if (persistence) item.database ??= { assessment_id: randomUUID() };
       await persist();
       reportProgress(item, phase);
       await mkdir(paperDirectory, { mode: 0o700 });
       await mkdir(review.artifactDirectory, { mode: 0o700 });
       await stageInput(testCase.paperPath, testCase.paperSha256, review.paper);
+      signal.throwIfAborted();
       await generate({ assessmentId: item.database?.assessment_id, paper: review.paper, output: review.artifactDirectory,
-        paperSha256: testCase.paperSha256, guidance: generatorGuidance });
+        paperSha256: testCase.paperSha256, guidance: generatorGuidance, ...workerCancellation });
       const artifact = await checkedArtifact(testCase, review, generatorGuidance);
       phase = 'saving_generator';
       await saveGenerator(item, review.paper, artifact);
+      finishStep('completed');
 
+      signal.throwIfAborted();
       phase = 'verifying';
       item.status = phase;
+      startStep('verifier');
       await persist();
       reportProgress(item, phase);
       await mkdir(review.output, { mode: 0o700 });
       await stageInput(testCase.keyPath, testCase.keySha256, review.key);
+      signal.throwIfAborted();
       const checked = await checkedPreflight(testCase, artifact, review, reviewOnInstance
-        ? (input, expected) => reviewOnInstance({ ...input, expected, assessmentId: item.database?.assessment_id }) : preflight);
-      if (!reviewOnInstance) await verify(review);
+        ? (input, expected) => reviewOnInstance({ ...input, expected, assessmentId: item.database?.assessment_id, ...workerCancellation })
+        : preflight);
+      if (!reviewOnInstance) {
+        signal.throwIfAborted();
+        await verify({ ...review, ...workerCancellation });
+      }
       const { grade, corrected } = await readGrade(review, checked);
-      const { score, perfect } = perfectScore(testCase, artifact, grade, checked, verifierGuidance);
+      const { score, status, problem } = evaluateScorecard(testCase, artifact, grade, checked, verifierGuidance);
       if (corrected) await saveCorrectedGrade(review, grade);
       item.score = score;
       phase = 'saving_verifier';
       await persist();
       await saveVerifier(item, artifact, grade);
+      finishStep('completed');
       phase = 'verifying';
-      if (!perfect) throw new Error(score
-        ? `Verifier gate did not pass (${score.earned}/${score.rubric_maximum}; expected ${testCase.rubricMaximum}/${testCase.rubricMaximum}).`
-        : 'Verifier did not award a score.');
-      item.status = 'passed';
+      if (problem) throw new Error(problem);
+      item.status = status;
       await persist();
-      reportProgress(item, 'passed');
+      reportProgress(item, status);
     } catch (error) {
-      item.status = 'stopped';
-      state.status = 'stopped';
-      state.stop = { paper_id: item.paper_id, phase, reason: error instanceof Error ? error.message : String(error) };
-      state.finished_at = new Date().toISOString();
+      if (signal.aborted && error === signal.reason) {
+        item.status = 'interrupted';
+      } else {
+        item.status = 'stopped';
+        if (!stop) {
+          stop = { paper_id: item.paper_id, phase, reason: error instanceof Error ? error.message : String(error) };
+          controller.abort(new Error('Another paper stopped the batch.'));
+        }
+      }
+      finishStep(item.status);
+      if (parallel) reportProgress(item, item.status);
       await persist();
-      return state;
     }
   }
-  state.status = 'passed';
+
+  if (parallel) {
+    const outcomes = await Promise.allSettled(cases.map((_, index) => runPaper(index)));
+    const rejected = outcomes.find(outcome => outcome.status === 'rejected');
+    if (rejected) throw rejected.reason;
+  } else {
+    for (let index = firstIndex; index < cases.length && !signal.aborted; index++) await runPaper(index);
+  }
+  const completionStatus = state.cases.every(item => item.status === 'passed') ? 'passed' : 'completed';
+  state.status = stop ? 'stopped' : signal.aborted ? 'interrupted' : completionStatus;
+  if (stop) state.stop = stop;
   state.finished_at = new Date().toISOString();
   await persist();
   return state;

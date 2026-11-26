@@ -1,3 +1,5 @@
+import { formatTrainingBatchDuration } from '../../lib/training-batch.ts';
+
 const steps = {
   generating: { label: 'Generating', role: 'generator' },
   verifying: { label: 'Verifying', role: 'verifier' },
@@ -17,15 +19,37 @@ const publishedVersions = {
 };
 const spinnerFrames = ['|', '/', '-', '\\'];
 
-function formatElapsed(milliseconds) {
-  const elapsedSeconds = Math.floor(milliseconds / 1000);
-  const minutes = Math.floor(elapsedSeconds / 60);
-  const seconds = elapsedSeconds % 60;
-  const secondsText = `${seconds} second${seconds === 1 ? '' : 's'}`;
-  return minutes ? `${minutes} minute${minutes === 1 ? '' : 's'} ${secondsText}` : secondsText;
+function stepLabel(guidance, step) {
+  const pinned = guidance[step.role];
+  const version = pinned.source === 'supabase' ? pinned.version_number : publishedVersions[step.role][pinned.sha256];
+  return `${step.label} (${version ? `v${version}` : 'bundled'})`;
 }
 
-export function createBatchProgressReporter(guidance, output = process.stdout, now = () => performance.now()) {
+export function createBatchProgressReporter(guidance, output = process.stdout, now = () => performance.now(),
+  { parallel = false } = {}) {
+  if (parallel) {
+    const active = new Map();
+    function finishPaper(id) {
+      const entry = active.get(id);
+      if (!entry) return;
+      output.write(`${entry.filename} · ${entry.label}: ${formatTrainingBatchDuration(now() - entry.startedAt)}\n`);
+      active.delete(id);
+    }
+    return {
+      update(id, phase, filename, assessmentId) {
+        finishPaper(id);
+        const step = steps[phase];
+        if (step) {
+          const label = stepLabel(guidance, step);
+          active.set(id, { filename, label, startedAt: now() });
+          output.write(`${filename} · ${label} · Assessment ID: ${assessmentId}\n`);
+        } else {
+          output.write(`${filename} · ${phase[0].toUpperCase()}${phase.slice(1)}\n`);
+        }
+      },
+      finish() { for (const id of active.keys()) finishPaper(id); },
+    };
+  }
   let currentPaper;
   let activeStep;
   let spinner;
@@ -42,7 +66,7 @@ export function createBatchProgressReporter(guidance, output = process.stdout, n
       spinner = undefined;
       clearSpinnerLine();
     }
-    output.write(`${activeStep.label}: ${formatElapsed(now() - activeStep.startedAt)}\n`);
+    output.write(`${activeStep.label}: ${formatTrainingBatchDuration(now() - activeStep.startedAt)}\n`);
     activeStep = undefined;
   }
 
@@ -59,9 +83,7 @@ export function createBatchProgressReporter(guidance, output = process.stdout, n
       return;
     }
 
-    const pinned = guidance[step.role];
-    const version = pinned.source === 'supabase' ? pinned.version_number : publishedVersions[step.role][pinned.sha256];
-    const label = `${step.label} (${version ? `v${version}` : 'bundled'})`;
+    const label = stepLabel(guidance, step);
     activeStep = { label, startedAt: now() };
     if (output.isTTY) {
       let frame = 0;

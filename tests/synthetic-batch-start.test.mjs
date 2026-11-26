@@ -178,10 +178,13 @@ test('local development opens CLI journals and returns only safe progress fields
     status: 'stopped', started_at: startedAt, finished_at: '2026-11-02T00:00:05Z',
     stop: { phase: 'verifying', reason: '/private/reason' },
     runtime: { skill_snapshot: '/private/path' },
-    cases: [{ paper_id: 'paper-1', pdf: '/private/paper.pdf', status: 'stopped',
-      score: { earned: 9, rubric_maximum: 10 },
-      database: { assessment_id: 'unproven-owner' },
-    }],
+    cases: [
+      { paper_id: 'paper-1', pdf: '/private/paper.pdf', status: 'stopped',
+        score: { earned: 9, rubric_maximum: 10 },
+        steps: { generator: { status: 'completed', durationMs: 3_650, internal: 'private' } },
+        database: { assessment_id: assessmentId, generator_result_id: ownerId } },
+      { paper_id: 'paper-2', pdf: '/private/pending.pdf', status: 'pending', database: { assessment_id: ownerId } },
+    ],
   }));
   await mkdir(join(directory, 'invalid'));
   await writeFile(join(directory, 'invalid', 'batch.json'), '{');
@@ -195,14 +198,19 @@ test('local development opens CLI journals and returns only safe progress fields
   const source = getTrainingBatchHistorySource();
   assert.deepEqual(source, { kind: 'local', directory });
   const history = await listTrainingBatches(source, 1);
-  assert.deepEqual(history.batches, [{ id: 1, recordedAt: startedAt, status: 'stopped', total: 1, passed: 0 }]);
+  assert.deepEqual(history.batches, [{ id: 1, recordedAt: startedAt, status: 'stopped', total: 2, passed: 0 }]);
   const response = await status(1);
   assert.equal(response.status, 200);
   const detail = await response.json();
   assert.equal(detail.requestedAt, null);
   assert.equal(detail.startedAt, startedAt);
-  assert.deepEqual(detail.papers[0], { id: 'paper-1', fileName: 'paper.pdf', status: 'stopped', assessmentId: null, score: { earned: 9, maximum: 10 } });
-  assert.doesNotMatch(JSON.stringify(detail), /private|unproven-owner/);
+  assert.deepEqual(detail.papers[0], { id: 'paper-1', fileName: 'paper.pdf', status: 'stopped', assessmentId,
+    score: { earned: 9, maximum: 10 }, steps: { generator: { status: 'completed', durationMs: 3_650 } } });
+  assert.equal(detail.papers[1].assessmentId, null);
+  assert.equal(detail.papers[1].steps, undefined);
+  assert.equal(detail.canViewAssessmentLinks, undefined);
+  assert.doesNotMatch(JSON.stringify(detail), /private|generator_result_id/);
+  assert.ok(!JSON.stringify(detail).includes(ownerId));
   process.env.NODE_ENV = 'production';
   assert.equal(getTrainingBatchHistorySource(), null);
 });
@@ -220,6 +228,8 @@ test('an uncertain dispatch keeps the same progress URL and can reconcile a late
     status: 'stopped', updatedAt: timestamp, startedAt: timestamp, finishedAt: timestamp, stopPhase: 'verifying',
     versions: { generator: 4, verifier: 2, sha256: 'private' },
     papers: [{ id: 'paper-1', fileName: 'paper.pdf', status: 'stopped', assessmentId,
+      steps: { generator: { status: 'completed', durationMs: 0, internal: 'private' },
+        verifier: { status: 'stopped', durationMs: -1 }, other: { status: 'completed', durationMs: 2 } },
       score: { earned: 9, maximum: 10, internal: 'private' }, answer_key_sha256: 'private' }],
     reason: 'raw private error',
   });
@@ -228,16 +238,23 @@ test('an uncertain dispatch keeps the same progress URL and can reconcile a late
   assert.equal(state.status, 'stopped');
   assert.equal(state.stopPhase, 'verifying');
   assert.deepEqual(state.papers[0].score, { earned: 9, maximum: 10 });
+  assert.deepEqual(state.papers[0].steps, {
+    generator: { status: 'completed', durationMs: 0 }, verifier: { status: 'stopped', durationMs: null },
+  });
   assert.equal(state.papers[0].assessmentId, assessmentId);
+  assert.equal(state.canViewAssessmentLinks, true);
   assert.doesNotMatch(JSON.stringify(state), /private|ownerId/);
   globalThis.__syntheticBatchUser = { id: 'another-signed-in-viewer' };
   const sharedProgress = await status(id);
   assert.equal(sharedProgress.status, 200);
   const shared = await sharedProgress.json();
-  assert.deepEqual(shared.papers[0], { ...state.papers[0], assessmentId: null });
+  assert.deepEqual(shared.papers[0], state.papers[0]);
+  assert.equal(shared.canViewAssessmentLinks, undefined);
   assert.doesNotMatch(JSON.stringify(shared), /private|ownerId/);
-  assert.equal(send.mock.callCount(), 1);
   assert.equal((await status()).status, 404);
+  globalThis.__syntheticBatchUser = null;
+  assert.equal((await status(id)).status, 401);
+  assert.equal(send.mock.callCount(), 1);
 });
 
 test('a request-store failure prevents dispatch', async t => {

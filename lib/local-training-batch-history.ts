@@ -2,10 +2,11 @@ import "server-only";
 import { constants } from "node:fs";
 import { open, readFile, readdir } from "node:fs/promises";
 import { basename, join } from "node:path";
-import { isTrainingBatchId, type TrainingBatch, type TrainingBatchPaper } from "@/lib/training-batch";
+import { isResearchId } from "@/lib/research-experiment-queue";
+import { isTrainingBatchId, projectTrainingBatchSteps, type TrainingBatch, type TrainingBatchPaper } from "@/lib/training-batch";
 
 type Journal = {
-  status: "running" | "passed" | "stopped";
+  status: "running" | "passed" | "completed" | "stopped" | "interrupted";
   started_at: string;
   finished_at?: string;
   stop?: { phase: TrainingBatch["stopPhase"] };
@@ -14,7 +15,9 @@ type Journal = {
     paper_id: string;
     pdf: string;
     status: TrainingBatchPaper["status"];
+    database?: { assessment_id?: string; generator_result_id?: string };
     score?: { earned: number; rubric_maximum: number } | null;
+    steps?: unknown;
   }[];
 };
 type LocalTrainingBatch = TrainingBatch & { startedAt: string };
@@ -43,10 +46,11 @@ async function loadJournal({ id, file }: { id: number; file: string }): Promise<
       const stat = await handle.stat();
       if (!stat.isFile() || stat.size > 256_000) return null;
       const journal: Journal = JSON.parse(await handle.readFile("utf8"));
-      if (!journal || !["running", "passed", "stopped"].includes(journal.status) ||
+      if (!journal || !["running", "passed", "completed", "stopped", "interrupted"].includes(journal.status) ||
           !Number.isFinite(Date.parse(journal.started_at)) || !Array.isArray(journal.cases) ||
           journal.cases.some(paper => !paper || typeof paper.paper_id !== "string" ||
-            typeof paper.pdf !== "string" || !["pending", "generating", "verifying", "passed", "stopped"].includes(paper.status))) return null;
+            typeof paper.pdf !== "string" ||
+            !["pending", "generating", "verifying", "passed", "completed", "stopped", "interrupted"].includes(paper.status))) return null;
       return {
         id, requestedAt: null, startedAt: journal.started_at, finishedAt: journal.finished_at ?? null,
         status: journal.status, stopPhase: journal.stop?.phase ?? null,
@@ -56,8 +60,11 @@ async function loadJournal({ id, file }: { id: number; file: string }): Promise<
           verifier: journal.guidance?.verifier?.version_number ?? null,
         },
         papers: journal.cases.map(paper => ({
-          id: paper.paper_id, fileName: basename(paper.pdf), status: paper.status, assessmentId: null,
+          id: paper.paper_id, fileName: basename(paper.pdf), status: paper.status,
+          assessmentId: isResearchId(paper.database?.generator_result_id) && isResearchId(paper.database?.assessment_id)
+            ? paper.database.assessment_id : null,
           score: paper.score ? { earned: paper.score.earned, maximum: paper.score.rubric_maximum } : null,
+          steps: projectTrainingBatchSteps(paper.steps),
         })),
       };
     } finally {

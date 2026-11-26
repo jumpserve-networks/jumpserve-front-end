@@ -38,6 +38,19 @@ def archive_stream(name, data=b"sample", kind=tarfile.REGTYPE):
 
 
 class Ec2BatchTest(unittest.TestCase):
+    def test_ssh_terminal_frames_bypass_the_activity_log(self):
+        activity = BytesIO()
+        coordinator = BytesIO()
+        frame = b'JUMPSERVE_TERMINAL\t{"stream":"stderr","text":"fixture stderr"}\n'
+        milestone = b'{"kind":"codex_started"}\n'
+        # Use a local subprocess to exercise the streamed stdout reader.
+        with patch.object(batch.sys, "stdout") as output:
+            output.buffer = coordinator
+            command = f"import sys; sys.stdout.buffer.write({(frame + milestone)!r})"
+            self.assertEqual(batch.ssh_stream_terminal([batch.sys.executable, "-c"], command, 5, activity), 0)
+        self.assertEqual(coordinator.getvalue(), frame)
+        self.assertEqual(activity.getvalue(), milestone)
+
     def test_one_worker_with_no_ingress_and_a_disposable_disk(self):
         template = batch.template("ssh-ed25519 public-fixture", "JumpServeExperimentWorkload-SSM", "t3.medium")
         resources = template["Resources"]
@@ -62,6 +75,20 @@ class Ec2BatchTest(unittest.TestCase):
             {"Device": "/dev/sdf", "VolumeId": "vol-0123456789abcdef0"},
         ])
         self.assertFalse(any(resource["Type"] == "AWS::EC2::Volume" for resource in resources.values()))
+
+    def test_parallel_worker_uses_the_dedicated_subnet_and_deletes_only_its_own_resources(self):
+        subnet = "subnet-0123456789abcdef0"
+        group = "sg-0123456789abcdef0"
+        volume = "vol-0123456789abcdef0"
+        resources = batch.template("ssh-ed25519 fixture", "JumpServeExperimentWorkload-SSM", "t3.medium",
+                                   volume, "us-east-1a", subnet, group)["Resources"]
+        self.assertEqual(list(resources), ["Worker"])
+        worker = resources["Worker"]
+        self.assertNotIn("DependsOn", worker)
+        interface, = worker["Properties"]["NetworkInterfaces"]
+        self.assertEqual(interface["SubnetId"], subnet)
+        self.assertEqual(interface["GroupSet"], [group])
+        self.assertEqual(worker["Properties"]["Volumes"], [{"Device": "/dev/sdf", "VolumeId": volume}])
 
     def test_transfer_accepts_only_regular_files_in_the_requested_stage(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -161,25 +188,40 @@ class TrainingBatchTest(unittest.TestCase):
             "stop": {"phase": "verifying", "reason": "private error"},
             "cases": [{"paper_id": "paper-1", "pdf": "paper.pdf", "status": "stopped", "answer_key_sha256": "private",
                        "score": {"earned": 9, "rubric_maximum": 10},
-                       "database": {"assessment_id": self.assessment_id, "generator_result_id": "private"}}],
+                       "steps": {"generator": {"status": "completed", "durationMs": 1234, "internal": "private"},
+                                 "verifier": {"status": "completed", "durationMs": 100}},
+                       "database": {"assessment_id": self.assessment_id, "generator_result_id": "private"}},
+                      {"paper_id": "paper-2", "pdf": "other.pdf", "status": "interrupted"}],
         }
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)
             (path / "batch.json").write_text(json.dumps(state))
             with patch.object(training, "publish") as publish, patch.object(training.signal, "signal"), \
                     patch.object(training.subprocess, "Popen") as popen, patch.dict(os.environ, {
-                        "JUMPSERVE_WORKER_AUTH_VOLUME": "fixture-volume", "JUMPSERVE_WORKER_ZONE": "us-east-1a",
+                        "JUMPSERVE_WORKER_AUTH_VOLUMES": "fixture-volume-1,fixture-volume-2",
+                        "JUMPSERVE_WORKER_ZONE": "us-east-1a",
+                        "JUMPSERVE_WORKER_SUBNET_ID": "fixture-subnet", "JUMPSERVE_WORKER_SECURITY_GROUP_ID": "fixture-group",
                     }):
                 popen.return_value.poll.return_value = 1
                 popen.return_value.returncode = 1
                 self.assertEqual(training.supervise("fixture-bucket", self.batch_id, path, path), 1)
                 self.assertEqual(popen.call_args.args[0][0], "node")
                 self.assertTrue(popen.call_args.args[0][4].endswith("/run-jumpserve-synthetic-batch.mjs"))
+                self.assertEqual(popen.call_args.args[0][5:9], [
+                    "--worker-auth-volume", "fixture-volume-1", "--worker-auth-volume", "fixture-volume-2",
+                ])
+                self.assertIn("fixture-subnet", popen.call_args.args[0])
+                self.assertIn("--parallel", popen.call_args.args[0])
         snapshots = [call.args[3] for call in publish.call_args_list]
         self.assertEqual([value["status"] for value in snapshots], ["preparing", "stopped"])
         self.assertEqual(snapshots[-1]["stopPhase"], "verifying")
         self.assertEqual(snapshots[-1]["papers"][0]["score"], {"earned": 9, "maximum": 10})
         self.assertEqual(snapshots[-1]["papers"][0]["assessmentId"], self.assessment_id)
+        self.assertEqual(snapshots[-1]["papers"][0]["steps"], {
+            "generator": {"status": "completed", "durationMs": 1234},
+            "verifier": {"status": "completed", "durationMs": 100},
+        })
+        self.assertEqual(snapshots[-1]["papers"][1]["status"], "interrupted")
         self.assertNotIn("private", json.dumps(snapshots))
 
     def test_active_run_and_redelivery_cannot_start_another_batch(self):
@@ -194,6 +236,16 @@ class TrainingBatchTest(unittest.TestCase):
             supervise.assert_not_called()
             self.assertEqual(publish.call_count, 1)
             self.assertEqual(publish.call_args.args[3]["status"], "busy")
+
+    def test_completed_batch_with_lower_scores_is_terminal(self):
+        result = training.snapshot({
+            "status": "completed",
+            "cases": [{"paper_id": "paper-1", "pdf": "paper.pdf", "status": "completed",
+                       "score": {"earned": 9, "rubric_maximum": 10}}],
+        }, "failed")
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["papers"][0]["status"], "completed")
+        self.assertEqual(result["papers"][0]["score"], {"earned": 9, "maximum": 10})
 
 
 if __name__ == "__main__":

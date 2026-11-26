@@ -1,14 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LocalDateTime } from "@/app/components/user-preferences";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Dialog } from "@/app/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/components/ui/table";
 import { ASSESSMENT_PATH, TRAINING_BATCH_STATUS_API_PATH } from "@/lib/test-modules";
-import { isTrainingBatchActive, trainingBatchStatusLabels, type TrainingBatch, type TrainingBatchPaper } from "@/lib/training-batch";
+import {
+  formatTrainingBatchDuration,
+  isTrainingBatchActive,
+  trainingBatchStatusLabels,
+  trainingBatchStepLabels,
+  trainingBatchSteps,
+  type TrainingBatch,
+  type TrainingBatchPaper,
+  type TrainingBatchStep,
+} from "@/lib/training-batch";
 import { TrainingBatchActivityDialog } from "./training-batch-activity-dialog";
 
 const paperLabels: Record<TrainingBatchPaper["status"], string> = {
@@ -16,7 +25,9 @@ const paperLabels: Record<TrainingBatchPaper["status"], string> = {
   generating: "Generating",
   verifying: "Verifying",
   passed: "Passed",
+  completed: "Completed",
   stopped: "Stopped",
+  interrupted: "Interrupted",
 };
 const stopLabels: Record<NonNullable<TrainingBatch["stopPhase"]>, string> = {
   generating: "Generation",
@@ -24,12 +35,63 @@ const stopLabels: Record<NonNullable<TrainingBatch["stopPhase"]>, string> = {
   verifying: "Verification",
   saving_verifier: "Saving the Verifier result",
 };
+const stepStatusLabels = {
+  pending: "Pending",
+  running: "Running",
+  completed: "Completed",
+  stopped: "Stopped",
+  interrupted: "Interrupted",
+  unknown: "Status unavailable",
+};
+
+function legacyStepStatus(paper: TrainingBatchPaper, role: TrainingBatchStep) {
+  if (paper.status === "pending") return "pending";
+  if (paper.status === "generating") return role === "generator" ? "running" : "pending";
+  if (paper.status === "verifying") return role === "generator" ? "completed" : "running";
+  if (paper.status === "passed" || paper.status === "completed" ||
+      (role === "generator" && (paper.assessmentId || paper.score))) return "completed";
+  return "unknown";
+}
+
+function paperStep(paper: TrainingBatchPaper, role: TrainingBatchStep, active: boolean):
+  { status: keyof typeof stepStatusLabels; elapsed: string } {
+  const step = paper.steps?.[role];
+  const recordedStatus = paper.steps ? step?.status ?? "pending" : legacyStepStatus(paper, role);
+  const status = recordedStatus === "running" && !active ? "interrupted" : recordedStatus;
+  const duration = step?.durationMs;
+  const elapsed = typeof duration === "number" ? formatTrainingBatchDuration(duration)
+    : status === "completed" || status === "stopped" || status === "interrupted" ? "Time unavailable" : "";
+  return { status, elapsed };
+}
+
+function PaperSteps({ paper, active, onOpenDetails }: {
+  paper: TrainingBatchPaper;
+  active: boolean;
+  onOpenDetails: (role: TrainingBatchStep, trigger: HTMLButtonElement) => void;
+}) {
+  return <ol aria-label={`Assessment steps for ${paper.fileName}`}
+    className="mt-2 space-y-1 border-l pl-3 text-xs">
+    {trainingBatchSteps.map(role => {
+      const { status, elapsed } = paperStep(paper, role, active);
+      const label = trainingBatchStepLabels[role];
+      return <li key={role} className="flex flex-wrap items-baseline gap-x-2">
+        {status === "pending" ? <span className="font-medium">{label}</span> :
+          <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs font-medium underline"
+            aria-haspopup="dialog" aria-label={`View ${label} details for ${paper.fileName}`}
+            onClick={event => onOpenDetails(role, event.currentTarget)}>{label}</Button>}
+        <span className="text-muted-foreground">{stepStatusLabels[status]}</span>
+        {elapsed ? <span className="tabular-nums text-muted-foreground">{elapsed}</span> : null}
+      </li>;
+    })}
+  </ol>;
+}
 
 export function TrainingBatchProgress({ id, initial }: { id: number; initial?: TrainingBatch }) {
   const [batch, setBatch] = useState(initial);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
-  const [activityPaperId, setActivityPaperId] = useState<string>();
+  const [activitySelection, setActivitySelection] = useState<{ paperId: string; role: TrainingBatchStep }>();
+  const activityTrigger = useRef<HTMLButtonElement>(null);
   const hasInitial = initial !== undefined;
   const shouldPoll = !initial || isTrainingBatchActive(initial.status);
 
@@ -66,9 +128,17 @@ export function TrainingBatchProgress({ id, initial }: { id: number; initial?: T
     return () => { controller.abort(); clearTimeout(timer); };
   }, [id, hasInitial, refresh, shouldPoll]);
 
-  const passed = batch?.papers.filter(paper => paper.status === "passed").length ?? 0;
+  const completed = batch?.papers.filter(paper => paper.status === "passed" || paper.status === "completed").length ?? 0;
   const paperCount = batch?.papers.length ?? 0;
-  const activityPaper = batch?.papers.find(paper => paper.id === activityPaperId);
+  const batchActive = !!batch && isTrainingBatchActive(batch.status);
+  const activityPaper = batch?.papers.find(paper => paper.id === activitySelection?.paperId);
+  const role = activitySelection?.role;
+  const selectedStep = activityPaper && role ? paperStep(activityPaper, role, batchActive) : undefined;
+
+  function openActivity(paperId: string, role: TrainingBatchStep, trigger: HTMLButtonElement) {
+    activityTrigger.current = trigger;
+    setActivitySelection({ paperId, role });
+  }
 
   return <>
     {error ? <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
@@ -79,9 +149,9 @@ export function TrainingBatchProgress({ id, initial }: { id: number; initial?: T
       <section className="content-panel space-y-3 rounded-lg border p-5">
         <div role="status" className="flex flex-wrap items-center gap-3">
           <Badge variant={batch.status === "failed" || batch.status === "stopped" ? "destructive" : "secondary"}>{trainingBatchStatusLabels[batch.status]}</Badge>
-          {paperCount ? <span className="text-sm">{passed} of {paperCount} papers passed</span> : null}
+          {paperCount ? <span className="text-sm">{completed} of {paperCount} papers completed</span> : null}
         </div>
-        {paperCount ? <progress aria-label="Papers passed" className="h-2 w-full accent-primary" value={passed} max={paperCount} /> : null}
+        {paperCount ? <progress aria-label="Papers completed" className="h-2 w-full accent-primary" value={completed} max={paperCount} /> : null}
         {batch.status === "unconfirmed" ? <p className="text-sm">JumpServe is waiting for the first progress report from AWS.</p> : null}
         {batch.stale ? <p role="alert" className="text-sm">The last progress report is over a minute old.</p> : null}
         {batch.stopPhase ? <p className="text-sm">Stopped during {stopLabels[batch.stopPhase].toLowerCase()}.</p> : null}
@@ -96,24 +166,39 @@ export function TrainingBatchProgress({ id, initial }: { id: number; initial?: T
       </section>
       {paperCount ? <div className="content-panel rounded-lg border">
         <Table className="min-w-[26rem]">
-          <TableHeader><TableRow><TableHead scope="col">Paper</TableHead><TableHead scope="col">Status</TableHead><TableHead scope="col">Verifier score</TableHead></TableRow></TableHeader>
+          <TableHeader>
+            <TableRow>
+              <TableHead scope="col">Paper</TableHead>
+              <TableHead scope="col">Assessment ID</TableHead>
+              <TableHead scope="col">Status</TableHead>
+              <TableHead scope="col">Verifier score</TableHead>
+            </TableRow>
+          </TableHeader>
           <TableBody>{batch.papers.map(paper => <TableRow key={paper.id}>
-            <TableCell className="whitespace-normal">{paper.assessmentId
-              ? <Link className="underline" href={`${ASSESSMENT_PATH}/${paper.assessmentId}`}>{paper.fileName}</Link>
-              : paper.fileName}</TableCell>
-            <TableCell>{batch.activityAvailable && paper.status !== "pending"
-              ? <Button type="button" size="sm" variant="link" className="h-auto p-0 underline" aria-haspopup="dialog"
-                aria-label={`${paperLabels[paper.status]}, view worker activity for ${paper.fileName}`}
-                onClick={() => setActivityPaperId(paper.id)}>{paperLabels[paper.status]}</Button>
-              : paperLabels[paper.status]}</TableCell>
+            <TableCell className="whitespace-normal">
+              {batch.canViewAssessmentLinks && paper.assessmentId
+                ? <Link className="underline" href={`${ASSESSMENT_PATH}/${paper.assessmentId}`}>{paper.fileName}</Link>
+                : paper.fileName}
+              <PaperSteps paper={paper} active={batchActive}
+                onOpenDetails={(step, trigger) => openActivity(paper.id, step, trigger)} />
+            </TableCell>
+            <TableCell className="whitespace-normal">
+              {paper.assessmentId ? <code className="break-all text-xs">{paper.assessmentId}</code> : "—"}
+            </TableCell>
+            <TableCell>{paperLabels[paper.status]}</TableCell>
             <TableCell>{paper.score ? `${paper.score.earned} / ${paper.score.maximum}` : "—"}</TableCell>
           </TableRow>)}</TableBody>
         </Table>
       </div> : null}
-      <Dialog open={Boolean(activityPaper)} onOpenChange={open => { if (!open) setActivityPaperId(undefined); }}>
-        {activityPaper ? <TrainingBatchActivityDialog key={activityPaper.id} batchId={id} paperId={activityPaper.id}
-          filename={activityPaper.fileName} active={batch.status === "running" &&
-            (activityPaper.status === "generating" || activityPaper.status === "verifying")} /> : null}
+      <Dialog open={Boolean(activityPaper)} onOpenChange={open => { if (!open) setActivitySelection(undefined); }}>
+        {activityPaper && role && selectedStep ? <TrainingBatchActivityDialog key={`${activityPaper.id}:${role}`}
+          batchId={id} paperId={activityPaper.id} filename={activityPaper.fileName}
+          finalFocus={activityTrigger} activityAvailable={batch.activityAvailable === true}
+          active={batch.status === "running" && selectedStep.status === "running"}
+          step={{
+            role, status: stepStatusLabels[selectedStep.status], elapsed: selectedStep.elapsed, version: batch.versions[role],
+            score: role === "verifier" ? activityPaper.score : null,
+          }} /> : null}
       </Dialog>
     </> : error ? null : <p role="status" className="text-sm">Loading batch progress…</p>}
   </>;
