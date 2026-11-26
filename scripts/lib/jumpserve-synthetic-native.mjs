@@ -128,14 +128,14 @@ export function createNativeWorkers({ snapshot, workflowFiles, python, timeoutMs
       if (checked.status !== 0) throw new Error(`Native evidence preflight failed. ${checked.stderr?.trim() || checked.error?.code || checked.status}`);
       return JSON.parse(checked.stdout);
     },
-    verify: async ({ paper, key, artifactDirectory, output, guidance, rubric }) => {
+    verify: async ({ caseDirectory, paper, key, artifactDirectory, output, guidance, rubric }) => {
       const schemaPath = join(output, 'scorecard.schema.json');
       await writeFile(schemaPath, JSON.stringify(freshScorecardSchema(guidance)) + '\n', { flag: 'wx', mode: 0o600 });
       await session({ role: 'verifier', cwd: output,
         config: config([paper, key, artifactDirectory, output, generatorSkill, verifierSkill], null, false),
         scorecard: join(output, 'scorecard.json'), schemaPath,
         prompt: verifierPrompt({ skillDirectory: verifierSkill, workflow: join(verifierSkill, workflowFiles.verifier),
-          paper, key, assessment: join(artifactDirectory, 'jumpserve-assessment.json'), guidance, rubric }),
+          caseDirectory, paper, key, assessment: join(artifactDirectory, 'jumpserve-assessment.json'), guidance, rubric }),
       });
     },
   };

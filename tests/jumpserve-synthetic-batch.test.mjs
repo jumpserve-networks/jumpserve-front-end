@@ -3,13 +3,18 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { BATCH_SKILLS, inventory, runSyntheticBatch, sha256, stageBatchGuidance } from '../scripts/lib/jumpserve-synthetic-batch.mjs';
+import { BATCH_SKILLS, inventory, runSyntheticBatch, sha256, stageBatchGuidance, verifierPrompt } from '../scripts/lib/jumpserve-synthetic-batch.mjs';
 import { createBatchProgressReporter } from '../scripts/lib/jumpserve-synthetic-progress.mjs';
 
 const numberedGuidance = {
   generator: { source: 'bundled', sha256: 'c64477caf8d2f36e0a65ff7c445b8f146d01f128ab96672473d47cdd34a53f16' },
   verifier: { source: 'bundled', sha256: '8c41fd9eeaa0425bd7d88bfb25c3dc516bc775f4555407e497ec5aa1a862231c' },
 };
+
+function correctClaim(evidence = []) {
+  return { key_claim_id: 'C1', assessment_claim_id: 'c1', reported_outcome: 'untested', supported_outcome: 'untested',
+    assessment: 'correct', evidence, finding: 'The recorded outcome agrees.' };
+}
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'jumpserve-batch-test-'));
@@ -68,8 +73,7 @@ async function fixture(t) {
       assessment_sha256: sha256(await readFile(join(artifactDirectory, 'jumpserve-assessment.json'))),
       answer_key_sha256: sha256(keyBytes), split: 'development', mode: 'fresh', scenario: null,
       evidence_integrity: { status: 'verified' }, status: 'scored', blockers: [], critical_failures: [],
-      claims: [{ key_claim_id: 'C1', assessment_claim_id: 'c1', reported_outcome: 'untested', supported_outcome: 'untested',
-        assessment: 'correct', evidence: [], finding: 'The recorded outcome agrees.' }],
+      claims: [correctClaim()],
       rubric: [{ criterion: 'verdict', earned, maximum: 2, reason: 'Fixture score.' }],
       score: { earned, applicable_maximum: 2, rubric_maximum: 2 }, ...override,
     };
@@ -238,6 +242,55 @@ test('the batch persists both result IDs before stopping on a below-perfect grad
   assert.deepEqual(progress, [['A', 'generating', 'A.pdf', assessmentId], ['A', 'verifying', 'A.pdf', assessmentId]]);
   assert.equal(result.cases[0].database.verification_id, verificationId);
   assert.deepEqual(await journal(), result);
+});
+
+test('case-relative Verifier citations pass validation and save privately from a separate review directory', async t => {
+  const lab = await fixture(t);
+  const verificationId = '22459c11-9be3-44d2-9b39-a0cb96a0d09f';
+  const trace = 'generator/evidence/fixture.csv';
+  const citations = ['paper.pdf p. 1', `${trace} row 2`];
+  const result = await runSyntheticBatch({ ...lab, cases: lab.cases.slice(0, 1),
+    async generate(input) {
+      await lab.generate(input);
+      const evidence = join(input.output, 'evidence');
+      await mkdir(evidence);
+      await writeFile(join(evidence, 'fixture.csv'), 'trial,count\n1,42\n');
+    },
+    async verify(input) {
+      assert.notEqual(input.output, input.caseDirectory);
+      assert.equal(input.output, join(input.caseDirectory, 'verifier'));
+      assert.equal(input.paper, join(input.caseDirectory, 'paper.pdf'));
+      const prompt = verifierPrompt({ ...input, skillDirectory: '/skills/verifier', workflow: '/skills/verifier/workflow.md',
+        assessment: join(input.artifactDirectory, 'jumpserve-assessment.json') });
+      assert.ok(prompt.includes(`Use ${input.caseDirectory} as the base directory for every path in claims[].evidence.`));
+      assert.match(prompt, /Use this base regardless of your working directory/);
+      assert.match(prompt, /precise page, line, or row selectors/);
+      assert.equal(await readFile(join(input.caseDirectory, trace), 'utf8'), 'trial,count\n1,42\n');
+      await lab.score(input, 2, { claims: [correctClaim(citations)] });
+    },
+    persistence: {
+      generator: async () => '09859c11-9be3-44d2-9b39-a0cb96a0d09f',
+      verifier: async (_assessmentId, artifact, grade) => {
+        assert.deepEqual(grade.claims[0].evidence, citations);
+        assert.equal(grade.assessment_sha256, sha256(artifact));
+        return verificationId;
+      },
+    },
+  });
+  assert.equal(result.status, 'passed');
+  assert.equal(result.cases[0].database.verification_id, verificationId);
+
+  for (const evidence of [`../${trace} row 2`, `/case/${trace} row 2`]) {
+    const rejected = await fixture(t);
+    const stopped = await runSyntheticBatch({ ...rejected, cases: rejected.cases.slice(0, 1),
+      verify: input => rejected.score(input, 2, { claims: [correctClaim([evidence])] }),
+      persistence: { generator: async () => '09859c11-9be3-44d2-9b39-a0cb96a0d09f',
+        verifier: () => assert.fail('Invalid evidence reached the private save.') },
+    });
+    assert.equal(stopped.stop.phase, 'verifying');
+    assert.equal(stopped.stop.reason, 'Use relative evidence references in the scorecard.');
+    assert.equal(stopped.cases[0].database.verification_id, undefined);
+  }
 });
 
 test('a failed database save stops the batch and keeps its assessment ID and local artifact', async t => {
