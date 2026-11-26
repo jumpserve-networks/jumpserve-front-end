@@ -5,6 +5,11 @@ import {dirname,extname,resolve} from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'../..');
 registerHooks({resolve(name,context,next){
+ if(name.startsWith('@/')){
+  const target=resolve(root,name.slice(2));
+  const file=extname(target)?target:target+'.ts';
+  if(existsSync(file))return next(pathToFileURL(file).href,context);
+ }
  if(name.startsWith('.')&&!extname(name)&&context.parentURL?.startsWith(pathToFileURL(root+'/').href)&&!context.parentURL.includes('/node_modules/')){
   const file=resolve(dirname(fileURLToPath(context.parentURL)),name)+'.ts';
   if(existsSync(file))return next(pathToFileURL(file).href,context);

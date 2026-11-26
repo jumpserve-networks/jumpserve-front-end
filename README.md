@@ -29,7 +29,7 @@ plan-only instructions you give it.
 Claude Code and Codex run paper assessments locally with the standalone
 [Generator skill](skills/jumpserve-paper-assessment/SKILL.md). Its skill ID is
 `jumpserve-paper-assessment`.
-[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.7.2.zip)
+[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.7.3.zip)
 from JumpServe. Place the extracted skill
 directory under `~/.claude/skills/` for Claude Code or `~/.agents/skills/` for
 Codex. The skill uses the [Access, Experiment, Data, and Validate workflow](skills/jumpserve-paper-assessment/references/modules.md)
@@ -111,6 +111,8 @@ evidence stay with the user. The connector does not need a model-provider key.
    Apply `database/202611230001_jumpserve_private_evaluation_results.sql` before
    releasing private Generator projections and Verifier scorecard saves. It
    backfills completed assessment results and keeps these tables service-role only.
+   For private CLI result saves, apply `database/202611250001_jumpserve_coach_reports_without_recommendations.sql`
+   before deploying the app. It allows completed Coach reports that found no changes to recommend.
 2. Set `NEXT_PUBLIC_SITE_URL` to the app's actual origin and
    `JUMPSERVE_MCP_ENABLED=true` in the server runtime. Use the existing
    `PAPER_INTAKE_SECRET_ID` on Amplify or set a server-only
@@ -134,6 +136,36 @@ use `/mcp` to sign in. The account owner can revoke connector sessions at
 Supabase instance with Google sign-in configured for your loopback app origin.
 Run `npm run verify:research:mcp` for the browser and MCP integration check
 with an isolated Next.js build and synthetic Supabase accounts.
+
+### Start an assessment from a terminal
+
+From this checkout with Node.js 24 and dependencies installed, authorize the
+JumpServe CLI once with your Google account. Start assessments from local PDFs
+after that sign-in.
+
+```sh
+npm run assessment -- login
+npm run assessment -- start ./paper.pdf
+npm run assessment -- start ./another-paper.pdf --run
+```
+
+`start` verifies the private upload and returns the assessment ID and Generator
+prompt. Add `--run` to launch Codex in a fresh local workspace, or run
+`npm run assessment -- run <assessment-id>` later. Codex uses your existing
+ChatGPT sign-in and needs the installed JumpServe plugin and its MCP connection
+for the same JumpServe account. `--yolo` explicitly runs Codex with approval
+prompts and sandboxing disabled. The completed assessment is saved privately
+through the existing connector.
+
+Use `npm run --silent assessment -- start ./paper.pdf --json` for JSON output.
+If an upload is interrupted, retry the same PDF with `--assessment-id <id>`
+using the ID printed before upload. Pass `--url http://127.0.0.1:6001` to use
+an isolated local instance. `logout` clears the cached credential for that
+origin. The account's JumpServe connections page can revoke the connection
+on the server.
+
+The [synthetic assessment batch](docs/synthetic-assessment-batch.md) runs the
+Generator and Verifier locally when you have matching answer keys.
 
 Run `python3 scripts/package-jumpserve-plugin.py` to build both ZIPs and the
 Claude marketplace catalog from the same skill. The catalog pins the plugin

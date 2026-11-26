@@ -93,7 +93,7 @@ export async function reserveLocalAssessmentSource(owner: string, assessmentId: 
   const path = sourceObject(owner, sha256);
   if ((await storage.exists(path)).data) return { status: "stored" } as const;
   const { data, error } = await storage.createSignedUploadUrl(path, { upsert: false });
-  if (data && !error) return { status: "pending", path, token: data.token } as const;
+  if (data && !error) return { status: "pending", path, token: data.token, uploadUrl: data.signedUrl } as const;
   // The same PDF may have finished uploading in another tab after the check.
   if ((await storage.exists(path)).data) return { status: "stored" } as const;
   throw new Error("JumpServe could not prepare the private PDF upload.");

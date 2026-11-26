@@ -15,7 +15,7 @@ export const COACH_REPORT_SCHEMA = object({
     assessment_sha256: { type: "string", pattern: "^[a-f0-9]{64}$" },
   }) },
   summary: text(1500),
-  recommendations: { type: "array", minItems: 1, maxItems: 20, items: object({
+  recommendations: { type: "array", maxItems: 20, items: object({
     title: text(160), finding: text(1600), proposed_change: text(2000), regression_check: text(1600),
   }) },
   limitations: { type: "array", maxItems: 20, items: text(1000) },

@@ -1,6 +1,6 @@
 import { getGoogleUser, requireGoogleUser } from "@/lib/auth";
-import { BoundedBodyError, readBoundedBody } from "@/lib/jumpserve-mcp-oauth";
-import { localAssessmentSourceDownload, readLocalAssessmentSource, reserveLocalAssessmentSource } from "@/lib/jumpserve-mcp-store";
+import { BoundedBodyError, isOpaqueCredential, mcpConfig, readBoundedBody } from "@/lib/jumpserve-mcp-oauth";
+import { connectorActor, localAssessmentSourceDownload, readLocalAssessmentSource, reserveLocalAssessmentSource } from "@/lib/jumpserve-mcp-store";
 import { isPaperSha256, localAssessmentSourcePage } from "@/lib/local-assessment-source";
 import { isResearchId } from "@/lib/research-experiment-queue";
 import { PAPER_UPLOAD_MAX_BYTES } from "@/lib/research-paper-upload";
@@ -12,8 +12,16 @@ const failure = (error: string, status: number) => Response.json({ error }, { st
 
 export async function POST(request: Request) {
   const token = request.headers.get("authorization")?.match(/^Bearer (\S+)$/i)?.[1];
-  const owner = token ? await getGoogleUser(token) : null;
-  if (!owner) return failure("Sign in with Google to upload a paper.", 401);
+  const cli = isOpaqueCredential(token);
+  const config = cli ? mcpConfig() : null;
+  let ownerId;
+  try {
+    ownerId = cli ? config && await connectorActor(token, config.cliResource)
+      : token && (await getGoogleUser(token))?.id;
+  } catch {
+    return failure("JumpServe could not verify your sign-in. Try again.", 503);
+  }
+  if (!ownerId) return failure("Sign in with Google to upload a paper.", 401);
   if (request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") {
     return failure("A JSON request is required.", 415);
   }
@@ -33,11 +41,14 @@ export async function POST(request: Request) {
   const { action, assessment_id, sha256, byte_count } = body;
   try {
     if (action === "reserve") {
-      const ticket = await reserveLocalAssessmentSource(owner.id, assessment_id, { sha256, byte_count });
-      return ticket ? Response.json(ticket, { headers }) : failure("This assessment ID is unavailable for the selected PDF.", 409);
+      const ticket = await reserveLocalAssessmentSource(ownerId, assessment_id, { sha256, byte_count });
+      if (!ticket) return failure("This assessment ID is unavailable for the selected PDF.", 409);
+      if (ticket.status === "stored") return Response.json(ticket, { headers });
+      return Response.json(cli ? { status: ticket.status, upload_url: ticket.uploadUrl }
+        : { status: ticket.status, path: ticket.path, token: ticket.token }, { headers });
     }
     if (action === "verify") {
-      const source = await readLocalAssessmentSource(owner.id, assessment_id);
+      const source = await readLocalAssessmentSource(ownerId, assessment_id);
       return source && source.sha256 === sha256 && source.byte_count === byte_count ? Response.json({ status: "ready" }, { headers })
         : failure("JumpServe could not verify the uploaded PDF. Retry with the same file.", 404);
     }

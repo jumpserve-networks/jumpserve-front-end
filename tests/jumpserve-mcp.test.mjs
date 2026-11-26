@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { prepareAssessmentBundle } from '../lib/jumpserve-assessment-bundle.ts';
-import { clientInfo, issueClientId, parseAuthorizationRequest, registeredRedirect, verifierChallenge } from '../lib/jumpserve-mcp-oauth.ts';
+import { CLI_CLIENT_ID, CLI_SCOPE, clientInfo, connectorResource, issueClientId, parseAuthorizationRequest, registeredRedirect, verifierChallenge } from '../lib/jumpserve-mcp-oauth.ts';
 import { serveJumpServeTools } from '../lib/jumpserve-mcp-server.ts';
 import { prepareVerifierResult } from '../lib/jumpserve-verification.ts';
 import { prepareCoachReport } from '../lib/jumpserve-coach.ts';
@@ -29,6 +29,7 @@ test('Coach reports require unique sources, exclude raw inputs, and hash reorder
   assert.equal(prepareCoachReport({ ...report, sources }).hash, prepareCoachReport({ ...report, sources: sources.toReversed() }).hash);
   assert.throws(() => prepareCoachReport({ ...report, sources: [...sources, second] }), /only once/);
   assert.throws(() => prepareCoachReport({ ...report, sources: [] }), /does not match/);
+  assert.deepEqual(prepareCoachReport({ ...report, recommendations: [] }).report.recommendations, []);
   assert.throws(() => prepareCoachReport({ ...report, raw_scorecard: {} }), /does not match/);
   assert.throws(() => prepareCoachReport({ ...report, summary: 'Inspect /Users/owner/private.json' }), /private paths/);
 });
@@ -248,6 +249,23 @@ test('automatic registration binds a client ID to the connector and loopback cal
     'http://127.0.0.1:65536/callback/aBcDeF123456',
     'https://other.example.test/callback',
   ]) assert.equal(registeredRedirect(info, redirect), false);
+});
+
+test('the CLI client requires its upload resource, scope, and loopback callback', () => {
+  const config = { issuer: origin, resource: `${origin}/mcp`, metadata: `${origin}/metadata`, cliResource: `${origin}/research-verification/api/assessment-source` };
+  const resource = connectorResource(config, CLI_CLIENT_ID);
+  const values = new URLSearchParams({ client_id: CLI_CLIENT_ID, redirect_uri: 'http://127.0.0.1:40022/callback',
+    state: 'original', resource, scope: CLI_SCOPE, response_type: 'code', code_challenge_method: 'S256',
+    code_challenge: verifierChallenge('a'.repeat(43)) });
+  assert.equal(parseAuthorizationRequest(values, resource)?.readSources, false);
+  assert.equal(connectorResource(config, 'jumpserve-codex'), config.resource);
+  for (const [key, value] of [['resource', config.resource], ['resource', null], ['scope', 'assessments:share'],
+    ['scope', null], ['redirect_uri', 'http://localhost:40022/callback']]) {
+    const changed = new URLSearchParams(values);
+    if (value === null) changed.delete(key);
+    else changed.set(key, value);
+    assert.equal(parseAuthorizationRequest(changed, resource), null);
+  }
 });
 
 test('a real MCP SDK client discovers and calls the JumpServe tools', async () => {
