@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { BATCH_SKILLS, inventory, runSyntheticBatch, sha256, stageBatchGuidance, verifierPrompt } from '../scripts/lib/jumpserve-synthetic-batch.mjs';
+import { inventory, runSyntheticBatch, sha256, stageBatchGuidance } from '../scripts/lib/jumpserve-synthetic-batch.mjs';
+import { BATCH_SKILLS, verifierPrompt } from '../scripts/lib/jumpserve-synthetic-worker-inputs.mjs';
 import { createBatchProgressReporter } from '../scripts/lib/jumpserve-synthetic-progress.mjs';
+import { createEc2Workers } from '../scripts/lib/jumpserve-synthetic-ec2.mjs';
+import { createContainerWorkers } from '../scripts/lib/jumpserve-synthetic-containers.mjs';
 
 const numberedGuidance = {
   generator: { source: 'bundled', sha256: 'c64477caf8d2f36e0a65ff7c445b8f146d01f128ab96672473d47cdd34a53f16' },
@@ -38,7 +41,7 @@ async function fixture(t) {
   const options = {
     output, cases, guidance, runtime: { fixture: true },
     generate: async input => {
-      assert.deepEqual(Object.keys(input).sort(), ['guidance', 'output', 'paper', 'paperSha256']);
+      assert.deepEqual(Object.keys(input).sort(), ['assessmentId', 'guidance', 'output', 'paper', 'paperSha256']);
       const { output, paper, paperSha256, guidance } = input;
       const id = cases.find(item => item.paperSha256 === paperSha256).paperId;
       calls.push(`generate ${id}`);
@@ -242,6 +245,226 @@ test('the batch persists both result IDs before stopping on a below-perfect grad
   assert.deepEqual(progress, [['A', 'generating', 'A.pdf', assessmentId], ['A', 'verifying', 'A.pdf', assessmentId]]);
   assert.equal(result.cases[0].database.verification_id, verificationId);
   assert.deepEqual(await journal(), result);
+});
+
+test('instance review gets the saved Generator inputs and finishes before the score gate', async t => {
+  const lab = await fixture(t);
+  const assessmentIds = [];
+  const generatorId = '09859c11-9be3-44d2-9b39-a0cb96a0d09f';
+  const verificationId = '22459c11-9be3-44d2-9b39-a0cb96a0d09f';
+  const result = await runSyntheticBatch({ ...lab,
+    generate(input) {
+      assessmentIds.push(input.assessmentId);
+      assert.equal(input.key, undefined);
+      return lab.generate(input);
+    },
+    preflight: () => assert.fail('The local Verifier preflight ran.'),
+    verify: () => assert.fail('The local Verifier ran.'),
+    async reviewOnInstance(input) {
+      assert.equal(input.assessmentId, assessmentIds[0]);
+      assert.equal(lab.calls.at(-1), 'save generator');
+      const checked = await lab.preflight(input);
+      for (const [field, value] of Object.entries(input.expected)) assert.equal(checked[field], value);
+      await lab.score(input, 1);
+      return checked;
+    },
+    persistence: {
+      generator: async () => { lab.calls.push('save generator'); return generatorId; },
+      verifier: async () => { lab.calls.push('save verifier'); return verificationId; },
+    },
+  });
+  assert.deepEqual(lab.calls, ['generate A', 'save generator', 'preflight A', 'verify A', 'save verifier']);
+  assert.deepEqual(result.cases.map(item => item.status), ['stopped', 'pending', 'pending']);
+  assert.equal(result.cases[0].database.verification_id, verificationId);
+});
+
+test('EC2 workers stage separate leases with only the inputs each role needs', async t => {
+  const lab = await fixture(t);
+  const root = dirname(lab.output);
+  const bin = join(root, 'bin');
+  const snapshot = join(root, 'skills');
+  const caseDirectory = join(root, 'case');
+  const artifactDirectory = join(caseDirectory, 'generator');
+  const output = join(caseDirectory, 'verifier');
+  const paper = lab.cases[0].paperPath;
+  const key = lab.cases[0].keyPath;
+  await mkdir(bin);
+  await mkdir(artifactDirectory, { recursive: true });
+  await mkdir(output);
+  for (const skill of Object.values(BATCH_SKILLS)) {
+    await mkdir(join(snapshot, skill), { recursive: true });
+    await writeFile(join(snapshot, skill, 'SKILL.md'), '# Fixture skill\n');
+  }
+  await writeFile(join(bin, 'python3'), `#!${process.execPath}
+const assert = require('node:assert/strict');
+const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('node:fs');
+const { join } = require('node:path');
+const arg = name => process.argv[process.argv.indexOf(name) + 1];
+const role = arg('--role');
+const stage = arg('--stage');
+const auth = arg('--codex-auth');
+const payload = join(stage, 'payload');
+const job = JSON.parse(readFileSync(join(payload, 'job.json'), 'utf8'));
+assert.equal(process.argv[4], 'run');
+assert.equal(role, job.role);
+assert.equal(arg('--ttl-minutes'), '50');
+assert.equal(arg('--assessment-id'), '6386345c-e930-4232-b510-c68da072ffd0');
+assert.equal(readFileSync(0, 'utf8').trim(), auth === 'chatgpt' ? '' : 'fixture-model-key');
+assert.equal(process.env.JUMPSERVE_BATCH_CODEX_API_KEY, undefined);
+assert.equal(process.env.CODEX_ACCESS_TOKEN, undefined);
+assert.ok(!existsSync(join(payload, 'session.json')));
+if (auth === 'chatgpt') {
+  const session = JSON.parse(readFileSync(join(stage, 'session.json'), 'utf8'));
+  assert.equal(session.command[0], 'codex');
+  assert.ok(session.command.includes(role === 'generator' ? '--yolo' : 'read-only'));
+  assert.match(session.prompt, /Follow the JumpServe/);
+}
+assert.ok(existsSync(join(payload, 'case/paper.pdf')));
+assert.equal(existsSync(join(payload, 'case/answer-key.json')), role === 'verifier');
+assert.equal(existsSync(join(payload, 'skills/jumpserve-assessment-verifier')), role === 'verifier');
+assert.equal(existsSync(join(payload, 'case/generator/retained.json')), role === 'verifier');
+mkdirSync(join(stage, 'retrieved/case', role), { recursive: true });
+writeFileSync(join(stage, 'retrieved/case', role, 'retained.json'), JSON.stringify({ role }));
+if (role === 'verifier') writeFileSync(join(stage, 'retrieved/case/preflight.json'), JSON.stringify(job.expected));
+mkdirSync(join(stage, 'aws-lease'));
+writeFileSync(join(stage, 'aws-lease/state.json'), JSON.stringify({ role, cleaned: true }));
+`, { mode: 0o700 });
+  const originalPath = process.env.PATH;
+  process.env.PATH = `${bin}:${originalPath}`;
+  t.after(() => { process.env.PATH = originalPath; });
+  const workers = createEc2Workers({ settings: { profile: 'fixture', region: 'us-east-1',
+    instanceProfile: 'JumpServeExperimentWorkload-SSM', instanceType: 't3.medium' }, snapshot, workflowFiles: {},
+  timeoutMs: 30 * 60_000, apiKey: 'fixture-model-key' });
+  const assessmentId = '6386345c-e930-4232-b510-c68da072ffd0';
+  await workers.generate({ assessmentId, paper, output: artifactDirectory, paperSha256: lab.cases[0].paperSha256,
+    guidance: lab.guidance.generator });
+  const expected = { assessment_sha256: 'a'.repeat(64) };
+  assert.deepEqual(await workers.reviewOnInstance({ assessmentId, caseDirectory, paper, key, artifactDirectory, output,
+    guidance: lab.guidance.verifier, rubric: lab.cases[0].rubric, expected }), expected);
+  for (const role of ['generator', 'verifier']) {
+    const stage = join(caseDirectory, `ec2-${role}`);
+    assert.deepEqual(JSON.parse(await readFile(join(stage, 'aws-lease/state.json'), 'utf8')), { role, cleaned: true });
+    assert.deepEqual(JSON.parse(await readFile(join(caseDirectory, role, 'retained.json'), 'utf8')), { role });
+    assert.deepEqual(JSON.parse(await readFile(join(stage, 'retrieved/case', role, 'retained.json'), 'utf8')), { role });
+    await assert.rejects(readFile(join(stage, 'payload/job.json')), { code: 'ENOENT' });
+  }
+
+  const chatgptDirectory = join(root, 'chatgpt-case');
+  const chatgptArtifacts = join(chatgptDirectory, 'generator');
+  const chatgptOutput = join(chatgptDirectory, 'verifier');
+  await mkdir(chatgptArtifacts, { recursive: true });
+  await mkdir(chatgptOutput);
+  const chatgpt = createEc2Workers({ settings: { profile: 'fixture', region: 'us-east-1',
+    instanceProfile: 'JumpServeExperimentWorkload-SSM', instanceType: 't3.medium' }, snapshot,
+    workflowFiles: { generator: 'workflow.md', verifier: 'workflow.md' }, timeoutMs: 30 * 60_000 });
+  await chatgpt.generate({ assessmentId, paper, output: chatgptArtifacts, paperSha256: lab.cases[0].paperSha256,
+    guidance: lab.guidance.generator });
+  assert.deepEqual(await chatgpt.reviewOnInstance({ assessmentId, caseDirectory: chatgptDirectory, paper, key,
+    artifactDirectory: chatgptArtifacts, output: chatgptOutput, guidance: lab.guidance.verifier,
+    rubric: lab.cases[0].rubric, expected }), expected);
+  await assert.rejects(readFile(join(chatgptDirectory, 'ec2-generator/session.json')), { code: 'ENOENT' });
+
+  const collisionDirectory = join(root, 'collision-case');
+  const occupied = join(collisionDirectory, 'generator');
+  await mkdir(occupied, { recursive: true });
+  await writeFile(join(occupied, 'retained.json'), 'original evidence');
+  await assert.rejects(chatgpt.generate({ assessmentId, paper, output: occupied, paperSha256: lab.cases[0].paperSha256,
+    guidance: lab.guidance.generator }), { code: /^(EEXIST|ENOTEMPTY)$/ });
+  assert.equal(await readFile(join(occupied, 'retained.json'), 'utf8'), 'original evidence');
+  assert.deepEqual(JSON.parse(await readFile(join(collisionDirectory, 'ec2-generator/retrieved/case/generator/retained.json'), 'utf8')),
+    { role: 'generator' });
+});
+
+test('Docker workers separate model authentication from case mounts and fail closed on a different Codex version', async t => {
+  const lab = await fixture(t);
+  const bin = join(dirname(lab.output), 'bin');
+  const callsPath = join(bin, 'calls.jsonl');
+  const versionPath = join(bin, 'version');
+  const fixtureKey = 'fixture-isolated-model-key';
+  await mkdir(bin);
+  await writeFile(versionPath, 'codex-cli 0.171.0');
+  await writeFile(join(bin, 'docker'), String.raw`#!${process.execPath}
+const { appendFileSync, readFileSync } = require('node:fs');
+const args = process.argv.slice(2);
+appendFileSync(${JSON.stringify(callsPath)}, JSON.stringify({ args, key: process.env.CODEX_API_KEY === ${JSON.stringify(fixtureKey)} }) + '\n');
+if (args.at(-1) === '--version') console.log(readFileSync(${JSON.stringify(versionPath)}, 'utf8'));
+if (args.includes('CODEX_API_KEY')) console.log('{"scorecard":true}');
+if (args[0] === 'port') console.log('127.0.0.1:30123');
+`, { mode: 0o700 });
+  const originalPath = process.env.PATH;
+  process.env.PATH = `${bin}:${originalPath}`;
+  t.after(() => { process.env.PATH = originalPath; });
+
+  const artifactDirectory = join(lab.output, 'generator');
+  const output = join(lab.output, 'verifier');
+  await mkdir(artifactDirectory, { recursive: true });
+  await mkdir(output);
+  const { paperPath: paper, keyPath: key } = lab.cases[0];
+  const workers = createContainerWorkers({ image: `sha256:${'a'.repeat(64)}`, snapshot: join(bin, 'skills'),
+    workflowFiles: { generator: 'workflow.md', verifier: 'workflow.md' }, timeoutMs: 30_000, apiKey: fixtureKey });
+  await workers.generate({ paper, output: artifactDirectory, guidance: {} });
+  await workers.verify({ paper, key, artifactDirectory, output, guidance: {}, rubric: [] });
+  assert.deepEqual(JSON.parse(await readFile(join(output, 'scorecard.json'), 'utf8')), { scorecard: true });
+
+  const calls = async () => (await readFile(callsPath, 'utf8')).trim().split('\n').map(JSON.parse);
+  const successful = await calls();
+  const starts = successful.filter(({ args }) => args[0] === 'run');
+  assert.equal(starts.length, 4);
+  for (const [index, mode] of ['--yolo', '--sandbox'].entries()) {
+    const [executor, client] = starts.slice(index * 2, index * 2 + 2);
+    const executorName = executor.args[executor.args.indexOf('--name') + 1];
+    assert.ok(executor.args.includes('exec-server'));
+    assert.ok(executor.args.includes('--mount'));
+    assert.equal(executor.key, false);
+    assert.ok(!executor.args.includes('--env'));
+    assert.ok(!client.args.includes('--mount'));
+    assert.ok(client.args.includes(`container:${executorName}`));
+    assert.ok(client.args.includes('CODEX_EXEC_SERVER_URL=ws://127.0.0.1:8745'));
+    assert.ok(client.args.includes(mode));
+    assert.ok(client.key);
+  }
+  const reviewMounts = starts[2].args.filter(arg => arg.startsWith('type=bind,'));
+  assert.ok(reviewMounts.every(arg => arg.endsWith(',readonly')));
+
+  await writeFile(versionPath, 'codex-cli 0.170.0');
+  await assert.rejects(workers.generate({ paper, output: artifactDirectory, guidance: {} }), /Rebuild the batch image/);
+  const failed = (await calls()).slice(successful.length);
+  assert.equal(failed.filter(({ args }) => args[0] === 'run').length, 1);
+  assert.ok(failed.every(({ key }) => !key));
+  assert.equal(failed.filter(({ args }) => args[0] === 'rm').length, 2);
+
+  await writeFile(versionPath, 'codex-cli 0.171.0');
+  const workdir = '/private/tmp/jumpserve-codex-fixture';
+  const served = await workers.serve({ role: 'generator', paper, output: artifactDirectory }, workdir);
+  assert.equal(served.port, 30123);
+  const service = (await calls()).find(({ args }) => args.includes(served.name) && args[0] === 'run');
+  assert.ok(service.args.includes('127.0.0.1::8745'));
+  assert.ok(service.args.includes(`type=bind,source=${artifactDirectory},destination=${workdir}`));
+  assert.ok(!service.args.includes('--env'));
+  assert.equal(service.key, false);
+
+  const mountedHome = join(dirname(lab.output), 'credential-home');
+  const volumeOutput = join(dirname(lab.output), 'volume-case', 'generator');
+  await mkdir(mountedHome, { mode: 0o700 });
+  await mkdir(volumeOutput, { recursive: true });
+  const chatgptAuthDirectory = await realpath(mountedHome);
+  const authFile = join(chatgptAuthDirectory, 'auth.json');
+  await writeFile(authFile, '{"auth_mode":"chatgpt"}', { mode: 0o600 });
+  const usingVolume = createContainerWorkers({ image: `sha256:${'a'.repeat(64)}`, snapshot: join(bin, 'skills'),
+    workflowFiles: { generator: 'workflow.md' }, timeoutMs: 30_000, chatgptAuthDirectory });
+  const beforeVolume = (await calls()).length;
+  await usingVolume.generate({ paper, output: volumeOutput, guidance: {} });
+  const volumeCalls = (await calls()).slice(beforeVolume);
+  const [volumeExecutor, volumeClient] = volumeCalls.filter(({ args }) => args[0] === 'run');
+  assert.ok(volumeExecutor.args.includes('exec-server'));
+  assert.ok(volumeExecutor.args.every(arg => !arg.includes(chatgptAuthDirectory)));
+  assert.ok(volumeClient.args.includes(`type=bind,source=${chatgptAuthDirectory},destination=/codex-credentials`));
+  assert.ok(volumeClient.args.includes('CODEX_HOME=/codex-credentials'));
+  assert.ok(volumeClient.args.includes('forced_login_method="chatgpt"'));
+  assert.ok(volumeCalls.every(({ key, args }) => !key && !args.includes('CODEX_API_KEY')));
+  await chmod(authFile, 0o644);
+  await assert.rejects(usingVolume.generate({ paper, output: volumeOutput, guidance: {} }), /requires a private directory/);
+  assert.equal((await calls()).length, beforeVolume + volumeCalls.length);
 });
 
 test('case-relative Verifier citations pass validation and save privately from a separate review directory', async t => {

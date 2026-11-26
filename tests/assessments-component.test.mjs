@@ -11,6 +11,7 @@ const progressURL = new URL('../lib/assessment-wizard-progress.ts', import.meta.
 const sources = {
   'next/link': `export default function Link({href,scroll,prefetch,replace,...props}) {return globalThis.__assessmentReact.createElement('a',{...props,href});}`,
   'next/form': `export default function Form({action,...props}) {return globalThis.__assessmentReact.createElement('form',{...props,action});}`,
+  'next/navigation': `export const useRouter=()=>({push:globalThis.__trainingBatchNavigate});`,
   '@/app/components/user-preferences': `export const useUserPreferences=()=>globalThis.__assessmentPreferences; export const LocalDateTime=({value})=>globalThis.__assessmentReact.createElement('time',{},value);`,
   '@/lib/research-assessment-list': `export {assessmentListPath} from ${JSON.stringify(listURL)};export const loadAssessmentList=(...args)=>globalThis.__assessmentLoad(...args);`,
   '@/lib/assessment-wizard-progress': `export {assessmentStepLabel} from ${JSON.stringify(progressURL)};export const loadAssessmentWizardProgress=(...args)=>globalThis.__assessmentProgress(...args);`,
@@ -21,8 +22,10 @@ const hook = registerHooks({resolve(specifier, context, next) {
   return next(specifier, context);
 }});
 const {Assessments} = await import('../app/components/research-workflow/assessments.tsx');
+const {StartSyntheticBatch} = await import('../app/components/research-workflow/start-synthetic-batch.tsx');
+const {TrainingBatchProgress} = await import('../app/components/research-workflow/training-batch-progress.tsx');
 hook.deregister();
-afterEach(() => {cleanup(); delete globalThis.__assessmentPreferences; delete globalThis.__assessmentLoad; delete globalThis.__assessmentDelete; delete globalThis.__assessmentProgress;});
+afterEach(() => {cleanup(); delete globalThis.__assessmentPreferences; delete globalThis.__assessmentLoad; delete globalThis.__assessmentDelete; delete globalThis.__assessmentProgress; delete globalThis.__trainingBatchNavigate;});
 
 const id = '91169871-14c2-4bde-a0a5-50bf78403d86';
 const paper = change => ({id, title: 'Synthetic networking paper', authors: ['Fixture Author'], initiated_by: 'Fixture Initiator',
@@ -34,22 +37,42 @@ function show(props = {}, value = catalog([paper()])) {
   return render(React.createElement(Assessments, props));
 }
 
-test('the synthetic batch button sends one request at a time and reports AWS acceptance', async t => {
-  globalThis.__assessmentPreferences = { userId: 'owner' };
+test('the batch launcher sends one request and navigates to its own progress page', async t => {
+  const batchId = 12;
+  const navigations = [];
+  globalThis.__trainingBatchNavigate = path => navigations.push(path);
   let resolve;
   const fetch = t.mock.method(globalThis, 'fetch', () => new Promise(done => { resolve = done; }));
-  const publicList = show({ canStartSyntheticBatch: true });
-  assert.equal(screen.queryByRole('button', { name: 'Start synthetic batch' }), null);
-  publicList.unmount();
-  show({ mine: true, canStartSyntheticBatch: true });
+  render(React.createElement(StartSyntheticBatch));
   const button = screen.getByRole('button', { name: 'Start synthetic batch' });
   fireEvent.click(button);
   fireEvent.click(button);
   assert.equal(fetch.mock.callCount(), 1);
   assert.deepEqual(fetch.mock.calls[0].arguments, ['/research-verification/api/synthetic-batch/start', { method: 'POST' }]);
   assert.ok(screen.getByRole('button', { name: 'Requesting start…' }).disabled);
-  await act(async () => resolve(new Response(null, { status: 202 })));
-  assert.ok(await screen.findByText('AWS accepted the batch start request.'));
+  await act(async () => resolve(Response.json({ batchId }, { status: 202 })));
+  assert.deepEqual(navigations, [`/research-verification/training-batch/${batchId}`]);
+});
+
+test('training batch progress reports saved assessments and stops polling at a terminal result', async t => {
+  const batchId = 12;
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const timestamp = '2026-11-01T00:00:00Z';
+  const first = { id: batchId, requestedAt: timestamp, startedAt: timestamp, updatedAt: timestamp,
+    finishedAt: null, stale: false, status: 'running', stopPhase: null,
+    versions: { generator: 4, verifier: 2 },
+    papers: [{ id: 'paper-1', fileName: 'paper.pdf', status: 'verifying', assessmentId: id, score: null }] };
+  const final = { ...first, status: 'stopped', stopPhase: 'verifying', finishedAt: timestamp,
+    papers: [{ ...first.papers[0], status: 'stopped', score: { earned: 9, maximum: 10 } }] };
+  const fetch = t.mock.method(globalThis, 'fetch', async () => Response.json(final));
+  render(React.createElement(TrainingBatchProgress, { id: batchId, initial: first }));
+  assert.ok(screen.getByText('Verifying'));
+  assert.equal(screen.getByRole('link', { name: 'paper.pdf' }).getAttribute('href'), `/research-verification/assessment/${id}`);
+  await act(async () => { t.mock.timers.tick(10_000); });
+  assert.ok(screen.getByText('9 / 10'));
+  assert.ok(screen.getByText('Stopped during verification.'));
+  await act(async () => { t.mock.timers.tick(30_000); });
+  assert.equal(fetch.mock.callCount(), 1);
 });
 
 test('table is the default view and recorded title, initiator, stage and detail link appear', async () => {

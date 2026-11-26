@@ -1,116 +1,91 @@
-# Run the synthetic assessment batch
+# Synthetic training batches
 
-The local runner reads `pdfs/synthetic_papers` in filename order. It binds each
+The configured owner starts a batch from **Training Batches** at
+`/research-verification/training-batches`. The site assigns the next positive
+integer ID, records the request and dispatches a fixed AWS Systems Manager
+command. The browser opens `/research-verification/training-batch/<id>` after
+the request is recorded. Concurrent launches reserve distinct IDs using a
+conditional update of the batch sequence in the private S3 bucket. A failed
+request can leave a gap in the sequence.
+[S3 conditional writes](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html)
+
+The AWS coordinator reports its first progress update once it starts handling
+the request. If the response from AWS is uncertain, the same progress page can
+pick up a later report. The service lock allows one batch at a time and
+redelivery of a request leaves that batch's outcome in place.
+
+Signed-in Google users can browse the full batch history and view progress. The
+account that started a batch also sees links to its saved private assessments.
+The batch page refreshes automatically while a run is active.
+
+## What a batch runs
+
+The coordinator reads `pdfs/synthetic_papers` in filename order and binds each
 PDF to exactly one answer key by SHA-256. It uses the same Generator and Verifier
-skills as the JumpServe plugin and copies their files unchanged for the batch.
-When the JumpServe results endpoint supports published workflows, the runner
-verifies the active guidance by checksum and gives each skill the pinned text as
-a separate input. Older endpoints use the workflows bundled with the checkout.
-The batch keeps the same guidance across all papers and displays its versions
-alongside the timings. It runs fresh assessments
-and saves each validated Generator bundle and Verifier scorecard privately in
-Supabase through JumpServe. Local evidence and answer keys stay in the batch
-directory.
+skills as the JumpServe plugin. A run pins the active published instructions by
+checksum, or uses the bundled instructions when the results endpoint lacks
+published workflow support.
 
-## Start from My Assessments
+Each paper gets a fresh Generator EC2 instance. The coordinator validates and
+saves the private Generator bundle in Supabase before starting a separate
+Verifier EC2 instance. The Verifier receives the matching answer key and
+read-only Generator evidence. The coordinator saves the validated scorecard
+before checking for full credit. The batch stops on a lower score, a blocker, a
+failed save, invalid or missing output, a timeout, or a cleanup failure.
 
-On the production Amplify branch, set `JUMPSERVE_SYNTHETIC_BATCH_OWNER_ID`
-to the Supabase Auth user UUID for the Google account that authorized the
-coordinator's private results connection. Set
-`JUMPSERVE_SYNTHETIC_BATCH_INSTANCE_ID` to the coordinator stack's
-`CoordinatorInstance` output. The Amplify build hook carries both settings
-into the server runtime.
+Workers lease the same Availability Zone as the encrypted Codex sign-in
+volume. Each worker mounts the sign-in directory only in its authenticated
+Codex container. The execution container and evidence transfer are separate
+from those credentials. The coordinator retains `batch.json`, logs, and
+artifacts under `/home/ec2-user/jumpserve-runs/<id>`. The site reads only the
+allowlisted progress summary in its private bucket.
 
-Deploy the coordinator stack with `EnableWebBatchStart=true` before releasing
-the website control. This adds permission for the Amplify compute role to send
-the fixed start document to that coordinator. For the configured account,
-**My Assessments** shows **Start synthetic batch**. AWS acknowledgement means
-that Systems Manager accepted the start request. The batch journal on the
-coordinator records the run. Repeated requests while the service is active
-leave the active run in place.
+## Coordinator setup
 
-## Native macOS with ChatGPT sign-in
+Deploy the coordinator stack with `EnableWebBatchStart=true` and install the
+matching coordinator package. Install `jumpserve-training-batch@.service`
+under `/etc/systemd/system/`, then run `sudo systemctl daemon-reload`. The
+coordinator's SSM Agent must support command-document environment variable
+interpolation (version 3.3.2746.0 or later).
+[AWS Systems Manager document parameters](https://docs.aws.amazon.com/systems-manager/latest/userguide/documents-syntax-data-elements-parameters.html)
 
-Use Python 3, Node.js 24 or newer, and the project's installed dependencies. The
-Python script uses the existing batch runner and reuses your local Codex CLI
-ChatGPT sign-in.
+Set these production Amplify branch values before releasing the website:
 
-```sh
-npm run assessment -- login --results
-python3 scripts/run-jumpserve-synthetic-batch.py --inventory
-python3 scripts/run-jumpserve-synthetic-batch.py --check-runtime
-python3 scripts/run-jumpserve-synthetic-batch.py
-```
+- `JUMPSERVE_SYNTHETIC_BATCH_OWNER_ID` uses the Supabase Auth UUID for the
+  Google account that authorized the coordinator's private results connection.
+- `JUMPSERVE_SYNTHETIC_BATCH_INSTANCE_ID` uses the stack's `CoordinatorInstance` output.
+- `JUMPSERVE_TRAINING_BATCH_BUCKET` uses the `TrainingBatchBucketName` output.
+  Put the same bucket name in `/etc/jumpserve-synthetic-batch.env`.
 
-Authorize the results connection once for both native and Docker-backed runs.
-It uses the signed-in JumpServe account to save results and attach a private PDF
-copy. Set `JUMPSERVE_URL` when using an isolated instance. The batch requires the
-app release with the private results endpoint before it starts model sessions.
+The app build hook carries these settings into its server runtime. After
+cutover, retire the previous unnumbered coordinator unit after any run it holds
+finishes. Keep its evidence directories.
 
-The named Codex permissions profile allows loopback experiment traffic and
-gives the Generator write access to its assessment directory. It gives the
-Verifier read-only access to the staged paper, assessment, evidence, and key.
-Both sessions use approval policy `never`. The script returns exit code 0 when
-every paper passes and exits nonzero if the run stops early.
+The coordinator uses its instance role and the scoped experiment-client role
+for leases. Prepare or renew the JumpServe results session on the coordinator
+with `npm run assessment -- login --results --callback-port 54457` using a
+loopback-only SSH forward. For ChatGPT sign-in, temporarily attach and mount the
+credential volume at `/mnt/jumpserve-codex`, then run `codex login` with
+`CODEX_HOME=/mnt/jumpserve-codex/session` and file-backed credential storage.
+Unmount and detach the volume before starting a batch.
+[Codex headless sign-in](https://learn.chatgpt.com/docs/auth#login-on-headless-devices)
 
-## Docker with a scoped API key
+Inspect a numbered unit with `sudo journalctl -u jumpserve-training-batch@<id>.service`.
+Cancel it with `sudo systemctl stop jumpserve-training-batch@<id>.service`.
+Reconcile uncertain worker cleanup using the stage's recorded AWS lease and
+the existing `aws_testbed.py cleanup --lease` command. Scheduled deletion backs
+up normal worker teardown.
 
-Build the isolated Codex testbed with your local UID and GID so it can write
-its assigned output directory as your account.
+To retry a private result save, use the original evidence and
+`database.assessment_id` from `batch.json`. For a Verifier save, use the recorded
+`runtime.verifier_skill_version` and `scorecard.validated.json` when available.
+A retained Coach report can be saved through `npm run assessment -- save-coach <report.json>`.
 
-```sh
-docker build --build-arg "BATCH_UID=$(id -u)" --build-arg "BATCH_GID=$(id -g)" \
-  -t jumpserve-synthetic-batch:local - < scripts/jumpserve-synthetic-batch.Dockerfile
-```
+## Local archive
 
-Provide `JUMPSERVE_BATCH_CODEX_API_KEY` through the environment from a scoped
-project credential. Use `npm run eval:synthetic-batch -- --check-runtime` to check
-the image and credential presence before starting model sessions. Start the
-batch with `npm run eval:synthetic-batch`. The image receives
-that credential for model calls. The Docker containers have model network access,
-and the Generator's test traffic is scoped to its isolated testbed. Prepare any
-external measurement inputs permitted by a paper before attempting its claims.
-The local testbed may leave claims untested when a required capability is absent.
-
-The Generator runs `codex exec --yolo` inside its own container, with only its
-paper, skill, and writable assessment directory mounted. A separate container
-runs the evidence preflight, and another runs the Verifier with read-only
-mounts for the paper, key, and Generator evidence. The Verifier returns a
-scorecard, and Codex writes its final response to the review directory.
-
-The runner saves the Generator bundle before starting the Verifier. It validates
-and saves the Verifier scorecard before checking for full credit, so a lower
-score remains in Supabase. Every criterion must earn full credit and every claim
-must have a verified grade. The runner halts on a lower score, a blocker, a
-failed save, invalid or missing output, or a timeout. `batch.json` records
-assessment, Generator, and Verifier IDs as saves are confirmed. It also records
-the stop and papers still pending. A new batch uses a fresh directory.
-
-If a save stops the batch, retry it with the ID from `database.assessment_id`
-and the original files. The verifier version is in `runtime.verifier_skill_version`.
-Use `scorecard.validated.json` when the runner produced it, or `scorecard.json`
-otherwise.
-
-```sh
-npm run assessment -- save-generator <paper.pdf> --assessment-id <id> --bundle <jumpserve-assessment.json>
-npm run assessment -- save-verifier <scorecard.json> --assessment-id <id> --bundle <jumpserve-assessment.json> --verifier-version <version>
-```
-
-When the Coach runs, save its completed private report with the development
-verification IDs. The Coach saves through its connector in connected sessions.
-To retry a retained report from the terminal, use the same report contents.
-
-```sh
-python3 scripts/run-jumpserve-synthetic-batch.py --coach-report <report.json>
-```
-
-For a native batch stopped solely because its scorecard included redundant
-successful preflight metadata, the underlying runner supports
-`npm run eval:synthetic-batch -- --native --recover-format --output <dir>`.
-It independently checks the same inputs, preserves the original stop and
-scorecard, and resumes only when the saved grade validates as perfect.
-
-Use `--output <new-dir>` to choose a result path, `--model <model>` to pin a
-model explicitly, or `--timeout-minutes <minutes>` to change the 30-minute limit
-per model session. By default, results land under
-`.test-artifacts/jumpserve-synthetic-batch`.
+Next.js development can display existing CLI journals when no S3 bucket is
+configured. Set `JUMPSERVE_LOCAL_TRAINING_BATCH_DIRECTORY` in `.env.local` to
+the journal parent directory. Its `training-batch-index.json` is a JSON array
+of the existing run directory names in ID order, starting with ID 1. Keep that
+order stable. Each entry reads its original `batch.json` and only exposes the
+batch progress fields. Web launches use the AWS coordinator.

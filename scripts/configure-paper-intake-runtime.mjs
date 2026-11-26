@@ -17,8 +17,10 @@ if (connector === 'true') {
 if (connector === 'true' || connector === 'false') updates.JUMPSERVE_MCP_ENABLED = connector;
 const batchOwnerKey = 'JUMPSERVE_SYNTHETIC_BATCH_OWNER_ID';
 const batchInstanceKey = 'JUMPSERVE_SYNTHETIC_BATCH_INSTANCE_ID';
+const batchBucketKey = 'JUMPSERVE_TRAINING_BATCH_BUCKET';
 const batchOwner = process.env[batchOwnerKey]?.trim().toLowerCase();
 const batchInstance = process.env[batchInstanceKey]?.trim();
+const batchBucket = process.env[batchBucketKey]?.trim();
 if (batchOwner || batchInstance) {
  if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(batchOwner ?? '') || !/^i-[a-f0-9]{17}$/.test(batchInstance ?? '')) {
   throw new Error('Set a valid synthetic batch owner ID and coordinator instance ID.');
@@ -26,10 +28,16 @@ if (batchOwner || batchInstance) {
  updates[batchOwnerKey] = batchOwner;
  updates[batchInstanceKey] = batchInstance;
 }
+if (batchBucket) {
+ if (!batchOwner || !batchInstance || !/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(batchBucket)) {
+  throw new Error('Set a valid training batch bucket, owner ID and coordinator instance ID.');
+ }
+ updates[batchBucketKey] = batchBucket;
+}
 const path = '.env.production';
 const old = existsSync(path) ? readFileSync(path, 'utf8') : '';
 const lines = old.split(/\r?\n/);
-const batchKeys = [batchOwnerKey, batchInstanceKey];
+const batchKeys = [batchOwnerKey, batchInstanceKey, batchBucketKey];
 if (Object.keys(updates).length || lines.some(line => batchKeys.includes(line.split('=')[0]))) {
  const replaced = new Set([...Object.keys(updates), ...batchKeys]);
  const retained = lines.filter(line => !replaced.has(line.split('=')[0])).join('\n').trimEnd();

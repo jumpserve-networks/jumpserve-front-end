@@ -1,10 +1,19 @@
 import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { writeFile } from 'node:fs/promises';
+import { lstat, realpath, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { BATCH_SKILLS, batchCasePaths, generatorPrompt, verifierPrompt } from './jumpserve-synthetic-batch.mjs';
+import { setTimeout as delay } from 'node:timers/promises';
+import { BATCH_SKILLS, batchCasePaths, generatorPrompt, verifierPrompt } from './jumpserve-synthetic-worker-inputs.mjs';
 
 const maxOutput = 8 * 1024 * 1024;
+const executorPort = 8745;
+const executorUrl = `ws://127.0.0.1:${executorPort}`;
+const isolatedCodexVersion = 'codex-cli 0.171.0';
+const generatorSkill = `/skills/${BATCH_SKILLS.generator}`;
+const verifierSkill = `/skills/${BATCH_SKILLS.verifier}`;
+const review = batchCasePaths('/case');
+const reviewedAssessment = join(review.artifactDirectory, 'jumpserve-assessment.json');
+const containerAuthHome = '/codex-credentials';
 
 function errorCode(run) {
   return run.error?.code ?? run.signal ?? run.status;
@@ -28,42 +37,140 @@ function mount(source, destination, readOnly = true) {
   return ['--mount', `type=bind,source=${source},destination=${destination}${readOnly ? ',readonly' : ''}`];
 }
 
-export function createContainerWorkers({ image, snapshot, workflowFiles, timeoutMs, apiKey, model }) {
-  const generatorSkill = `/skills/${BATCH_SKILLS.generator}`;
-  const verifierSkill = `/skills/${BATCH_SKILLS.verifier}`;
-  const review = batchCasePaths('/case');
-  const reviewedAssessment = join(review.artifactDirectory, 'jumpserve-assessment.json');
+function containerArgs(name, network, workdir, { detached = false, nestedSandbox = false } = {}) {
+  return ['run', '--rm', '--init', detached ? '--detach' : '--interactive', '--name', name, '--pull', 'never', '--read-only',
+    '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--pids-limit', '256', '--memory', '3g',
+    // The Verifier's nested, read-only bubblewrap sandbox needs user namespaces.
+    ...(nestedSandbox ? ['--security-opt', 'seccomp=unconfined'] : []),
+    '--tmpfs', '/tmp:rw,nosuid,nodev,size=512m',
+    '--tmpfs', `/home/node:rw,nosuid,nodev,size=512m,uid=${process.getuid()},gid=${process.getgid()}`,
+    '--network', network, '--workdir', workdir];
+}
+
+function docker(args, options) {
+  return spawnSync('docker', args, { encoding: 'utf8', maxBuffer: maxOutput, ...options });
+}
+
+function removeContainer(name) {
+  docker(['rm', '-f', name], { timeout: 15_000, stdio: 'ignore' });
+}
+
+async function waitForExecutor(name) {
+  const probe = `const socket = new WebSocket(${JSON.stringify(executorUrl)});
+    socket.addEventListener('open', () => process.exit(0));
+    socket.addEventListener('error', () => process.exit(1));
+    setTimeout(() => process.exit(1), 1000);`;
+  const deadline = Date.now() + 15_000;
+  do {
+    const ready = docker(['exec', name, 'node', '-e', probe], { timeout: 3_000, stdio: 'ignore' });
+    if (ready.status === 0) return;
+    await delay(100);
+  } while (Date.now() < deadline);
+  throw new Error('The isolated Codex executor did not become ready.');
+}
+
+export function containerCodexSession(role, input, workflowFiles, model) {
+  const command = ['codex', '--ask-for-approval', 'never', 'exec', '--ephemeral', '--ignore-user-config', '--ignore-rules',
+    '--skip-git-repo-check', '--color', 'never', '-c', 'shell_environment_policy.inherit="none"',
+    '-c', 'shell_environment_policy.set={HOME="/home/node",PATH="/usr/local/bin:/usr/bin:/bin"}',
+    ...(model ? ['--model', model] : [])];
+  if (role === 'generator') return { command: [...command, '--yolo'],
+    prompt: generatorPrompt({ skillDirectory: generatorSkill, workflow: `${generatorSkill}/${workflowFiles.generator}`,
+      paper: '/paper.pdf', paperSha256: input.paperSha256, guidance: input.guidance,
+      testbed: 'Keep test traffic inside the isolated container testbed. Public reference data may be read when the paper specifies it.' }) };
+  return { command: [...command, '--sandbox', 'read-only'],
+    prompt: verifierPrompt({ skillDirectory: verifierSkill, workflow: `${verifierSkill}/${workflowFiles.verifier}`,
+      caseDirectory: review.caseDirectory, paper: review.paper, key: review.key, assessment: reviewedAssessment,
+      guidance: input.guidance, rubric: input.rubric }) };
+}
+
+export function inspectControllerCodex(env) {
+  const version = spawnSync('codex', ['--version'], { env, encoding: 'utf8', timeout: 15_000 });
+  if (version.status !== 0 || version.stdout.trim() !== isolatedCodexVersion) {
+    throw new Error(`The EC2 ChatGPT runtime requires ${isolatedCodexVersion} on the controller.`);
+  }
+  const login = spawnSync('codex', ['login', 'status'], { env, encoding: 'utf8', timeout: 15_000 });
+  return login.status === 0 && /Logged in using ChatGPT/.test(login.stdout + login.stderr);
+}
+
+export function createContainerWorkers({ image, snapshot, workflowFiles, timeoutMs, apiKey, chatgptAuthDirectory, model }) {
   const generatorMount = mount(join(snapshot, BATCH_SKILLS.generator), generatorSkill);
   const skills = [
     ...generatorMount,
     ...mount(join(snapshot, BATCH_SKILLS.verifier), verifierSkill),
   ];
 
-  async function run({ role, paper, key, artifactDirectory, output, command, prompt }) {
+  function inputsFor({ role, paper, key, artifactDirectory, output }, workdir) {
+    return role === 'generator' ? [...mount(paper, '/paper.pdf'), ...generatorMount, ...mount(output, workdir, false)]
+      : [...mount(paper, review.paper), ...skills, ...mount(key, review.key), ...mount(artifactDirectory, review.artifactDirectory)];
+  }
+
+  async function startExecutor(name, input, workdir, publish = false) {
+    const nestedSandbox = input.role === 'verifier';
+    const portMapping = `127.0.0.1::${executorPort}`;
+    const started = docker([...containerArgs(name, 'bridge', workdir, { detached: true, nestedSandbox }),
+      ...inputsFor(input, workdir), ...(publish ? ['--publish', portMapping, ...(nestedSandbox ? ['--tmpfs', workdir] : [])] : []),
+      image, 'codex', 'exec-server', '--listen', publish ? `ws://0.0.0.0:${executorPort}` : executorUrl], { timeout: 15_000 });
+    if (started.status !== 0) throw new Error(`Could not start the isolated Codex executor (${errorCode(started)}).`);
+    const version = docker(['exec', name, 'codex', '--version'], { timeout: 15_000 });
+    if (version.status !== 0 || version.stdout.trim() !== isolatedCodexVersion) {
+      throw new Error(`The isolated executor requires ${isolatedCodexVersion}. Rebuild the batch image.`);
+    }
+    await waitForExecutor(name);
+    if (publish) {
+      const port = docker(['port', name, `${executorPort}/tcp`], { timeout: 15_000 });
+      const mapped = port.status === 0 && /^127\.0\.0\.1:(\d+)$/.exec(port.stdout.trim());
+      if (!mapped) throw new Error('The EC2 executor requires a loopback-only port mapping.');
+      return Number(mapped[1]);
+    }
+  }
+
+  async function run(input) {
+    const { role, output, command, prompt } = input;
     const name = `jumpserve-batch-${randomUUID()}`;
     const isGenerator = role === 'generator';
-    const isPreflight = role === 'preflight';
-    const args = ['run', '--rm', '--init', '--interactive', '--name', name, '--pull', 'never', '--read-only',
-      '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--pids-limit', '256', '--memory', '3g',
-      // Codex's nested, read-only bubblewrap sandbox needs user namespaces.
-      ...(role === 'verifier' ? ['--security-opt', 'seccomp=unconfined'] : []),
-      '--tmpfs', '/tmp:rw,nosuid,nodev,size=512m',
-      '--tmpfs', `/home/node:rw,nosuid,nodev,size=512m,uid=${process.getuid()},gid=${process.getgid()}`,
-      '--network', isPreflight ? 'none' : 'bridge', '--workdir', isGenerator ? '/work' : '/tmp',
-      ...mount(paper, isGenerator ? '/paper.pdf' : review.paper),
-      ...(isGenerator ? generatorMount : skills),
-      ...(isGenerator ? mount(output, '/work', false) : [
-        ...mount(key, review.key), ...mount(artifactDirectory, review.artifactDirectory),
-        ...(!isPreflight ? mount(output, review.output, false) : []),
-      ]),
-      ...(!isPreflight ? ['--env', 'CODEX_API_KEY'] : []),
-      image, ...command];
-    const env = isPreflight ? process.env : { ...process.env, CODEX_API_KEY: apiKey };
-    const result = spawnSync('docker', args, { env, input: prompt, encoding: 'utf8', maxBuffer: maxOutput,
-      timeout: isPreflight ? Math.min(timeoutMs, 60_000) : timeoutMs });
-    if (result.error || result.signal) {
-      // A dead Docker client can leave its container running after a timeout.
-      spawnSync('docker', ['rm', '-f', name], { timeout: 15_000, stdio: 'ignore' });
+    const workdir = isGenerator ? '/work' : '/tmp';
+    let result;
+    if (role === 'preflight') {
+      result = docker([...containerArgs(name, 'none', workdir), ...inputsFor(input, workdir), image, ...command],
+        { timeout: Math.min(timeoutMs, 60_000) });
+      if (result.error || result.signal) removeContainer(name);
+    } else {
+      const useChatgpt = chatgptAuthDirectory !== undefined;
+      if (useChatgpt === Boolean(apiKey)) throw new Error('Choose one model credential for the Codex client.');
+      let credentials = ['--env', 'CODEX_API_KEY'];
+      let authConfig = [];
+      const env = { ...process.env };
+      if (useChatgpt) {
+        const directory = await realpath(chatgptAuthDirectory);
+        const [home, auth] = await Promise.all([lstat(directory), lstat(join(directory, 'auth.json'))]);
+        const privateFile = stat => stat.uid === process.getuid() && (stat.mode & 0o077) === 0;
+        if (directory !== chatgptAuthDirectory || !home.isDirectory() || !auth.isFile() || !privateFile(home) || !privateFile(auth)) {
+          throw new Error('The mounted Codex sign-in requires a private directory and regular auth.json owned by the worker.');
+        }
+        credentials = [...mount(directory, containerAuthHome, false), '--env', `CODEX_HOME=${containerAuthHome}`];
+        authConfig = ['-c', 'forced_login_method="chatgpt"', '-c', 'cli_auth_credentials_store="file"',
+          '--disable', 'apps', '--disable', 'plugins', '--disable', 'hooks'];
+        for (const name of ['CODEX_API_KEY', 'CODEX_ACCESS_TOKEN', 'OPENAI_API_KEY', 'JUMPSERVE_BATCH_CODEX_API_KEY']) delete env[name];
+      } else {
+        env.CODEX_API_KEY = apiKey;
+      }
+      const executor = `${name}-executor`;
+      try {
+        await startExecutor(executor, input, workdir);
+
+        // Share only networking. The executor alone gets case mounts. The client alone gets model auth.
+        // At the pinned Codex version this URL also removes the local execution environment.
+        result = docker([...containerArgs(name, `container:${executor}`, '/tmp'), ...credentials,
+          // Codex resolves the working directory locally before passing it to the remote environment.
+          ...(isGenerator ? ['--tmpfs', '/work:rw,nosuid,nodev,noexec,size=1m'] : []),
+          '--env', `CODEX_EXEC_SERVER_URL=${executorUrl}`, image, ...command, ...authConfig, '--cd', workdir, '-'],
+        { env, input: prompt, timeout: timeoutMs });
+      } finally {
+        // A dead Docker client can leave either container running after a timeout.
+        removeContainer(name);
+        removeContainer(executor);
+      }
     }
     const logPath = join(dirname(output), `${role}.log`);
     const log = [result.stdout, result.stderr].filter(Boolean).join('\n');
@@ -72,21 +179,22 @@ export function createContainerWorkers({ image, snapshot, workflowFiles, timeout
     return result.stdout;
   }
 
-  const codex = ['codex', 'exec', '--ephemeral', '--ignore-user-config', '--skip-git-repo-check',
-    '--color', 'never', '-c', 'shell_environment_policy.exclude=["CODEX_API_KEY"]', ...(model ? ['--model', model] : [])];
   return {
-    generate: input => run({ ...input, role: 'generator', command: [...codex, '--yolo', '-'],
-      prompt: generatorPrompt({ skillDirectory: generatorSkill, workflow: `${generatorSkill}/${workflowFiles.generator}`,
-        paper: '/paper.pdf', paperSha256: input.paperSha256, guidance: input.guidance,
-        testbed: 'Keep test traffic inside the isolated container testbed. Public reference data may be read when the paper specifies it.' }),
-    }),
+    serve: async (input, workdir) => {
+      const name = `jumpserve-batch-${randomUUID()}-executor`;
+      try {
+        return { name, port: await startExecutor(name, input, workdir, true) };
+      } catch (error) {
+        removeContainer(name);
+        throw error;
+      }
+    },
+    generate: input => run({ ...input, role: 'generator', ...containerCodexSession('generator', input, workflowFiles, model) }),
     preflight: async input => JSON.parse(await run({ ...input, role: 'preflight', command: ['python3', '-B',
       `${verifierSkill}/scripts/prepare_review.py`, reviewedAssessment, review.key, '--paper', review.paper] })),
-    verify: input => run({ ...input, role: 'verifier', command: [...codex, '--sandbox', 'read-only',
-      '--output-last-message', join(review.output, 'scorecard.json'), '-'],
-      prompt: verifierPrompt({ skillDirectory: verifierSkill, workflow: `${verifierSkill}/${workflowFiles.verifier}`,
-        caseDirectory: review.caseDirectory, paper: review.paper, key: review.key, assessment: reviewedAssessment,
-        guidance: input.guidance, rubric: input.rubric }),
-    }),
+    verify: async input => {
+      const scorecard = await run({ ...input, role: 'verifier', ...containerCodexSession('verifier', input, workflowFiles, model) });
+      await writeFile(join(input.output, 'scorecard.json'), scorecard, { flag: 'wx', mode: 0o600 });
+    },
   };
 }
