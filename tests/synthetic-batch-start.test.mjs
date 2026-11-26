@@ -50,11 +50,15 @@ test('the authenticated owner can request only the fixed SSM document on the con
     assert.ok(options.abortSignal instanceof AbortSignal);
     return { Command: { CommandId: 'accepted' } };
   });
-  const result = await POST(request());
-  assert.equal(result.status, 202);
-  assert.equal(result.headers.get('cache-control'), 'private, no-store');
-  assert.deepEqual(await result.json(), { status: 'requested' });
-  assert.equal(send.mock.callCount(), 1);
+  const streamedEmptyPost = request({ body: new Uint8Array(0) });
+  assert.ok(streamedEmptyPost.body);
+  for (const emptyPost of [request(), streamedEmptyPost]) {
+    const result = await POST(emptyPost);
+    assert.equal(result.status, 202);
+    assert.equal(result.headers.get('cache-control'), 'private, no-store');
+    assert.deepEqual(await result.json(), { status: 'requested' });
+  }
+  assert.equal(send.mock.callCount(), 2);
 });
 
 test('unauthenticated, other-account, cross-origin, parameterized and disabled starts send no command', async t => {

@@ -1,4 +1,5 @@
 import { getGoogleUser } from "@/lib/auth";
+import { readBoundedBody } from "@/lib/jumpserve-mcp-oauth";
 import { getConfiguredSiteUrl, PRODUCTION_SITE_ORIGIN } from "@/lib/site-url";
 import { getSyntheticBatchConfiguration, requestSyntheticBatchStart } from "@/lib/synthetic-batch-server";
 
@@ -14,7 +15,9 @@ export async function POST(request: Request) {
   if (request.headers.get("origin") !== (getConfiguredSiteUrl() ?? PRODUCTION_SITE_ORIGIN)) {
     return json({ error: "Open JumpServe directly to start the synthetic batch." }, 403);
   }
-  if (request.body !== null || new URL(request.url).search) {
+  // The runtime can supply a stream even when the client sends zero bytes.
+  if (new URL(request.url).search ||
+      (request.body && (await readBoundedBody(request, 0).catch(() => null)) !== "")) {
     return json({ error: "The synthetic batch start takes no parameters." }, 400);
   }
 
