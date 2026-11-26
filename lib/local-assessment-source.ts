@@ -1,6 +1,7 @@
 import { NEW_ASSESSMENT_PATH, RESEARCH_WORKFLOW_MODULE_PATH } from "@/lib/test-modules";
 
 export const LOCAL_ASSESSMENT_SOURCE_API = `${RESEARCH_WORKFLOW_MODULE_PATH}/api/assessment-source`;
+export const PRIVATE_EVALUATION_RESULTS_API = `${RESEARCH_WORKFLOW_MODULE_PATH}/api/assessment-results`;
 export const PAPER_UPLOAD_BUCKET = "research-paper-uploads";
 
 export type LocalAssessmentSource = { sha256: string; byte_count: number };

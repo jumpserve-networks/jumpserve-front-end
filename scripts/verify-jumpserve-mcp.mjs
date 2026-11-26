@@ -1,13 +1,14 @@
 // Local Next.js and browser verification using a synthetic Google session and
 // PostgREST transport. The infrastructure verifier separately exercises real SQL.
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';
 import { once } from 'node:events';
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { promisify } from 'node:util';
 import { chromium } from 'playwright';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -15,6 +16,8 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 const origin = 'http://127.0.0.1:6129';
 const api = 'http://127.0.0.1:4129';
 const resource = origin + '/mcp';
+const sourceResource = origin + '/research-verification/api/assessment-source';
+const resultsResource = origin + '/research-verification/api/assessment-results';
 const owner = '77d8ef24-7007-4759-8132-09159013199a';
 const other = '4ef738ca-5375-4160-9ceb-0379d8b1a51c';
 const encode = value => Buffer.from(JSON.stringify(value)).toString('base64url');
@@ -210,19 +213,24 @@ const fixture = createServer(async (req, res) => {
     return send(200, null);
   }
   if (path === 'rpc/jumpserve_mcp_exchange_scoped') {
-    const code = codes.get(input.p_proof_hash);
-    const valid = code && code.client_id === input.p_client && code.redirect_uri === input.p_redirect &&
-      code.challenge === input.p_challenge && code.resource === input.p_resource;
-    if (valid && (input.p_read_sources !== true || code.read_sources)) {
-      codes.delete(input.p_proof_hash);
-      const readSources = code.read_sources && input.p_read_sources !== false;
-      tokens.set(input.p_access, { owner: code.owner_id, readSources });
-      return send(200, readSources ? 'source' : 'share');
-    }
-    return send(200, null);
+    const refresh = input.p_grant === 'refresh_token';
+    const previous = refresh && [...tokens].find(([, value]) => value.refresh_hash === input.p_proof_hash);
+    const grant = refresh ? previous?.[1] : codes.get(input.p_proof_hash);
+    if (!grant || grant.client_id !== input.p_client || grant.resource !== input.p_resource ||
+        (!refresh && (grant.redirect_uri !== input.p_redirect || grant.challenge !== input.p_challenge)) ||
+        (input.p_read_sources === true && !grant.read_sources)) return send(200, null);
+    if (refresh) tokens.delete(previous[0]);
+    else codes.delete(input.p_proof_hash);
+    const read_sources = grant.read_sources && input.p_read_sources !== false;
+    tokens.set(input.p_access, { owner_id: grant.owner_id, client_id: input.p_client, resource: input.p_resource,
+      refresh_hash: input.p_refresh, read_sources });
+    return send(200, read_sources ? 'source' : 'share');
   }
-  if (path === 'rpc/jumpserve_mcp_actor') return send(200, tokens.get(input.p_access)?.owner ?? null);
-  if (path === 'rpc/jumpserve_mcp_can_read_sources') return send(200, tokens.get(input.p_access)?.readSources === true);
+  if (path === 'rpc/jumpserve_mcp_actor' || path === 'rpc/jumpserve_mcp_can_read_sources') {
+    const session = tokens.get(input.p_access);
+    const valid = session?.resource === input.p_resource && !session.expired;
+    return send(200, path.endsWith('actor') ? (valid ? session.owner_id : null) : valid && session.read_sources === true);
+  }
   if (path === 'research_skill_sources') {
     if (req.method === 'POST') {
       if (!sources.has(input.id)) sources.set(input.id, input);
@@ -328,6 +336,126 @@ const fixture = createServer(async (req, res) => {
   }
   return send(404, {});
 });
+
+async function verifyCliAssessment(workspace, page, mcpToken) {
+  const home = join(workspace, 'cli-home');
+  const bin = join(home, 'bin');
+  const args = ['--disable-warning=MODULE_TYPELESS_PACKAGE_JSON', '--import', './scripts/lib/register-typescript.mjs', './scripts/jumpserve-assessment.mjs'];
+  await mkdir(bin, { recursive: true });
+  await writeFile(join(bin, 'codex'), '#!/bin/sh\ncat\n', { mode: 0o700 });
+  const env = { ...process.env, HOME: home, JUMPSERVE_URL: origin, PATH: `${bin}:${process.env.PATH}` };
+  const cli = (...command) => promisify(execFile)(process.execPath, [...args, ...command], { env, timeout: 12_000 });
+  async function authorizeCli(description, ...options) {
+    const login = spawn(process.execPath, [...args, 'login', ...options], { env, stdio: ['ignore', 'inherit', 'pipe'] });
+    const closed = once(login, 'close');
+    try {
+      let stderr = '';
+      const timeout = AbortSignal.timeout(12_000);
+      const link = await new Promise((resolve, reject) => {
+        timeout.addEventListener('abort', () => reject(new Error('CLI sign-in URL timed out')));
+        login.stderr.setEncoding('utf-8').on('data', chunk => {
+          stderr += chunk;
+          const url = stderr.split('\n').slice(0, -1).find(line => line.startsWith(`${origin}/oauth/jumpserve/authorize?`));
+          if (url) resolve(new URL(url));
+        });
+        closed.then(([code]) => reject(new Error(`CLI sign-in exited early (${code}): ${stderr}`)), reject);
+      });
+      const badState = new URL(link.searchParams.get('redirect_uri'));
+      badState.searchParams.set('state', 'mismatch');
+      assert.equal((await fetch(badState)).status, 400);
+      await page.goto(link.href);
+      await page.getByText(description).waitFor();
+      await page.getByRole('button', { name: 'Connect', exact: true }).click();
+      assert.equal((await closed)[0], 0, stderr);
+    } finally {
+      if (login.exitCode === null && login.signalCode === null) login.kill();
+    }
+  }
+  await authorizeCli(/start private assessments from your terminal/);
+  const sessions = join(home, '.jumpserve', 'sessions');
+  const [entry] = await readdir(sessions);
+  const saved = join(sessions, entry);
+  assert.equal((await stat(saved)).mode & 0o777, 0o600);
+  const session = JSON.parse(await readFile(saved, 'utf8'));
+  assert.equal((await fetch(resource, { method: 'POST', headers: { Authorization: `Bearer ${session.access_token}` } })).status, 401);
+
+  const pdf = Buffer.from('%PDF-1.4\n% Step 1 CLI fixture\n%%EOF\n');
+  const filename = join(home, 'paper.pdf');
+  await writeFile(filename, pdf);
+  const assessmentId = randomUUID();
+  const source = { assessment_id: assessmentId, sha256: sha256(pdf), byte_count: pdf.length };
+  const wrongResource = await fetch(sourceResource, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${mcpToken}` },
+    body: JSON.stringify({ action: 'reserve', ...source }) });
+  assert.equal(wrongResource.status, 401);
+  assert.equal(sources.has(assessmentId), false);
+
+  // Force refresh and ensure the replacement retains its upload-only resource.
+  tokens.get(sha256(session.access_token)).expired = true;
+  const ticketsBefore = uploadTickets;
+  const start = () => cli('start', filename, '--assessment-id', assessmentId, '--json');
+  const { stdout } = await start();
+  const ready = JSON.parse(stdout);
+  assert.equal(ready.assessment_id, assessmentId);
+  assert.equal(ready.status, 'ready');
+  assert.match(ready.prompt, new RegExp(assessmentId));
+  assert.deepEqual(papers.get(`research-paper-uploads/local-assessment-sources/${owner}/${source.sha256}.pdf`), pdf);
+  assert.notEqual(JSON.parse(await readFile(saved, 'utf8')).access_token, session.access_token);
+  assert.equal((await start()).stdout, stdout);
+  assert.equal(uploadTickets, ticketsBefore + 1);
+  assert.equal(previews.has(assessmentId), false);
+  const generator = await cli('run', assessmentId);
+  assert.match(generator.stdout, new RegExp(assessmentId));
+  assert.ok(generator.stdout.includes(resource));
+  const refreshedUploadToken = JSON.parse(await readFile(saved, 'utf8')).access_token;
+  await cli('logout');
+  await assert.rejects(start(), /Run `npm run assessment -- login`/);
+  console.log('PASS CLI consent, upload-only token scope, private PDF retry, refresh and Codex handoff');
+
+  const post = (url, access, input) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json',
+    Authorization: `Bearer ${access}` }, body: JSON.stringify(input) });
+  assert.equal((await post(resultsResource, refreshedUploadToken, { action: 'check' })).status, 401);
+  await authorizeCli(/save Generator assessments, Verifier scorecards, and Coach reports privately/, '--results');
+  const resultSession = JSON.parse(await readFile(join(sessions, sha256(resultsResource) + '.json'), 'utf8'));
+  assert.equal((await post(resource, resultSession.access_token, {})).status, 401);
+  assert.equal((await post(sourceResource, resultSession.access_token, { action: 'reserve', ...source })).status, 401);
+  assert.equal((await post(resultsResource, resultSession.access_token, { action: 'submit', assessment_id: assessmentId })).status, 400);
+
+  const assessment = { ...bundle, paper: { ...bundle.paper, title: 'Private terminal result fixture',
+    sha256: source.sha256, byte_count: source.byte_count } };
+  const artifact = JSON.stringify(assessment, null, 2) + '\n';
+  const artifactFile = join(home, 'assessment.json');
+  await writeFile(artifactFile, artifact);
+  const saveGenerator = () => cli('save-generator', filename, '--assessment-id', assessmentId, '--bundle', artifactFile);
+  const first = JSON.parse((await saveGenerator()).stdout);
+  assert.equal(first.status, 'saved_private');
+  assert.equal(first.assessment_id, assessmentId);
+  assert.equal(previews.get(assessmentId).study_id, null);
+  assert.equal(previews.get(assessmentId).bundle.paper.pdf_copy, true);
+  assert.deepEqual(JSON.parse((await saveGenerator()).stdout), first);
+  const rawHash = sha256(artifact);
+  const grade = { version: 'jumpserve-verifier-scorecard-v1', paper_id: 'fixture', paper_sha256: source.sha256,
+    assessment_sha256: rawHash, answer_key_sha256: 'c'.repeat(64), split: 'development', mode: 'fresh', scenario: null,
+    evidence_integrity: { status: 'verified', verified_runs: 1 }, status: 'scored', blockers: [], critical_failures: [],
+    claims: [{ key_claim_id: 'C1', assessment_claim_id: 'c1', reported_outcome: 'reproduced', supported_outcome: 'reproduced',
+      assessment: 'correct', evidence: ['data/counts.csv'], finding: 'Both counters are zero.' }],
+    rubric: [{ criterion: 'verdict', earned: 1, maximum: 2, reason: 'Fixture deduction.' }],
+    score: { earned: 1, applicable_maximum: 2, rubric_maximum: 2 } };
+  const gradeFile = join(home, 'grade.json');
+  await writeFile(gradeFile, JSON.stringify(grade));
+  const saveVerifier = () => cli('save-verifier', gradeFile, '--assessment-id', assessmentId, '--bundle', artifactFile, '--verifier-version', '1.0.0');
+  const review = JSON.parse((await saveVerifier()).stdout);
+  assert.equal(review.status, 'saved_private');
+  assert.deepEqual(JSON.parse((await saveVerifier()).stdout), review);
+  const reportFile = join(home, 'report.json');
+  await writeFile(reportFile, JSON.stringify({ version: 'jumpserve-coach-report-v1',
+    sources: [{ verification_id: review.verification_id, assessment_sha256: rawHash }],
+    summary: 'The fixture establishes no actionable change.', limitations: [], recommendations: [] }));
+  const report = JSON.parse((await cli('save-coach', reportFile)).stdout);
+  assert.equal(report.status, 'saved_private');
+  assert.deepEqual(JSON.parse((await cli('save-coach', reportFile)).stdout), report);
+  assert.equal(previews.get(assessmentId).study_id, null);
+  console.log('PASS results-only CLI saves exact Generator, below-perfect Verifier, and empty-recommendation Coach records idempotently');
+}
 
 let app, browser, client, workspace;
 try {
@@ -482,6 +610,7 @@ try {
   assert.equal(credentials.scope, fullScope);
   assert.equal((await grant(verifier)).status, 400);
   console.log('PASS browser OAuth consent, discovery, PKCE and code replay rejection');
+  await verifyCliAssessment(workspace, page, credentials.access_token);
 
   client = new Client({ name: 'jumpserve-local-verifier', version: '1.0.0' });
   await client.connect(new StreamableHTTPClientTransport(new URL(resource), {
@@ -541,13 +670,14 @@ try {
     recommendations: [{ title: 'Report coverage', finding: 'A condition lacks an attempt count.',
       proposed_change: 'Report an attempt count for each condition.', regression_check: 'A short round has an explicit attempt count.' }] };
   const coachSave = { name: 'save_coach_report', arguments: { report } };
+  const existingCoachReports = coachReports.size;
   const savedCoach = (await client.callTool(coachSave)).structuredContent;
   assert.match(savedCoach.coach_report_id, /^[a-f0-9-]{36}$/);
   assert.equal(savedCoach.status, 'saved_private');
   assert.deepEqual((await client.callTool(coachSave)).structuredContent, savedCoach);
   const mismatch = { ...report, sources: [{ ...report.sources[0], assessment_sha256: 'a'.repeat(64) }] };
   assert.match((await client.callTool({ ...coachSave, arguments: { report: mismatch } })).content[0].text, /matching development/);
-  assert.equal(coachReports.size, 1);
+  assert.equal(coachReports.size, existingCoachReports + 1);
   console.log('PASS private Coach report save, exact-source validation and idempotent MCP retry');
   await page.getByRole('link', { name: 'Refresh results' }).click();
   await page.getByText('2 / 2 applicable points', { exact: true }).waitFor();
@@ -700,8 +830,8 @@ try {
     'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
   body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: downloadCall }) });
   const shareOnlyToken = 'v'.repeat(43), otherToken = 'w'.repeat(43);
-  tokens.set(sha256(shareOnlyToken), { owner, readSources: false });
-  tokens.set(sha256(otherToken), { owner: other, readSources: true });
+  tokens.set(sha256(shareOnlyToken), { owner_id: owner, resource, read_sources: false });
+  tokens.set(sha256(otherToken), { owner_id: other, resource, read_sources: true });
   const denied = await directDownload(shareOnlyToken);
   assert.equal(denied.status, 403);
   assert.match(denied.headers.get('www-authenticate'), /insufficient_scope/);

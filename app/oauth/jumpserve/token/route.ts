@@ -1,5 +1,5 @@
 import {
-  isOpaqueCredential, mcpConfig, MCP_DOWNLOAD_SCOPE, parseMcpScope, readBoundedBody,
+  cliClientScope, connectorResource, isOpaqueCredential, mcpConfig, MCP_DOWNLOAD_SCOPE, parseMcpScope, readBoundedBody,
   registeredRedirect, verifierChallenge,
 } from "@/lib/jumpserve-mcp-oauth";
 import { exchangeGrant, resolveMcpClient } from "@/lib/jumpserve-mcp-store";
@@ -21,12 +21,15 @@ export async function POST(request: Request) {
   } catch {
     return oauthError("invalid_request");
   }
-  if ([...body.keys()].some(key => body.getAll(key).length > 1) || body.has("client_secret") ||
-      (body.has("resource") && body.get("resource") !== config.resource)) return oauthError("invalid_request");
-  const scope = parseMcpScope(body.get("scope"));
-  if (body.has("scope") && !scope) return oauthError("invalid_scope");
+  if ([...body.keys()].some(key => body.getAll(key).length > 1) || body.has("client_secret")) return oauthError("invalid_request");
   const client = body.get("client_id");
   if (!client) return oauthError("invalid_client");
+  const cli = cliClientScope(client);
+  const resource = connectorResource(config, client);
+  if ((cli || body.has("resource")) && body.get("resource") !== resource) return oauthError("invalid_request");
+  const requestedScope = body.get("scope");
+  const scope = cli ? (requestedScope === cli ? cli : null) : parseMcpScope(requestedScope);
+  if ((cli || body.has("scope")) && !scope) return oauthError("invalid_scope");
   const grant = body.get("grant_type");
   if (grant !== "authorization_code" && grant !== "refresh_token") return oauthError("unsupported_grant_type");
   const proof = body.get(grant === "authorization_code" ? "code" : "refresh_token");
@@ -34,19 +37,19 @@ export async function POST(request: Request) {
   const redirect = body.get("redirect_uri");
   const verifier = body.get("code_verifier");
   try {
-    const clientDetails = await resolveMcpClient(client, config.resource);
+    const clientDetails = await resolveMcpClient(client, resource);
     if (!clientDetails) return oauthError("invalid_client");
     if (grant === "authorization_code" &&
         (!registeredRedirect(clientDetails, redirect) || !verifier || !/^[A-Za-z0-9._~-]{43,128}$/.test(verifier))) {
       return oauthError("invalid_grant");
     }
     const tokens = await exchangeGrant({
-      grant, proof, client, resource: config.resource,
+      grant, proof, client, resource,
       redirect, challenge: verifier ? verifierChallenge(verifier) : null,
       readSources: scope ? scope === MCP_DOWNLOAD_SCOPE : null,
     });
     return tokens
-      ? Response.json({ ...tokens, token_type: "Bearer", expires_in: 3600 }, { headers })
+      ? Response.json({ ...tokens, scope: cli ?? tokens.scope, token_type: "Bearer", expires_in: 3600 }, { headers })
       : oauthError("invalid_grant");
   } catch {
     return oauthError("temporarily_unavailable", 503);

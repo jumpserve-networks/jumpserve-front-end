@@ -24,6 +24,8 @@
     "verify:research:assessments:production": "node scripts/verify-assessment-navigation-production.mjs",
     "verify:research:local-assessments": "node scripts/verify-local-assessments-production.mjs",
     "verify:research:mcp": "node scripts/verify-jumpserve-mcp.mjs",
+    "assessment": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/lib/register-typescript.mjs scripts/jumpserve-assessment.mjs",
+    "eval:synthetic-batch": "node --import ./scripts/lib/register-typescript.mjs scripts/run-jumpserve-synthetic-batch.mjs",
     "eval:paper": "node --import ./scripts/lib/register-typescript.mjs scripts/evaluate-paper-intake.mjs",
     "eval:experiment-plan": "node --import ./scripts/lib/register-typescript.mjs scripts/evaluate-experiment-plan.mjs",
     "verify:paper": "node --import ./scripts/lib/register-typescript.mjs scripts/verify-paper-intake.mjs",

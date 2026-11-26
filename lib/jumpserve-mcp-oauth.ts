@@ -1,10 +1,20 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { LOCAL_ASSESSMENT_SOURCE_API, PRIVATE_EVALUATION_RESULTS_API } from "@/lib/local-assessment-source";
 import { getConfiguredSiteUrl } from "@/lib/site-url";
 
 export const MCP_SCOPE = "assessments:share";
 export const MCP_SOURCE_SCOPE = "assessments:read-source";
 export const MCP_DOWNLOAD_SCOPE = `${MCP_SCOPE} ${MCP_SOURCE_SCOPE}`;
 export const MCP_SCOPES = [MCP_SCOPE, MCP_SOURCE_SCOPE];
+export const CLI_CLIENT_ID = "jumpserve-cli";
+export const CLI_SCOPE = "assessments:start";
+export const CLI_RESULTS_CLIENT_ID = "jumpserve-cli-results";
+export const CLI_RESULTS_SCOPE = "assessments:save-private";
+
+export function cliClientScope(client: string | null) {
+  if (client === CLI_CLIENT_ID) return CLI_SCOPE;
+  return client === CLI_RESULTS_CLIENT_ID ? CLI_RESULTS_SCOPE : null;
+}
 
 export function parseMcpScope(value: unknown) {
   if (value === MCP_SCOPE) return MCP_SCOPE;
@@ -26,10 +36,17 @@ export function mcpConfig() {
   const url = new URL(issuer);
   if (url.protocol !== "https:" &&
       !(url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname))) return null;
-  return { issuer, resource: `${issuer}/mcp`, metadata: `${issuer}${MCP_RESOURCE_METADATA_PATH}` };
+  return { issuer, resource: `${issuer}/mcp`, cliResource: `${issuer}${LOCAL_ASSESSMENT_SOURCE_API}`,
+    resultsResource: `${issuer}${PRIVATE_EVALUATION_RESULTS_API}`, metadata: `${issuer}${MCP_RESOURCE_METADATA_PATH}` };
+}
+
+export function connectorResource(config: NonNullable<ReturnType<typeof mcpConfig>>, client: string | null) {
+  if (client === CLI_RESULTS_CLIENT_ID) return config.resultsResource;
+  return client === CLI_CLIENT_ID ? config.cliResource : config.resource;
 }
 
 function fixedClient(id: string | null) {
+  if (cliClientScope(id)) return { name: "JumpServe CLI", redirect: { host: "127.0.0.1", port: null, path: "/callback" } };
   return id === "jumpserve-codex" || id === "jumpserve-claude-code" ? MCP_CLIENTS[id] : null;
 }
 
@@ -91,13 +108,16 @@ export function parseAuthorizationRequest(query: URLSearchParams, resource: stri
   const challenge = query.get("code_challenge");
   const state = query.get("state");
   const resourceIndicator = query.get("resource");
-  const scope = query.has("scope") ? parseMcpScope(query.get("scope")) : MCP_DOWNLOAD_SCOPE;
+  const cli = cliClientScope(clientId);
+  const requestedScope = query.get("scope");
+  const scope = cli ? (requestedScope === cli ? cli : null)
+    : query.has("scope") ? parseMcpScope(requestedScope) : MCP_DOWNLOAD_SCOPE;
   if ([...query.keys()].some(key => query.getAll(key).length > 1) ||
       !client || !clientId || !registeredRedirect(client, redirectUri) ||
       query.get("response_type") !== "code" || query.get("code_challenge_method") !== "S256" ||
       !challenge || !/^[A-Za-z0-9_-]{43}$/.test(challenge) || !state || state.length > 512 ||
       !scope ||
-      (resourceIndicator !== null && resourceIndicator !== resource)) return null;
+      ((cli || resourceIndicator !== null) && resourceIndicator !== resource)) return null;
   return { clientId, clientName: client.name, redirectUri, challenge, state, readSources: scope === MCP_DOWNLOAD_SCOPE };
 }
 
