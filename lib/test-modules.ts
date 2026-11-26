@@ -8,6 +8,7 @@ export const RELIABLE_STUDY_MODULE_PATH = "/reliable-sketch-study";
 export const RESEARCH_WORKFLOW_MODULE_PATH = "/research-verification";
 export const NEW_ASSESSMENT_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/new-assessment`;
 export const ASSESSMENTS_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/assessments`;
+export const SYNTHETIC_BATCH_START_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/api/synthetic-batch/start`;
 export const ASSESSMENT_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/assessment`;
 export const PRIVATE_ASSESSMENTS_API_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/api/private-assessments`;
 export const MY_ASSESSMENTS_PATH = `${ASSESSMENTS_PATH}?mine=1`;

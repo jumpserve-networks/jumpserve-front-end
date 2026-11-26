@@ -291,9 +291,20 @@ test('profile and idea intake require the exact resumable Google action before r
 
 test('assessment list passes safe cursor and trimmed name with table as the default view', async () => {
   for (const [query, expected] of [[{}, {before: undefined, mine: false, name: '', view: 'table'}], [{before: ['first', 'second'], mine: ['1'], name: ['unexpected'], view: ['card']}, {before: 'invalid', mine: false, name: '', view: 'table'}], [{before: 'recorded-cursor', mine: '1', name: '  Example Ω  ', view: 'card'}, {before: 'recorded-cursor', mine: true, name: 'Example Ω', view: 'card'}]]) {
-    await renderPage('assessments', props({}, query)); assert.deepEqual(capture('Assessments'), expected);
+    await renderPage('assessments', props({}, query)); assert.deepEqual(capture('Assessments'), {...expected, canStartSyntheticBatch: false});
   }
   assert.deepEqual(state.authPaths, []);
+});
+
+test('the assessment list exposes the batch launch only to the configured owner on My Assessments', async () => {
+  process.env.JUMPSERVE_SYNTHETIC_BATCH_OWNER_ID = ID;
+  process.env.JUMPSERVE_SYNTHETIC_BATCH_INSTANCE_ID = 'i-0123456789abcdef0';
+  for (const [query, user, available] of [[{mine: '1'}, null, false], [{mine: '1'}, {...google(), id: OTHER}, false],
+    [{}, {...google(), id: ID}, false], [{mine: '1'}, {...google(), id: ID}, true]]) {
+    state.user = user;
+    await renderPage('assessments', props({}, query));
+    assert.equal(capture('Assessments').canStartSyntheticBatch, available);
+  }
 });
 
 test('canonical assessment validates saved queue identities while showing the owner wizard', async () => {

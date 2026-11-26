@@ -12,6 +12,23 @@ and saves each validated Generator bundle and Verifier scorecard privately in
 Supabase through JumpServe. Local evidence and answer keys stay in the batch
 directory.
 
+## Start from My Assessments
+
+On the production Amplify branch, set `JUMPSERVE_SYNTHETIC_BATCH_OWNER_ID`
+to the Supabase Auth user UUID for the Google account that authorized the
+coordinator's private results connection. Set
+`JUMPSERVE_SYNTHETIC_BATCH_INSTANCE_ID` to the coordinator stack's
+`CoordinatorInstance` output. The Amplify build hook carries both settings
+into the server runtime.
+
+Deploy the coordinator stack with `EnableWebBatchStart=true` before releasing
+the website control. This adds permission for the Amplify compute role to send
+the fixed start document to that coordinator. For the configured account,
+**My Assessments** shows **Start synthetic batch**. AWS acknowledgement means
+that Systems Manager accepted the start request. The batch journal on the
+coordinator records the run. Repeated requests while the service is active
+leave the active run in place.
+
 ## Native macOS with ChatGPT sign-in
 
 Use Python 3, Node.js 24 or newer, and the project's installed dependencies. The
