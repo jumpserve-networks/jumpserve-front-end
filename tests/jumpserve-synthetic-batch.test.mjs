@@ -384,12 +384,21 @@ test('Docker workers separate model authentication from case mounts and fail clo
   await mkdir(bin);
   await writeFile(versionPath, 'codex-cli 0.171.0');
   await writeFile(join(bin, 'docker'), String.raw`#!${process.execPath}
-const { appendFileSync, readFileSync } = require('node:fs');
+const { appendFileSync, readFileSync, writeFileSync } = require('node:fs');
 const args = process.argv.slice(2);
 appendFileSync(${JSON.stringify(callsPath)}, JSON.stringify({ args, key: process.env.CODEX_API_KEY === ${JSON.stringify(fixtureKey)} }) + '\n');
 if (args.at(-1) === '--version') console.log(readFileSync(${JSON.stringify(versionPath)}, 'utf8'));
 if (args.includes('CODEX_API_KEY')) console.log('{"scorecard":true}');
 if (args[0] === 'port') console.log('127.0.0.1:30123');
+if (args.includes('--json')) {
+  console.log(JSON.stringify({ type: 'turn.started' }));
+  const item = { type: 'command_execution', command: "/bin/bash -lc 'python3 private-script.py'", aggregated_output: 'fixture-private-output' };
+  console.log(JSON.stringify({ type: 'item.started', item }));
+  console.log(JSON.stringify({ type: 'item.completed', item: { ...item, exit_code: 0 } }));
+  console.log(JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'fixture-private-message' } }));
+  const mount = args.find(x => x.endsWith(',destination=/last-message'));
+  if (mount) writeFileSync(mount.split(',')[1].slice('source='.length) + '/response', '{"scorecard":true}');
+}
 `, { mode: 0o700 });
   const originalPath = process.env.PATH;
   process.env.PATH = `${bin}:${originalPath}`;
@@ -465,6 +474,26 @@ if (args[0] === 'port') console.log('127.0.0.1:30123');
   await chmod(authFile, 0o644);
   await assert.rejects(usingVolume.generate({ paper, output: volumeOutput, guidance: {} }), /requires a private directory/);
   assert.equal((await calls()).length, beforeVolume + volumeCalls.length);
+
+  await chmod(authFile, 0o600);
+  const observedOutput = join(dirname(volumeOutput), 'verifier');
+  await mkdir(observedOutput);
+  const activity = [];
+  const live = createContainerWorkers({ image: `sha256:${'a'.repeat(64)}`, snapshot: join(bin, 'skills'),
+    workflowFiles: { generator: 'workflow.md', verifier: 'workflow.md' }, timeoutMs: 30_000, chatgptAuthDirectory,
+    onActivity: event => activity.push(event) });
+  await live.verify({ paper, key, artifactDirectory: volumeOutput, output: observedOutput, guidance: {}, rubric: [] });
+  assert.deepEqual(activity, [
+    { kind: 'codex_started' },
+    { kind: 'turn_started' },
+    { kind: 'command_started', program: 'python3' },
+    { kind: 'command_completed', program: 'python3', exitCode: 0 },
+  ]);
+  assert.deepEqual(JSON.parse(await readFile(join(observedOutput, 'scorecard.json'), 'utf8')), { scorecard: true });
+  assert.match(await readFile(join(dirname(observedOutput), 'verifier.log'), 'utf8'), /fixture-private-output/);
+  const observedRuns = (await calls()).filter(({ args }) => args[0] === 'run').slice(-2);
+  assert.ok(observedRuns[0].args.every(arg => !arg.includes('/last-message')));
+  assert.ok(observedRuns[1].args.includes('--output-last-message'));
 });
 
 test('case-relative Verifier citations pass validation and save privately from a separate review directory', async t => {

@@ -16,7 +16,12 @@ redelivery of a request leaves that batch's outcome in place.
 
 Signed-in Google users can browse the full batch history and view progress. The
 account that started a batch also sees links to its saved private assessments.
-The batch page refreshes automatically while a run is active.
+The batch page refreshes automatically while a run is active. Click a paper's
+status to see recent worker activity for its Generator and Verifier. Everyone
+who can open the batch can view the activity. It includes worker milestones,
+allowlisted command names, and exit codes. Prompts, command arguments, command
+output, and raw worker logs stay with the private evidence. Activity is recorded
+for batches that run with the compatible coordinator and worker package.
 
 ## What a batch runs
 
@@ -61,6 +66,9 @@ The app build hook carries these settings into its server runtime. After
 cutover, retire the previous unnumbered coordinator unit after any run it holds
 finishes. Keep its evidence directories.
 
+Release the coordinator and web access policies for the private `activity/`
+prefix alongside the matching coordinator package and website.
+
 The coordinator uses its instance role and the scoped experiment-client role
 for leases. Prepare or renew the JumpServe results session on the coordinator
 with `npm run assessment -- login --results --callback-port 54457` using a
@@ -81,11 +89,16 @@ To retry a private result save, use the original evidence and
 `runtime.verifier_skill_version` and `scorecard.validated.json` when available.
 A retained Coach report can be saved through `npm run assessment -- save-coach <report.json>`.
 
-## Local archive
+## Local history
 
-Next.js development can display existing CLI journals when no S3 bucket is
-configured. Set `JUMPSERVE_LOCAL_TRAINING_BATCH_DIRECTORY` in `.env.local` to
-the journal parent directory. Its `training-batch-index.json` is a JSON array
-of the existing run directory names in ID order, starting with ID 1. Keep that
-order stable. Each entry reads its original `batch.json` and only exposes the
-batch progress fields. Web launches use the AWS coordinator.
+To show the same history on localhost as in production, set
+`JUMPSERVE_TRAINING_BATCH_BUCKET` in `.env.local` to the production
+`TrainingBatchBucketName`. Set `JUMPSERVE_TRAINING_BATCH_AWS_PROFILE` to a
+local AWS profile that can list the bucket and read its request and progress
+objects. This profile applies to the development training-batch S3 client.
+
+With no S3 bucket configured, Next.js development can display archived CLI
+journals. Set `JUMPSERVE_LOCAL_TRAINING_BATCH_DIRECTORY` to the journal parent
+directory. Its `training-batch-index.json` is a JSON array of directory names
+in ID order, starting with ID 1. Keep that order stable. Each entry reads its
+original `batch.json` and only exposes the batch progress fields.

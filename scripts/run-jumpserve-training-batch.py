@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import signal
+import stat
 import subprocess
 import sys
 import time
@@ -17,6 +18,8 @@ HEARTBEAT_SECONDS = 20
 PAPER_PHASES = {"pending", "generating", "verifying", "passed", "stopped"}
 STOP_PHASES = {"generating", "verifying", "saving_generator", "saving_verifier"}
 BATCH_ID = re.compile(r"[1-9][0-9]{0,9}")
+PAPER_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
+ACTIVITY_SCHEMA = json.loads((Path(__file__).parent / "lib" / "jumpserve-synthetic-activity-schema.json").read_text())
 
 
 def utc_now():
@@ -49,6 +52,7 @@ def snapshot(state, outcome=None):
     guidance = state.get("guidance", {})
     return {
         "status": status,
+        "activityAvailable": True,
         "updatedAt": utc_now(),
         "startedAt": state.get("started_at"),
         "finishedAt": state.get("finished_at") or (utc_now() if outcome else None),
@@ -58,9 +62,11 @@ def snapshot(state, outcome=None):
     }
 
 
-def publish(bucket, batch_id, directory, data, attempts=1):
-    path = directory / "progress.json"
-    temporary = directory / "progress.json.tmp"
+def publish(bucket, batch_id, directory, data, attempts=1, paper_id=None):
+    file = f"activity-{paper_id}.json" if paper_id else "progress.json"
+    key = f"activity/{batch_id}/{paper_id}.json" if paper_id else f"progress/{batch_id}.json"
+    path = directory / file
+    temporary = directory / f"{file}.tmp"
     temporary.write_text(json.dumps(data), encoding="utf-8")
     temporary.replace(path)
     for attempt in range(attempts):
@@ -68,7 +74,7 @@ def publish(bucket, batch_id, directory, data, attempts=1):
             subprocess.run(
                 ["aws", "--region", "us-east-1", "--no-cli-pager", "--cli-connect-timeout", "3",
                  "--cli-read-timeout", "5", "s3api", "put-object", "--bucket", bucket,
-                 "--key", f"progress/{batch_id}.json", "--content-type", "application/json",
+                 "--key", key, "--content-type", "application/json",
                  "--body", str(path)],
                 env={**os.environ, "AWS_MAX_ATTEMPTS": "1"},
                 stdout=subprocess.DEVNULL, check=True, timeout=12,
@@ -81,11 +87,64 @@ def publish(bucket, batch_id, directory, data, attempts=1):
     return False
 
 
+def activity_tail(path):
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(descriptor, "rb") as source:
+            info = os.fstat(source.fileno())
+            if not stat.S_ISREG(info.st_mode):
+                return []
+            offset = max(0, info.st_size - ACTIVITY_SCHEMA["maxBytes"])
+            source.seek(offset)
+            data = source.read(ACTIVITY_SCHEMA["maxBytes"])
+    except OSError:
+        return []
+    if offset:
+        data = data.partition(b"\n")[2]
+    events = []
+    for line in data.rpartition(b"\n")[0].splitlines():
+        try:
+            raw = json.loads(line)
+        except (ValueError, UnicodeError):
+            continue
+        if not isinstance(raw, dict):
+            continue
+        kind, at = raw.get("kind"), raw.get("at")
+        if not isinstance(kind, str) or kind not in ACTIVITY_SCHEMA["labels"] or not isinstance(at, str) or not re.fullmatch(
+            r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,6})?(?:Z|\+00:00)", at
+        ):
+            continue
+        item = {"kind": kind, "at": at}
+        if kind in {"command_started", "command_completed"} and raw.get("program") in ACTIVITY_SCHEMA["programs"]:
+            item["program"] = raw["program"]
+        exit_code = raw.get("exitCode")
+        if kind == "command_completed" and type(exit_code) is int and 0 <= exit_code <= 255:
+            item["exitCode"] = exit_code
+        events.append(item)
+    return events[-ACTIVITY_SCHEMA["maxEvents"]:]
+
+
+def publish_activity(bucket, batch_id, directory, output, state, previous):
+    for paper in state.get("cases", []):
+        paper_id = paper["paper_id"]
+        if not PAPER_ID.fullmatch(paper_id):
+            continue
+        data = {role: activity_tail(output / paper_id / f"ec2-{role}" / "activity.jsonl")
+                for role in ("generator", "verifier")}
+        if any(data.values()) and data != previous.get(paper_id):
+            try:
+                if publish(bucket, batch_id, directory, data, paper_id=paper_id):
+                    previous[paper_id] = data
+            except OSError:
+                print("Could not record training batch activity.", file=sys.stderr)
+
+
 def supervise(bucket, batch_id, directory, output):
     scripts = Path(__file__).resolve().parent
     journal_path = output / "batch.json"
     process = None
     interrupted = False
+    last_activity = {}
 
     def stop(signum, _frame):
         nonlocal interrupted
@@ -120,13 +179,16 @@ def supervise(bucket, batch_id, directory, output):
                     if publish(bucket, batch_id, directory, snapshot(state)):
                         last_state = state
                         last_report = time.monotonic()
+                publish_activity(bucket, batch_id, directory, output, state, last_activity)
         return process.returncode
     finally:
         if process is not None and process.poll() is None:
             process.terminate()
             process.wait()
         outcome = "interrupted" if interrupted else "failed"
-        publish(bucket, batch_id, directory, snapshot(journal(journal_path), outcome), attempts=3)
+        state = journal(journal_path)
+        publish_activity(bucket, batch_id, directory, output, state, last_activity)
+        publish(bucket, batch_id, directory, snapshot(state, outcome), attempts=3)
 
 
 def main():

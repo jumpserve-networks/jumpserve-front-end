@@ -1,0 +1,25 @@
+{
+  "maxEvents": 60,
+  "maxBytes": 32768,
+  "labels": {
+    "worker_provisioning": "Requesting an EC2 worker",
+    "worker_connecting": "Waiting for the EC2 worker to become ready",
+    "inputs_transferring": "Transferring experiment inputs",
+    "environment_building": "Preparing the worker environment",
+    "review_preflight": "Checking evidence before verification",
+    "codex_started": "Starting Codex on the worker",
+    "turn_started": "Codex is working",
+    "command_started": "Running",
+    "command_completed": "Finished",
+    "file_changed": "Updated experiment files",
+    "turn_completed": "Codex finished",
+    "turn_failed": "Codex turn failed",
+    "results_collecting": "Collecting results from the worker",
+    "worker_completed": "Worker stage finished"
+  },
+  "programs": [
+    "awk", "bash", "cat", "cc", "chmod", "cp", "curl", "dig", "docker", "find", "gcc", "grep", "head",
+    "ip", "iperf3", "jq", "ls", "make", "mkdir", "node", "npm", "ping", "pip", "pip3", "python", "python3",
+    "rg", "sed", "sh", "sleep", "sort", "tail", "tar", "tc", "tee", "timeout", "unzip", "wc", "wget"
+  ]
+}

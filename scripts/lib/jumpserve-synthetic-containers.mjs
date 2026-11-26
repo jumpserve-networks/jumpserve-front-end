@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
-import { lstat, realpath, writeFile } from 'node:fs/promises';
+import { spawn, spawnSync } from 'node:child_process';
+import { lstat, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { createInterface } from 'node:readline';
 import { setTimeout as delay } from 'node:timers/promises';
 import { BATCH_SKILLS, batchCasePaths, generatorPrompt, verifierPrompt } from './jumpserve-synthetic-worker-inputs.mjs';
+import { codexActivity } from './jumpserve-synthetic-activity.mjs';
 
 const maxOutput = 8 * 1024 * 1024;
 const executorPort = 8745;
@@ -51,6 +53,37 @@ function docker(args, options) {
   return spawnSync('docker', args, { encoding: 'utf8', maxBuffer: maxOutput, ...options });
 }
 
+function observeDocker(args, { env, input, timeout }, onActivity) {
+  return new Promise(resolve => {
+    const child = spawn('docker', args, { env, signal: AbortSignal.timeout(timeout), killSignal: 'SIGKILL' });
+    let error;
+    const collect = stream => {
+      const chunks = [];
+      let bytes = 0;
+      stream.on('data', chunk => {
+        if (bytes < maxOutput) chunks.push(chunk.subarray(0, maxOutput - bytes));
+        if (bytes <= maxOutput && bytes + chunk.length > maxOutput) {
+          chunks.push(Buffer.from('\n[Codex log capture limit reached.]\n'));
+        }
+        bytes += chunk.length;
+      });
+      return chunks;
+    };
+    const stdout = collect(child.stdout);
+    const stderr = collect(child.stderr);
+    createInterface({ input: child.stdout, crlfDelay: Infinity }).on('line', line => {
+      const event = codexActivity(line);
+      if (event) onActivity(event);
+    });
+    child.on('error', failure => { error ??= failure; });
+    child.stdin.on('error', () => {});
+    child.once('close', (status, signal) => resolve({
+      status, signal, error, stdout: Buffer.concat(stdout).toString(), stderr: Buffer.concat(stderr).toString(),
+    }));
+    child.stdin.end(input);
+  });
+}
+
 function removeContainer(name) {
   docker(['rm', '-f', name], { timeout: 15_000, stdio: 'ignore' });
 }
@@ -93,7 +126,7 @@ export function inspectControllerCodex(env) {
   return login.status === 0 && /Logged in using ChatGPT/.test(login.stdout + login.stderr);
 }
 
-export function createContainerWorkers({ image, snapshot, workflowFiles, timeoutMs, apiKey, chatgptAuthDirectory, model }) {
+export function createContainerWorkers({ image, snapshot, workflowFiles, timeoutMs, apiKey, chatgptAuthDirectory, model, onActivity }) {
   const generatorMount = mount(join(snapshot, BATCH_SKILLS.generator), generatorSkill);
   const skills = [
     ...generatorMount,
@@ -131,6 +164,7 @@ export function createContainerWorkers({ image, snapshot, workflowFiles, timeout
     const isGenerator = role === 'generator';
     const workdir = isGenerator ? '/work' : '/tmp';
     let result;
+    let finalMessage;
     if (role === 'preflight') {
       result = docker([...containerArgs(name, 'none', workdir), ...inputsFor(input, workdir), image, ...command],
         { timeout: Math.min(timeoutMs, 60_000) });
@@ -156,27 +190,44 @@ export function createContainerWorkers({ image, snapshot, workflowFiles, timeout
         env.CODEX_API_KEY = apiKey;
       }
       const executor = `${name}-executor`;
+      let messageDirectory;
       try {
         await startExecutor(executor, input, workdir);
 
         // Share only networking. The executor alone gets case mounts. The client alone gets model auth.
         // At the pinned Codex version this URL also removes the local execution environment.
-        result = docker([...containerArgs(name, `container:${executor}`, '/tmp'), ...credentials,
+        const observed = useChatgpt && onActivity;
+        if (observed && !isGenerator) messageDirectory = await mkdtemp(join(dirname(output), '.codex-message-'));
+        const args = [...containerArgs(name, `container:${executor}`, '/tmp'), ...credentials,
           // Codex resolves the working directory locally before passing it to the remote environment.
           ...(isGenerator ? ['--tmpfs', '/work:rw,nosuid,nodev,noexec,size=1m'] : []),
-          '--env', `CODEX_EXEC_SERVER_URL=${executorUrl}`, image, ...command, ...authConfig, '--cd', workdir, '-'],
-        { env, input: prompt, timeout: timeoutMs });
+          ...(messageDirectory ? mount(messageDirectory, '/last-message', false) : []),
+          '--env', `CODEX_EXEC_SERVER_URL=${executorUrl}`, image, ...command, ...authConfig, '--cd', workdir,
+          ...(observed ? ['--json'] : []),
+          ...(messageDirectory ? ['--output-last-message', '/last-message/response'] : []), '-'];
+        const options = { env, input: prompt, timeout: timeoutMs };
+        if (observed) {
+          onActivity({ kind: 'codex_started' });
+          result = await observeDocker(args, options, onActivity);
+        } else {
+          result = docker(args, options);
+        }
+        if (messageDirectory && result.status === 0 && !result.error) {
+          try { finalMessage = await readFile(join(messageDirectory, 'response'), 'utf8'); }
+          catch (error) { result.error = error; }
+        }
       } finally {
         // A dead Docker client can leave either container running after a timeout.
         removeContainer(name);
         removeContainer(executor);
+        if (messageDirectory) await rm(messageDirectory, { force: true, recursive: true });
       }
     }
     const logPath = join(dirname(output), `${role}.log`);
     const log = [result.stdout, result.stderr].filter(Boolean).join('\n');
     await writeFile(logPath, apiKey ? log.replaceAll(apiKey, '[redacted]') : log, { flag: 'wx', mode: 0o600 });
-    if (result.status !== 0) throw new Error(`${role} exited with ${errorCode(result)}. See ${role}.log.`);
-    return result.stdout;
+    if (result.status !== 0 || result.error) throw new Error(`${role} exited with ${errorCode(result)}. See ${role}.log.`);
+    return finalMessage ?? result.stdout;
   }
 
   return {

@@ -124,6 +124,33 @@ class TrainingBatchTest(unittest.TestCase):
     batch_id = "12"
     assessment_id = "91169871-14c2-4bde-a0a5-50bf78403d86"
 
+    def test_activity_publication_reads_bounded_safe_events_without_rewriting_unchanged_activity(self):
+        at = "2026-11-01T00:00:00Z"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            stage = root / "JSB-E01" / "ec2-generator"
+            stage.mkdir(parents=True)
+            data = stage / "activity.jsonl"
+            data.write_text("\n".join(
+                [json.dumps({"at": at, "kind": "turn_started"})] * 65 + [
+                    json.dumps({"at": at, "kind": "command_completed", "program": "curl",
+                                "exitCode": 0, "output": "fixture-private"}),
+                    json.dumps({"at": at, "kind": "agent_message", "text": "fixture-private"}),
+                    '{"kind":"partial"',
+                ]
+            ))
+            state = {"cases": [{"paper_id": "JSB-E01"}]}
+            previous = {}
+            with patch.object(training, "publish", return_value=True) as publish:
+                training.publish_activity("fixture", self.batch_id, root, root, state, previous)
+                training.publish_activity("fixture", self.batch_id, root, root, state, previous)
+            publish.assert_called_once()
+            self.assertEqual(publish.call_args.kwargs["paper_id"], "JSB-E01")
+            captured = publish.call_args.args[3]["generator"]
+            self.assertEqual(len(captured), training.ACTIVITY_SCHEMA["maxEvents"])
+            self.assertEqual(captured[-1], {"at": at, "kind": "command_completed", "program": "curl", "exitCode": 0})
+            self.assertNotIn("fixture-private", json.dumps(captured))
+
     def test_supervisor_reports_a_stopped_journal_without_private_artifacts(self):
         state = {
             "status": "stopped",

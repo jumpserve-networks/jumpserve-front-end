@@ -75,6 +75,31 @@ test('training batch progress reports saved assessments and stops polling at a t
   assert.equal(fetch.mock.callCount(), 1);
 });
 
+test('a paper status opens live worker activity and closing it ends polling', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const at = '2026-11-01T00:00:00Z';
+  const batch = { id: 12, requestedAt: at, startedAt: at, updatedAt: at,
+    finishedAt: null, stale: false, status: 'running', stopPhase: null, activityAvailable: true,
+    versions: { generator: 4, verifier: 1 },
+    papers: [{ id: 'JSB-E01', fileName: 'paper.pdf', status: 'generating', assessmentId: null, score: null }] };
+  const fetch = t.mock.method(globalThis, 'fetch', async () => Response.json({ generator: [
+    { at, kind: 'command_started', program: 'python3' },
+  ], verifier: [] }));
+  render(React.createElement(TrainingBatchProgress, { id: 12, initial: batch }));
+  assert.equal(fetch.mock.callCount(), 0);
+  const button = screen.getByRole('button', { name: 'Generating, view worker activity for paper.pdf' });
+  await act(async () => fireEvent.click(button));
+  assert.ok(screen.getByRole('dialog', { name: 'Worker terminal activity' }));
+  assert.ok(screen.getByText('Running python3'));
+  assert.equal(fetch.mock.calls[0].arguments[0], '/research-verification/api/synthetic-batch/12/activity?paper=JSB-E01');
+  await act(async () => { t.mock.timers.tick(4_000); });
+  assert.equal(fetch.mock.callCount(), 2);
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Close' })));
+  await act(async () => { t.mock.timers.tick(4_000); });
+  assert.equal(fetch.mock.callCount(), 2);
+  assert.equal(screen.queryByRole('dialog', { name: 'Worker terminal activity' }), null);
+});
+
 test('table is the default view and recorded title, initiator, stage and detail link appear', async () => {
   show();
   const table = await screen.findByRole('table');

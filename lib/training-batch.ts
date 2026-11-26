@@ -17,6 +17,7 @@ export type TrainingBatchPaper = {
 
 export type TrainingBatchSnapshot = {
   status: "preparing" | "running" | "passed" | "stopped" | "failed" | "interrupted" | "busy";
+  activityAvailable?: boolean;
   updatedAt: string;
   startedAt: string | null;
   finishedAt: string | null;
