@@ -24,7 +24,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
   return <main className="mx-auto max-w-6xl space-y-6 px-4 py-6">
     <ResearchHeader title="Training Batches" showModuleLabel={false} />
     {user.id === configuration?.ownerId ? <section className="content-panel space-y-4 rounded-lg border p-5">
-      <p className="text-sm">Run the Generator and Verifier on the synthetic papers. The batch stops if a paper fails to earn full credit.</p>
+      <p className="text-sm">Run the Generator and Verifier on the synthetic papers.</p>
       <StartSyntheticBatch />
     </section> : null}
     {history ? <>
@@ -36,7 +36,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
             <TableHead scope="col">Batch</TableHead>
             <TableHead scope="col">Date</TableHead>
             <TableHead scope="col">Status</TableHead>
-            <TableHead scope="col">Papers passed</TableHead>
+            <TableHead scope="col">Papers with full credit</TableHead>
           </TableRow></TableHeader>
           <TableBody>{history.batches.map(batch => <TableRow key={batch.id}>
             <TableCell><Link className="underline" prefetch={false} href={`${TRAINING_BATCH_PATH}/${batch.id}`}>{batch.id}</Link></TableCell>

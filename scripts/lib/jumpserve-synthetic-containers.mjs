@@ -4,12 +4,16 @@ import { lstat, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promi
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { setTimeout as delay } from 'node:timers/promises';
+import { fileURLToPath } from 'node:url';
 import { BATCH_SKILLS, batchCasePaths, generatorPrompt, verifierPrompt } from './jumpserve-synthetic-worker-inputs.mjs';
 import { codexActivity } from './jumpserve-synthetic-activity.mjs';
+import { terminalPrefix } from './jumpserve-synthetic-terminal-proxy.mjs';
 
 const maxOutput = 8 * 1024 * 1024;
 const executorPort = 8745;
 const executorUrl = `ws://127.0.0.1:${executorPort}`;
+const proxyPort = 8746;
+const proxyScript = fileURLToPath(new URL('./jumpserve-synthetic-terminal-proxy.mjs', import.meta.url));
 const isolatedCodexVersion = 'codex-cli 0.171.0';
 const generatorSkill = `/skills/${BATCH_SKILLS.generator}`;
 const verifierSkill = `/skills/${BATCH_SKILLS.verifier}`;
@@ -88,6 +92,24 @@ function removeContainer(name) {
   docker(['rm', '-f', name], { timeout: 15_000, stdio: 'ignore' });
 }
 
+function startTerminalProxy(name, executor, image, onTerminal) {
+  const child = spawn('docker', [...containerArgs(name, `container:${executor}`, '/tmp'),
+    '--log-driver', 'none', '--env', 'NODE_PATH=/usr/local/lib/node_modules',
+    ...mount(proxyScript, '/terminal-proxy.mjs'), image, 'node', '/terminal-proxy.mjs', executorUrl, String(proxyPort)],
+  { stdio: ['ignore', 'pipe', 'ignore'] });
+  const ready = new Promise(resolve => {
+    const timeout = setTimeout(() => resolve(false), 10_000);
+    const finish = value => { clearTimeout(timeout); resolve(value); };
+    child.once('error', () => finish(false));
+    child.once('close', () => finish(false));
+    createInterface({ input: child.stdout, crlfDelay: Infinity }).on('line', line => {
+      if (line === 'ready') finish(true);
+      else if (line.startsWith(terminalPrefix)) onTerminal(line);
+    });
+  });
+  return { ready, closed: new Promise(resolve => child.once('close', resolve)) };
+}
+
 async function waitForExecutor(name) {
   const probe = `const socket = new WebSocket(${JSON.stringify(executorUrl)});
     socket.addEventListener('open', () => process.exit(0));
@@ -126,7 +148,8 @@ export function inspectControllerCodex(env) {
   return login.status === 0 && /Logged in using ChatGPT/.test(login.stdout + login.stderr);
 }
 
-export function createContainerWorkers({ image, snapshot, workflowFiles, timeoutMs, apiKey, chatgptAuthDirectory, model, onActivity }) {
+export function createContainerWorkers({ image, snapshot, workflowFiles, timeoutMs, apiKey, chatgptAuthDirectory,
+  model, onActivity, onTerminal }) {
   const generatorMount = mount(join(snapshot, BATCH_SKILLS.generator), generatorSkill);
   const skills = [
     ...generatorMount,
@@ -190,9 +213,17 @@ export function createContainerWorkers({ image, snapshot, workflowFiles, timeout
         env.CODEX_API_KEY = apiKey;
       }
       const executor = `${name}-executor`;
+      const proxyName = `${name}-terminal`;
+      let proxy;
       let messageDirectory;
       try {
         await startExecutor(executor, input, workdir);
+        let serverUrl = executorUrl;
+        if (onTerminal && useChatgpt) {
+          proxy = startTerminalProxy(proxyName, executor, image, onTerminal);
+          if (await proxy.ready) serverUrl = `ws://127.0.0.1:${proxyPort}`;
+          else onTerminal(terminalPrefix + JSON.stringify({ stream: 'notice', text: 'Live terminal capture is unavailable for this stage.\n' }));
+        }
 
         // Share only networking. The executor alone gets case mounts. The client alone gets model auth.
         // At the pinned Codex version this URL also removes the local execution environment.
@@ -202,7 +233,7 @@ export function createContainerWorkers({ image, snapshot, workflowFiles, timeout
           // Codex resolves the working directory locally before passing it to the remote environment.
           ...(isGenerator ? ['--tmpfs', '/work:rw,nosuid,nodev,noexec,size=1m'] : []),
           ...(messageDirectory ? mount(messageDirectory, '/last-message', false) : []),
-          '--env', `CODEX_EXEC_SERVER_URL=${executorUrl}`, image, ...command, ...authConfig, '--cd', workdir,
+          '--env', `CODEX_EXEC_SERVER_URL=${serverUrl}`, image, ...command, ...authConfig, '--cd', workdir,
           ...(observed ? ['--json'] : []),
           ...(messageDirectory ? ['--output-last-message', '/last-message/response'] : []), '-'];
         const options = { env, input: prompt, timeout: timeoutMs };
@@ -219,6 +250,10 @@ export function createContainerWorkers({ image, snapshot, workflowFiles, timeout
       } finally {
         // A dead Docker client can leave either container running after a timeout.
         removeContainer(name);
+        if (proxy) {
+          removeContainer(proxyName);
+          await Promise.race([proxy.closed, delay(2_000, undefined, { ref: false })]);
+        }
         removeContainer(executor);
         if (messageDirectory) await rm(messageDirectory, { force: true, recursive: true });
       }

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { chmod, mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { registerHooks } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
@@ -8,6 +9,8 @@ import { BATCH_SKILLS, verifierPrompt } from '../scripts/lib/jumpserve-synthetic
 import { createBatchProgressReporter } from '../scripts/lib/jumpserve-synthetic-progress.mjs';
 import { createEc2Workers } from '../scripts/lib/jumpserve-synthetic-ec2.mjs';
 import { createContainerWorkers } from '../scripts/lib/jumpserve-synthetic-containers.mjs';
+import { CLI_RESULTS_SCOPE, MCP_TOKEN_PATH } from '../lib/jumpserve-mcp-oauth.ts';
+import { PRIVATE_EVALUATION_RESULTS_API } from '../lib/local-assessment-source.ts';
 
 const numberedGuidance = {
   generator: { source: 'bundled', sha256: 'c64477caf8d2f36e0a65ff7c445b8f146d01f128ab96672473d47cdd34a53f16' },
@@ -194,18 +197,160 @@ test('batch progress animates the active terminal step and clears the spinner wh
   assert.equal(writes.length, finished);
 });
 
-test('a one-point loss halts the batch before the third Generator and persists that stop', async t => {
+test('a one-point loss is recorded and the next paper still runs', async t => {
   const lab = await fixture(t);
   const options = { ...lab, verify: input => lab.score(input, input.key.includes(`${join('B', 'answer-key.json')}`) ? 1 : 2) };
   const result = await runSyntheticBatch(options);
-  assert.equal(result.status, 'stopped');
-  assert.equal(result.stop.paper_id, 'B');
-  assert.deepEqual(result.cases.map(item => item.status), ['passed', 'stopped', 'pending']);
+  assert.equal(result.status, 'completed');
+  assert.equal(result.stop, undefined);
+  assert.deepEqual(result.cases.map(item => item.status), ['passed', 'completed', 'passed']);
   assert.equal(result.cases[1].score.earned, 1);
-  assert.deepEqual(lab.calls, ['generate A', 'preflight A', 'verify A', 'generate B', 'preflight B', 'verify B']);
+  assert.deepEqual(lab.calls, [
+    'generate A', 'preflight A', 'verify A', 'generate B', 'preflight B', 'verify B', 'generate C', 'preflight C', 'verify C',
+  ]);
   assert.deepEqual(JSON.parse(await readFile(join(lab.output, 'batch.json'))), result);
   await assert.rejects(runSyntheticBatch(options), { code: 'EEXIST' });
-  assert.equal(lab.calls.length, 6);
+  assert.equal(lab.calls.length, 9);
+});
+
+test('parallel batches overlap all Generators and keep each paper’s saves and Verifier ordered', { timeout: 5_000 }, async t => {
+  const lab = await fixture(t);
+  const barrier = Promise.withResolvers();
+  const lowerScoreSaved = Promise.withResolvers();
+  const launched = new Set();
+  const generated = new Set();
+  const reviewed = new Set();
+  const ids = new Map();
+  const result = await runSyntheticBatch({ ...lab, parallel: true,
+    async generate({ signal, ...input }) {
+      signal.throwIfAborted();
+      launched.add(input.paperSha256);
+      if (launched.size === lab.cases.length) barrier.resolve();
+      await barrier.promise;
+      if (input.paperSha256 === lab.cases[2].paperSha256) await lowerScoreSaved.promise;
+      signal.throwIfAborted();
+      await lab.generate(input);
+    },
+    async reviewOnInstance({ assessmentId, ...input }) {
+      assert.ok(generated.has(assessmentId));
+      const checked = await lab.preflight(input);
+      assert.equal(ids.get(checked.paper_sha256), assessmentId);
+      await lab.score(input, checked.paper_id === 'B' ? 1 : 2);
+      return checked;
+    },
+    persistence: {
+      async generator(id, _paper, bundle) {
+        ids.set(bundle.paper.sha256, id);
+        generated.add(id);
+        return id;
+      },
+      async verifier(id, _artifact, grade) {
+        assert.equal(ids.get(grade.paper_sha256), id);
+        reviewed.add(id);
+        if (grade.paper_id === 'B') lowerScoreSaved.resolve();
+        return id;
+      },
+    },
+  });
+  assert.equal(result.status, 'completed');
+  assert.equal(reviewed.size, 3);
+  assert.equal(new Set(result.cases.map(item => item.database.assessment_id)).size, 3);
+  assert.deepEqual(result.cases.map(item => item.status), ['passed', 'completed', 'passed']);
+  assert.deepEqual(JSON.parse(await readFile(join(lab.output, 'batch.json'))), result);
+});
+
+test('a blocked Verifier saves its scorecard and waits for interrupted workers to clean up', { timeout: 5_000 }, async t => {
+  const lab = await fixture(t);
+  const allStarted = Promise.withResolvers();
+  const allAborted = Promise.withResolvers();
+  const allowCleanup = Promise.withResolvers();
+  let started = 0;
+  let aborted = 0;
+  const scoresSaved = [];
+  const running = runSyntheticBatch({ ...lab, parallel: true,
+    async generate({ signal, ...input }) {
+      if (++started === 3) allStarted.resolve();
+      if (input.paperSha256 === lab.cases[0].paperSha256) {
+        await allStarted.promise;
+        await lab.generate(input);
+        return;
+      }
+      await new Promise(resolve => {
+        signal.addEventListener('abort', resolve, { once: true });
+      });
+      if (++aborted === 2) allAborted.resolve();
+      await allowCleanup.promise;
+      signal.throwIfAborted();
+    },
+    verify: input => lab.score(input, 0, {
+      status: 'blocked', score: null, blockers: ['Fixture prerequisite missing.'], rubric: [],
+    }),
+    persistence: {
+      generator: async id => id,
+      async verifier(id, _artifact, grade) {
+        scoresSaved.push(grade.status);
+        return id;
+      },
+    },
+  });
+  await allAborted.promise;
+  try {
+    assert.equal(JSON.parse(await readFile(join(lab.output, 'batch.json'))).status, 'running');
+  } finally {
+    allowCleanup.resolve();
+  }
+  const state = await running;
+  assert.deepEqual(scoresSaved, ['blocked']);
+  assert.equal(state.status, 'stopped');
+  assert.equal(state.stop.paper_id, 'A');
+  assert.deepEqual(state.cases.map(item => item.status), ['stopped', 'interrupted', 'interrupted']);
+  for (const item of state.cases.slice(1)) {
+    assert.equal(item.steps.generator.status, 'interrupted');
+    assert.ok(item.steps.generator.durationMs >= 0);
+    assert.equal(item.steps.verifier, undefined);
+  }
+  assert.deepEqual(JSON.parse(await readFile(join(lab.output, 'batch.json'))), state);
+});
+
+test('concurrent result saves share one JumpServe session renewal', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'jumpserve-parallel-result-session-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const origin = 'https://fixture.example';
+  const sessions = join(directory, '.jumpserve', 'sessions');
+  const session = join(sessions, sha256(origin + PRIVATE_EVALUATION_RESULTS_API) + '.json');
+  await mkdir(sessions, { recursive: true });
+  await writeFile(session, JSON.stringify({
+    origin, access_token: 'a'.repeat(43), refresh_token: 'b'.repeat(43), expires_at: Date.now() - 1,
+  }));
+  const cliUrl = new URL('../scripts/jumpserve-assessment.mjs', import.meta.url);
+  const hook = registerHooks({ resolve(specifier, context, next) {
+    if (specifier === 'node:os' && context.parentURL === cliUrl.href) return {
+      shortCircuit: true,
+      url: 'data:text/javascript,' + encodeURIComponent(`export const homedir = () => ${JSON.stringify(directory)};`),
+    };
+    return next(specifier, context);
+  } });
+  let privateResultsClient;
+  try {
+    ({ privateResultsClient } = await import(cliUrl.href));
+  } finally {
+    hook.deregister();
+  }
+  const fetch = t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (url.pathname === MCP_TOKEN_PATH) {
+      assert.equal(options.body.get('grant_type'), 'refresh_token');
+      return Response.json({ access_token: 'c'.repeat(43), refresh_token: 'd'.repeat(43),
+        scope: CLI_RESULTS_SCOPE, token_type: 'Bearer', expires_in: 3600 });
+    }
+    assert.equal(url.pathname, PRIVATE_EVALUATION_RESULTS_API);
+    assert.equal(options.headers.Authorization, 'Bearer ' + 'c'.repeat(43));
+    assert.equal(JSON.parse(options.body).action, 'coach');
+    return Response.json({ status: 'saved_private', coach_report_id: '24b0c228-7779-4ce8-af2e-379a6dd540fe' });
+  });
+  const client = privateResultsClient(origin);
+  const receipts = await Promise.all([client.coach({ fixture: 1 }), client.coach({ fixture: 2 })]);
+  assert.equal(receipts.length, 2);
+  assert.equal(fetch.mock.calls.filter(call => call.arguments[0].pathname === MCP_TOKEN_PATH).length, 1);
 });
 
 test('a substituted rubric criterion cannot pass even when the totals are perfect', async t => {
@@ -217,17 +362,29 @@ test('a substituted rubric criterion cannot pass even when the totals are perfec
   assert.deepEqual(lab.calls, ['generate A', 'preflight A', 'verify A']);
 });
 
-test('the batch persists both result IDs before stopping on a below-perfect grade', async t => {
+test('the batch persists both result IDs and step durations for a below-perfect grade', async t => {
   const lab = await fixture(t);
   const generatorId = '09859c11-9be3-44d2-9b39-a0cb96a0d09f';
   const verificationId = '22459c11-9be3-44d2-9b39-a0cb96a0d09f';
   const journal = () => readFile(join(lab.output, 'batch.json'), 'utf8').then(JSON.parse);
   const progress = [];
-  const result = await runSyntheticBatch({ ...lab, progress: (...args) => progress.push(args), verify: input => lab.score(input, 1), persistence: {
+  let elapsed = 0;
+  const result = await runSyntheticBatch({ ...lab, cases: lab.cases.slice(0, 1), progress: (...args) => progress.push(args), now: () => elapsed,
+    async generate(input) {
+      await lab.generate(input);
+      elapsed += 2_000;
+    },
+    async verify(input) {
+      await lab.score(input, 1);
+      elapsed += 3_000;
+    }, persistence: {
     generator: async (assessmentId, paper, bundle) => {
-      assert.equal((await journal()).cases[0].database.assessment_id, assessmentId);
+      const [item] = (await journal()).cases;
+      assert.equal(item.database.assessment_id, assessmentId);
+      assert.deepEqual(item.steps.generator, { status: 'running', durationMs: null });
       assert.equal(bundle.paper.sha256, sha256(await readFile(paper)));
       lab.calls.push('save generator');
+      elapsed += 10;
       return generatorId;
     },
     verifier: async (assessmentId, artifact, grade) => {
@@ -235,24 +392,30 @@ test('the batch persists both result IDs before stopping on a below-perfect grad
       assert.equal(grade.assessment_sha256, sha256(artifact));
       assert.equal(grade.score.earned, 1);
       lab.calls.push('save verifier');
+      elapsed += 20;
       return verificationId;
     },
   } });
   assert.deepEqual(lab.calls, ['generate A', 'save generator', 'preflight A', 'verify A', 'save verifier']);
-  assert.deepEqual(result.cases.map(item => item.status), ['stopped', 'pending', 'pending']);
+  assert.deepEqual(result.cases.map(item => item.status), ['completed']);
   const assessmentId = result.cases[0].database.assessment_id;
   assert.match(assessmentId, /^[a-f0-9-]{36}$/);
-  assert.deepEqual(progress, [['A', 'generating', 'A.pdf', assessmentId], ['A', 'verifying', 'A.pdf', assessmentId]]);
+  assert.deepEqual(progress, [
+    ['A', 'generating', 'A.pdf', assessmentId], ['A', 'verifying', 'A.pdf', assessmentId], ['A', 'completed', 'A.pdf', assessmentId],
+  ]);
   assert.equal(result.cases[0].database.verification_id, verificationId);
+  assert.deepEqual(result.cases[0].steps, {
+    generator: { status: 'completed', durationMs: 2_010 }, verifier: { status: 'completed', durationMs: 3_020 },
+  });
   assert.deepEqual(await journal(), result);
 });
 
-test('instance review gets the saved Generator inputs and finishes before the score gate', async t => {
+test('instance review gets the saved Generator inputs and retains a below-perfect result', async t => {
   const lab = await fixture(t);
   const assessmentIds = [];
   const generatorId = '09859c11-9be3-44d2-9b39-a0cb96a0d09f';
   const verificationId = '22459c11-9be3-44d2-9b39-a0cb96a0d09f';
-  const result = await runSyntheticBatch({ ...lab,
+  const result = await runSyntheticBatch({ ...lab, cases: lab.cases.slice(0, 1),
     generate(input) {
       assessmentIds.push(input.assessmentId);
       assert.equal(input.key, undefined);
@@ -274,7 +437,7 @@ test('instance review gets the saved Generator inputs and finishes before the sc
     },
   });
   assert.deepEqual(lab.calls, ['generate A', 'save generator', 'preflight A', 'verify A', 'save verifier']);
-  assert.deepEqual(result.cases.map(item => item.status), ['stopped', 'pending', 'pending']);
+  assert.deepEqual(result.cases.map(item => item.status), ['completed']);
   assert.equal(result.cases[0].database.verification_id, verificationId);
 });
 
@@ -309,7 +472,7 @@ assert.equal(process.argv[4], 'run');
 assert.equal(role, job.role);
 assert.equal(arg('--ttl-minutes'), '50');
 assert.equal(arg('--assessment-id'), '6386345c-e930-4232-b510-c68da072ffd0');
-assert.equal(readFileSync(0, 'utf8').trim(), auth === 'chatgpt' ? '' : 'fixture-model-key');
+assert.equal(readFileSync(0, 'utf8').trim(), auth === 'api-key' ? 'fixture-model-key' : '');
 assert.equal(process.env.JUMPSERVE_BATCH_CODEX_API_KEY, undefined);
 assert.equal(process.env.CODEX_ACCESS_TOKEN, undefined);
 assert.ok(!existsSync(join(payload, 'session.json')));
@@ -318,6 +481,13 @@ if (auth === 'chatgpt') {
   assert.equal(session.command[0], 'codex');
   assert.ok(session.command.includes(role === 'generator' ? '--yolo' : 'read-only'));
   assert.match(session.prompt, /Follow the JumpServe/);
+}
+if (auth === 'worker-chatgpt') {
+  const volumes = { 'A': 'vol-00000000000000001', 'B': 'vol-00000000000000002' };
+  assert.equal(arg('--worker-auth-volume'), volumes[require('node:path').basename(require('node:path').dirname(stage))]);
+  assert.equal(arg('--worker-zone'), 'us-east-1a');
+  assert.equal(arg('--worker-subnet'), 'subnet-00000000000000001');
+  assert.equal(arg('--worker-security-group'), 'sg-00000000000000001');
 }
 assert.ok(existsSync(join(payload, 'case/paper.pdf')));
 assert.equal(existsSync(join(payload, 'case/answer-key.json')), role === 'verifier');
@@ -363,6 +533,22 @@ writeFileSync(join(stage, 'aws-lease/state.json'), JSON.stringify({ role, cleane
     artifactDirectory: chatgptArtifacts, output: chatgptOutput, guidance: lab.guidance.verifier,
     rubric: lab.cases[0].rubric, expected }), expected);
   await assert.rejects(readFile(join(chatgptDirectory, 'ec2-generator/session.json')), { code: 'ENOENT' });
+
+  const mappedWorkers = createEc2Workers({ settings: { profile: 'fixture', region: 'us-east-1',
+    instanceProfile: 'JumpServeExperimentWorkload-SSM', instanceType: 't3.medium', workerZone: 'us-east-1a',
+    workerAuthVolumes: new Map([['A', 'vol-00000000000000001'], ['B', 'vol-00000000000000002']]),
+    workerSubnet: 'subnet-00000000000000001', workerSecurityGroup: 'sg-00000000000000001' }, snapshot, workflowFiles: {},
+  timeoutMs: 30 * 60_000 });
+  await Promise.all(['A', 'B'].map(async id => {
+    const generator = join(root, id, 'generator');
+    const verifier = join(root, id, 'verifier');
+    await mkdir(generator, { recursive: true });
+    await mkdir(verifier);
+    await mappedWorkers.generate({ assessmentId, paper, output: generator, paperSha256: lab.cases[0].paperSha256,
+      guidance: lab.guidance.generator });
+    await mappedWorkers.reviewOnInstance({ assessmentId, paper, key, artifactDirectory: generator, output: verifier,
+      guidance: lab.guidance.verifier, rubric: lab.cases[0].rubric, expected });
+  }));
 
   const collisionDirectory = join(root, 'collision-case');
   const occupied = join(collisionDirectory, 'generator');
@@ -567,7 +753,7 @@ test('invalid scorecard and timed-out Generator both halt before the next paper'
   assert.deepEqual(timeout.cases.map(item => item.status), ['stopped', 'pending', 'pending']);
 });
 
-test('format-only recovery validates the original grade and never regrades or passes over a loss', async t => {
+test('format-only recovery retains the original grade and runs the remaining papers', async t => {
   for (const earned of [2, 1]) {
     const lab = await fixture(t);
     await runSyntheticBatch({ ...lab, verify: input => lab.score(input, earned,
@@ -578,17 +764,16 @@ test('format-only recovery validates the original grade and never regrades or pa
     saved.evidence_integrity.pdf_bytes_checked = true;
     await writeFile(savedPath, JSON.stringify(saved));
     const recovery = { ...lab, recoverFormat: true, verify: input => lab.score(input, 1) };
-    if (earned === 2) {
-      const result = await runSyntheticBatch(recovery);
-      assert.deepEqual(result.cases.map(item => item.status), ['passed', 'stopped', 'pending']);
-      assert.equal(result.format_recoveries[0].stop.paper_id, 'A');
-      const validated = JSON.parse(await readFile(join(lab.output, 'A', 'verifier', 'scorecard.validated.json'), 'utf8'));
-      assert.deepEqual(validated.score, saved.score);
-      assert.deepEqual(lab.calls, ['generate A', 'preflight A', 'verify A', 'preflight A', 'generate B', 'preflight B', 'verify B']);
-    } else {
-      await assert.rejects(runSyntheticBatch(recovery), /did not validate as perfect/);
-      assert.deepEqual(lab.calls, ['generate A', 'preflight A', 'verify A', 'preflight A']);
-    }
+    const result = await runSyntheticBatch(recovery);
+    assert.equal(result.status, 'completed');
+    assert.deepEqual(result.cases.map(item => item.status), [earned === 2 ? 'passed' : 'completed', 'completed', 'completed']);
+    assert.equal(result.format_recoveries[0].stop.paper_id, 'A');
+    const validated = JSON.parse(await readFile(join(lab.output, 'A', 'verifier', 'scorecard.validated.json'), 'utf8'));
+    assert.deepEqual(validated.score, saved.score);
+    assert.deepEqual(lab.calls, [
+      'generate A', 'preflight A', 'verify A', 'preflight A', 'generate B', 'preflight B', 'verify B',
+      'generate C', 'preflight C', 'verify C',
+    ]);
     assert.deepEqual(JSON.parse(await readFile(savedPath, 'utf8')), saved);
   }
 });

@@ -161,18 +161,33 @@ async function refreshSession(origin, access, rejectedToken) {
 
 function connectorPost(origin, access) {
   let session;
+  let refresh;
+  function currentSession() {
+    session ??= readSession(sessionPath(origin, access), origin, access).catch(error => {
+      session = undefined;
+      throw error;
+    });
+    return session;
+  }
+  function renew(rejectedToken) {
+    refresh ??= refreshSession(origin, access, rejectedToken).then(updated => {
+      session = Promise.resolve(updated);
+      return updated;
+    }).finally(() => { refresh = undefined; });
+    return refresh;
+  }
   return async input => {
-    session ??= await readSession(sessionPath(origin, access), origin, access);
-    if (session.expires_at <= Date.now() + 30_000) session = await refreshSession(origin, access, session.access_token);
+    let current = await currentSession();
+    if (current.expires_at <= Date.now() + 30_000) current = await renew(current.access_token);
     const post = () => request(new URL(access.resource, origin), {
-      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${current.access_token}` },
       body: JSON.stringify(input),
     });
     let response = await post().catch(() => null);
     // All operations use stable identifiers or content digests, including retries after a lost response.
     if (!response || response.status >= 500) response = await post();
     if (response.status === 401) {
-      session = await refreshSession(origin, access, session.access_token);
+      current = await renew(current.access_token);
       response = await post();
     }
     const result = await response.json().catch(() => null);

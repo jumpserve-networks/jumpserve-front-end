@@ -6,6 +6,7 @@ import { inventory, runSyntheticBatch, stageBatchGuidance } from './lib/jumpserv
 import { BATCH_SKILLS } from './lib/jumpserve-synthetic-worker-inputs.mjs';
 import { createEc2Workers, inspectEc2Batch } from './lib/jumpserve-synthetic-ec2.mjs';
 import { createBatchProgressReporter } from './lib/jumpserve-synthetic-progress.mjs';
+import { createTerminalPublisher } from './lib/jumpserve-synthetic-terminal.mjs';
 import { privateResultsClient } from './jumpserve-assessment.mjs';
 import { parseTrainingBatchId } from '../lib/training-batch.ts';
 import { isVerifierVersion } from '../lib/jumpserve-verification.ts';
@@ -16,18 +17,39 @@ const stopSteps = { generating: 'generation', saving_generator: 'the Generator s
 
 async function main() {
   const { values } = parseArgs({ options: {
-    output: { type: 'string' }, 'worker-auth-volume': { type: 'string' }, 'worker-zone': { type: 'string' },
+    output: { type: 'string' }, 'worker-auth-volume': { type: 'string', multiple: true }, 'worker-zone': { type: 'string' },
+    'worker-subnet': { type: 'string' }, 'worker-security-group': { type: 'string' }, parallel: { type: 'boolean' },
   } });
-  const workerAuthVolume = values['worker-auth-volume'];
+  const controller = new AbortController();
+  const interrupt = () => controller.abort(new Error('Batch interrupted.'));
+  process.once('SIGINT', interrupt);
+  process.once('SIGTERM', interrupt);
+  const { signal } = controller;
+  const volumes = values['worker-auth-volume'] ?? [];
+  const parallel = values.parallel === true;
   const workerZone = values['worker-zone'];
+  const workerSubnet = values['worker-subnet'];
+  const workerSecurityGroup = values['worker-security-group'];
   if (!values.output || parseTrainingBatchId(basename(values.output)) === null ||
-      !/^vol-[a-f0-9]{17}$/.test(workerAuthVolume ?? '') || !/^us-east-1[a-z]$/.test(workerZone ?? '')) {
-    throw new Error('The coordinator requires a numbered output directory and a worker sign-in volume in its Availability Zone.');
+      !/^us-east-1[a-z]$/.test(workerZone ?? '')) {
+    throw new Error('The coordinator requires a numbered output directory and a worker Availability Zone.');
   }
-  const settings = { profile: 'jumpserve-experiment', region: 'us-east-1',
-    instanceProfile: 'JumpServeExperimentWorkload-SSM', instanceType: 't3.medium', workerAuthVolume, workerZone };
   const cases = await inventory(join(root, 'pdfs/synthetic_papers'), join(root, 'answer-keys'));
-  if (!cases.length) throw new Error('No synthetic papers matched their answer keys.');
+  const workerCount = parallel ? cases.length : 1;
+  if (volumes.length < workerCount || (!parallel && volumes.length !== 1) ||
+      volumes.some(volume => !/^vol-[a-f0-9]{17}$/.test(volume)) || new Set(volumes).size !== volumes.length) {
+    throw new Error(parallel ? `Configure one distinct, signed-in worker volume per paper (${workerCount} required).`
+      : 'Configure the existing signed-in worker volume.');
+  }
+  if ((workerCount > 1 || workerSubnet || workerSecurityGroup) &&
+      (!/^subnet-[a-f0-9]{17}$/.test(workerSubnet ?? '') || !/^sg-[a-f0-9]{17}$/.test(workerSecurityGroup ?? ''))) {
+    throw new Error('Configure the dedicated training worker subnet and security group for parallel batches.');
+  }
+  const settings = { profile: 'jumpserve-experiment', region: 'us-east-1', instanceProfile: 'JumpServeExperimentWorkload-SSM',
+    instanceType: 't3.medium', workerZone, workerSubnet, workerSecurityGroup,
+    ...(parallel ? { workerAuthVolumes: new Map(cases.map(({ paperId }, index) => [paperId, volumes[index]])) }
+      : { workerAuthVolume: volumes[0] }) };
+  signal.throwIfAborted();
   const ec2 = inspectEc2Batch(settings);
   const chosen = resolve(values.output);
   await mkdir(dirname(chosen), { recursive: true, mode: 0o700 });
@@ -45,21 +67,27 @@ async function main() {
   console.log(`Batch results: ${output}`);
   const timeoutMinutes = 30;
   const runtime = { ...ec2, model: null, codex_auth: 'worker-chatgpt', timeout_minutes: timeoutMinutes,
+    parallel_papers: workerCount,
     skill_snapshot: snapshot, verifier_skill_version: verifierVersion, results_origin: results.origin };
-  const workers = createEc2Workers({ snapshot, workflowFiles, timeoutMs: timeoutMinutes * 60_000, settings });
-  const progress = createBatchProgressReporter(guidance);
-  const state = await runSyntheticBatch({ output, cases, guidance, runtime, ...workers,
+  const workers = createEc2Workers({ snapshot, workflowFiles, timeoutMs: timeoutMinutes * 60_000, settings,
+    openTerminal: createTerminalPublisher({ batchId: parseTrainingBatchId(basename(output)) }) });
+  const progress = createBatchProgressReporter(guidance, process.stdout, undefined, { parallel });
+  const state = await runSyntheticBatch({ output, cases, guidance, runtime, parallel, signal, ...workers,
     persistence: {
       generator: results.generator,
       verifier: (id, artifact, grade) => results.verifier(id, artifact, grade, verifierVersion),
     },
     progress: progress.update,
   }).finally(progress.finish);
-  if (state.status !== 'passed') {
+  if (state.status === 'interrupted') {
+    console.error('Batch interrupted.');
+    process.exitCode = 1;
+  } else if (state.status === 'stopped') {
     console.error(`Stopped at ${state.stop.paper_id} during ${stopSteps[state.stop.phase]}. ${state.stop.reason}`);
     process.exitCode = 1;
   } else {
-    console.log(`\nAll ${cases.length} papers earned full credit.`);
+    const fullCredit = state.cases.filter(item => item.status === 'passed').length;
+    console.log(`\nCompleted all ${cases.length} papers. ${fullCredit} of ${cases.length} earned full credit.`);
   }
 }
 

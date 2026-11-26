@@ -14,14 +14,20 @@ the request. If the response from AWS is uncertain, the same progress page can
 pick up a later report. The service lock allows one batch at a time and
 redelivery of a request leaves that batch's outcome in place.
 
-Signed-in Google users can browse the full batch history and view progress. The
-account that started a batch also sees links to its saved private assessments.
-The batch page refreshes automatically while a run is active. Click a paper's
-status to see recent worker activity for its Generator and Verifier. Everyone
-who can open the batch can view the activity. It includes worker milestones,
-allowlisted command names, and exit codes. Prompts, command arguments, command
-output, and raw worker logs stay with the private evidence. Activity is recorded
-for batches that run with the compatible coordinator and worker package.
+Signed-in Google users can browse the full batch history, view progress and see
+the assessment ID for each saved result. The account that started a batch also
+sees links to its saved private assessments.
+The batch page refreshes automatically while a run is active. Click the
+Generator or Verifier under a paper to open that step's details and recent
+worker activity. With the live terminal enabled, any signed-in viewer can also
+read the running worker's stdout, stderr and PTY output. The browser has no input
+channel to the worker. The coordinator keeps a short in-memory replay for
+viewers who join during the stage. Terminal output expires with the stage.
+
+The separate activity history records worker milestones, allowlisted command
+names and exit codes. Prompts, command arguments and raw Codex logs remain
+with the private evidence. The WebSocket registry stores only expiring
+connection metadata. The live relay sends terminal output directly to viewers.
 
 ## What a batch runs
 
@@ -31,19 +37,30 @@ skills as the JumpServe plugin. A run pins the active published instructions by
 checksum, or uses the bundled instructions when the results endpoint lacks
 published workflow support.
 
-Each paper gets a fresh Generator EC2 instance. The coordinator validates and
-saves the private Generator bundle in Supabase before starting a separate
-Verifier EC2 instance. The Verifier receives the matching answer key and
-read-only Generator evidence. The coordinator saves the validated scorecard
-before checking for full credit. The batch stops on a lower score, a blocker, a
-failed save, invalid or missing output, a timeout, or a cleanup failure.
+With a configured pool of signed-in worker volumes, the coordinator starts a
+fresh Generator EC2 instance for every paper concurrently. A coordinator with
+one signed-in volume runs papers in sequence. Each paper moves to its own
+Verifier EC2 instance as soon as its
+private Generator bundle has been validated and saved in Supabase. The
+Verifier receives that paper's matching answer key and read-only Generator
+evidence. The coordinator saves each validated scorecard and continues
+processing the other papers regardless of the points earned. A blocker,
+failed save, invalid or missing output, timeout, or cleanup failure stops the
+batch and interrupts other unfinished workers. The coordinator retains
+completed results and waits for remaining workers to exit before publishing
+the final batch status.
+The paper list shows the status and recorded elapsed time of each Generator
+and Verifier step. Step timing includes worker setup, execution, validation
+and result saving. Historical batches without time records show time as
+unavailable.
 
-Workers lease the same Availability Zone as the encrypted Codex sign-in
-volume. Each worker mounts the sign-in directory only in its authenticated
-Codex container. The execution container and evidence transfer are separate
-from those credentials. The coordinator retains `batch.json`, logs, and
-artifacts under `/home/ec2-user/jumpserve-runs/<id>`. The site reads only the
-allowlisted progress summary in its private bucket.
+Each paper uses its own encrypted Codex sign-in volume for both stages. The
+worker attaches it in the same Availability Zone and mounts the sign-in
+directory only in its authenticated Codex container. The execution container
+and evidence transfer are separate from those credentials. The workers share
+a training-only subnet with no inbound security group rules. The coordinator
+retains `batch.json`, logs, and artifacts under `/home/ec2-user/jumpserve-runs/<id>`.
+The site reads the allowlisted progress summary in its private bucket.
 
 ## Coordinator setup
 
@@ -69,13 +86,35 @@ finishes. Keep its evidence directories.
 Release the coordinator and web access policies for the private `activity/`
 prefix alongside the matching coordinator package and website.
 
+Enable live terminal output by setting `EnableTrainingBatchTerminal=true` and
+using the site's Supabase project URL and public key for `TerminalSupabaseUrl`
+and `TerminalSupabaseAnonKey`. In the coordinator's
+`/etc/jumpserve-synthetic-batch.env`, set `JUMPSERVE_TRAINING_TERMINAL_ENDPOINT`
+to `TrainingTerminalPublisherUrl` and `JUMPSERVE_TRAINING_TERMINAL_TABLE`
+to `TrainingTerminalConnectionsTable`. Set
+`NEXT_PUBLIC_JUMPSERVE_TRAINING_TERMINAL_URL` to `TrainingTerminalViewerUrl`
+before building the site. The same setting in `.env.local` enables viewing on
+`http://localhost:6001`.
+
+Deploy the coordinator stack with `EnableParallelTraining=true`. Provision one
+encrypted gp3 sign-in volume in the worker Availability Zone for each paper,
+including the existing `CodexVolumeId`. Set `AdditionalWorkerAuthVolumeArns`
+to the additional volumes' exact ARNs. In
+`/etc/jumpserve-synthetic-batch.env`, set `JUMPSERVE_WORKER_AUTH_VOLUMES`
+to the comma-separated list of all enrolled volume IDs,
+`JUMPSERVE_WORKER_SUBNET_ID` to `TrainingWorkerSubnetId`, and
+`JUMPSERVE_WORKER_SECURITY_GROUP_ID` to `TrainingWorkerSecurityGroupId`.
+The current 15-paper corpus needs capacity for 15 concurrent t3.medium workers
+in addition to the coordinator and other workloads.
+
 The coordinator uses its instance role and the scoped experiment-client role
 for leases. Prepare or renew the JumpServe results session on the coordinator
 with `npm run assessment -- login --results --callback-port 54457` using a
-loopback-only SSH forward. For ChatGPT sign-in, temporarily attach and mount the
-credential volume at `/mnt/jumpserve-codex`, then run `codex login` with
+loopback-only SSH forward. Enroll each ChatGPT session independently on its
+volume. Temporarily attach and mount each credential volume at
+`/mnt/jumpserve-codex`, then run `codex login` with
 `CODEX_HOME=/mnt/jumpserve-codex/session` and file-backed credential storage.
-Unmount and detach the volume before starting a batch.
+Unmount and detach each volume before starting a batch.
 [Codex headless sign-in](https://learn.chatgpt.com/docs/auth#login-on-headless-devices)
 
 Inspect a numbered unit with `sudo journalctl -u jumpserve-training-batch@<id>.service`.

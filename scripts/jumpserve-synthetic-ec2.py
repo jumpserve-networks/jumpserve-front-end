@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import selectors
 import shlex
 import shutil
 import signal
@@ -47,8 +48,8 @@ touch /run/jumpserve-batch-ready
 """
 
 
-def template(public_key, instance_profile, instance_type, volume=None, zone=None):
-    """Build one isolated VPC, one SSM-managed instance and one encrypted disk."""
+def template(public_key, instance_profile, instance_type, volume=None, zone=None, subnet=None, security_group=None):
+    """Build a leased SSM worker in its own VPC or the configured training subnet."""
     ref = lambda name: {"Ref": name}
     resources = {
         "Vpc": {"Type": "AWS::EC2::VPC", "Properties": {
@@ -92,6 +93,13 @@ def template(public_key, instance_profile, instance_type, volume=None, zone=None
     if volume:
         resources["Subnet"]["Properties"]["AvailabilityZone"] = zone
         resources["Worker"]["Properties"]["Volumes"] = [{"Device": "/dev/sdf", "VolumeId": volume}]
+    if subnet:
+        worker = resources["Worker"]
+        worker.pop("DependsOn")
+        interface, = worker["Properties"]["NetworkInterfaces"]
+        interface["SubnetId"] = subnet
+        interface["GroupSet"] = [security_group]
+        resources = {"Worker": worker}
     return {"AWSTemplateFormatVersion": "2010-09-09", "Resources": resources,
             "Parameters": {"WorkerAmi": {"Type": "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>", "Default": AMI}},
             "Outputs": {"InstanceId": {"Value": ref("Worker")}}}
@@ -161,6 +169,41 @@ def ssh_command(argv, command, timeout, *, data=None, source=None, stdout=subpro
         return process.returncode
 
 
+def ssh_stream_terminal(argv, command, timeout, activity):
+    """Forward terminal frames to the coordinator without writing them to the activity file."""
+    deadline = time.monotonic() + timeout
+    prefix = b"JUMPSERVE_TERMINAL\t"
+    with process_group([*argv, command], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                       stderr=subprocess.DEVNULL) as process, process.stdout as source, selectors.DefaultSelector() as selector:
+        selector.register(source, selectors.EVENT_READ)
+        pending = bytearray()
+        discarding = False
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or not selector.select(remaining):
+                raise subprocess.TimeoutExpired("worker terminal stream", timeout)
+            chunk = source.read1(65536)
+            if not chunk:
+                return process.wait(timeout=max(0, deadline - time.monotonic()))
+            lines = chunk.split(b"\n")
+            for line in lines[:-1]:
+                pending.extend(line)
+                if not discarding and len(pending) <= 24000:
+                    if pending.startswith(prefix):
+                        sys.stdout.buffer.write(pending + b"\n")
+                        sys.stdout.buffer.flush()
+                    elif activity is not None:
+                        activity.write(pending + b"\n")
+                        activity.flush()
+                pending.clear()
+                discarding = False
+            if len(pending) + len(lines[-1]) > 24000:
+                discarding = True
+                pending.clear()
+            if not discarding:
+                pending.extend(lines[-1])
+
+
 def report_activity(stage, kind):
     try:
         with (stage / "activity.jsonl").open("a", encoding="utf-8") as log:
@@ -226,7 +269,7 @@ def run_chatgpt_stage(argv, build, stage, role, remaining):
                 raise RuntimeError("Could not stop the EC2 executor before retrieving its artifacts.")
 
 
-def worker_driver(stage, role, auth, volume):
+def worker_driver(stage, role, auth, volume, terminal=False):
     for signum in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
         signal.signal(signum, interrupt)
     if auth == "api-key":
@@ -285,8 +328,12 @@ def worker_driver(stage, role, auth, volume):
                 activity = (stage / "activity.jsonl").open("ab")
             except OSError:
                 activity = None
-            with (activity if activity is not None else nullcontext(subprocess.DEVNULL)) as stdout:
-                status = ssh_command(argv, command, remaining(), stdout=stdout)
+            if terminal:
+                with (activity if activity is not None else nullcontext()) as stdout:
+                    status = ssh_stream_terminal(argv, command, remaining(), stdout)
+            else:
+                with (activity if activity is not None else nullcontext(subprocess.DEVNULL)) as stdout:
+                    status = ssh_command(argv, command, remaining(), stdout=stdout)
         finally:
             if ssh_command(argv, "sudo umount /mnt/jumpserve-codex", min(30, remaining())):
                 raise RuntimeError("Could not unmount the Codex credential volume before worker teardown.")
@@ -326,6 +373,7 @@ def main():
     auth_modes = ("api-key", "chatgpt", "worker-chatgpt")
     driver.add_argument("auth", choices=auth_modes)
     driver.add_argument("volume", nargs="?")
+    driver.add_argument("--terminal", action="store_true")
     for action in ("check", "run"):
         command = subcommands.add_parser(action)
         command.add_argument("--profile", required=True)
@@ -340,12 +388,15 @@ def main():
             command.add_argument("--codex-auth", choices=auth_modes, default="api-key")
             command.add_argument("--worker-auth-volume")
             command.add_argument("--worker-zone")
+            command.add_argument("--worker-subnet")
+            command.add_argument("--worker-security-group")
+            command.add_argument("--terminal", action="store_true")
     args = parser.parse_args()
     os.umask(0o077)
     if args.action == "driver":
         if args.auth == "worker-chatgpt" and not re.fullmatch(r"vol-[0-9a-f]{17}", args.volume or ""):
             raise ValueError("The EC2 worker requires a valid Codex volume ID.")
-        worker_driver(args.stage.resolve(), args.role, args.auth, args.volume)
+        worker_driver(args.stage.resolve(), args.role, args.auth, args.volume, args.terminal)
         return
     if not re.fullmatch(r"[A-Za-z0-9_.-]+", args.profile) or not re.fullmatch(r"[a-z]{2}(?:-[a-z]+)+-\d+", args.region):
         raise ValueError("Use a named AWS CLI profile and AWS Region for the EC2 batch.")
@@ -368,8 +419,13 @@ def main():
             re.escape(args.region) + r"[a-z]", args.worker_zone or ""
         ):
             raise ValueError("Provide the encrypted Codex volume ID and its Availability Zone.")
-    elif args.worker_auth_volume or args.worker_zone:
-        raise ValueError("Worker volume settings require worker-hosted ChatGPT authentication.")
+        if (args.worker_subnet or args.worker_security_group) and (
+            not re.fullmatch(r"subnet-[0-9a-f]{17}", args.worker_subnet or "")
+            or not re.fullmatch(r"sg-[0-9a-f]{17}", args.worker_security_group or "")
+        ):
+            raise ValueError("Provide the dedicated training worker subnet and security group.")
+    elif args.worker_auth_volume or args.worker_zone or args.worker_subnet or args.worker_security_group or args.terminal:
+        raise ValueError("Worker volume and terminal settings require worker-hosted ChatGPT authentication.")
     if args.codex_auth == "api-key":
         key = sys.stdin.buffer.read(4097).strip()
         if not key or len(key) > 4096 or any(byte <= 32 for byte in key):
@@ -383,7 +439,8 @@ def main():
     subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(identity)], check=True, timeout=15)
     public_key = identity.with_suffix(".pub").read_text().strip()
     (stage / "testbed.json").write_text(json.dumps(template(public_key, args.instance_profile, args.instance_type,
-                                                          args.worker_auth_volume, args.worker_zone)))
+                                                          args.worker_auth_volume, args.worker_zone,
+                                                          args.worker_subnet, args.worker_security_group)))
     input_archive(stage / "payload", stage / "input.tar.gz")
     if args.codex_auth == "worker-chatgpt":
         report_activity(stage, "worker_provisioning")
@@ -392,7 +449,8 @@ def main():
                              "--lease", str(stage / "aws-lease"), "--profile", args.profile,
                              "--ttl-minutes", str(args.ttl_minutes), "--stack", f"{args.region}={stage / 'testbed.json'}",
                              "--", sys.executable, "-B", str(Path(__file__).resolve()), "driver", str(stage), args.role, args.codex_auth,
-                             *([args.worker_auth_volume] if args.worker_auth_volume else [])])
+                             *([args.worker_auth_volume] if args.worker_auth_volume else []),
+                             *(["--terminal"] if args.terminal else [])])
 
 
 if __name__ == "__main__":

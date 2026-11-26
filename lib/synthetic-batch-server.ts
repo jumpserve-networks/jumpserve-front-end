@@ -2,8 +2,9 @@ import "server-only";
 import { GetObjectCommand, paginateListObjectsV2, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { SendCommandCommand, SSMClient } from "@aws-sdk/client-ssm";
 import { listLocalTrainingBatches, readLocalTrainingBatch } from "@/lib/local-training-batch-history";
+import { isResearchId } from "@/lib/research-experiment-queue";
 import { projectTrainingBatchActivity } from "@/lib/training-batch-activity";
-import { isTrainingBatchId, parseTrainingBatchId, type TrainingBatch, type TrainingBatchSnapshot } from "@/lib/training-batch";
+import { isTrainingBatchId, parseTrainingBatchId, projectTrainingBatchSteps, type TrainingBatch, type TrainingBatchSnapshot } from "@/lib/training-batch";
 
 const ssm = new SSMClient({ region: "us-east-1", maxAttempts: 1 });
 const localProfile = process.env.NODE_ENV === "development"
@@ -124,11 +125,13 @@ export async function readTrainingBatch(source: BatchHistorySource, id: number, 
   return {
     id, requestedAt, status, updatedAt, startedAt, finishedAt, stopPhase,
     ...(snapshot.activityAvailable === true ? { activityAvailable: true } : {}),
+    ...(canViewAssessmentLinks ? { canViewAssessmentLinks: true } : {}),
     stale: (status === "preparing" || status === "running") && Date.now() - Date.parse(updatedAt) > 60_000,
     versions: { generator: versions.generator, verifier: versions.verifier },
-    papers: papers.map(({ id, fileName, status, assessmentId, score }) => ({
-      id, fileName, status, assessmentId: canViewAssessmentLinks ? assessmentId : null,
+    papers: papers.map(({ id, fileName, status, assessmentId, score, steps }) => ({
+      id, fileName, status, assessmentId: viewerId && isResearchId(assessmentId) ? assessmentId : null,
       score: score ? { earned: score.earned, maximum: score.maximum } : null,
+      steps: projectTrainingBatchSteps(steps),
     })),
   };
 }

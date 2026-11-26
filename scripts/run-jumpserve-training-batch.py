@@ -15,7 +15,8 @@ import time
 
 
 HEARTBEAT_SECONDS = 20
-PAPER_PHASES = {"pending", "generating", "verifying", "passed", "stopped"}
+PAPER_PHASES = {"pending", "generating", "verifying", "passed", "completed", "stopped", "interrupted"}
+STEP_STATUSES = {"running", "completed", "stopped", "interrupted"}
 STOP_PHASES = {"generating", "verifying", "saving_generator", "saving_verifier"}
 BATCH_ID = re.compile(r"[1-9][0-9]{0,9}")
 PAPER_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
@@ -33,9 +34,25 @@ def journal(path):
         return {}
 
 
+def snapshot_steps(steps):
+    visible = {}
+    for role in ("generator", "verifier"):
+        entry = steps.get(role)
+        if not isinstance(entry, dict):
+            continue
+        status = entry.get("status")
+        if not isinstance(status, str) or status not in STEP_STATUSES:
+            continue
+        duration = entry.get("durationMs")
+        if status == "running" or type(duration) is not int or not 0 <= duration <= 9_007_199_254_740_991:
+            duration = None
+        visible[role] = {"status": status, "durationMs": duration}
+    return visible
+
+
 def snapshot(state, outcome=None):
     status = state.get("status", "preparing")
-    if status not in {"passed", "stopped"} and outcome:
+    if status not in {"passed", "completed", "stopped", "interrupted"} and outcome:
         status = outcome
     papers = []
     for paper in state.get("cases", []):
@@ -47,6 +64,7 @@ def snapshot(state, outcome=None):
             "status": paper["status"] if paper["status"] in PAPER_PHASES else "pending",
             "assessmentId": database.get("assessment_id") if database.get("generator_result_id") else None,
             "score": {"earned": score["earned"], "maximum": score["rubric_maximum"]} if score is not None else None,
+            **({"steps": snapshot_steps(paper["steps"])} if isinstance(paper.get("steps"), dict) else {}),
         })
     stop_phase = state.get("stop", {}).get("phase")
     guidance = state.get("guidance", {})
@@ -158,12 +176,18 @@ def supervise(bucket, batch_id, directory, output):
     try:
         if interrupted:
             return 1
+        parallel_volumes = os.environ.get("JUMPSERVE_WORKER_AUTH_VOLUMES", "")
+        volumes = parallel_volumes or os.environ.get("JUMPSERVE_WORKER_AUTH_VOLUME", "")
+        subnet = os.environ.get("JUMPSERVE_WORKER_SUBNET_ID", "")
+        security_group = os.environ.get("JUMPSERVE_WORKER_SECURITY_GROUP_ID", "")
         process = subprocess.Popen([
             "node", "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON",
             "--import", str(scripts / "lib" / "register-typescript.mjs"),
             str(scripts / "run-jumpserve-synthetic-batch.mjs"),
-            "--worker-auth-volume", os.environ["JUMPSERVE_WORKER_AUTH_VOLUME"],
+            *(arg for volume in volumes.split(",") if volume.strip() for arg in ("--worker-auth-volume", volume.strip())),
             "--worker-zone", os.environ["JUMPSERVE_WORKER_ZONE"],
+            *(["--parallel"] if parallel_volumes else []),
+            *(["--worker-subnet", subnet, "--worker-security-group", security_group] if subnet or security_group else []),
             "--output", str(output),
         ])
         if interrupted:

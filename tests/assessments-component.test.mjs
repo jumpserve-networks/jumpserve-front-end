@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {afterEach, test} from 'node:test';
 import {registerHooks} from 'node:module';
 import React from 'react';
-import {act, cleanup, fireEvent, render, screen, waitFor} from '@testing-library/react';
+import {act, cleanup, fireEvent, render, screen, waitFor, within} from '@testing-library/react';
 
 globalThis.__assessmentReact = React;
 const listURL = new URL('../lib/research-assessment-list.ts', import.meta.url).href;
@@ -59,23 +59,57 @@ test('training batch progress reports saved assessments and stops polling at a t
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const timestamp = '2026-11-01T00:00:00Z';
   const first = { id: batchId, requestedAt: timestamp, startedAt: timestamp, updatedAt: timestamp,
-    finishedAt: null, stale: false, status: 'running', stopPhase: null,
+    finishedAt: null, stale: false, status: 'running', stopPhase: null, canViewAssessmentLinks: true,
     versions: { generator: 4, verifier: 2 },
-    papers: [{ id: 'paper-1', fileName: 'paper.pdf', status: 'verifying', assessmentId: id, score: null }] };
-  const final = { ...first, status: 'stopped', stopPhase: 'verifying', finishedAt: timestamp,
-    papers: [{ ...first.papers[0], status: 'stopped', score: { earned: 9, maximum: 10 } }] };
+    papers: [{ id: 'paper-1', fileName: 'paper.pdf', status: 'verifying', assessmentId: id, score: null, steps: {
+      generator: { status: 'completed', durationMs: 903_400 }, verifier: { status: 'running', durationMs: null },
+    } }] };
+  const final = { ...first, status: 'completed', finishedAt: timestamp,
+    papers: [{ ...first.papers[0], status: 'completed', score: { earned: 9, maximum: 10 }, steps: {
+      ...first.papers[0].steps, verifier: { status: 'completed', durationMs: 121_500 },
+    } }] };
   const fetch = t.mock.method(globalThis, 'fetch', async () => Response.json(final));
   render(React.createElement(TrainingBatchProgress, { id: batchId, initial: first }));
   assert.ok(screen.getByText('Verifying'));
   assert.equal(screen.getByRole('link', { name: 'paper.pdf' }).getAttribute('href'), `/research-verification/assessment/${id}`);
+  assert.ok(screen.getByRole('columnheader', { name: 'Assessment ID' }));
+  assert.ok(screen.getByRole('cell', { name: id }));
+  const [generator, verifier] = within(screen.getByRole('list', { name: 'Assessment steps for paper.pdf' })).getAllByRole('listitem');
+  assert.ok(within(generator).getByText('Generator'));
+  assert.ok(within(generator).getByText('15 minutes 3 seconds'));
+  assert.ok(within(verifier).getByText('Verifier'));
+  assert.ok(within(verifier).getByText('Running'));
   await act(async () => { t.mock.timers.tick(10_000); });
   assert.ok(screen.getByText('9 / 10'));
-  assert.ok(screen.getByText('Stopped during verification.'));
+  assert.ok(screen.getByText('1 of 1 papers completed'));
+  assert.equal(screen.queryByText(/earned full credit/), null);
+  assert.equal(screen.getByRole('progressbar', { name: 'Papers completed' }).value, 1);
+  assert.ok(within(verifier).getByText('Completed'));
+  assert.ok(within(verifier).getByText('2 minutes 1 second'));
   await act(async () => { t.mock.timers.tick(30_000); });
   assert.equal(fetch.mock.callCount(), 1);
 });
 
-test('a paper status opens live worker activity and closing it ends polling', async t => {
+test('training batch viewers can read saved assessment IDs and see which papers are pending', () => {
+  render(React.createElement(TrainingBatchProgress, { id: 12, initial: {
+    id: 12, requestedAt: null, startedAt: null, updatedAt: null, finishedAt: null, stale: false,
+    status: 'stopped', stopPhase: 'verifying', versions: { generator: null, verifier: null },
+    papers: [
+      { id: 'JSB-E01', fileName: 'saved.pdf', status: 'stopped', assessmentId: id, score: null },
+      { id: 'JSB-E02', fileName: 'pending.pdf', status: 'pending', assessmentId: null, score: null },
+    ],
+  } }));
+  assert.ok(screen.getByRole('cell', { name: id }));
+  assert.equal(screen.queryByRole('link', { name: 'saved.pdf' }), null);
+  const [saved, pending] = screen.getAllByRole('row').slice(1);
+  assert.equal(saved.cells[1].textContent, id);
+  assert.equal(pending.cells[1].textContent, '—');
+  assert.ok(within(saved).getByText('Time unavailable'));
+  const pendingSteps = within(pending).getByRole('list');
+  assert.equal(within(pendingSteps).getAllByText('Pending').length, 2);
+});
+
+test('paper status is plain text and closing a step’s details ends activity polling', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const at = '2026-11-01T00:00:00Z';
   const batch = { id: 12, requestedAt: at, startedAt: at, updatedAt: at,
@@ -87,9 +121,14 @@ test('a paper status opens live worker activity and closing it ends polling', as
   ], verifier: [] }));
   render(React.createElement(TrainingBatchProgress, { id: 12, initial: batch }));
   assert.equal(fetch.mock.callCount(), 0);
-  const button = screen.getByRole('button', { name: 'Generating, view worker activity for paper.pdf' });
+  const status = screen.getByRole('cell', { name: 'Generating' });
+  assert.equal(status.childElementCount, 0);
+  fireEvent.click(status);
+  assert.equal(screen.queryByRole('dialog'), null);
+  assert.equal(fetch.mock.callCount(), 0);
+  const button = screen.getByRole('button', { name: 'View Generator details for paper.pdf' });
   await act(async () => fireEvent.click(button));
-  assert.ok(screen.getByRole('dialog', { name: 'Worker terminal activity' }));
+  assert.ok(screen.getByRole('dialog', { name: 'Generator details' }));
   assert.ok(screen.getByText('Running python3'));
   assert.equal(fetch.mock.calls[0].arguments[0], '/research-verification/api/synthetic-batch/12/activity?paper=JSB-E01');
   await act(async () => { t.mock.timers.tick(4_000); });
@@ -97,7 +136,40 @@ test('a paper status opens live worker activity and closing it ends polling', as
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Close' })));
   await act(async () => { t.mock.timers.tick(4_000); });
   assert.equal(fetch.mock.callCount(), 2);
-  assert.equal(screen.queryByRole('dialog', { name: 'Worker terminal activity' }), null);
+  assert.equal(screen.queryByRole('dialog'), null);
+});
+
+test('the Generator and Verifier open their own step details and activity', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const at = '2026-11-01T00:00:00Z';
+  const batch = { id: 12, requestedAt: at, startedAt: at, updatedAt: at, finishedAt: null, stale: false,
+    status: 'running', stopPhase: null, activityAvailable: true, versions: { generator: 4, verifier: 2 },
+    papers: [{ id: 'JSB-E01', fileName: 'paper.pdf', status: 'verifying', assessmentId: id, score: null, steps: {
+      generator: { status: 'completed', durationMs: 903_400 }, verifier: { status: 'running', durationMs: null },
+    } }] };
+  const fetch = t.mock.method(globalThis, 'fetch', async () => Response.json({
+    generator: [{ at, kind: 'command_started', program: 'python3' }],
+    verifier: [{ at, kind: 'review_preflight' }],
+  }));
+  render(React.createElement(TrainingBatchProgress, { id: 12, initial: batch }));
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'View Generator details for paper.pdf' })));
+  const generator = within(screen.getByRole('dialog', { name: 'Generator details' }));
+  assert.ok(generator.getByText('v4'));
+  assert.ok(generator.getByText('15 minutes 3 seconds'));
+  assert.ok(generator.getByText('Running python3'));
+  assert.equal(generator.queryByText('Checking evidence before verification'), null);
+  await act(async () => { t.mock.timers.tick(4_000); });
+  assert.equal(fetch.mock.callCount(), 1);
+  await act(async () => fireEvent.click(generator.getByRole('button', { name: 'Close' })));
+
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'View Verifier details for paper.pdf' })));
+  const verifier = within(screen.getByRole('dialog', { name: 'Verifier details' }));
+  assert.ok(verifier.getByText('v2'));
+  assert.ok(verifier.getByText('Running'));
+  assert.ok(verifier.getByText('Checking evidence before verification'));
+  assert.equal(verifier.queryByText('Running python3'), null);
+  await act(async () => { t.mock.timers.tick(4_000); });
+  assert.equal(fetch.mock.callCount(), 3);
 });
 
 test('table is the default view and recorded title, initiator, stage and detail link appear', async () => {
