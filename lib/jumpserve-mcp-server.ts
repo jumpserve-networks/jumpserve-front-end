@@ -87,7 +87,7 @@ export async function serveJumpServeTools(request: Request, body: unknown, origi
       },
       {
         name: GET_SKILL_INSTRUCTIONS_TOOL,
-        description: "Read published JumpServe workflow guidance for one role. Omit version_id for the active version or provide a previously published version ID for a pinned run. Keep the returned version ID and SHA-256 with the result. Follow the installed skill's permissions and checks.",
+        description: "Read published JumpServe workflow guidance for one role. Omit version_id for the active version or provide a previously published version ID for a pinned run. The version number identifies the revision within its role. Keep the returned version ID and SHA-256 with the result. Follow the installed skill's permissions and checks.",
         inputSchema: { type: "object", additionalProperties: false, required: ["role"], properties: {
           role: { type: "string", enum: SKILL_ROLES }, version_id: { type: "string", format: "uuid" },
         } },

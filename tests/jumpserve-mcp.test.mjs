@@ -274,8 +274,8 @@ test('a real MCP SDK client discovers and calls the JumpServe tools', async () =
   let generatorResult;
   let verifierResult;
   let coachResult;
-  const activeGuidance = { role: 'generator', version_id: id, sha256: hash, instructions: 'Include a description of the fixture.\n' };
-  const pinnedGuidance = { ...activeGuidance, version_id: 'acdfb426-0c96-4a48-b593-5b27f44b5069' };
+  const activeGuidance = { role: 'generator', version_id: id, version_number: 2, sha256: hash, instructions: 'Include a description of the fixture.\n' };
+  const pinnedGuidance = { ...activeGuidance, version_id: 'acdfb426-0c96-4a48-b593-5b27f44b5069', version_number: 1 };
   const transport = new StreamableHTTPClientTransport(new URL(origin + '/mcp'), {
     fetch: async (target, options) => {
       const request = new Request(target, options);
@@ -375,7 +375,7 @@ test('the connector reads one published guidance version and validates the retur
   }
 
   const instructions = 'Report the exact fixture result café.\n';
-  const active = { role: 'verifier', version_id: id, instructions, sha256: createHash('sha256').update(instructions).digest('hex') };
+  const active = { role: 'verifier', version_id: id, version_number: 3, instructions, sha256: createHash('sha256').update(instructions).digest('hex') };
   let rows = [active];
   const fetch = t.mock.method(globalThis, 'fetch', (url, options) => {
     assert.equal(String(url), env.NEXT_PUBLIC_SUPABASE_URL + '/rest/v1/rpc/research_skill_get_instructions');
@@ -388,6 +388,12 @@ test('the connector reads one published guidance version and validates the retur
   assert.deepEqual(JSON.parse(fetch.mock.calls[0].arguments[1].body), { p_role: 'verifier', p_version_id: null });
   assert.deepEqual(await getSkillInstructions('verifier', id), active);
   assert.deepEqual(JSON.parse(fetch.mock.calls[1].arguments[1].body), { p_role: 'verifier', p_version_id: id });
+  const legacy = { ...active };
+  delete legacy.version_number;
+  rows = [legacy];
+  assert.deepEqual(await getSkillInstructions('verifier'), legacy);
+  rows = [{ ...active, version_number: 0 }];
+  await assert.rejects(getSkillInstructions('verifier'), /could not verify/);
   rows = [{ ...active, instructions: instructions.trim() }];
   await assert.rejects(getSkillInstructions('verifier'), /could not verify/);
   rows = [];

@@ -4,6 +4,7 @@ export type SkillRole = typeof SKILL_ROLES[number];
 export type PublishedSkillInstructions = {
   role: SkillRole;
   version_id: string;
+  version_number?: number;
   sha256: string;
   instructions: string;
 };

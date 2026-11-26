@@ -46,12 +46,15 @@ export async function getSkillInstructions(role: SkillRole, versionId?: string) 
   }).maybeSingle().overrideTypes<PublishedSkillInstructions, { merge: false }>();
   if (error) throw new Error("JumpServe could not load published skill instructions.");
   if (!data) return null;
+  const versionNumber = data.version_number;
   if (data.role !== role || !isResearchId(data.version_id) || (versionId && data.version_id !== versionId) ||
+      (versionNumber !== undefined && (!Number.isSafeInteger(versionNumber) || versionNumber < 1)) ||
       typeof data.instructions !== "string" || !data.instructions.trim() || Buffer.byteLength(data.instructions) > 24_000 ||
       createHash("sha256").update(data.instructions).digest("hex") !== data.sha256) {
     throw new Error("JumpServe could not verify the published skill instructions.");
   }
-  return { role, version_id: data.version_id, sha256: data.sha256, instructions: data.instructions };
+  return { role, version_id: data.version_id, sha256: data.sha256, instructions: data.instructions,
+    ...(versionNumber !== undefined && { version_number: versionNumber }) };
 }
 
 function matchesPdf(bytes: Buffer, sha256: string) {
