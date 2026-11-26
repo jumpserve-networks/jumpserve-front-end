@@ -3,7 +3,13 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { inventory, runSyntheticBatch, sha256 } from '../scripts/lib/jumpserve-synthetic-batch.mjs';
+import { BATCH_SKILLS, inventory, runSyntheticBatch, sha256, stageBatchGuidance } from '../scripts/lib/jumpserve-synthetic-batch.mjs';
+import { createBatchProgressReporter } from '../scripts/lib/jumpserve-synthetic-progress.mjs';
+
+const numberedGuidance = {
+  generator: { source: 'bundled', sha256: 'c64477caf8d2f36e0a65ff7c445b8f146d01f128ab96672473d47cdd34a53f16' },
+  verifier: { source: 'bundled', sha256: '8c41fd9eeaa0425bd7d88bfb25c3dc516bc775f4555407e497ec5aa1a862231c' },
+};
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'jumpserve-batch-test-'));
@@ -71,6 +77,116 @@ async function fixture(t) {
   } };
 }
 
+test('batch progress separates assessment blocks and prints elapsed times in redirected output', () => {
+  let time = 0;
+  let output = '';
+  const reporter = createBatchProgressReporter(numberedGuidance, { write: text => { output += text; } }, () => time);
+  reporter.update('A', 'generating', 'A.pdf', 'assessment-a');
+  time += 903_500;
+  reporter.update('A', 'verifying', 'A.pdf', 'assessment-a');
+  time += 121_000;
+  reporter.update('A', 'passed', 'A.pdf', 'assessment-a');
+  reporter.update('B', 'generating', 'B.pdf', 'assessment-b');
+  time += 750_000;
+  reporter.update('B', 'verifying', 'B.pdf', 'assessment-b');
+  time += 4_000;
+  reporter.finish();
+  reporter.finish();
+
+  assert.equal(output, '\nAssessment ID: assessment-a\nFile Name: A.pdf\nGenerating (v3): 15 minutes 3 seconds\nVerifying (v1): 2 minutes 1 second\nPassed\n' +
+    '\nAssessment ID: assessment-b\nFile Name: B.pdf\nGenerating (v3): 12 minutes 30 seconds\nVerifying (v1): 4 seconds\n');
+});
+
+test('an unmatched workflow checksum is labeled bundled', () => {
+  const writes = [];
+  const guidance = { ...numberedGuidance, generator: numberedGuidance.verifier };
+  const reporter = createBatchProgressReporter(guidance, { write: text => writes.push(text) }, () => 0);
+  reporter.update('A', 'generating', 'A.pdf', 'assessment-a');
+  reporter.update('A', 'verifying', 'A.pdf', 'assessment-a');
+  reporter.finish();
+  assert.deepEqual(writes.slice(1), ['Generating (bundled): 0 seconds\n', 'Verifying (v1): 0 seconds\n']);
+});
+
+test('the batch pins published guidance without changing the skills and recovers either snapshot layout', async t => {
+  const lab = await fixture(t);
+  const skillsDirectory = join(dirname(lab.output), 'skills');
+  const snapshot = join(dirname(lab.output), 'snapshot');
+  const published = {
+    generator: { role: 'generator', version_id: '39933d0c-cec0-42e2-90b6-72a9261b9f72', version_number: 12 },
+    verifier: { role: 'verifier', version_id: '4ed9f6de-7a79-4d5d-9b9c-85c5bf2e8573', version_number: 7 },
+  };
+  for (const [role, name] of Object.entries(BATCH_SKILLS)) {
+    const directory = join(skillsDirectory, name, 'references');
+    await mkdir(directory, { recursive: true });
+    await writeFile(join(directory, '..', 'SKILL.md'), `# Shared ${role} skill\n`);
+    await writeFile(join(directory, 'workflow.md'), `Bundled ${role} guidance.\n`);
+    const instructions = `Published ${role} guidance café.\n`;
+    Object.assign(published[role], { instructions, sha256: sha256(instructions) });
+  }
+
+  const staged = await stageBatchGuidance({ skillsDirectory, snapshot, published });
+  const { guidance, workflowFiles } = staged;
+  const expectedProvenance = role => ({ source: 'supabase', version_id: published[role].version_id, sha256: published[role].sha256 });
+  for (const [role, name] of Object.entries(BATCH_SKILLS)) {
+    assert.deepEqual(guidance[role], { ...expectedProvenance(role), version_number: published[role].version_number });
+    assert.equal(await readFile(join(snapshot, name, workflowFiles[role]), 'utf8'), published[role].instructions);
+    for (const file of ['SKILL.md', 'references/workflow.md']) {
+      assert.deepEqual(await readFile(join(snapshot, name, file)), await readFile(join(skillsDirectory, name, file)));
+    }
+  }
+  assert.deepEqual(await stageBatchGuidance({ snapshot, previous: guidance }), staged);
+
+  const writes = [];
+  const reporter = createBatchProgressReporter(guidance, { write: text => writes.push(text) }, () => 0);
+  const result = await runSyntheticBatch({ ...lab, guidance, progress: reporter.update,
+    generate: input => {
+      assert.deepEqual(input.guidance, expectedProvenance('generator'));
+      return lab.generate(input);
+    },
+    verify: input => {
+      assert.deepEqual(input.guidance, expectedProvenance('verifier'));
+      return lab.score(input, 2);
+    },
+  });
+  assert.equal(result.status, 'passed');
+  assert.deepEqual(result.guidance, guidance);
+  assert.deepEqual(writes.slice(1, 4), ['Generating (v12): 0 seconds\n', 'Verifying (v7): 0 seconds\n', 'Passed\n']);
+
+  const invalid = await runSyntheticBatch({ ...lab, output: `${lab.output}-invalid-version`, guidance,
+    verify: input => lab.score(input, 2, { skill_instructions: { ...input.guidance, version_id: published.generator.version_id } }),
+  });
+  assert.match(invalid.stop.reason, /does not identify the pinned skill guidance/);
+
+  const stagedGenerator = join(snapshot, BATCH_SKILLS.generator);
+  await writeFile(join(stagedGenerator, workflowFiles.generator), 'Modified snapshot.');
+  await assert.rejects(stageBatchGuidance({ snapshot, previous: guidance }), /Could not verify the pinned generator workflow/);
+  await rm(join(stagedGenerator, workflowFiles.generator));
+  await writeFile(join(stagedGenerator, 'references/workflow.md'), published.generator.instructions);
+  assert.deepEqual(await stageBatchGuidance({ snapshot, previous: guidance }),
+    { guidance, workflowFiles: { ...workflowFiles, generator: 'references/workflow.md' } });
+});
+
+test('batch progress animates the active terminal step and clears the spinner when it ends', t => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const writes = [];
+  let time = 0;
+  const reporter = createBatchProgressReporter(numberedGuidance, { isTTY: true, clearLine: () => {}, cursorTo: () => {},
+    write: text => writes.push(text) }, () => time);
+  reporter.update('A', 'generating', 'A.pdf', 'assessment-a');
+  assert.equal(writes.at(-1), 'Generating (v3): |');
+  time += 61_000;
+  reporter.update('A', 'verifying', 'A.pdf', 'assessment-a');
+  assert.deepEqual(writes.slice(-2), ['Generating (v3): 1 minute 1 second\n', 'Verifying (v1): |']);
+  t.mock.timers.tick(100);
+  assert.equal(writes.at(-1), 'Verifying (v1): /');
+  time += 1_000;
+  reporter.finish();
+  const finished = writes.length;
+  assert.equal(writes.at(-1), 'Verifying (v1): 1 second\n');
+  t.mock.timers.tick(500);
+  assert.equal(writes.length, finished);
+});
+
 test('a one-point loss halts the batch before the third Generator and persists that stop', async t => {
   const lab = await fixture(t);
   const options = { ...lab, verify: input => lab.score(input, input.key.includes(`${join('B', 'answer-key.json')}`) ? 1 : 2) };
@@ -99,7 +215,8 @@ test('the batch persists both result IDs before stopping on a below-perfect grad
   const generatorId = '09859c11-9be3-44d2-9b39-a0cb96a0d09f';
   const verificationId = '22459c11-9be3-44d2-9b39-a0cb96a0d09f';
   const journal = () => readFile(join(lab.output, 'batch.json'), 'utf8').then(JSON.parse);
-  const result = await runSyntheticBatch({ ...lab, verify: input => lab.score(input, 1), persistence: {
+  const progress = [];
+  const result = await runSyntheticBatch({ ...lab, progress: (...args) => progress.push(args), verify: input => lab.score(input, 1), persistence: {
     generator: async (assessmentId, paper, bundle) => {
       assert.equal((await journal()).cases[0].database.assessment_id, assessmentId);
       assert.equal(bundle.paper.sha256, sha256(await readFile(paper)));
@@ -116,6 +233,9 @@ test('the batch persists both result IDs before stopping on a below-perfect grad
   } });
   assert.deepEqual(lab.calls, ['generate A', 'save generator', 'preflight A', 'verify A', 'save verifier']);
   assert.deepEqual(result.cases.map(item => item.status), ['stopped', 'pending', 'pending']);
+  const assessmentId = result.cases[0].database.assessment_id;
+  assert.match(assessmentId, /^[a-f0-9-]{36}$/);
+  assert.deepEqual(progress, [['A', 'generating', 'A.pdf', assessmentId], ['A', 'verifying', 'A.pdf', assessmentId]]);
   assert.equal(result.cases[0].database.verification_id, verificationId);
   assert.deepEqual(await journal(), result);
 });

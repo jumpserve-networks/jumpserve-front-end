@@ -6,9 +6,8 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { extractPaperPDF } from '../../lib/paper-intake-pdf.ts';
 import { VERIFIER_SCORECARD_SCHEMA } from '../../lib/jumpserve-verification.ts';
+import { BATCH_SKILLS, generatorPrompt, verifierPrompt } from './jumpserve-synthetic-batch.mjs';
 
-const generator = 'jumpserve-paper-assessment';
-const verifier = 'jumpserve-assessment-verifier';
 const profile = 'jumpserve_batch';
 const environment = Object.fromEntries(['HOME', 'CODEX_HOME', 'USER', 'LOGNAME', 'LANG', 'LC_ALL', 'PATH', 'SHELL', 'TMPDIR']
   .filter(key => process.env[key] !== undefined).map(key => [key, process.env[key]]));
@@ -64,11 +63,14 @@ function responseSchema(schema) {
   return { type: schema.type };
 }
 
-const freshScorecardSchema = responseSchema({ properties: {
-  ...VERIFIER_SCORECARD_SCHEMA.properties,
-  evidence_integrity: { properties: { status: { type: 'string', const: 'verified' }, verified_runs: { type: 'integer' } } },
-  skill_instructions: { properties: { source: { type: 'string', const: 'bundled' }, sha256: { type: 'string' } } },
-} });
+function freshScorecardSchema(guidance) {
+  const provenance = Object.fromEntries(Object.entries(guidance).map(([name, value]) => [name, { type: 'string', const: value }]));
+  return responseSchema({ properties: {
+    ...VERIFIER_SCORECARD_SCHEMA.properties,
+    evidence_integrity: { properties: { status: { type: 'string', const: 'verified' }, verified_runs: { type: 'integer' } } },
+    skill_instructions: { properties: provenance },
+  } });
+}
 
 async function codexSession({ role, cwd, config, prompt, scorecard, schemaPath, timeoutMs, model }) {
   const log = await open(join(dirname(cwd), `${role}.log`), 'wx', 0o600);
@@ -98,9 +100,9 @@ async function codexSession({ role, cwd, config, prompt, scorecard, schemaPath, 
   }
 }
 
-export function createNativeWorkers({ snapshot, python, timeoutMs, model }) {
-  const generatorSkill = join(snapshot, generator);
-  const verifierSkill = join(snapshot, verifier);
+export function createNativeWorkers({ snapshot, workflowFiles, python, timeoutMs, model }) {
+  const generatorSkill = join(snapshot, BATCH_SKILLS.generator);
+  const verifierSkill = join(snapshot, BATCH_SKILLS.verifier);
   const reviewScript = join(verifierSkill, 'scripts', 'prepare_review.py');
   const config = (reads, output, allowLoopback) => nativeProfileArgs({ reads, output, allowLoopback, python });
   const session = options => codexSession({ ...options, timeoutMs, model });
@@ -113,13 +115,9 @@ export function createNativeWorkers({ snapshot, python, timeoutMs, model }) {
       await writeFile(paperText, extracted.pages.map(page => `## PDF page ${page.page}\n\n${page.text}`).join('\n\n'),
         { flag: 'wx', mode: 0o600 });
       const cwd = await realpath(output);
-      await session({ role: 'generator', cwd, config: config([paper, paperText, generatorSkill], cwd, true), prompt:
-        `Run the batch worker entry point in ${generatorSkill}/SKILL.md and read its references/workflow.md. ` +
-        `Use ${paper} (SHA-256 ${paperSha256}) and its page-separated text at ${paperText}. ` +
-        `Recreate the synthetic networking measurement on this macOS testbed using loopback. Python 3 is at ${python}. ` +
-        `Document any adaptations before measuring and state which comparisons the testbed supports. ` +
-        `Use the current working directory for scripts, temporary artifacts, and result evidence. Retain incomplete evidence. The parent runner saves the validated bundle privately. ` +
-        `Save jumpserve-assessment.json and the receipts and observations required by the skill. Set skill_instructions to ${JSON.stringify(guidance)}.`,
+      await session({ role: 'generator', cwd, config: config([paper, paperText, generatorSkill], cwd, true),
+        prompt: generatorPrompt({ skillDirectory: generatorSkill, workflow: join(generatorSkill, workflowFiles.generator),
+          paper, paperSha256, guidance, testbed: `Use the macOS loopback testbed. Python 3: ${python}\nPage-separated PDF text: ${paperText}` }),
       });
     },
     preflight: ({ paper, key, artifactDirectory, output }) => {
@@ -132,18 +130,12 @@ export function createNativeWorkers({ snapshot, python, timeoutMs, model }) {
     },
     verify: async ({ paper, key, artifactDirectory, output, guidance, rubric }) => {
       const schemaPath = join(output, 'scorecard.schema.json');
-      await writeFile(schemaPath, JSON.stringify(freshScorecardSchema) + '\n', { flag: 'wx', mode: 0o600 });
+      await writeFile(schemaPath, JSON.stringify(freshScorecardSchema(guidance)) + '\n', { flag: 'wx', mode: 0o600 });
       await session({ role: 'verifier', cwd: output,
         config: config([paper, key, artifactDirectory, output, generatorSkill, verifierSkill], null, false),
-        scorecard: join(output, 'scorecard.json'), schemaPath, prompt:
-          `Use ${verifierSkill}/SKILL.md and its references/workflow.md to independently grade the fresh assessment at ` +
-          `${artifactDirectory}/jumpserve-assessment.json. The original paper is ${paper}; the private key is ${key}. ` +
-          `Use the trusted ${reviewScript} with --paper ${paper} before grading. Review the saved evidence with read-only calculations. ` +
-          `Use the preflight's status and verified_runs for evidence_integrity and leave preflight metadata outside the response. ` +
-          `Apply all original rules and use these exact criterion names and maxima: ${JSON.stringify(rubric)}. ` +
-          `Use null for unscored items, keep the full rubric maximum, and report blockers and critical failures. ` +
-          `The parent runner saves the validated scorecard privately. ` +
-          `Set skill_instructions to ${JSON.stringify(guidance)} and return only the scorecard JSON object in your final response.`,
+        scorecard: join(output, 'scorecard.json'), schemaPath,
+        prompt: verifierPrompt({ skillDirectory: verifierSkill, workflow: join(verifierSkill, workflowFiles.verifier),
+          paper, key, assessment: join(artifactDirectory, 'jumpserve-assessment.json'), guidance, rubric }),
       });
     },
   };

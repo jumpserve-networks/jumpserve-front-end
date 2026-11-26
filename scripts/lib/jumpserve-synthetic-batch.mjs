@@ -1,15 +1,73 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
-import { mkdir, open, readdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
+import { cp, mkdir, open, readdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { prepareAssessmentBundle } from '../../lib/jumpserve-assessment-bundle.ts';
 import { MAX_REVIEWED_ASSESSMENT_BYTES, prepareVerifierResult } from '../../lib/jumpserve-verification.ts';
+import { isResearchId } from '../../lib/research-experiment-queue.ts';
 
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
+export const BATCH_SKILLS = { generator: 'jumpserve-paper-assessment', verifier: 'jumpserve-assessment-verifier' };
 const identifier = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 const digest = /^[a-f0-9]{64}$/;
 const recoverableFormats = new Set(['/evidence_integrity', '/']
   .map(path => `Scorecard does not match jumpserve-verifier-scorecard-v1 at ${path}.`));
+
+export async function stageBatchGuidance({ skillsDirectory, snapshot, published, previous }) {
+  const guidance = {};
+  const workflowFiles = {};
+  for (const [role, directory] of Object.entries(BATCH_SKILLS)) {
+    const staged = join(snapshot, directory);
+    const revision = previous ? previous[role] : published?.[role];
+    const isPublished = published !== undefined || revision?.source === 'supabase';
+    const bundledFile = 'references/workflow.md';
+    let workflowFile = isPublished ? 'published-workflow.md' : bundledFile;
+    if (!previous) {
+      await cp(join(skillsDirectory, directory), staged, { recursive: true, errorOnExist: true, force: false });
+      if (isPublished) {
+        if (revision?.role !== role || typeof revision.instructions !== 'string' || !revision.instructions.trim() ||
+            Buffer.byteLength(revision.instructions) > 24_000) {
+          throw new Error(`Invalid published ${role} workflow.`);
+        }
+        await writeFile(join(staged, workflowFile), revision.instructions, { flag: 'wx', mode: 0o600 });
+      }
+    }
+    const bytes = await readFile(join(staged, workflowFile)).catch(error => {
+      // Early published snapshots used the bundled path for the pinned bytes.
+      if (!previous || !isPublished || error.code !== 'ENOENT') throw error;
+      workflowFile = bundledFile;
+      return readFile(join(staged, workflowFile));
+    });
+    const checksum = sha256(bytes);
+    if (isPublished) {
+      if (revision.sha256 !== checksum || !isResearchId(revision.version_id) ||
+          !Number.isSafeInteger(revision.version_number) || revision.version_number < 1) {
+        throw new Error(`Could not verify the pinned ${role} workflow.`);
+      }
+      guidance[role] = { source: 'supabase', version_id: revision.version_id, sha256: checksum, version_number: revision.version_number };
+    } else {
+      guidance[role] = { source: 'bundled', sha256: checksum };
+    }
+    workflowFiles[role] = workflowFile;
+  }
+  return { guidance, workflowFiles };
+}
+
+export function generatorPrompt({ skillDirectory, workflow, paper, paperSha256, guidance, testbed }) {
+  return `Follow the JumpServe Generator skill at ${skillDirectory}/SKILL.md using its batch worker entry point.\n` +
+    `Use the pinned workflow at ${workflow}. Set skill_instructions to ${JSON.stringify(guidance)}.\n` +
+    `Input PDF: ${paper}\nExpected SHA-256: ${paperSha256}\n${testbed}\n` +
+    `Write the skill's assessment bundle and evidence in the current working directory. The parent runner confirms private saving.`;
+}
+
+export function verifierPrompt({ skillDirectory, workflow, paper, key, assessment, guidance, rubric }) {
+  return `Follow the JumpServe Verifier skill at ${skillDirectory}/SKILL.md for a fresh batch review.\n` +
+    `Use the pinned workflow at ${workflow}. Set skill_instructions to ${JSON.stringify(guidance)}.\n` +
+    `Input PDF: ${paper}\nAssessment: ${assessment}\nAnswer key: ${key}\n` +
+    `Use the skill's evidence preflight with the supplied PDF. Record its status and verified_runs in evidence_integrity.\n` +
+    `Use these exact rubric criteria and maxima: ${JSON.stringify(rubric)}. The parent runner confirms private saving.\n` +
+    `Return the skill's scorecard JSON as your final response.`;
+}
 
 function fullRubric(key) {
   if (Array.isArray(key.rubric?.assertions)) return key.rubric.assertions.map(({ id, points }) => [id, points]);
@@ -91,9 +149,13 @@ async function stageInput(input, expectedHash, path) {
 }
 
 function requireGuidance(actual, pinned) {
-  if (!actual || actual.source !== pinned.source || actual.sha256 !== pinned.sha256) {
+  if (!actual || actual.source !== pinned.source || actual.sha256 !== pinned.sha256 || actual.version_id !== pinned.version_id) {
     throw new Error('Output does not identify the pinned skill guidance.');
   }
+}
+
+function artifactGuidance({ source, version_id, sha256 }) {
+  return source === 'supabase' ? { source, version_id, sha256 } : { source, sha256 };
 }
 
 function reviewInputs(paperDirectory, guidance, rubric) {
@@ -165,6 +227,8 @@ function perfectScore(testCase, artifact, grade, preflight, pinned) {
 
 async function runBatch({ output, cases, guidance, runtime, generate, preflight, verify, persistence, recoverFormat = false, progress = () => {} }) {
   const statePath = join(output, 'batch.json');
+  const generatorGuidance = artifactGuidance(guidance.generator);
+  const verifierGuidance = artifactGuidance(guidance.verifier);
   const plan = cases.map(item => ({ paper_id: item.paperId, pdf: item.paperName, paper_sha256: item.paperSha256,
     answer_key_sha256: item.keySha256, split: item.split, rubric_maximum: item.rubricMaximum, status: 'pending' }));
   const state = recoverFormat ? JSON.parse(await readArtifact(statePath, 256_000)) :
@@ -174,6 +238,7 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
     await writeFile(temporary, JSON.stringify(state, null, 2) + '\n', { mode: 0o600 });
     await rename(temporary, statePath);
   };
+  const reportProgress = (item, phase) => progress(item.paper_id, phase, item.pdf, item.database?.assessment_id);
   async function saveGenerator(item, paper, artifact) {
     if (!persistence || item.database?.generator_result_id) return;
     item.database ??= { assessment_id: randomUUID() };
@@ -199,11 +264,11 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
       throw new Error('Only a stopped scorecard with the known preflight-field error and the original batch inputs can be recovered.');
     }
     const testCase = cases[index];
-    const review = reviewInputs(join(output, testCase.paperId), guidance.verifier, testCase.rubric);
-    const artifact = await checkedArtifact(testCase, review, guidance.generator);
+    const review = reviewInputs(join(output, testCase.paperId), verifierGuidance, testCase.rubric);
+    const artifact = await checkedArtifact(testCase, review, generatorGuidance);
     const checked = await checkedPreflight(testCase, artifact, review, preflight);
     const { grade, corrected } = await readGrade(review, checked);
-    const { score, perfect } = perfectScore(testCase, artifact, grade, checked, guidance.verifier);
+    const { score, perfect } = perfectScore(testCase, artifact, grade, checked, verifierGuidance);
     if (!corrected || !perfect) throw new Error('The saved scorecard did not validate as perfect after the format correction.');
     await saveGenerator(state.cases[index], review.paper, artifact);
     await saveVerifier(state.cases[index], artifact, grade);
@@ -216,7 +281,7 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
     state.status = 'running';
     Object.assign(state.cases[index], { status: 'passed', score });
     firstIndex = index + 1;
-    progress(testCase.paperId, 'passed (revalidated saved scorecard)');
+    reportProgress(state.cases[index], 'passed (revalidated saved scorecard)');
   } else {
     // An existing output directory belongs to the previous attempt, including a recorded stop.
     await mkdir(output, { mode: 0o700 });
@@ -226,31 +291,32 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
     const testCase = cases[index];
     const item = state.cases[index];
     const paperDirectory = join(output, testCase.paperId);
-    const review = reviewInputs(paperDirectory, guidance.verifier, testCase.rubric);
+    const review = reviewInputs(paperDirectory, verifierGuidance, testCase.rubric);
     let phase = 'generating';
     try {
       item.status = phase;
+      if (persistence) item.database ??= { assessment_id: randomUUID() };
       await persist();
-      progress(item.paper_id, phase);
+      reportProgress(item, phase);
       await mkdir(paperDirectory, { mode: 0o700 });
       await mkdir(review.artifactDirectory, { mode: 0o700 });
       await stageInput(testCase.paperPath, testCase.paperSha256, review.paper);
-      await generate({ paper: review.paper, output: review.artifactDirectory, paperSha256: testCase.paperSha256, guidance: guidance.generator });
-      const artifact = await checkedArtifact(testCase, review, guidance.generator);
+      await generate({ paper: review.paper, output: review.artifactDirectory, paperSha256: testCase.paperSha256, guidance: generatorGuidance });
+      const artifact = await checkedArtifact(testCase, review, generatorGuidance);
       phase = 'saving_generator';
       await saveGenerator(item, review.paper, artifact);
 
       phase = 'verifying';
       item.status = phase;
       await persist();
-      progress(item.paper_id, phase);
+      reportProgress(item, phase);
       await mkdir(review.output, { mode: 0o700 });
       await stageInput(testCase.keyPath, testCase.keySha256, review.key);
       const checked = await checkedPreflight(testCase, artifact, review, preflight);
 
       await verify(review);
       const { grade, corrected } = await readGrade(review, checked);
-      const { score, perfect } = perfectScore(testCase, artifact, grade, checked, guidance.verifier);
+      const { score, perfect } = perfectScore(testCase, artifact, grade, checked, verifierGuidance);
       if (corrected) await saveCorrectedGrade(review, grade);
       item.score = score;
       phase = 'saving_verifier';
@@ -262,7 +328,7 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
         : 'Verifier did not award a score.');
       item.status = 'passed';
       await persist();
-      progress(item.paper_id, 'passed');
+      reportProgress(item, 'passed');
     } catch (error) {
       item.status = 'stopped';
       state.status = 'stopped';

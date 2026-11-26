@@ -1,12 +1,16 @@
 # Run the synthetic assessment batch
 
 The local runner reads `pdfs/synthetic_papers` in filename order. It binds each
-PDF to exactly one answer key by SHA-256 and copies the bundled Generator and
-Verifier files into a private snapshot for the batch. It runs fresh assessments
+PDF to exactly one answer key by SHA-256. It uses the same Generator and Verifier
+skills as the JumpServe plugin and copies their files unchanged for the batch.
+When the JumpServe results endpoint supports published workflows, the runner
+verifies the active guidance by checksum and gives each skill the pinned text as
+a separate input. Older endpoints use the workflows bundled with the checkout.
+The batch keeps the same guidance across all papers and displays its versions
+alongside the timings. It runs fresh assessments
 and saves each validated Generator bundle and Verifier scorecard privately in
 Supabase through JumpServe. Local evidence and answer keys stay in the batch
-directory. Use a checkout with your local corpus in `pdfs/synthetic_papers` and
-the matching keys in `answer-keys/development` or `answer-keys/held-out`.
+directory.
 
 ## Native macOS with ChatGPT sign-in
 

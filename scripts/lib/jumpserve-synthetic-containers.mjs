@@ -2,9 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { BATCH_SKILLS, generatorPrompt, verifierPrompt } from './jumpserve-synthetic-batch.mjs';
 
-const generator = 'jumpserve-paper-assessment';
-const verifier = 'jumpserve-assessment-verifier';
 const maxOutput = 8 * 1024 * 1024;
 
 function errorCode(run) {
@@ -29,10 +28,13 @@ function mount(source, destination, readOnly = true) {
   return ['--mount', `type=bind,source=${source},destination=${destination}${readOnly ? ',readonly' : ''}`];
 }
 
-export function createContainerWorkers({ image, snapshot, timeoutMs, apiKey, model }) {
+export function createContainerWorkers({ image, snapshot, workflowFiles, timeoutMs, apiKey, model }) {
+  const generatorSkill = `/skills/${BATCH_SKILLS.generator}`;
+  const verifierSkill = `/skills/${BATCH_SKILLS.verifier}`;
+  const generatorMount = mount(join(snapshot, BATCH_SKILLS.generator), generatorSkill);
   const skills = [
-    ...mount(join(snapshot, generator), `/skills/${generator}`),
-    ...mount(join(snapshot, verifier), `/skills/${verifier}`),
+    ...generatorMount,
+    ...mount(join(snapshot, BATCH_SKILLS.verifier), verifierSkill),
   ];
 
   async function run({ role, paper, key, artifactDirectory, output, command, prompt }) {
@@ -47,7 +49,7 @@ export function createContainerWorkers({ image, snapshot, timeoutMs, apiKey, mod
       '--tmpfs', `/home/node:rw,nosuid,nodev,size=512m,uid=${process.getuid()},gid=${process.getgid()}`,
       '--network', isPreflight ? 'none' : 'bridge', '--workdir', isGenerator ? '/work' : '/tmp',
       ...mount(paper, '/paper.pdf'),
-      ...(isGenerator ? mount(join(snapshot, generator), `/skills/${generator}`) : skills),
+      ...(isGenerator ? generatorMount : skills),
       ...(isGenerator ? mount(output, '/work', false) : [
         ...mount(key, '/answer-key.json'), ...mount(artifactDirectory, '/assessment'),
         ...(!isPreflight ? mount(output, '/review', false) : []),
@@ -71,27 +73,18 @@ export function createContainerWorkers({ image, snapshot, timeoutMs, apiKey, mod
   const codex = ['codex', 'exec', '--ephemeral', '--ignore-user-config', '--skip-git-repo-check',
     '--color', 'never', '-c', 'shell_environment_policy.exclude=["CODEX_API_KEY"]', ...(model ? ['--model', model] : [])];
   return {
-    generate: input => run({ ...input, role: 'generator', command: [...codex, '--yolo', '-'], prompt:
-      `Run the batch worker entry point in /skills/${generator}/SKILL.md. Read it and its workflow.md guidance first. ` +
-      `The paper is /paper.pdf and its SHA-256 is ${input.paperSha256}. ` +
-      `This is a fresh networking measurement on the staged synthetic paper. Use the isolated container and work in /work. ` +
-      `Keep test traffic inside this testbed. Public reference data may be read when the paper specifies it. ` +
-      `Use reviewed measurement procedures and the available instruments. Record unsupported requirements and retain incomplete evidence. ` +
-      `Save /work/jumpserve-assessment.json and the receipts and raw observations described in the skill. The parent runner saves the validated bundle privately. ` +
-      `Set skill_instructions to ${JSON.stringify(input.guidance)}.`,
+    generate: input => run({ ...input, role: 'generator', command: [...codex, '--yolo', '-'],
+      prompt: generatorPrompt({ skillDirectory: generatorSkill, workflow: `${generatorSkill}/${workflowFiles.generator}`,
+        paper: '/paper.pdf', paperSha256: input.paperSha256, guidance: input.guidance,
+        testbed: 'Keep test traffic inside the isolated container testbed. Public reference data may be read when the paper specifies it.' }),
     }),
     preflight: async input => JSON.parse(await run({ ...input, role: 'preflight', command: ['python3', '-B',
-      `/skills/${verifier}/scripts/prepare_review.py`, '/assessment/jumpserve-assessment.json', '/answer-key.json', '--paper', '/paper.pdf'] })),
+      `${verifierSkill}/scripts/prepare_review.py`, '/assessment/jumpserve-assessment.json', '/answer-key.json', '--paper', '/paper.pdf'] })),
     verify: input => run({ ...input, role: 'verifier', command: [...codex, '--sandbox', 'read-only',
-      '--output-last-message', '/review/scorecard.json', '-'], prompt:
-      `Use /skills/${verifier}/SKILL.md and its workflow.md to independently grade a fresh assessment. ` +
-      `Review /assessment/jumpserve-assessment.json, its local evidence, /paper.pdf and /answer-key.json. ` +
-      `They are read-only. Run the trusted prepare_review.py with --paper /paper.pdf and omit --mode for fresh grading. ` +
-      `Report the exact artifact and key hashes from that preflight. Apply every criterion in the key. ` +
-      `Use these exact criterion names and maxima in the rubric: ${JSON.stringify(input.rubric)}. ` +
-      `Use null for unscored items, keep the full rubric maximum, and report blockers and critical failures. ` +
-      `Set skill_instructions to ${JSON.stringify(input.guidance)}. Return only the scorecard JSON object as your final response. ` +
-      `Keep the Generator's evidence untouched. The parent runner saves the validated scorecard privately.`,
+      '--output-last-message', '/review/scorecard.json', '-'],
+      prompt: verifierPrompt({ skillDirectory: verifierSkill, workflow: `${verifierSkill}/${workflowFiles.verifier}`,
+        paper: '/paper.pdf', key: '/answer-key.json', assessment: '/assessment/jumpserve-assessment.json',
+        guidance: input.guidance, rubric: input.rubric }),
     }),
   };
 }
