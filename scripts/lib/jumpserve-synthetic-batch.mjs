@@ -5,9 +5,9 @@ import { join } from 'node:path';
 import { prepareAssessmentBundle } from '../../lib/jumpserve-assessment-bundle.ts';
 import { MAX_REVIEWED_ASSESSMENT_BYTES, prepareVerifierResult } from '../../lib/jumpserve-verification.ts';
 import { isResearchId } from '../../lib/research-experiment-queue.ts';
+import { BATCH_SKILLS, batchCasePaths, requireReviewPreflight } from './jumpserve-synthetic-worker-inputs.mjs';
 
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
-export const BATCH_SKILLS = { generator: 'jumpserve-paper-assessment', verifier: 'jumpserve-assessment-verifier' };
 const identifier = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 const digest = /^[a-f0-9]{64}$/;
 const recoverableFormats = new Set(['/evidence_integrity', '/']
@@ -51,26 +51,6 @@ export async function stageBatchGuidance({ skillsDirectory, snapshot, published,
     workflowFiles[role] = workflowFile;
   }
   return { guidance, workflowFiles };
-}
-
-export function generatorPrompt({ skillDirectory, workflow, paper, paperSha256, guidance, testbed }) {
-  return `Follow the JumpServe Generator skill at ${skillDirectory}/SKILL.md using its batch worker entry point.\n` +
-    `Use the pinned workflow at ${workflow}. Set skill_instructions to ${JSON.stringify(guidance)}.\n` +
-    `Input PDF: ${paper}\nExpected SHA-256: ${paperSha256}\n${testbed}\n` +
-    `Write the skill's assessment bundle and evidence in the current working directory. The parent runner confirms private saving.`;
-}
-
-export function verifierPrompt({ skillDirectory, workflow, caseDirectory, paper, key, assessment, guidance, rubric }) {
-  return `Follow the JumpServe Verifier skill at ${skillDirectory}/SKILL.md for a fresh batch review.\n` +
-    `Use the pinned workflow at ${workflow}. Set skill_instructions to ${JSON.stringify(guidance)}.\n` +
-    `Input PDF: ${paper}\nAssessment: ${assessment}\nAnswer key: ${key}\n` +
-    `Use ${caseDirectory} as the base directory for every path in claims[].evidence. ` +
-    `Cite files relative to that directory with precise page, line, or row selectors where applicable. ` +
-    `For example, use "paper.pdf pp. 1–2" or "generator/evidence/trace.jsonl lines 2–5". ` +
-    `Use this base regardless of your working directory. Omit absolute paths and parent directory segments (..).\n` +
-    `Use the skill's evidence preflight with the supplied PDF. Record its status and verified_runs in evidence_integrity.\n` +
-    `Use these exact rubric criteria and maxima: ${JSON.stringify(rubric)}. The parent runner confirms private saving.\n` +
-    `Return the skill's scorecard JSON as your final response.`;
 }
 
 function fullRubric(key) {
@@ -162,11 +142,6 @@ function artifactGuidance({ source, version_id, sha256 }) {
   return source === 'supabase' ? { source, version_id, sha256 } : { source, sha256 };
 }
 
-export function batchCasePaths(caseDirectory) {
-  return { caseDirectory, paper: join(caseDirectory, 'paper.pdf'), key: join(caseDirectory, 'answer-key.json'),
-    artifactDirectory: join(caseDirectory, 'generator'), output: join(caseDirectory, 'verifier') };
-}
-
 function reviewInputs(caseDirectory, guidance, rubric) {
   return { ...batchCasePaths(caseDirectory), guidance, rubric };
 }
@@ -180,12 +155,9 @@ async function checkedArtifact(testCase, review, guidance) {
 }
 
 async function checkedPreflight(testCase, artifact, review, preflight) {
-  const result = await preflight(review);
-  if (result.pdf_bytes_checked !== true || result.paper_id !== testCase.paperId ||
-      result.paper_sha256 !== testCase.paperSha256 || result.answer_key_sha256 !== testCase.keySha256 ||
-      result.assessment_sha256 !== sha256(artifact) || result.mode !== 'fresh' ||
-      result.evidence_integrity.status !== 'verified') throw new Error('Independent evidence preflight did not verify the exact inputs.');
-  return result;
+  const expected = { paper_id: testCase.paperId, paper_sha256: testCase.paperSha256,
+    answer_key_sha256: testCase.keySha256, assessment_sha256: sha256(artifact) };
+  return requireReviewPreflight(await preflight(review, expected), expected);
 }
 
 async function readGrade(review, preflight) {
@@ -233,7 +205,8 @@ function perfectScore(testCase, artifact, grade, preflight, pinned) {
     scorecard.claims.every(claim => claim.assessment === 'correct') };
 }
 
-async function runBatch({ output, cases, guidance, runtime, generate, preflight, verify, persistence, recoverFormat = false, progress = () => {} }) {
+async function runBatch({ output, cases, guidance, runtime, generate, preflight, verify, reviewOnInstance,
+  persistence, recoverFormat = false, progress = () => {} }) {
   const statePath = join(output, 'batch.json');
   const generatorGuidance = artifactGuidance(guidance.generator);
   const verifierGuidance = artifactGuidance(guidance.verifier);
@@ -309,7 +282,8 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
       await mkdir(paperDirectory, { mode: 0o700 });
       await mkdir(review.artifactDirectory, { mode: 0o700 });
       await stageInput(testCase.paperPath, testCase.paperSha256, review.paper);
-      await generate({ paper: review.paper, output: review.artifactDirectory, paperSha256: testCase.paperSha256, guidance: generatorGuidance });
+      await generate({ assessmentId: item.database?.assessment_id, paper: review.paper, output: review.artifactDirectory,
+        paperSha256: testCase.paperSha256, guidance: generatorGuidance });
       const artifact = await checkedArtifact(testCase, review, generatorGuidance);
       phase = 'saving_generator';
       await saveGenerator(item, review.paper, artifact);
@@ -320,9 +294,9 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
       reportProgress(item, phase);
       await mkdir(review.output, { mode: 0o700 });
       await stageInput(testCase.keyPath, testCase.keySha256, review.key);
-      const checked = await checkedPreflight(testCase, artifact, review, preflight);
-
-      await verify(review);
+      const checked = await checkedPreflight(testCase, artifact, review, reviewOnInstance
+        ? (input, expected) => reviewOnInstance({ ...input, expected, assessmentId: item.database?.assessment_id }) : preflight);
+      if (!reviewOnInstance) await verify(review);
       const { grade, corrected } = await readGrade(review, checked);
       const { score, perfect } = perfectScore(testCase, artifact, grade, checked, verifierGuidance);
       if (corrected) await saveCorrectedGrade(review, grade);

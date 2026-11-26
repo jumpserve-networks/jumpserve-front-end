@@ -1,0 +1,17 @@
+[Unit]
+Description=JumpServe training batch %i
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=exec
+User=ec2-user
+WorkingDirectory=/home/ec2-user/jumpserve-batch/current
+Environment=HOME=/home/ec2-user
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=/etc/jumpserve-synthetic-batch.env
+UMask=0077
+ExecStart=/usr/bin/python3 scripts/run-jumpserve-training-batch.py %i
+KillMode=mixed
+TimeoutStopSec=360
+NoNewPrivileges=yes

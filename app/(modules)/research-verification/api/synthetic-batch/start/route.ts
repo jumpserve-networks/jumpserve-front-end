@@ -27,9 +27,9 @@ export async function POST(request: Request) {
   if (user.id !== configuration.ownerId) return json({ error: "Only the batch owner can start it." }, 403);
 
   try {
-    await requestSyntheticBatchStart(configuration.instanceId);
-    return json({ status: "requested" }, 202);
+    const batchId = await requestSyntheticBatchStart(configuration);
+    return json({ batchId }, 202);
   } catch {
-    return json({ error: "AWS did not confirm the batch start request." }, 502);
+    return json({ error: "JumpServe could not create the batch request." }, 502);
   }
 }

@@ -16,16 +16,13 @@ import { assessmentListPath, loadAssessmentList, type AssessmentListOptions, typ
 import { PaperAuthors, usePaperBibliography } from "./paper-bibliography";
 import { ResearchHeader } from "./header";
 import { DeleteAssessment } from "./delete-assessment";
-import { StartSyntheticBatch } from "./start-synthetic-batch";
 
-export function Assessments({ before, mine = false, name = "", view = "table", canStartSyntheticBatch = false }:
-  AssessmentListOptions & { canStartSyntheticBatch?: boolean }) {
+export function Assessments({ before, mine = false, name = "", view = "table" }: AssessmentListOptions) {
   const preferences = useUserPreferences();
   const userId = mine ? preferences?.userId : null;
   const returnPath = assessmentListPath({ mine, before, name, view });
   return <main className="mx-auto max-w-6xl space-y-6 px-4 py-6" data-testid="assessments">
     <ResearchHeader title="Assessments" showModuleLabel={false} />
-    {mine && canStartSyntheticBatch ? <StartSyntheticBatch /> : null}
     <div className="flex flex-wrap items-center justify-between gap-3">
       <nav aria-label="Assessment filter" className="flex w-fit max-w-full bg-muted/40 p-1">
         <Button size="sm" variant={mine ? "ghost" : "secondary"} nativeButton={false} render={<Link href={assessmentListPath({ name, view })} aria-current={!mine ? "page" : undefined} />}>All Assessments</Button>

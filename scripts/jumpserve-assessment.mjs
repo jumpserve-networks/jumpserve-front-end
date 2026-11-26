@@ -19,7 +19,7 @@ const root = join(homedir(), '.jumpserve');
 const uploadAccess = { client: CLI_CLIENT_ID, scope: CLI_SCOPE, resource: LOCAL_ASSESSMENT_SOURCE_API, flag: '' };
 const resultAccess = { client: CLI_RESULTS_CLIENT_ID, scope: CLI_RESULTS_SCOPE, resource: PRIVATE_EVALUATION_RESULTS_API, flag: ' --results' };
 const loginHelp = access => `Run \`npm run assessment -- login${access.flag}\` for this JumpServe origin.`;
-const usage = `npm run assessment -- login [--results] [--url <origin>]
+const usage = `npm run assessment -- login [--results] [--callback-port <port>] [--url <origin>]
 npm run assessment -- start <paper.pdf> [--assessment-id <id>] [--json | --run [--yolo]] [--url <origin>]
 npm run assessment -- run <assessment-id> [--yolo] [--url <origin>]
 npm run assessment -- save-generator <paper.pdf> --assessment-id <id> --bundle <assessment.json> [--url <origin>]
@@ -87,11 +87,11 @@ async function exchange(origin, access, fields) {
   return { origin, access_token: data.access_token, refresh_token: data.refresh_token, expires_at: Date.now() + data.expires_in * 1000 };
 }
 
-async function login(origin, access) {
+async function login(origin, access, port) {
   const state = randomBytes(32).toString('base64url');
   const verifier = randomBytes(32).toString('base64url');
   const server = createServer();
-  server.listen(0, '127.0.0.1');
+  server.listen(port, '127.0.0.1');
   await once(server, 'listening');
   const callback = new URL(`http://127.0.0.1:${server.address().port}/callback`);
   const authorize = new URL(MCP_AUTHORIZE_PATH, origin);
@@ -268,6 +268,7 @@ async function main() {
   const { values, positionals: [command, input, ...extra] } = parseArgs({ allowPositionals: true, options: {
     url: { type: 'string' }, 'assessment-id': { type: 'string' }, json: { type: 'boolean' },
     run: { type: 'boolean' }, yolo: { type: 'boolean' }, results: { type: 'boolean' }, bundle: { type: 'string' },
+    'callback-port': { type: 'string' },
     'verifier-version': { type: 'string' }, help: { type: 'boolean', short: 'h' },
   } });
   if (values.help || !command) return console.log(usage);
@@ -277,8 +278,15 @@ async function main() {
   if (extra.length || (command !== 'start' && (values.json || values.run)) || (values.results && !['login', 'logout'].includes(command)) ||
       (!resultCommand && values.bundle) || (command !== 'save-verifier' && values['verifier-version']) ||
       (!resultCommand && command !== 'start' && values['assessment-id']) ||
+      (command !== 'login' && values['callback-port'] !== undefined) ||
       (values.yolo && command !== 'run' && !values.run) || (values.json && values.run)) throw new Error(usage);
-  if (command === 'login' && !input) return login(origin, access);
+  if (command === 'login' && !input) {
+    const port = values['callback-port'];
+    if (port !== undefined && (!/^\d{4,5}$/.test(port) || Number(port) < 1024 || Number(port) > 65535)) {
+      throw new Error('Use a callback port between 1024 and 65535.');
+    }
+    return login(origin, access, Number(port ?? 0));
+  }
   if (command === 'logout' && !input) {
     const path = sessionPath(origin, access);
     await updateSession(path, () => rm(path, { force: true }));

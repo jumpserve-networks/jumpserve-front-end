@@ -42,6 +42,14 @@ const replacements = {
   ...Object.fromEntries([['delay','getStudyData'],['leo','getLeoData'],['http2','getHttp2Data'],['ipv6','getIPv6Data'],['reliable','getReliableData']].map(([kind,name])=>['@/lib/'+kind+'-study-server',`export async function ${name}(){return globalThis.__routeState.studyData;}`])),
   ...Object.fromEntries([['delay','StudyDashboard'],['leo','LeoDashboard'],['http2','Http2Dashboard'],['ipv6','IPv6Dashboard'],['reliable','ReliableDashboard']].map(([kind,name])=>['@/app/components/'+kind+'-study/dashboard',boundary(name)])),
   '@/app/components/research-workflow/assessments': boundary('Assessments'),
+  '@/app/components/research-workflow/start-synthetic-batch': boundary('StartSyntheticBatch'),
+  '@/app/components/research-workflow/training-batch-progress': boundary('TrainingBatchProgress'),
+  '@/lib/synthetic-batch-server': `
+    export function getSyntheticBatchConfiguration(){return globalThis.__routeState.batchConfiguration??null;}
+    export function getTrainingBatchHistorySource(){return globalThis.__routeState.batchSource??null;}
+    export async function listTrainingBatches(source,page){globalThis.__routeState.historyRead={source,page};return globalThis.__routeState.batchHistory??{batches:[],hasMore:false};}
+    export async function readTrainingBatch(source,id,viewerId){globalThis.__routeState.batchRead={source,id,viewerId};return globalThis.__routeState.batch??null;}
+  `,
   '@/app/components/research-workflow/assessment-detail': boundary('AssessmentDetail'),
   '@/app/components/research-workflow/paper-assessment': "export function PaperAssessment(props){globalThis.__routeState.captures.push({name:'PaperAssessment',props});return globalThis.__routeReact.createElement(globalThis.__routeReact.Fragment,null,props.header,props.children);}",
   '@/app/components/research-workflow/paper-assessment-steps': boundary('PaperAssessmentSteps'),
@@ -61,6 +69,7 @@ const paths = {
   prompts: 'app/prompts/page.tsx', prompt: 'app/prompts/[versionId]/page.tsx',
   lookup: 'app/(modules)/congestion-control-emulated/test-lookup/page.tsx', benchmark: 'app/(modules)/congestion-control-emulated/benchmarks/page.tsx', benchmarkRun: 'app/(modules)/congestion-control-emulated/benchmarks/[jobId]/page.tsx',
   assessments: 'app/(modules)/research-verification/assessments/page.tsx', review: 'app/(modules)/research-verification/assessment/[assessmentId]/page.tsx', newPaper: 'app/(modules)/research-verification/new-assessment/page.tsx',
+  trainingBatches: 'app/(modules)/research-verification/training-batches/page.tsx', trainingBatch: 'app/(modules)/research-verification/training-batch/[id]/page.tsx',
   design: 'app/(modules)/research-verification/experiment-design/[studyId]/page.tsx', designClaim: 'app/(modules)/research-verification/design-claim/[studyId]/[claimId]/page.tsx', workspace: 'app/(modules)/research-verification/workspace/[studyId]/page.tsx', ideaEvidence: 'app/(modules)/research-ideas/workspace/[studyId]/page.tsx',
   newIdea: 'app/(modules)/research-ideas/new-idea/page.tsx', ideas: 'app/(modules)/research-ideas/workspace/page.tsx', idea: 'app/(modules)/research-ideas/ideas/[studyId]/page.tsx', publishedPaper: 'app/(modules)/research-verification/assessments/[assessmentId]/page.tsx', publishedIdea: 'app/(modules)/research-ideas/studies/[studyId]/page.tsx',
   oldAssessments: 'app/(modules)/research-verification/previous-assessments/page.tsx', oldWorkspace: 'app/(modules)/research-verification/workspace/page.tsx', oldNewStudy: 'app/(modules)/research-verification/new-study/page.tsx', oldQueue: 'app/(modules)/research-verification/experiment-queue/page.tsx',
@@ -291,20 +300,50 @@ test('profile and idea intake require the exact resumable Google action before r
 
 test('assessment list passes safe cursor and trimmed name with table as the default view', async () => {
   for (const [query, expected] of [[{}, {before: undefined, mine: false, name: '', view: 'table'}], [{before: ['first', 'second'], mine: ['1'], name: ['unexpected'], view: ['card']}, {before: 'invalid', mine: false, name: '', view: 'table'}], [{before: 'recorded-cursor', mine: '1', name: '  Example Ω  ', view: 'card'}, {before: 'recorded-cursor', mine: true, name: 'Example Ω', view: 'card'}]]) {
-    await renderPage('assessments', props({}, query)); assert.deepEqual(capture('Assessments'), {...expected, canStartSyntheticBatch: false});
+    await renderPage('assessments', props({}, query)); assert.deepEqual(capture('Assessments'), expected);
   }
   assert.deepEqual(state.authPaths, []);
 });
 
-test('the assessment list exposes the batch launch only to the configured owner on My Assessments', async () => {
-  process.env.JUMPSERVE_SYNTHETIC_BATCH_OWNER_ID = ID;
-  process.env.JUMPSERVE_SYNTHETIC_BATCH_INSTANCE_ID = 'i-0123456789abcdef0';
-  for (const [query, user, available] of [[{mine: '1'}, null, false], [{mine: '1'}, {...google(), id: OTHER}, false],
-    [{}, {...google(), id: ID}, false], [{mine: '1'}, {...google(), id: ID}, true]]) {
-    state.user = user;
-    await renderPage('assessments', props({}, query));
-    assert.equal(capture('Assessments').canStartSyntheticBatch, available);
-  }
+test('training batch history and progress are shared while launch belongs to the configured owner', async () => {
+  const batchId = 12;
+  const previousBatch = 9;
+  state.batchConfiguration = { ownerId: ID };
+  state.batchSource = { kind: 's3', bucket: 'training-batches' };
+  state.batchHistory = { batches: [
+    { id: batchId, status: 'running', recordedAt: '2026-11-02T00:00:00Z', passed: 1, total: 2 },
+    { id: previousBatch, status: 'passed', recordedAt: '2026-11-01T00:00:00Z', passed: 2, total: 2 },
+  ], hasMore: true };
+  state.user = { ...google(), id: OTHER };
+  const launchPath = BASE + '/training-batches';
+  const progressPath = BASE + '/training-batch/' + batchId;
+  const history = await renderPage('trainingBatches');
+  assert.deepEqual(state.authPaths, [launchPath]);
+  assert.deepEqual(state.historyRead, { source: state.batchSource, page: 1 });
+  assert.ok(history.querySelector(`a[href="${progressPath}"]`));
+  assert.ok(history.querySelector(`a[href="${BASE}/training-batch/${previousBatch}"]`));
+  assert.ok(history.querySelector(`a[href="${launchPath}?page=2"]`));
+  assert.equal(capture('StartSyntheticBatch'), undefined);
+  state.batch = { id: batchId, status: 'running' };
+  await renderPage('trainingBatch', props({ id: String(batchId) }));
+  assert.equal(state.authPaths.at(-1), progressPath);
+  assert.deepEqual(state.batchRead, { source: state.batchSource, id: batchId, viewerId: OTHER });
+  assert.deepEqual(capture('TrainingBatchProgress'), { id: batchId, initial: state.batch });
+
+  state.user = { ...google(), id: ID };
+  await renderPage('trainingBatches', props({}, { page: '2' }));
+  assert.equal(state.authPaths.at(-1), launchPath + '?page=2');
+  assert.deepEqual(state.historyRead, { source: state.batchSource, page: 2 });
+  assert.ok(capture('StartSyntheticBatch'));
+  state.captures.length = 0;
+  await renderPage('assessments', props({}, { mine: '1' }));
+  assert.equal(capture('StartSyntheticBatch'), undefined);
+  await assertNotFound(() => pages.trainingBatch.default(props({ id: 'invalid' })));
+
+  state.authError = Object.assign(new Error('Synthetic required login'), { code: 'AUTH_REQUIRED' });
+  delete state.historyRead;
+  await assert.rejects(pages.trainingBatches.default(props()), { code: 'AUTH_REQUIRED' });
+  assert.equal(state.historyRead, undefined);
 });
 
 test('canonical assessment validates saved queue identities while showing the owner wizard', async () => {

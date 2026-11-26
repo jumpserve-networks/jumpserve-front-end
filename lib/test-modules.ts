@@ -9,6 +9,9 @@ export const RESEARCH_WORKFLOW_MODULE_PATH = "/research-verification";
 export const NEW_ASSESSMENT_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/new-assessment`;
 export const ASSESSMENTS_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/assessments`;
 export const SYNTHETIC_BATCH_START_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/api/synthetic-batch/start`;
+export const TRAINING_BATCH_STATUS_API_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/api/synthetic-batch`;
+export const TRAINING_BATCHES_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/training-batches`;
+export const TRAINING_BATCH_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/training-batch`;
 export const ASSESSMENT_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/assessment`;
 export const PRIVATE_ASSESSMENTS_API_PATH = `${RESEARCH_WORKFLOW_MODULE_PATH}/api/private-assessments`;
 export const MY_ASSESSMENTS_PATH = `${ASSESSMENTS_PATH}?mine=1`;
@@ -113,6 +116,7 @@ export const RESEARCH_VERIFICATION_MODULE = {
   sections: [
     { href: NEW_ASSESSMENT_PATH, label: "Assess a Paper", description: "Assess a paper locally in Claude Code or Codex and share selected results on JumpServe.", paths: [NEW_ASSESSMENT_PATH, ASSESSMENT_PATH] },
     { href: ASSESSMENTS_PATH, label: "Assessments", description: "Browse submitted paper assessments, recorded progress and evidence.", paths: [ASSESSMENTS_PATH, `${RESEARCH_WORKFLOW_MODULE_PATH}/workspace`, `${RESEARCH_WORKFLOW_MODULE_PATH}/experiment-design`, `${RESEARCH_WORKFLOW_MODULE_PATH}/design-claim`] },
+    { href: TRAINING_BATCHES_PATH, label: "Training Batches", description: "Start and monitor synthetic paper assessments.", paths: [TRAINING_BATCHES_PATH], descendantPaths: [TRAINING_BATCH_PATH] },
     { href: `${RESEARCH_WORKFLOW_MODULE_PATH}/methods`, label: "Verification Methods", description: "Choose appropriate checks and understand validation criteria.", paths: [`${RESEARCH_WORKFLOW_MODULE_PATH}/methods`] },
   ],
 } as const satisfies TestModule;
