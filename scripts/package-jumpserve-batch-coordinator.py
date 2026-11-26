@@ -16,7 +16,7 @@ FILES = (
 )
 TREES = {
     "lib": (".ts", ".json"),
-    "scripts/lib": (".mjs",),
+    "scripts/lib": (".json", ".mjs"),
     "skills/jumpserve-paper-assessment": (".json", ".md", ".mjs", ".py", ".yaml", ".yml"),
     "skills/jumpserve-assessment-verifier": (".json", ".md", ".mjs", ".py", ".yaml", ".yml"),
     "answer-keys": (".json",),

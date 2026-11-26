@@ -22,9 +22,10 @@ async function main() {
   if (!mode && !apiKey) throw new Error('The stage requires a scoped Codex API key.');
   const job = JSON.parse(await readFile('job.json', 'utf8'));
   const review = batchCasePaths(join(process.cwd(), 'case'));
+  const onActivity = chatgpt ? event => console.log(JSON.stringify({ ...event, at: new Date().toISOString() })) : undefined;
   const workers = createContainerWorkers({ image: inspectBatchImage('jumpserve-batch'), snapshot: join(process.cwd(), 'skills'),
     workflowFiles: job.workflowFiles, timeoutMs: job.timeoutMs, apiKey,
-    chatgptAuthDirectory: chatgpt ? join(authVolume, 'session') : undefined, model: job.model });
+    chatgptAuthDirectory: chatgpt ? join(authVolume, 'session') : undefined, model: job.model, onActivity });
 
   let input;
   if (job.role === 'generator') {
@@ -33,6 +34,7 @@ async function main() {
     input = { paper: review.paper, output: review.artifactDirectory, paperSha256, guidance: job.guidance };
   } else if (job.role === 'verifier') {
     input = { ...review, guidance: job.guidance, rubric: job.rubric };
+    onActivity?.({ kind: 'review_preflight' });
     const checked = requireReviewPreflight(await workers.preflight(input), job.expected);
     await writeFile(join(review.caseDirectory, 'preflight.json'), JSON.stringify(checked), { flag: 'wx', mode: 0o600 });
   } else {

@@ -76,7 +76,8 @@ export function createEc2Workers({ settings, snapshot, workflowFiles, timeoutMs,
       }
       await copyFile(join(scripts, 'jumpserve-synthetic-batch.Dockerfile'), join(payload, 'Dockerfile'));
       await copyFile(join(scripts, 'jumpserve-synthetic-ec2-worker.mjs'), join(payload, 'worker.mjs'));
-      for (const file of ['jumpserve-synthetic-containers.mjs', 'jumpserve-synthetic-worker-inputs.mjs']) {
+      for (const file of ['jumpserve-synthetic-containers.mjs', 'jumpserve-synthetic-worker-inputs.mjs',
+        'jumpserve-synthetic-activity.mjs', 'jumpserve-synthetic-activity-schema.json']) {
         await copyFile(join(scripts, 'lib', file), join(payload, 'lib', file));
       }
       await writeFile(join(payload, 'job.json'), JSON.stringify({ role, guidance: input.guidance, model, timeoutMs, workflowFiles,

@@ -2,10 +2,14 @@ import "server-only";
 import { GetObjectCommand, paginateListObjectsV2, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { SendCommandCommand, SSMClient } from "@aws-sdk/client-ssm";
 import { listLocalTrainingBatches, readLocalTrainingBatch } from "@/lib/local-training-batch-history";
+import { projectTrainingBatchActivity } from "@/lib/training-batch-activity";
 import { isTrainingBatchId, parseTrainingBatchId, type TrainingBatch, type TrainingBatchSnapshot } from "@/lib/training-batch";
 
 const ssm = new SSMClient({ region: "us-east-1", maxAttempts: 1 });
-const s3 = new S3Client({ region: "us-east-1" });
+const localProfile = process.env.NODE_ENV === "development"
+  ? process.env.JUMPSERVE_TRAINING_BATCH_AWS_PROFILE?.trim() || undefined
+  : undefined;
+const s3 = new S3Client({ region: "us-east-1", profile: localProfile });
 
 type BatchConfiguration = { ownerId: string; instanceId: string; bucket: string };
 type BatchRequest = { ownerId: string; requestedAt: string; dispatch: "requested" | "unconfirmed" };
@@ -119,6 +123,7 @@ export async function readTrainingBatch(source: BatchHistorySource, id: number, 
   const canViewAssessmentLinks = viewerId !== undefined && request.ownerId === viewerId;
   return {
     id, requestedAt, status, updatedAt, startedAt, finishedAt, stopPhase,
+    ...(snapshot.activityAvailable === true ? { activityAvailable: true } : {}),
     stale: (status === "preparing" || status === "running") && Date.now() - Date.parse(updatedAt) > 60_000,
     versions: { generator: versions.generator, verifier: versions.verifier },
     papers: papers.map(({ id, fileName, status, assessmentId, score }) => ({
@@ -126,6 +131,18 @@ export async function readTrainingBatch(source: BatchHistorySource, id: number, 
       score: score ? { earned: score.earned, maximum: score.maximum } : null,
     })),
   };
+}
+
+export async function readTrainingBatchActivity(bucket: string, id: number, paperId: string) {
+  const [request, progress] = await Promise.all([
+    getRecord<BatchRequest>(bucket, requestKey(id)),
+    getRecord<TrainingBatchSnapshot>(bucket, `progress/${id}.json`),
+  ]);
+  if (!request || progress?.value.activityAvailable !== true || !progress.value.papers.some(paper => paper.id === paperId)) {
+    return null;
+  }
+  const activity = await getRecord<unknown>(bucket, `activity/${id}/${paperId}.json`);
+  return projectTrainingBatchActivity(activity?.value);
 }
 
 async function listCloudBatchIds(bucket: string) {

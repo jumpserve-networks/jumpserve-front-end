@@ -1,7 +1,7 @@
 """Provision and transfer one synthetic batch stage through an AWS testbed lease."""
 
 import argparse
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager, nullcontext, suppress
 from datetime import datetime, timezone
 import importlib.util
 import json
@@ -154,11 +154,19 @@ def process_group(argv, **streams):
             process.wait()
 
 
-def ssh_command(argv, command, timeout, *, data=None, source=None):
+def ssh_command(argv, command, timeout, *, data=None, source=None, stdout=subprocess.DEVNULL):
     with process_group([*argv, command], stdin=source if source is not None else subprocess.PIPE,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) as process:
+                       stdout=stdout, stderr=subprocess.DEVNULL) as process:
         process.communicate(input=data, timeout=timeout)
         return process.returncode
+
+
+def report_activity(stage, kind):
+    try:
+        with (stage / "activity.jsonl").open("a", encoding="utf-8") as log:
+            log.write(json.dumps({"kind": kind, "at": datetime.now(timezone.utc).isoformat()}) + "\n")
+    except OSError:
+        print("Could not record worker activity.", file=sys.stderr)
 
 
 def wait_for_forward(tunnel, port, timeout):
@@ -237,6 +245,8 @@ def worker_driver(stage, role, auth, volume):
             "-o", "GlobalKnownHostsFile=/dev/null", "-o", "ServerAliveInterval=10", "-o", "ServerAliveCountMax=3",
             "-o", "ConnectTimeout=10", "-o", f"ProxyCommand={proxy}", "-i", str(stage / "identity"), f"ec2-user@{instance_id}"]
     deadline = datetime.fromisoformat(os.environ["JUMPSERVE_AWS_EXPIRES_AT"].replace("Z", "+00:00"))
+    if auth == "worker-chatgpt":
+        report_activity(stage, "worker_connecting")
 
     def remaining():
         return max(1, (deadline - datetime.now(timezone.utc)).total_seconds() - 5)
@@ -252,6 +262,8 @@ def worker_driver(stage, role, auth, volume):
     else:
         raise RuntimeError(f"EC2 {role} worker {instance_id} did not become ready over Session Manager.")
 
+    if auth == "worker-chatgpt":
+        report_activity(stage, "inputs_transferring")
     with (stage / "input.tar.gz").open("rb") as source:
         if ssh_command(argv, f"umask 077; mkdir {REMOTE} && tar -xzf - -C {REMOTE}", remaining(), source=source):
             raise RuntimeError(f"Could not transfer the {role} inputs to the leased EC2 instance.")
@@ -267,14 +279,22 @@ def worker_driver(stage, role, auth, volume):
         if not mounted:
             raise RuntimeError("Could not mount the dedicated Codex credential volume on the worker.")
         try:
-            status = ssh_command(argv, f"cd {REMOTE} && {build} > build.log 2>&1 && node-24 worker.mjs --chatgpt-volume > worker.log 2>&1",
-                                 remaining())
+            report_activity(stage, "environment_building")
+            command = f"cd {REMOTE} && {build} > build.log 2>&1 && node-24 worker.mjs --chatgpt-volume 2> worker.log"
+            try:
+                activity = (stage / "activity.jsonl").open("ab")
+            except OSError:
+                activity = None
+            with (activity if activity is not None else nullcontext(subprocess.DEVNULL)) as stdout:
+                status = ssh_command(argv, command, remaining(), stdout=stdout)
         finally:
             if ssh_command(argv, "sudo umount /mnt/jumpserve-codex", min(30, remaining())):
                 raise RuntimeError("Could not unmount the Codex credential volume before worker teardown.")
     else:
         status = ssh_command(argv, f"cd {REMOTE} && {build} > build.log 2>&1 && node-24 worker.mjs > worker.log 2>&1",
                              remaining(), data=key + b"\n")
+    if auth == "worker-chatgpt":
+        report_activity(stage, "results_collecting")
     retrieved = stage / "retrieved"
     retrieved.mkdir(mode=0o700)
     targets = f"build.log worker.log case/{role} case/{role}.log"
@@ -288,6 +308,8 @@ def worker_driver(stage, role, auth, volume):
             raise RuntimeError(f"Could not retrieve the {role} artifacts from the EC2 instance.")
     if status:
         raise RuntimeError(f"EC2 {role} worker stopped. See its retrieved logs in {stage}.")
+    if auth == "worker-chatgpt":
+        report_activity(stage, "worker_completed")
     if auth == "chatgpt" and role == "verifier":
         # Only the authenticated local CLI supplies the final scorecard in ChatGPT mode.
         scorecard = retrieved / "case" / "verifier" / "scorecard.json"
@@ -363,6 +385,8 @@ def main():
     (stage / "testbed.json").write_text(json.dumps(template(public_key, args.instance_profile, args.instance_type,
                                                           args.worker_auth_volume, args.worker_zone)))
     input_archive(stage / "payload", stage / "input.tar.gz")
+    if args.codex_auth == "worker-chatgpt":
+        report_activity(stage, "worker_provisioning")
     os.environ["AWS_IGNORE_CONFIGURED_ENDPOINT_URLS"] = "true"
     os.execv(sys.executable, [sys.executable, "-B", str(LEASE), "run", "--assessment-id", args.assessment_id,
                              "--lease", str(stage / "aws-lease"), "--profile", args.profile,

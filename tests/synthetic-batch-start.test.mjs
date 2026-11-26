@@ -16,6 +16,7 @@ const hook = registerHooks({ resolve(specifier, context, next) {
 } });
 const { POST } = await import('../app/(modules)/research-verification/api/synthetic-batch/start/route.ts');
 const { GET } = await import('../app/(modules)/research-verification/api/synthetic-batch/[id]/route.ts');
+const { GET: ACTIVITY } = await import('../app/(modules)/research-verification/api/synthetic-batch/[id]/activity/route.ts');
 const { getTrainingBatchHistorySource, listTrainingBatches } = await import('../lib/synthetic-batch-server.ts');
 hook.deregister();
 
@@ -37,6 +38,8 @@ const request = ({ requestOrigin = origin, query = '', body } = {}) => new Reque
   { method: 'POST', headers: { origin: requestOrigin }, body },
 );
 const status = (id = batchId) => GET(new Request(origin), { params: Promise.resolve({ id: String(id) }) });
+const activity = paper => ACTIVITY(new Request(`${origin}?paper=${encodeURIComponent(paper)}`),
+  { params: Promise.resolve({ id: String(batchId) }) });
 
 function mockStorage(t, listings = {}) {
   const records = new Map();
@@ -243,4 +246,30 @@ test('a request-store failure prevents dispatch', async t => {
   const send = t.mock.method(SSMClient.prototype, 'send', async () => assert.fail('AWS send must be blocked'));
   assert.equal((await POST(request())).status, 502);
   assert.equal(send.mock.callCount(), 0);
+});
+
+test('signed-in viewers can see bounded worker activity without private terminal content', async t => {
+  const { records, client } = mockStorage(t);
+  const at = '2026-11-01T00:00:00Z';
+  records.set(`requests/${batchId}.json`, { ownerId, requestedAt: at, dispatch: 'requested' });
+  records.set(`progress/${batchId}.json`, { activityAvailable: true, papers: [{ id: 'JSB-E01' }] });
+  records.set(`activity/${batchId}/JSB-E01.json`, { generator: [
+    { at, kind: 'command_started', program: 'python3', command: 'python3 /private' },
+    { at, kind: 'command_completed', program: '<script>', exitCode: 2, output: 'private' },
+    { at, kind: 'agent_message', text: 'private' },
+    { at: 'private', kind: 'turn_started' },
+  ] });
+  globalThis.__syntheticBatchUser = null;
+  assert.equal((await activity('JSB-E01')).status, 401);
+  assert.equal((await activity('../../other')).status, 404);
+  assert.equal(client.mock.callCount(), 0);
+  globalThis.__syntheticBatchUser = { id: 'a-signed-in-viewer' };
+  assert.equal((await activity('JSB-E02')).status, 404);
+  const response = await activity('JSB-E01');
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'private, no-store');
+  assert.deepEqual(await response.json(), { generator: [
+    { at, kind: 'command_started', program: 'python3' },
+    { at, kind: 'command_completed', exitCode: 2 },
+  ], verifier: [] });
 });
