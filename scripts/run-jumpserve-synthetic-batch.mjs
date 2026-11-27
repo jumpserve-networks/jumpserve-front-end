@@ -87,7 +87,9 @@ async function main() {
     process.exitCode = 1;
   } else {
     const fullCredit = state.cases.filter(item => item.status === 'passed').length;
-    console.log(`\nCompleted all ${cases.length} papers. ${fullCredit} of ${cases.length} earned full credit.`);
+    const verificationErrors = state.cases.filter(item => item.status === 'verification_error').length;
+    const summary = verificationErrors ? ` ${verificationErrors} had a verification error.` : '';
+    console.log(`\nProcessed all ${cases.length} papers. ${fullCredit} of ${cases.length} earned full credit.${summary}`);
   }
 }
 

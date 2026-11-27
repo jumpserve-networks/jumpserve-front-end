@@ -213,10 +213,10 @@ test('a one-point loss is recorded and the next paper still runs', async t => {
   assert.equal(lab.calls.length, 9);
 });
 
-test('five workers reuse their sessions for queued papers after saving each Verifier result', { timeout: 5_000 }, async t => {
-  const paperIds = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+test('eight workers reuse their sessions for queued papers after saving each Verifier result', { timeout: 5_000 }, async t => {
+  const paperIds = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
   const lab = await fixture(t, paperIds);
-  const poolSize = 5;
+  const poolSize = 8;
   const initialWorkersReady = Promise.withResolvers();
   const queuedPaperStarted = Promise.withResolvers();
   const launched = new Set();
@@ -236,7 +236,7 @@ test('five workers reuse their sessions for queued papers after saving each Veri
           assert.deepEqual([...launched].sort(), paperIds.slice(0, poolSize));
           initialWorkersReady.resolve();
         }
-        if (paperId === 'F') queuedPaperStarted.resolve();
+        if (paperId === paperIds[poolSize]) queuedPaperStarted.resolve();
         await initialWorkersReady.promise;
         if (paperId === 'C') await queuedPaperStarted.promise;
         signal.throwIfAborted();
@@ -268,6 +268,54 @@ test('five workers reuse their sessions for queued papers after saving each Veri
   assert.equal(reviewed.size, paperIds.length);
   assert.equal(new Set(result.cases.map(item => item.database.assessment_id)).size, paperIds.length);
   assert.deepEqual(result.cases.map(item => item.status), paperIds.map(id => id === 'B' ? 'completed' : 'passed'));
+  assert.deepEqual(JSON.parse(await readFile(join(lab.output, 'batch.json'))), result);
+});
+
+test('a malformed scorecard leaves the other Verifier running and frees the session for the queue', { timeout: 5_000 }, async t => {
+  const lab = await fixture(t);
+  const otherVerifierStarted = Promise.withResolvers();
+  const queuedPaperStarted = Promise.withResolvers();
+  const generated = [];
+  const verified = [];
+  const worker = {
+    async generate({ signal, ...input }) {
+      signal.throwIfAborted();
+      await lab.generate(input);
+      if (input.paperSha256 === lab.cases[2].paperSha256) queuedPaperStarted.resolve();
+    },
+    async reviewOnInstance(input) {
+      const checked = await lab.preflight(input);
+      if (checked.paper_id === 'A') {
+        await otherVerifierStarted.promise;
+        await lab.score(input, 2, { evidence_integrity: { status: 'verified', details: 'Original note.' } });
+      } else {
+        if (checked.paper_id === 'B') {
+          otherVerifierStarted.resolve();
+          await queuedPaperStarted.promise;
+        }
+        input.signal.throwIfAborted();
+        await lab.score(input, 2);
+      }
+      return checked;
+    },
+  };
+  const result = await runSyntheticBatch({ ...lab, workerPool: [worker, worker], persistence: {
+    generator: async id => { generated.push(id); return id; },
+    verifier: async (id, _artifact, grade) => { verified.push(grade.paper_id); return id; },
+  } });
+  assert.equal(result.status, 'completed');
+  assert.equal(result.stop, undefined);
+  assert.deepEqual(result.cases.map(item => item.status), ['verification_error', 'passed', 'passed']);
+  assert.equal(generated.length, 3);
+  assert.deepEqual(verified.sort(), ['B', 'C']);
+  const failed = result.cases[0];
+  assert.ok(failed.database.generator_result_id);
+  assert.equal(failed.database.verification_id, undefined);
+  assert.equal(failed.score, undefined);
+  assert.equal(failed.steps.verifier.status, 'stopped');
+  assert.match(failed.verification_error, /evidence_integrity/);
+  const raw = JSON.parse(await readFile(join(lab.output, 'A', 'verifier', 'scorecard.json'), 'utf8'));
+  assert.deepEqual(raw.evidence_integrity, { status: 'verified', details: 'Original note.' });
   assert.deepEqual(JSON.parse(await readFile(join(lab.output, 'batch.json'))), result);
 });
 
@@ -772,9 +820,24 @@ test('invalid scorecard and timed-out Generator both halt before the next paper'
 test('format-only recovery retains the original grade and runs the remaining papers', async t => {
   for (const earned of [2, 1]) {
     const lab = await fixture(t);
-    await runSyntheticBatch({ ...lab, verify: input => lab.score(input, earned,
-      { evidence_integrity: { status: 'verified', pdf_bytes_checked: false } }) });
-    // Emulate the raw output from a run using the strict, earlier reader.
+    const controller = new AbortController();
+    const legacy = await runSyntheticBatch({ ...lab, signal: controller.signal,
+      generate({ signal, ...input }) {
+        signal.throwIfAborted();
+        return lab.generate(input);
+      },
+      async verify(input) {
+        await lab.score(input, earned, { evidence_integrity: { status: 'verified', pdf_bytes_checked: false } });
+        controller.abort(new Error('End the legacy fixture after the first paper.'));
+      },
+    });
+    // Recreate the journal and raw output from a sequential run that stopped on the old format error.
+    const first = legacy.cases[0];
+    legacy.status = 'stopped';
+    legacy.stop = { paper_id: 'A', phase: 'verifying', reason: first.verification_error };
+    first.status = 'stopped';
+    delete first.verification_error;
+    await writeFile(join(lab.output, 'batch.json'), JSON.stringify(legacy));
     const savedPath = join(lab.output, 'A', 'verifier', 'scorecard.json');
     const saved = JSON.parse(await readFile(savedPath, 'utf8'));
     saved.evidence_integrity.pdf_bytes_checked = true;
@@ -801,6 +864,6 @@ test('only redundant successful preflight metadata can be omitted from a scoreca
   assert.equal(result.status, 'passed');
   const rejected = await runSyntheticBatch({ ...lab, output: `${lab.output}-extra`, verify: input => lab.score(input, 2,
     { preflight: { exit_code: 0, pdf_bytes_checked: true, extra_failure: 'unrecognized evidence problem' } }) });
-  assert.equal(rejected.status, 'stopped');
-  assert.equal(rejected.stop.paper_id, 'A');
+  assert.equal(rejected.status, 'completed');
+  assert.ok(rejected.cases.every(item => item.status === 'verification_error' && item.score === undefined));
 });

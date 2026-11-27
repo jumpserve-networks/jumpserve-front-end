@@ -15,7 +15,7 @@ import time
 
 
 HEARTBEAT_SECONDS = 20
-PAPER_PHASES = {"pending", "generating", "verifying", "passed", "completed", "stopped", "interrupted"}
+PAPER_PHASES = {"pending", "generating", "verifying", "passed", "completed", "verification_error", "stopped", "interrupted"}
 STEP_STATUSES = {"running", "completed", "stopped", "interrupted"}
 STOP_PHASES = {"generating", "verifying", "saving_generator", "saving_verifier"}
 BATCH_ID = re.compile(r"[1-9][0-9]{0,9}")
