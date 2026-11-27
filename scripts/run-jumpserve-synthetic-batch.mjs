@@ -26,7 +26,7 @@ async function main() {
   process.once('SIGTERM', interrupt);
   const { signal } = controller;
   const volumes = values['worker-auth-volume'] ?? [];
-  const parallel = values.parallel === true;
+  const useSessionPool = values.parallel === true;
   const workerZone = values['worker-zone'];
   const workerSubnet = values['worker-subnet'];
   const workerSecurityGroup = values['worker-security-group'];
@@ -35,20 +35,18 @@ async function main() {
     throw new Error('The coordinator requires a numbered output directory and a worker Availability Zone.');
   }
   const cases = await inventory(join(root, 'pdfs/synthetic_papers'), join(root, 'answer-keys'));
-  const workerCount = parallel ? cases.length : 1;
-  if (volumes.length < workerCount || (!parallel && volumes.length !== 1) ||
+  const workerCount = Math.min(volumes.length, cases.length);
+  if (!volumes.length || (!useSessionPool && volumes.length !== 1) ||
       volumes.some(volume => !/^vol-[a-f0-9]{17}$/.test(volume)) || new Set(volumes).size !== volumes.length) {
-    throw new Error(parallel ? `Configure one distinct, signed-in worker volume per paper (${workerCount} required).`
+    throw new Error(useSessionPool ? 'Configure distinct, signed-in worker volumes for the session pool.'
       : 'Configure the existing signed-in worker volume.');
   }
-  if ((workerCount > 1 || workerSubnet || workerSecurityGroup) &&
+  if ((useSessionPool || workerSubnet || workerSecurityGroup) &&
       (!/^subnet-[a-f0-9]{17}$/.test(workerSubnet ?? '') || !/^sg-[a-f0-9]{17}$/.test(workerSecurityGroup ?? ''))) {
     throw new Error('Configure the dedicated training worker subnet and security group for parallel batches.');
   }
   const settings = { profile: 'jumpserve-experiment', region: 'us-east-1', instanceProfile: 'JumpServeExperimentWorkload-SSM',
-    instanceType: 't3.medium', workerZone, workerSubnet, workerSecurityGroup,
-    ...(parallel ? { workerAuthVolumes: new Map(cases.map(({ paperId }, index) => [paperId, volumes[index]])) }
-      : { workerAuthVolume: volumes[0] }) };
+    instanceType: 't3.medium', workerZone, workerSubnet, workerSecurityGroup };
   signal.throwIfAborted();
   const ec2 = inspectEc2Batch(settings);
   const chosen = resolve(values.output);
@@ -69,10 +67,12 @@ async function main() {
   const runtime = { ...ec2, model: null, codex_auth: 'worker-chatgpt', timeout_minutes: timeoutMinutes,
     parallel_papers: workerCount,
     skill_snapshot: snapshot, verifier_skill_version: verifierVersion, results_origin: results.origin };
-  const workers = createEc2Workers({ snapshot, workflowFiles, timeoutMs: timeoutMinutes * 60_000, settings,
-    openTerminal: createTerminalPublisher({ batchId: parseTrainingBatchId(basename(output)) }) });
-  const progress = createBatchProgressReporter(guidance, process.stdout, undefined, { parallel });
-  const state = await runSyntheticBatch({ output, cases, guidance, runtime, parallel, signal, ...workers,
+  const openTerminal = createTerminalPublisher({ batchId: parseTrainingBatchId(basename(output)) });
+  const workerPool = volumes.slice(0, workerCount).map(workerAuthVolume => createEc2Workers({
+    snapshot, workflowFiles, timeoutMs: timeoutMinutes * 60_000, settings: { ...settings, workerAuthVolume }, openTerminal,
+  }));
+  const progress = createBatchProgressReporter(guidance, process.stdout, undefined, { parallel: workerCount > 1 });
+  const state = await runSyntheticBatch({ output, cases, guidance, runtime, workerPool, signal,
     persistence: {
       generator: results.generator,
       verifier: (id, artifact, grade) => results.verifier(id, artifact, grade, verifierVersion),

@@ -212,8 +212,11 @@ function evaluateScorecard(testCase, artifact, grade, preflight, pinned) {
 }
 
 async function runBatch({ output, cases, guidance, runtime, generate, preflight, verify, reviewOnInstance,
-  persistence, recoverFormat = false, parallel = false, signal: externalSignal, progress = () => {},
+  workerPool = [{ generate, preflight, verify, reviewOnInstance }], persistence, recoverFormat = false,
+  signal: externalSignal, progress = () => {},
   now = () => performance.now() }) {
+  if (!workerPool.length) throw new Error('A synthetic batch requires at least one worker.');
+  const parallel = workerPool.length > 1;
   if (parallel && recoverFormat) throw new Error('Format recovery requires the original sequential batch.');
   const controller = new AbortController();
   const signal = externalSignal ? AbortSignal.any([externalSignal, controller.signal]) : controller.signal;
@@ -268,7 +271,7 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
     const testCase = cases[index];
     const review = reviewInputs(join(output, testCase.paperId), verifierGuidance, testCase.rubric);
     const artifact = await checkedArtifact(testCase, review, generatorGuidance);
-    const checked = await checkedPreflight(testCase, artifact, review, preflight);
+    const checked = await checkedPreflight(testCase, artifact, review, workerPool[0].preflight);
     const { grade, corrected } = await readGrade(review, checked);
     const { score, status, problem } = evaluateScorecard(testCase, artifact, grade, checked, verifierGuidance);
     if (!corrected) throw new Error('The saved scorecard did not contain the expected format error.');
@@ -290,7 +293,7 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
     await mkdir(output, { mode: 0o700 });
   }
   await persist();
-  async function runPaper(index) {
+  async function runPaper(index, { generate, preflight, verify, reviewOnInstance }) {
     const testCase = cases[index];
     const item = state.cases[index];
     const paperDirectory = join(output, testCase.paperId);
@@ -370,12 +373,20 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
     }
   }
 
+  let nextIndex = firstIndex;
+  async function runWorker(worker) {
+    while (!signal.aborted && nextIndex < cases.length) {
+      const index = nextIndex++;
+      await runPaper(index, worker);
+    }
+  }
+
   if (parallel) {
-    const outcomes = await Promise.allSettled(cases.map((_, index) => runPaper(index)));
+    const outcomes = await Promise.allSettled(workerPool.map(runWorker));
     const rejected = outcomes.find(outcome => outcome.status === 'rejected');
     if (rejected) throw rejected.reason;
   } else {
-    for (let index = firstIndex; index < cases.length && !signal.aborted; index++) await runPaper(index);
+    await runWorker(workerPool[0]);
   }
   const completionStatus = state.cases.every(item => item.status === 'passed') ? 'passed' : 'completed';
   state.status = stop ? 'stopped' : signal.aborted ? 'interrupted' : completionStatus;

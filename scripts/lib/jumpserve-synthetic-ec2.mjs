@@ -62,18 +62,17 @@ async function executeStage(args, apiKey, terminal, cancellation) {
 }
 
 export function createEc2Workers({ settings, snapshot, workflowFiles, timeoutMs, model, apiKey, openTerminal }) {
+  const workerAuth = settings.workerAuthVolume;
+  const authMode = workerAuth ? 'worker-chatgpt' : apiKey === undefined ? 'chatgpt' : 'api-key';
+  const live = Boolean(openTerminal && workerAuth);
   async function stage(role, input) {
     input.signal?.throwIfAborted();
     const caseDirectory = dirname(input.output);
     const paperId = basename(caseDirectory);
-    const workerAuth = settings.workerAuthVolumes ? settings.workerAuthVolumes.get(paperId) : settings.workerAuthVolume;
-    if (settings.workerAuthVolumes && !workerAuth) throw new Error(`No worker sign-in volume is assigned to ${paperId}.`);
-    const authMode = workerAuth ? 'worker-chatgpt' : apiKey === undefined ? 'chatgpt' : 'api-key';
     const stageDirectory = join(caseDirectory, `ec2-${role}`);
     const payload = join(stageDirectory, 'payload');
     const staged = batchCasePaths(join(payload, 'case'));
     const isVerifier = role === 'verifier';
-    const live = Boolean(openTerminal && workerAuth);
     await mkdir(stageDirectory, { mode: 0o700 });
     await mkdir(isVerifier ? staged.output : staged.artifactDirectory, { recursive: true, mode: 0o700 });
     await mkdir(join(payload, 'lib'), { mode: 0o700 });
