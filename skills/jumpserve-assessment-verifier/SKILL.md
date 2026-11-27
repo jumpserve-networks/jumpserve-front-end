@@ -2,7 +2,7 @@
 name: jumpserve-assessment-verifier
 description: Independently grade a saved JumpServe paper assessment against its matching answer key and local evidence. Use for fresh experiment reviews, scored benchmark replays, or claim-by-claim scorecards after the Generator finishes.
 metadata:
-  version: "1.0.0"
+  version: "1.0.1"
 ---
 
 # Verifier

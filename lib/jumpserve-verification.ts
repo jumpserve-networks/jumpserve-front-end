@@ -99,10 +99,22 @@ function samePoints(expected: number, total: number) {
   return Math.abs(expected - total) <= 1e-8;
 }
 
-export function prepareVerifierResult(raw: unknown, input: unknown) {
+function normalizeVerifierScorecard(input: unknown) {
+  if (!input || typeof input !== "object" || Array.isArray(input) || !("evidence_integrity" in input)) return input;
+  const integrity = input.evidence_integrity;
+  if (!integrity || typeof integrity !== "object" || Array.isArray(integrity) ||
+      !Object.hasOwn(integrity, "details") || Object.hasOwn(integrity, "detail")) return input;
+
+  const { details, ...fields } = integrity as Record<string, unknown>;
+  if (typeof details !== "string") return input;
+  return { ...input, evidence_integrity: { ...fields, detail: details } };
+}
+
+export function prepareVerifierResult(raw: unknown, scorecard: unknown) {
   if (typeof raw !== "string" || Buffer.byteLength(raw) > MAX_REVIEWED_ASSESSMENT_BYTES) {
     throw new Error("Provide the original reviewed JSON text, up to 650 KB.");
   }
+  const input = normalizeVerifierScorecard(scorecard);
   if (!validateScorecard(input)) {
     throw new Error(`Scorecard does not match jumpserve-verifier-scorecard-v1 at ${validateScorecard.errors?.[0]?.instancePath || "/"}.`);
   }

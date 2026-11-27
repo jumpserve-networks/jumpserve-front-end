@@ -10,7 +10,7 @@ from zipfile import ZipFile, ZipInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = "https://jumpserve.quaint-lab.org"
-VERSION = "1.7.3"
+VERSION = "1.7.4"
 SKILL = "jumpserve-paper-assessment"
 VERIFIER = "jumpserve-assessment-verifier"
 COACH = "jumpserve-assessment-coach"

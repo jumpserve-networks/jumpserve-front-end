@@ -73,6 +73,25 @@ test('scorecard binding checks the exact original bytes, claim verdicts, and pri
   assert.throws(() => prepareVerifierResult(raw, grade), /inconsistent/);
 });
 
+test('scorecard ingestion repairs only a string details alias on a copy', () => {
+  const raw = JSON.stringify(fixture());
+  const original = scorecard(raw, { evidence_integrity: { status: 'verified', verified_runs: 0, details: 'Preflight note.' } });
+  const expected = scorecard(raw, { evidence_integrity: { status: 'verified', verified_runs: 0, detail: 'Preflight note.' } });
+  const result = prepareVerifierResult(raw, original);
+  assert.deepEqual(result.scorecard, expected);
+  assert.equal(result.hash, prepareVerifierResult(raw, expected).hash);
+  assert.equal(original.evidence_integrity.details, 'Preflight note.');
+  assert.equal(Object.hasOwn(original.evidence_integrity, 'detail'), false);
+
+  for (const changes of [{ detail: 'Existing note.' }, { details: ['A note.'] }, { details: '' }, { details: 'a'.repeat(1001) }, { extra: true }]) {
+    const invalid = { ...original, evidence_integrity: { ...original.evidence_integrity, ...changes } };
+    assert.throws(() => prepareVerifierResult(raw, invalid), /does not match .* at \/evidence_integrity/);
+  }
+  assert.throws(() => prepareVerifierResult(raw + '\n', original), /does not match the assessment SHA-256/);
+  const invalidTotal = { ...original, score: { ...original.score, earned: 1 } };
+  assert.throws(() => prepareVerifierResult(raw, invalidTotal), /Score totals/);
+});
+
 test('synthetic replay scorecards bind to an analysis artifact without experiment runs', () => {
   const analysis = { version: 'jumpserve-replay-analysis-v1', paper: { sha256: hash }, skill_instructions: provenance,
     scenario: 'synthetic_decision_fixture', claims: [{ id: 'c1', claim: 'A synthetic comparison.',
@@ -336,13 +355,14 @@ test('a real MCP SDK client discovers and calls the JumpServe tools', async () =
     const saved = await client.callTool({ name: 'save_generator_result', arguments: { bundle, assessment_id: id } });
     assert.deepEqual(saved.structuredContent, { generator_result_id: id, status: 'saved_private' });
     const raw = JSON.stringify(bundle, null, 2);
-    const grade = scorecard(raw);
+    const evidenceIntegrity = { status: 'verified', verified_runs: 0 };
+    const grade = scorecard(raw, { evidence_integrity: { ...evidenceIntegrity, details: 'Preflight note.' } });
     const verified = await client.callTool({ name: 'save_verifier_result', arguments: {
       assessment_id: id, assessment_json: raw, scorecard: grade, verifier_version: '1.0.0',
     } });
     assert.deepEqual(verified.structuredContent, { verification_id: id, status: 'saved_private' });
     assert.equal(verifierResult.generatorHash, generatorResult.hash);
-    assert.deepEqual(verifierResult.scorecard, grade);
+    assert.deepEqual(verifierResult.scorecard, { ...grade, evidence_integrity: { ...evidenceIntegrity, detail: 'Preflight note.' } });
     const report = coachReport();
     assert.equal((await client.callTool({ name: 'save_coach_report', arguments: { report: { ...report, sources: [] } } })).isError, true);
     assert.equal(coachResult, undefined);
