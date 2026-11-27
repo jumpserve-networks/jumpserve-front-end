@@ -43,15 +43,38 @@ test('the batch launcher sends one request and navigates to its own progress pag
   globalThis.__trainingBatchNavigate = path => navigations.push(path);
   let resolve;
   const fetch = t.mock.method(globalThis, 'fetch', () => new Promise(done => { resolve = done; }));
-  render(React.createElement(StartSyntheticBatch));
+  const { container } = render(React.createElement(StartSyntheticBatch));
   const button = screen.getByRole('button', { name: 'Start synthetic batch' });
+  assert.equal(container.querySelector('.training-batch-launch-graphic'), null);
   fireEvent.click(button);
   fireEvent.click(button);
   assert.equal(fetch.mock.callCount(), 1);
   assert.deepEqual(fetch.mock.calls[0].arguments, ['/research-verification/api/synthetic-batch/start', { method: 'POST' }]);
   assert.ok(screen.getByRole('button', { name: 'Requesting start…' }).disabled);
+  assert.equal(screen.getByRole('status').textContent, 'Waiting for the AWS coordinator');
+  assert.equal(container.querySelector('.training-batch-launch-graphic')?.getAttribute('aria-hidden'), 'true');
   await act(async () => resolve(Response.json({ batchId }, { status: 202 })));
   assert.deepEqual(navigations, [`/research-verification/training-batch/${batchId}`]);
+});
+
+test('the launch graphic stays through coordinator preparation and disappears when the batch runs', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const initial = { id: 12, status: 'requested', stale: false, requestedAt: null, startedAt: null,
+    updatedAt: null, finishedAt: null, stopPhase: null, versions: { generator: null, verifier: null }, papers: [] };
+  const statuses = ['unconfirmed', 'preparing', 'running'];
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ ...initial, status: statuses.shift() }));
+  const { container } = render(React.createElement(TrainingBatchProgress, { id: 12, initial }));
+  const graphic = () => container.querySelector('.training-batch-launch-graphic');
+  assert.ok(graphic());
+  assert.equal(screen.getByRole('status').textContent, 'Waiting for the coordinator');
+  for (const label of ['Start unconfirmed', 'Preparing the batch']) {
+    await act(async () => { t.mock.timers.tick(10_000); });
+    assert.ok(graphic());
+    assert.equal(screen.getByRole('status').textContent, label);
+  }
+  await act(async () => { t.mock.timers.tick(10_000); });
+  assert.equal(graphic(), null);
+  assert.equal(screen.getByRole('status').textContent, 'Running');
 });
 
 test('training batch progress reports saved assessments and stops polling at a terminal result', async t => {

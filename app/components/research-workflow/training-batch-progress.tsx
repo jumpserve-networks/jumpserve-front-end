@@ -19,6 +19,7 @@ import {
   type TrainingBatchStep,
 } from "@/lib/training-batch";
 import { TrainingBatchActivityDialog } from "./training-batch-activity-dialog";
+import { TrainingBatchLaunchGraphic } from "./training-batch-launch-graphic";
 
 const paperLabels: Record<TrainingBatchPaper["status"], string> = {
   pending: "Pending",
@@ -155,6 +156,7 @@ export function TrainingBatchProgress({ id, initial }: { id: number; initial?: T
             {verificationErrors ? ` · ${verificationErrors} verification ${verificationErrors === 1 ? "error" : "errors"}` : ""}
           </span> : null}
         </div>
+        {batchActive && batch.status !== "running" ? <TrainingBatchLaunchGraphic /> : null}
         {paperCount ? <progress aria-label="Papers completed" className="h-2 w-full accent-primary" value={completed} max={paperCount} /> : null}
         {batch.status === "unconfirmed" ? <p className="text-sm">JumpServe is waiting for the first progress report from AWS.</p> : null}
         {batch.stale ? <p role="alert" className="text-sm">The last progress report is over a minute old.</p> : null}
