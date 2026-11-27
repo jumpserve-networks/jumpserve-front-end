@@ -55,26 +55,28 @@ function legacyStepStatus(paper: TrainingBatchPaper, role: TrainingBatchStep) {
   return "unknown";
 }
 
-function paperStep(paper: TrainingBatchPaper, role: TrainingBatchStep, active: boolean):
+function paperStep(paper: TrainingBatchPaper, role: TrainingBatchStep, active: boolean, now: number):
   { status: keyof typeof stepStatusLabels; elapsed: string } {
   const step = paper.steps?.[role];
   const recordedStatus = paper.steps ? step?.status ?? "pending" : legacyStepStatus(paper, role);
   const status = recordedStatus === "running" && !active ? "interrupted" : recordedStatus;
-  const duration = step?.durationMs;
+  const startTime = status === "running" && step?.startedAt ? Date.parse(step.startedAt) : NaN;
+  const duration = Number.isFinite(startTime) && Number.isFinite(now) ? Math.max(0, now - startTime) : step?.durationMs;
   const elapsed = typeof duration === "number" ? formatTrainingBatchDuration(duration)
     : status === "completed" || status === "stopped" || status === "interrupted" ? "Time unavailable" : "";
   return { status, elapsed };
 }
 
-function PaperSteps({ paper, active, onOpenDetails }: {
+function PaperSteps({ paper, active, now, onOpenDetails }: {
   paper: TrainingBatchPaper;
   active: boolean;
+  now: number;
   onOpenDetails: (role: TrainingBatchStep, trigger: HTMLButtonElement) => void;
 }) {
   return <ol aria-label={`Assessment steps for ${paper.fileName}`}
     className="mt-2 space-y-1 border-l pl-3 text-xs">
     {trainingBatchSteps.map(role => {
-      const { status, elapsed } = paperStep(paper, role, active);
+      const { status, elapsed } = paperStep(paper, role, active, now);
       const label = trainingBatchStepLabels[role];
       return <li key={role} className="flex flex-wrap items-baseline gap-x-2">
         {status === "pending" ? <span className="font-medium">{label}</span> :
@@ -82,7 +84,8 @@ function PaperSteps({ paper, active, onOpenDetails }: {
             aria-haspopup="dialog" aria-label={`View ${label} details for ${paper.fileName}`}
             onClick={event => onOpenDetails(role, event.currentTarget)}>{label}</Button>}
         <span className="text-muted-foreground">{stepStatusLabels[status]}</span>
-        {elapsed ? <span className="tabular-nums text-muted-foreground">{elapsed}</span> : null}
+        {elapsed ? <span className="tabular-nums text-muted-foreground"
+          role={status === "running" ? "timer" : undefined}>{elapsed}</span> : null}
       </li>;
     })}
   </ol>;
@@ -92,6 +95,7 @@ export function TrainingBatchProgress({ id, initial }: { id: number; initial?: T
   const [batch, setBatch] = useState(initial);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
+  const [now, setNow] = useState<number>();
   const [activitySelection, setActivitySelection] = useState<{ paperId: string; role: TrainingBatchStep }>();
   const activityTrigger = useRef<HTMLButtonElement>(null);
   const hasInitial = initial !== undefined;
@@ -134,9 +138,18 @@ export function TrainingBatchProgress({ id, initial }: { id: number; initial?: T
   const verificationErrors = batch?.papers.filter(paper => paper.status === "verification_error").length ?? 0;
   const paperCount = batch?.papers.length ?? 0;
   const batchActive = !!batch && isTrainingBatchActive(batch.status);
+  const hasRunningTimer = batchActive && batch.papers.some(paper =>
+    trainingBatchSteps.some(role => paper.steps?.[role]?.status === "running" && paper.steps[role].startedAt));
+  useEffect(() => {
+    if (!hasRunningTimer) return;
+    const timer = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(timer);
+  }, [hasRunningTimer]);
+  const publishedAt = Date.parse(batch?.updatedAt ?? "");
+  const elapsedAsOf = Number.isFinite(publishedAt) ? Math.max(now ?? publishedAt, publishedAt) : now ?? NaN;
   const activityPaper = batch?.papers.find(paper => paper.id === activitySelection?.paperId);
   const role = activitySelection?.role;
-  const selectedStep = activityPaper && role ? paperStep(activityPaper, role, batchActive) : undefined;
+  const selectedStep = activityPaper && role ? paperStep(activityPaper, role, batchActive, elapsedAsOf) : undefined;
 
   function openActivity(paperId: string, role: TrainingBatchStep, trigger: HTMLButtonElement) {
     activityTrigger.current = trigger;
@@ -185,7 +198,7 @@ export function TrainingBatchProgress({ id, initial }: { id: number; initial?: T
               {batch.canViewAssessmentLinks && paper.assessmentId
                 ? <Link className="underline" href={`${ASSESSMENT_PATH}/${paper.assessmentId}`}>{paper.fileName}</Link>
                 : paper.fileName}
-              <PaperSteps paper={paper} active={batchActive}
+              <PaperSteps paper={paper} active={batchActive} now={elapsedAsOf}
                 onOpenDetails={(step, trigger) => openActivity(paper.id, step, trigger)} />
             </TableCell>
             <TableCell className="whitespace-normal">

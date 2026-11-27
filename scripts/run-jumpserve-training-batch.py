@@ -17,6 +17,7 @@ import time
 HEARTBEAT_SECONDS = 20
 PAPER_PHASES = {"pending", "generating", "verifying", "passed", "completed", "verification_error", "stopped", "interrupted"}
 STEP_STATUSES = {"running", "completed", "stopped", "interrupted"}
+STEP_START = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z")
 STOP_PHASES = {"generating", "verifying", "saving_generator", "saving_verifier"}
 BATCH_ID = re.compile(r"[1-9][0-9]{0,9}")
 PAPER_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
@@ -47,6 +48,9 @@ def snapshot_steps(steps):
         if status == "running" or type(duration) is not int or not 0 <= duration <= 9_007_199_254_740_991:
             duration = None
         visible[role] = {"status": status, "durationMs": duration}
+        started_at = entry.get("startedAt")
+        if isinstance(started_at, str) and STEP_START.fullmatch(started_at):
+            visible[role]["startedAt"] = started_at
     return visible
 
 

@@ -433,6 +433,8 @@ test('the batch persists both result IDs and step durations for a below-perfect 
   const journal = () => readFile(join(lab.output, 'batch.json'), 'utf8').then(JSON.parse);
   const progress = [];
   let elapsed = 0;
+  let generatorStartedAt;
+  let verifierStartedAt;
   const result = await runSyntheticBatch({ ...lab, cases: lab.cases.slice(0, 1), progress: (...args) => progress.push(args), now: () => elapsed,
     async generate(input) {
       await lab.generate(input);
@@ -445,14 +447,20 @@ test('the batch persists both result IDs and step durations for a below-perfect 
     generator: async (assessmentId, paper, bundle) => {
       const [item] = (await journal()).cases;
       assert.equal(item.database.assessment_id, assessmentId);
-      assert.deepEqual(item.steps.generator, { status: 'running', durationMs: null });
+      generatorStartedAt = item.steps.generator.startedAt;
+      assert.equal(new Date(generatorStartedAt).toISOString(), generatorStartedAt);
+      assert.deepEqual(item.steps.generator, { status: 'running', durationMs: null, startedAt: generatorStartedAt });
       assert.equal(bundle.paper.sha256, sha256(await readFile(paper)));
       lab.calls.push('save generator');
       elapsed += 10;
       return generatorId;
     },
     verifier: async (assessmentId, artifact, grade) => {
-      assert.deepEqual((await journal()).cases[0].database, { assessment_id: assessmentId, generator_result_id: generatorId });
+      const [item] = (await journal()).cases;
+      assert.deepEqual(item.database, { assessment_id: assessmentId, generator_result_id: generatorId });
+      verifierStartedAt = item.steps.verifier.startedAt;
+      assert.equal(new Date(verifierStartedAt).toISOString(), verifierStartedAt);
+      assert.deepEqual(item.steps.verifier, { status: 'running', durationMs: null, startedAt: verifierStartedAt });
       assert.equal(grade.assessment_sha256, sha256(artifact));
       assert.equal(grade.score.earned, 1);
       lab.calls.push('save verifier');
@@ -469,7 +477,8 @@ test('the batch persists both result IDs and step durations for a below-perfect 
   ]);
   assert.equal(result.cases[0].database.verification_id, verificationId);
   assert.deepEqual(result.cases[0].steps, {
-    generator: { status: 'completed', durationMs: 2_010 }, verifier: { status: 'completed', durationMs: 3_020 },
+    generator: { status: 'completed', durationMs: 2_010, startedAt: generatorStartedAt },
+    verifier: { status: 'completed', durationMs: 3_020, startedAt: verifierStartedAt },
   });
   assert.deepEqual(await journal(), result);
 });
