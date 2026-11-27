@@ -224,19 +224,19 @@ function evaluateScorecard(testCase, artifact, grade, preflight, pinned) {
     throw new Error('Scorecard does not match the pinned paper, key, or evidence preflight.');
   }
   const score = scorecard.score;
-  if (!score) return { score, problem: 'Verifier did not award a score.' };
+  if (!score) return { scorecard, problem: 'Verifier did not award a score.' };
   if (score.rubric_maximum !== testCase.rubricMaximum || scorecard.rubric.length !== testCase.rubric.length ||
       !testCase.rubric.every(([id, points]) => scorecard.rubric.some(item => item.criterion === id && item.maximum === points))) {
     throw new Error('Scorecard does not match the pinned rubric.');
   }
   if (scorecard.status !== 'scored' || scorecard.evidence_integrity.status !== 'verified' ||
       scorecard.blockers.length || scorecard.critical_failures.length) {
-    return { score, problem: 'Verifier could not complete scoring with verified evidence.' };
+    return { scorecard, problem: 'Verifier could not complete scoring with verified evidence.' };
   }
   const fullCredit = score.earned === score.applicable_maximum && score.earned === score.rubric_maximum &&
     scorecard.rubric.every(item => item.earned === item.maximum) &&
     scorecard.claims.every(claim => claim.assessment === 'correct');
-  return { score, status: fullCredit ? 'passed' : 'completed' };
+  return { scorecard, status: fullCredit ? 'passed' : 'completed' };
 }
 
 async function runBatch({ output, cases, guidance, runtime, generate, preflight, verify, reviewOnInstance,
@@ -294,26 +294,26 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
           const validStatuses = offset < index ? ['passed', 'completed'] : [offset === index ? 'stopped' : 'pending'];
           return validStatuses.includes(previous.status) && Object.entries(item).every(([key, value]) => previous[key] === value);
         })) {
-      throw new Error('Only a stopped scorecard with the known preflight-field error and the original batch inputs can be recovered.');
+      throw new Error('Only a stopped scorecard with a known format error and the original batch inputs can be recovered.');
     }
     const testCase = cases[index];
     const review = reviewInputs(join(output, testCase.paperId), verifierGuidance, testCase.rubric);
     const artifact = await checkedArtifact(testCase, review, generatorGuidance);
     const checked = await checkedPreflight(testCase, artifact, review, workerPool[0].preflight);
     const { grade, corrected } = await readGrade(review, checked);
-    const { score, status, problem } = evaluateScorecard(testCase, artifact, grade, checked, verifierGuidance);
-    if (!corrected) throw new Error('The saved scorecard did not contain the expected format error.');
+    const { scorecard, status, problem } = evaluateScorecard(testCase, artifact, grade, checked, verifierGuidance);
+    if (!corrected && scorecard === grade) throw new Error('The saved scorecard did not contain the expected format error.');
     if (problem) throw new Error(problem);
     await saveGenerator(state.cases[index], review.paper, artifact);
-    await saveVerifier(state.cases[index], artifact, grade);
-    await saveCorrectedGrade(review, grade);
+    await saveVerifier(state.cases[index], artifact, scorecard);
+    await saveCorrectedGrade(review, scorecard);
     state.format_recoveries = [...(state.format_recoveries ?? (state.format_recovery ? [state.format_recovery] : [])),
       { stop: state.stop, stopped_at: state.finished_at, recovered_at: new Date().toISOString() }];
     delete state.format_recovery;
     delete state.stop;
     delete state.finished_at;
     state.status = 'running';
-    Object.assign(state.cases[index], { status, score });
+    Object.assign(state.cases[index], { status, score: scorecard.score });
     firstIndex = index + 1;
     reportProgress(state.cases[index], `${status} (revalidated saved scorecard)`);
   } else {
@@ -373,13 +373,13 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
         await verify({ ...review, ...workerCancellation });
       }
       const { grade, corrected } = await readGrade(review, checked);
-      const { score, status, problem } = validatePaperOutput(() =>
+      const { scorecard, status, problem } = validatePaperOutput(() =>
         evaluateScorecard(testCase, artifact, grade, checked, verifierGuidance));
-      if (corrected) await saveCorrectedGrade(review, grade);
-      item.score = score;
+      if (corrected || scorecard !== grade) await saveCorrectedGrade(review, scorecard);
+      item.score = scorecard.score;
       phase = 'saving_verifier';
       await persist();
-      await saveVerifier(item, artifact, grade);
+      await saveVerifier(item, artifact, scorecard);
       phase = 'verifying';
       if (problem) throw new PaperAssessmentError(problem);
       finishStep('completed');

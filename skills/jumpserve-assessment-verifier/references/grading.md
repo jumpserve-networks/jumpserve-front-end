@@ -28,12 +28,24 @@ Write a new JSON file with the following fields. Keep raw logs, private paths, c
 | `skill_instructions` | The [version identity](instruction-loading.md) for this Verifier run. |
 | `paper_id`, `paper_sha256`, `assessment_sha256`, `answer_key_sha256` | Copy the verified input identities from preflight when available |
 | `split`, `mode`, `scenario` | Key split, `fresh` or `replay`, and replay scenario ID or `null` |
-| `evidence_integrity` | Preflight status and concise details |
+| `evidence_integrity` | Copy the preflight `status` and `verified_runs` when present. Use the optional singular field `detail` for a concise string note. |
 | `status` | `scored`, `blocked`, or `failed`. Use `failed` for an identified critical failure, even if rubric points were calculated |
 | `claims` | One entry per key claim with `key_claim_id`, `assessment_claim_id` or `null`, `reported_outcome` or `null`, `supported_outcome` or `null`, `assessment` (`correct`, `incorrect`, or `unscored`), `evidence` (relative references), and `finding` |
 | `rubric` | Entries with `criterion`, `earned`, `maximum`, and `reason`. Use `null` for `earned` when unscored or out of scope |
 | `score` | `earned`, `applicable_maximum`, and `rubric_maximum`, or `null` when grading is blocked |
 | `critical_failures`, `blockers` | Arrays of concise evidence-backed findings |
+
+This example shows the scorecard section after preflight verified two runs.
+
+```json
+{
+  "evidence_integrity": {
+    "status": "verified",
+    "verified_runs": 2,
+    "detail": "Both run receipts passed the integrity checks."
+  }
+}
+```
 
 Verify the JSON parses and the recorded totals agree with the rubric entries. Repeat preflight if any input may have changed during review. When proof is incomplete, use `null` for the unsupported result instead of assigning a scientific verdict. Share development findings with the Coach only when requested. Keep held-out case details restricted to the Verifier and the user.
 

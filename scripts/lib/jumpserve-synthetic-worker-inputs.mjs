@@ -25,6 +25,7 @@ export function verifierPrompt({ skillDirectory, workflow, caseDirectory, paper,
     `For example, use "paper.pdf pp. 1–2" or "generator/evidence/trace.jsonl lines 2–5". ` +
     `Use this base regardless of your working directory. Omit absolute paths and parent directory segments (..).\n` +
     `Use the skill's evidence preflight with the supplied PDF. Record its status and verified_runs in evidence_integrity.\n` +
+    `If you include a note, use the singular field evidence_integrity.detail and set it to a string.\n` +
     `Use these exact rubric criteria and maxima: ${JSON.stringify(rubric)}. The parent runner confirms private saving.\n` +
     `Return the skill's scorecard JSON as your final response.`;
 }

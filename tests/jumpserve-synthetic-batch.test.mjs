@@ -271,6 +271,31 @@ test('eight workers reuse their sessions for queued papers after saving each Ver
   assert.deepEqual(JSON.parse(await readFile(join(lab.output, 'batch.json'))), result);
 });
 
+test('the batch saves the corrected scorecard and retains the raw output', async t => {
+  const lab = await fixture(t, ['A', 'B']);
+  const saved = [];
+  const result = await runSyntheticBatch({ ...lab, verify: input => {
+    const evidence_integrity = { status: 'verified', details: 'Original note.' };
+    if (basename(input.caseDirectory) === 'B') evidence_integrity.verified_runs = 1;
+    return lab.score(input, 1, { evidence_integrity });
+  }, persistence: {
+    generator: async id => id,
+    verifier: async (id, _artifact, grade) => { saved.push(grade); return id; },
+  } });
+  assert.deepEqual(result.cases.map(item => item.status), ['completed', 'verification_error']);
+  assert.equal(result.cases[0].score.earned, 1);
+  assert.match(result.cases[1].verification_error, /pinned paper, key, or evidence preflight/);
+  assert.equal(saved.length, 1);
+
+  const output = join(lab.output, 'A', 'verifier');
+  const raw = JSON.parse(await readFile(join(output, 'scorecard.json'), 'utf8'));
+  const corrected = JSON.parse(await readFile(join(output, 'scorecard.validated.json'), 'utf8'));
+  assert.deepEqual(raw.evidence_integrity, { status: 'verified', details: 'Original note.' });
+  assert.deepEqual(corrected, { ...raw, evidence_integrity: { status: 'verified', detail: 'Original note.' } });
+  assert.deepEqual(saved[0], corrected);
+  await assert.rejects(readFile(join(lab.output, 'B', 'verifier', 'scorecard.validated.json')), { code: 'ENOENT' });
+});
+
 test('a malformed scorecard leaves the other Verifier running and frees the session for the queue', { timeout: 5_000 }, async t => {
   const lab = await fixture(t);
   const otherVerifierStarted = Promise.withResolvers();
@@ -287,7 +312,7 @@ test('a malformed scorecard leaves the other Verifier running and frees the sess
       const checked = await lab.preflight(input);
       if (checked.paper_id === 'A') {
         await otherVerifierStarted.promise;
-        await lab.score(input, 2, { evidence_integrity: { status: 'verified', details: 'Original note.' } });
+        await lab.score(input, 2, { evidence_integrity: { status: 'verified', detail: 'Existing note.', details: 'Original note.' } });
       } else {
         if (checked.paper_id === 'B') {
           otherVerifierStarted.resolve();
@@ -315,7 +340,7 @@ test('a malformed scorecard leaves the other Verifier running and frees the sess
   assert.equal(failed.steps.verifier.status, 'stopped');
   assert.match(failed.verification_error, /evidence_integrity/);
   const raw = JSON.parse(await readFile(join(lab.output, 'A', 'verifier', 'scorecard.json'), 'utf8'));
-  assert.deepEqual(raw.evidence_integrity, { status: 'verified', details: 'Original note.' });
+  assert.deepEqual(raw.evidence_integrity, { status: 'verified', detail: 'Existing note.', details: 'Original note.' });
   assert.deepEqual(JSON.parse(await readFile(join(lab.output, 'batch.json'))), result);
 });
 
