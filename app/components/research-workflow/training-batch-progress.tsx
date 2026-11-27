@@ -26,6 +26,7 @@ const paperLabels: Record<TrainingBatchPaper["status"], string> = {
   verifying: "Verifying",
   passed: "Passed",
   completed: "Completed",
+  verification_error: "Verification error",
   stopped: "Stopped",
   interrupted: "Interrupted",
 };
@@ -129,6 +130,7 @@ export function TrainingBatchProgress({ id, initial }: { id: number; initial?: T
   }, [id, hasInitial, refresh, shouldPoll]);
 
   const completed = batch?.papers.filter(paper => paper.status === "passed" || paper.status === "completed").length ?? 0;
+  const verificationErrors = batch?.papers.filter(paper => paper.status === "verification_error").length ?? 0;
   const paperCount = batch?.papers.length ?? 0;
   const batchActive = !!batch && isTrainingBatchActive(batch.status);
   const activityPaper = batch?.papers.find(paper => paper.id === activitySelection?.paperId);
@@ -149,7 +151,9 @@ export function TrainingBatchProgress({ id, initial }: { id: number; initial?: T
       <section className="content-panel space-y-3 rounded-lg border p-5">
         <div role="status" className="flex flex-wrap items-center gap-3">
           <Badge variant={batch.status === "failed" || batch.status === "stopped" ? "destructive" : "secondary"}>{trainingBatchStatusLabels[batch.status]}</Badge>
-          {paperCount ? <span className="text-sm">{completed} of {paperCount} papers completed</span> : null}
+          {paperCount ? <span className="text-sm">{completed} of {paperCount} papers completed
+            {verificationErrors ? ` · ${verificationErrors} verification ${verificationErrors === 1 ? "error" : "errors"}` : ""}
+          </span> : null}
         </div>
         {paperCount ? <progress aria-label="Papers completed" className="h-2 w-full accent-primary" value={completed} max={paperCount} /> : null}
         {batch.status === "unconfirmed" ? <p className="text-sm">JumpServe is waiting for the first progress report from AWS.</p> : null}

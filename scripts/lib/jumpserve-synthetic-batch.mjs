@@ -3,7 +3,7 @@ import { constants } from 'node:fs';
 import { cp, mkdir, open, readdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { prepareAssessmentBundle } from '../../lib/jumpserve-assessment-bundle.ts';
-import { MAX_REVIEWED_ASSESSMENT_BYTES, prepareVerifierResult } from '../../lib/jumpserve-verification.ts';
+import { MAX_REVIEWED_ASSESSMENT_BYTES, prepareVerifierResult, VerifierScorecardFormatError } from '../../lib/jumpserve-verification.ts';
 import { isResearchId } from '../../lib/research-experiment-queue.ts';
 import { BATCH_SKILLS, batchCasePaths, requireReviewPreflight } from './jumpserve-synthetic-worker-inputs.mjs';
 
@@ -161,7 +161,13 @@ async function checkedPreflight(testCase, artifact, review, preflight) {
 }
 
 async function readGrade(review, preflight) {
-  const grade = JSON.parse(await readArtifact(join(review.output, 'scorecard.json'), 90_000));
+  const raw = await readArtifact(join(review.output, 'scorecard.json'), 90_000);
+  let grade;
+  try {
+    grade = JSON.parse(raw);
+  } catch (error) {
+    throw new VerifierScorecardFormatError('Could not parse the Verifier scorecard JSON.', { cause: error });
+  }
   let corrected = false;
   if (preflight.pdf_bytes_checked === true) {
     // These flags duplicate the successful trusted preflight and are kept in the raw output.
@@ -344,8 +350,20 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
         signal.throwIfAborted();
         await verify({ ...review, ...workerCancellation });
       }
-      const { grade, corrected } = await readGrade(review, checked);
-      const { score, status, problem } = evaluateScorecard(testCase, artifact, grade, checked, verifierGuidance);
+      let result;
+      try {
+        const { grade, corrected } = await readGrade(review, checked);
+        result = { grade, corrected, ...evaluateScorecard(testCase, artifact, grade, checked, verifierGuidance) };
+      } catch (error) {
+        if (!(error instanceof VerifierScorecardFormatError)) throw error;
+        item.status = 'verification_error';
+        item.verification_error = error.message;
+        finishStep('stopped');
+        await persist();
+        reportProgress(item, 'verification error');
+        return;
+      }
+      const { grade, corrected, score, status, problem } = result;
       if (corrected) await saveCorrectedGrade(review, grade);
       item.score = score;
       phase = 'saving_verifier';

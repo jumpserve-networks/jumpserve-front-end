@@ -37,7 +37,7 @@ skills as the JumpServe plugin. A run pins the active published instructions by
 checksum, or uses the bundled instructions when the results endpoint lacks
 published workflow support.
 
-With the five-session pool enabled, the coordinator runs up to five papers at
+With the eight-session pool enabled, the coordinator runs up to eight papers at
 a time. Each paper starts on a fresh Generator EC2 instance and moves to a
 fresh Verifier EC2 instance after its private Generator bundle has been
 validated and saved in Supabase. When a paper's Verifier result is saved and
@@ -45,9 +45,12 @@ both workers have been cleaned up, the same session takes the next queued
 paper. A coordinator with one signed-in volume runs papers in sequence. The
 Verifier receives that paper's matching answer key and read-only Generator
 evidence. The coordinator saves each validated scorecard and continues
-processing the other papers regardless of the points earned. A blocker,
-failed save, invalid or missing output, timeout, or cleanup failure stops the
-batch and interrupts other unfinished workers. The coordinator retains
+processing the other papers regardless of the points earned. A malformed
+Verifier scorecard marks that paper with a verification error. The coordinator
+retains the raw scorecard and saved Generator result, then reuses the session
+for the next paper after cleanup. A blocker, failed save, evidence or rubric
+mismatch, missing output, worker timeout, or cleanup failure stops the batch
+and interrupts other unfinished workers. The coordinator retains
 completed results and waits for remaining workers to exit before publishing
 the final batch status.
 The paper list shows the status and recorded elapsed time of each Generator
@@ -97,21 +100,23 @@ to `TrainingTerminalConnectionsTable`. Set
 before building the site. The same setting in `.env.local` enables viewing on
 `http://localhost:6001`.
 
-### Five-session pool
+### Eight-session pool
 
 Deploy the coordinator stack with `EnableParallelTraining=true` and an empty
 `AdditionalWorkerAuthVolumeArns`. The `TrainingWorkerSessionVolumeIds` output
-lists the existing `CodexVolumeId` followed by four new encrypted gp3 volumes
-in the worker Availability Zone. The pool needs capacity for five concurrent
-t3.medium workers in addition to the coordinator and other workloads.
+lists eight encrypted gp3 volumes in the worker Availability Zone. For an
+existing five-session deployment, the update adds three volumes and reuses
+the five already enrolled volumes. Eight concurrent `t3.medium` workers and
+the `t3.medium` coordinator need at least 18 vCPUs under the regional EC2
+Standard On-Demand quota, plus capacity for any other workloads using it.
 
 The coordinator uses its instance role and the scoped experiment-client role
 for leases. Prepare or renew the JumpServe results session on the coordinator
 with `npm run assessment -- login --results --callback-port 54457` using a
 loopback-only SSH forward.
 
-Enroll each new ChatGPT session once. The existing session can be reused if it
-is still signed in. Use the idle coordinator or an enrollment instance in the
+Enroll each new ChatGPT session once. Reuse the existing signed-in sessions.
+Use the idle coordinator or an enrollment instance in the
 worker zone and attach one detached volume at a time. Verify the device's EBS
 volume ID and initialize ext4 only on a confirmed new, blank volume. Mount it at
 `/mnt/jumpserve-codex` and create the `session` directory with mode `0700` and
@@ -128,7 +133,7 @@ CODEX_HOME=/mnt/jumpserve-codex/session codex \
 ```
 
 Confirm status reports a ChatGPT login, then unmount and detach the volume.
-Repeat for each new volume. After all five sessions are enrolled and the
+Repeat for each new volume. After all eight sessions are enrolled and the
 coordinator has no active batch, set these in its
 `/etc/jumpserve-synthetic-batch.env` for the next batch:
 

@@ -50,7 +50,7 @@ async function loadJournal({ id, file }: { id: number; file: string }): Promise<
           !Number.isFinite(Date.parse(journal.started_at)) || !Array.isArray(journal.cases) ||
           journal.cases.some(paper => !paper || typeof paper.paper_id !== "string" ||
             typeof paper.pdf !== "string" ||
-            !["pending", "generating", "verifying", "passed", "completed", "stopped", "interrupted"].includes(paper.status))) return null;
+            !["pending", "generating", "verifying", "passed", "completed", "verification_error", "stopped", "interrupted"].includes(paper.status))) return null;
       return {
         id, requestedAt: null, startedAt: journal.started_at, finishedAt: journal.finished_at ?? null,
         status: journal.status, stopPhase: journal.stop?.phase ?? null,
