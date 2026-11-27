@@ -23,7 +23,7 @@ type TrainingBatchStepProgress = {
 export type TrainingBatchPaper = {
   id: string;
   fileName: string;
-  status: "pending" | "generating" | "verifying" | "passed" | "completed" | "verification_error" | "stopped" | "interrupted";
+  status: "pending" | "generating" | "verifying" | "passed" | "completed" | "generation_error" | "verification_error" | "stopped" | "interrupted";
   assessmentId: string | null;
   score: { earned: number; maximum: number } | null;
   steps?: Partial<Record<TrainingBatchStep, TrainingBatchStepProgress>>;

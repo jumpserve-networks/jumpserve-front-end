@@ -27,6 +27,7 @@ const paperLabels: Record<TrainingBatchPaper["status"], string> = {
   verifying: "Verifying",
   passed: "Passed",
   completed: "Completed",
+  generation_error: "Generation error",
   verification_error: "Verification error",
   stopped: "Stopped",
   interrupted: "Interrupted",
@@ -135,6 +136,7 @@ export function TrainingBatchProgress({ id, initial }: { id: number; initial?: T
   }, [id, hasInitial, refresh, shouldPoll]);
 
   const completed = batch?.papers.filter(paper => paper.status === "passed" || paper.status === "completed").length ?? 0;
+  const generationErrors = batch?.papers.filter(paper => paper.status === "generation_error").length ?? 0;
   const verificationErrors = batch?.papers.filter(paper => paper.status === "verification_error").length ?? 0;
   const paperCount = batch?.papers.length ?? 0;
   const batchActive = !!batch && isTrainingBatchActive(batch.status);
@@ -166,6 +168,7 @@ export function TrainingBatchProgress({ id, initial }: { id: number; initial?: T
         <div role="status" className="flex flex-wrap items-center gap-3">
           <Badge variant={batch.status === "failed" || batch.status === "stopped" ? "destructive" : "secondary"}>{trainingBatchStatusLabels[batch.status]}</Badge>
           {paperCount ? <span className="text-sm">{completed} of {paperCount} papers completed
+            {generationErrors ? ` · ${generationErrors} generation ${generationErrors === 1 ? "error" : "errors"}` : ""}
             {verificationErrors ? ` · ${verificationErrors} verification ${verificationErrors === 1 ? "error" : "errors"}` : ""}
           </span> : null}
         </div>

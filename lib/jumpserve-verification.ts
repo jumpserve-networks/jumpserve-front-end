@@ -99,14 +99,12 @@ function samePoints(expected: number, total: number) {
   return Math.abs(expected - total) <= 1e-8;
 }
 
-export class VerifierScorecardFormatError extends Error {}
-
 export function prepareVerifierResult(raw: unknown, input: unknown) {
   if (typeof raw !== "string" || Buffer.byteLength(raw) > MAX_REVIEWED_ASSESSMENT_BYTES) {
     throw new Error("Provide the original reviewed JSON text, up to 650 KB.");
   }
   if (!validateScorecard(input)) {
-    throw new VerifierScorecardFormatError(`Scorecard does not match jumpserve-verifier-scorecard-v1 at ${validateScorecard.errors?.[0]?.instancePath || "/"}.`);
+    throw new Error(`Scorecard does not match jumpserve-verifier-scorecard-v1 at ${validateScorecard.errors?.[0]?.instancePath || "/"}.`);
   }
   if (createHash("sha256").update(raw).digest("hex") !== input.assessment_sha256) {
     throw new Error("The reviewed file does not match the assessment SHA-256 in this scorecard.");

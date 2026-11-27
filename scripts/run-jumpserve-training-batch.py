@@ -15,7 +15,8 @@ import time
 
 
 HEARTBEAT_SECONDS = 20
-PAPER_PHASES = {"pending", "generating", "verifying", "passed", "completed", "verification_error", "stopped", "interrupted"}
+PAPER_PHASES = {"pending", "generating", "verifying", "passed", "completed", "generation_error", "verification_error",
+                "stopped", "interrupted"}
 STEP_STATUSES = {"running", "completed", "stopped", "interrupted"}
 STEP_START = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z")
 STOP_PHASES = {"generating", "verifying", "saving_generator", "saving_verifier"}

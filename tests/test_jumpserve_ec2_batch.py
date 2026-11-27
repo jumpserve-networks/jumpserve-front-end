@@ -192,7 +192,8 @@ class TrainingBatchTest(unittest.TestCase):
                                                "startedAt": "2026-11-01T00:00:01.234Z", "internal": "private"},
                                  "verifier": {"status": "completed", "durationMs": 100, "startedAt": "private"}},
                        "database": {"assessment_id": self.assessment_id, "generator_result_id": "private"}},
-                      {"paper_id": "paper-2", "pdf": "other.pdf", "status": "interrupted"}],
+                      {"paper_id": "paper-2", "pdf": "other.pdf", "status": "interrupted"},
+                      {"paper_id": "paper-3", "pdf": "invalid.pdf", "status": "generation_error", "generation_error": "private"}],
         }
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)
@@ -223,6 +224,7 @@ class TrainingBatchTest(unittest.TestCase):
             "verifier": {"status": "completed", "durationMs": 100},
         })
         self.assertEqual(snapshots[-1]["papers"][1]["status"], "interrupted")
+        self.assertEqual(snapshots[-1]["papers"][2]["status"], "generation_error")
         self.assertNotIn("private", json.dumps(snapshots))
 
     def test_active_run_and_redelivery_cannot_start_another_batch(self):

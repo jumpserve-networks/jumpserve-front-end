@@ -1,11 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
-import { cp, mkdir, open, readdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
+import { cp, mkdir, open, readdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { prepareAssessmentBundle } from '../../lib/jumpserve-assessment-bundle.ts';
-import { MAX_REVIEWED_ASSESSMENT_BYTES, prepareVerifierResult, VerifierScorecardFormatError } from '../../lib/jumpserve-verification.ts';
+import { MAX_REVIEWED_ASSESSMENT_BYTES, prepareVerifierResult } from '../../lib/jumpserve-verification.ts';
 import { isResearchId } from '../../lib/research-experiment-queue.ts';
-import { BATCH_SKILLS, batchCasePaths, requireReviewPreflight } from './jumpserve-synthetic-worker-inputs.mjs';
+import { BATCH_SKILLS, batchCasePaths, PaperAssessmentError, requireReviewPreflight } from './jumpserve-synthetic-worker-inputs.mjs';
 
 export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const identifier = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
@@ -114,12 +114,17 @@ export async function inventory(papersDirectory, keysDirectory) {
 }
 
 async function readArtifact(file, limit) {
-  const handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  const handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK).catch(error => {
+    if (error.code === 'ENOENT' || error.code === 'ELOOP') {
+      throw new PaperAssessmentError('Expected a bounded regular output file.', { cause: error });
+    }
+    throw error;
+  });
   try {
     const stat = await handle.stat();
-    if (!stat.isFile() || stat.size > limit) throw new Error('Expected a bounded regular output file.');
+    if (!stat.isFile() || stat.size > limit) throw new PaperAssessmentError('Expected a bounded regular output file.');
     const bytes = await handle.readFile();
-    if (bytes.length > limit) throw new Error('Output exceeded its size limit.');
+    if (bytes.length > limit) throw new PaperAssessmentError('Output exceeded its size limit.');
     return bytes.toString('utf8');
   } finally {
     await handle.close();
@@ -127,14 +132,26 @@ async function readArtifact(file, limit) {
 }
 
 async function stageInput(input, expectedHash, path) {
-  const bytes = await readFile(input);
-  if (sha256(bytes) !== expectedHash) throw new Error('A batch input changed after inventory.');
+  const bytes = await readFile(input).catch(error => {
+    if (error.code === 'ENOENT') throw new PaperAssessmentError('A pinned paper input is missing.', { cause: error });
+    throw error;
+  });
+  if (sha256(bytes) !== expectedHash) throw new PaperAssessmentError('A batch input changed after inventory.');
   await writeFile(path, bytes, { flag: 'wx', mode: 0o644 });
 }
 
 function requireGuidance(actual, pinned) {
   if (!actual || actual.source !== pinned.source || actual.sha256 !== pinned.sha256 || actual.version_id !== pinned.version_id) {
     throw new Error('Output does not identify the pinned skill guidance.');
+  }
+}
+
+// Wrap pure validation, leaving shared filesystem and persistence failures to the batch.
+function validatePaperOutput(validate) {
+  try {
+    return validate();
+  } catch (error) {
+    throw new PaperAssessmentError(error.message, { cause: error });
   }
 }
 
@@ -148,9 +165,14 @@ function reviewInputs(caseDirectory, guidance, rubric) {
 
 async function checkedArtifact(testCase, review, guidance) {
   const artifact = await readArtifact(join(review.artifactDirectory, 'jumpserve-assessment.json'), MAX_REVIEWED_ASSESSMENT_BYTES);
-  const { bundle } = prepareAssessmentBundle(JSON.parse(artifact));
-  if (bundle.paper.sha256 !== testCase.paperSha256) throw new Error('Generator artifact is for a different PDF.');
-  requireGuidance(bundle.skill_instructions, guidance);
+  const { size } = await stat(review.paper);
+  validatePaperOutput(() => {
+    const { bundle } = prepareAssessmentBundle(JSON.parse(artifact));
+    if (bundle.paper.sha256 !== testCase.paperSha256 || bundle.paper.byte_count !== size) {
+      throw new Error('Generator artifact is for a different PDF.');
+    }
+    requireGuidance(bundle.skill_instructions, guidance);
+  });
   return artifact;
 }
 
@@ -166,7 +188,7 @@ async function readGrade(review, preflight) {
   try {
     grade = JSON.parse(raw);
   } catch (error) {
-    throw new VerifierScorecardFormatError('Could not parse the Verifier scorecard JSON.', { cause: error });
+    throw new PaperAssessmentError('Could not parse the Verifier scorecard JSON.', { cause: error });
   }
   let corrected = false;
   if (preflight.pdf_bytes_checked === true) {
@@ -203,13 +225,13 @@ function evaluateScorecard(testCase, artifact, grade, preflight, pinned) {
   }
   const score = scorecard.score;
   if (!score) return { score, problem: 'Verifier did not award a score.' };
+  if (score.rubric_maximum !== testCase.rubricMaximum || scorecard.rubric.length !== testCase.rubric.length ||
+      !testCase.rubric.every(([id, points]) => scorecard.rubric.some(item => item.criterion === id && item.maximum === points))) {
+    throw new Error('Scorecard does not match the pinned rubric.');
+  }
   if (scorecard.status !== 'scored' || scorecard.evidence_integrity.status !== 'verified' ||
       scorecard.blockers.length || scorecard.critical_failures.length) {
     return { score, problem: 'Verifier could not complete scoring with verified evidence.' };
-  }
-  if (score.rubric_maximum !== testCase.rubricMaximum || scorecard.rubric.length !== testCase.rubric.length ||
-      !testCase.rubric.every(([id, points]) => scorecard.rubric.some(item => item.criterion === id && item.maximum === points))) {
-    return { score, problem: 'Scorecard does not match the pinned rubric.' };
   }
   const fullCredit = score.earned === score.applicable_maximum && score.earned === score.rubric_maximum &&
     scorecard.rubric.every(item => item.earned === item.maximum) &&
@@ -350,34 +372,30 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
         signal.throwIfAborted();
         await verify({ ...review, ...workerCancellation });
       }
-      let result;
-      try {
-        const { grade, corrected } = await readGrade(review, checked);
-        result = { grade, corrected, ...evaluateScorecard(testCase, artifact, grade, checked, verifierGuidance) };
-      } catch (error) {
-        if (!(error instanceof VerifierScorecardFormatError)) throw error;
-        item.status = 'verification_error';
-        item.verification_error = error.message;
-        finishStep('stopped');
-        await persist();
-        reportProgress(item, 'verification error');
-        return;
-      }
-      const { grade, corrected, score, status, problem } = result;
+      const { grade, corrected } = await readGrade(review, checked);
+      const { score, status, problem } = validatePaperOutput(() =>
+        evaluateScorecard(testCase, artifact, grade, checked, verifierGuidance));
       if (corrected) await saveCorrectedGrade(review, grade);
       item.score = score;
       phase = 'saving_verifier';
       await persist();
       await saveVerifier(item, artifact, grade);
-      finishStep('completed');
       phase = 'verifying';
-      if (problem) throw new Error(problem);
+      if (problem) throw new PaperAssessmentError(problem);
+      finishStep('completed');
       item.status = status;
       await persist();
       reportProgress(item, status);
     } catch (error) {
       if (signal.aborted && error === signal.reason) {
         item.status = 'interrupted';
+      } else if (error instanceof PaperAssessmentError && (phase === 'generating' || phase === 'verifying')) {
+        item.status = phase === 'generating' ? 'generation_error' : 'verification_error';
+        item[item.status] = error.message;
+        finishStep('stopped');
+        await persist();
+        reportProgress(item, item.status.replace('_', ' '));
+        return;
       } else {
         item.status = 'stopped';
         if (!stop) {
@@ -395,7 +413,12 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
   async function runWorker(worker) {
     while (!signal.aborted && nextIndex < cases.length) {
       const index = nextIndex++;
-      await runPaper(index, worker);
+      try {
+        await runPaper(index, worker);
+      } catch (error) {
+        controller.abort(error);
+        throw error;
+      }
     }
   }
 

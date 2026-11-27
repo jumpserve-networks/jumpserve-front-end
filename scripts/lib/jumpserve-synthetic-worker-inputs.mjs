@@ -2,6 +2,8 @@ import { join } from 'node:path';
 
 export const BATCH_SKILLS = { generator: 'jumpserve-paper-assessment', verifier: 'jumpserve-assessment-verifier' };
 
+export class PaperAssessmentError extends Error {}
+
 export function batchCasePaths(caseDirectory) {
   return { caseDirectory, paper: join(caseDirectory, 'paper.pdf'), key: join(caseDirectory, 'answer-key.json'),
     artifactDirectory: join(caseDirectory, 'generator'), output: join(caseDirectory, 'verifier') };
@@ -30,7 +32,7 @@ export function verifierPrompt({ skillDirectory, workflow, caseDirectory, paper,
 export function requireReviewPreflight(result, expected) {
   if (result?.pdf_bytes_checked !== true || result.mode !== 'fresh' || result.evidence_integrity?.status !== 'verified' ||
       Object.entries(expected).some(([field, value]) => result[field] !== value)) {
-    throw new Error('Independent evidence preflight did not verify the exact inputs.');
+    throw new PaperAssessmentError('Independent evidence preflight did not verify the exact inputs.');
   }
   return result;
 }
