@@ -134,6 +134,14 @@ test('the batch pins published guidance without changing the skills and recovers
     Object.assign(published[role], { instructions, sha256: sha256(instructions) });
   }
 
+  await assert.rejects(stageBatchGuidance({ skillsDirectory, snapshot }), /Published generator guidance is required/);
+  await assert.rejects(stageBatchGuidance({ skillsDirectory, snapshot, published: { generator: published.generator } }),
+    /Published verifier guidance is required/);
+  await assert.rejects(stageBatchGuidance({ skillsDirectory, snapshot, published: {
+    ...published, verifier: { ...published.verifier, sha256: sha256('Different text.') },
+  } }), /Could not verify the pinned verifier workflow/);
+  await assert.rejects(readFile(join(snapshot, BATCH_SKILLS.generator, 'SKILL.md')), { code: 'ENOENT' });
+
   const staged = await stageBatchGuidance({ skillsDirectory, snapshot, published });
   const { guidance, workflowFiles } = staged;
   const expectedProvenance = role => ({ source: 'supabase', version_id: published[role].version_id, sha256: published[role].sha256 });
