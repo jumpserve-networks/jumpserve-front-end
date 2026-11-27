@@ -10,7 +10,7 @@ from zipfile import ZipFile, ZipInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = "https://jumpserve.quaint-lab.org"
-VERSION = "1.8.0"
+VERSION = "1.8.1"
 SKILL = "jumpserve-paper-assessment"
 VERIFIER = "jumpserve-assessment-verifier"
 COACH = "jumpserve-assessment-coach"
@@ -24,6 +24,7 @@ SKILL_FILES = (
     "references/aws-testbeds.md",
     "references/modules.md",
     "references/permissions.md",
+    "references/shareable-text.json",
     "references/sharing.md",
     "references/testbed.md",
     "scripts/aws_testbed.py",

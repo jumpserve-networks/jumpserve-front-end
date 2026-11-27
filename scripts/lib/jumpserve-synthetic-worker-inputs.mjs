@@ -13,7 +13,7 @@ export function generatorPrompt({ skillDirectory, workflow, paper, paperSha256, 
   return `Follow the JumpServe Generator skill at ${skillDirectory}/SKILL.md using its batch worker entry point.\n` +
     `Use the pinned workflow at ${workflow}. Set skill_instructions to ${JSON.stringify(guidance)}.\n` +
     `Input PDF: ${paper}\nExpected SHA-256: ${paperSha256}\n${testbed}\n` +
-    `Write the skill's assessment bundle and evidence in the current working directory. The parent runner confirms private saving.`;
+    `Write the skill's assessment bundle and evidence in the current working directory. Run the installed bundle and evidence checker on the final JSON before handing it off. The parent runner confirms private saving.`;
 }
 
 export function verifierPrompt({ skillDirectory, workflow, caseDirectory, paper, key, assessment, guidance, rubric }) {

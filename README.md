@@ -29,7 +29,7 @@ plan-only instructions you give it.
 Claude Code and Codex run paper assessments locally with the standalone
 [Generator skill](skills/jumpserve-paper-assessment/SKILL.md). Its skill ID is
 `jumpserve-paper-assessment`.
-[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.8.0.zip)
+[Download the skill archive](https://jumpserve.quaint-lab.org/downloads/jumpserve-paper-assessment-v1.8.1.zip)
 from JumpServe. Place the extracted skill
 directory under `~/.claude/skills/` for Claude Code or `~/.agents/skills/` for
 Codex. The skill uses the [Access, Experiment, Data, and Validate workflow](skills/jumpserve-paper-assessment/references/modules.md)

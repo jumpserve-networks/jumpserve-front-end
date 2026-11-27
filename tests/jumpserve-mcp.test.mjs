@@ -219,10 +219,16 @@ test('script source is part of the exact approval and requires safe relative, un
   }
   experiment.scripts = [script, { ...script, content: 'printf 1\n' }];
   assert.throws(() => prepareAssessmentBundle(bundle), /Script paths must be unique/);
-  for (const content of ['cat /Users/example/private-data', 'API_KEY=private-example']) {
+  for (const content of ['cat /Users/example/private-data', 'cat /tmp/trace-fixture', 'API_KEY=private-example']) {
     experiment.scripts = [{ ...script, content }];
-    assert.throws(() => prepareAssessmentBundle(bundle), /credentials.*private paths/);
+    assert.throws(() => prepareAssessmentBundle(bundle), error => {
+      assert.match(error.message, /private paths.* at \/wizard\/experiments\/0\/scripts\/0\/content\.$/);
+      assert.ok(!error.message.includes(content));
+      return true;
+    });
   }
+  experiment.scripts = [{ ...script, content: '#!/bin/sh\ntrace_file=$(mktemp)\ncat "$trace_file"\n' }];
+  assert.deepEqual(prepareAssessmentBundle(bundle).bundle.wizard.experiments[0].scripts, experiment.scripts);
 });
 
 test('OAuth requests require a registered loopback callback, PKCE and the JumpServe resource', () => {

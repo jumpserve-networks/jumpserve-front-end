@@ -2,6 +2,7 @@ import Ajv from "ajv";
 import { createHash } from "node:crypto";
 import { isIP } from "node:net";
 import assessmentSchema from "@/skills/jumpserve-paper-assessment/references/assessment.schema.json" with { type: "json" };
+import shareableText from "@/skills/jumpserve-paper-assessment/references/shareable-text.json" with { type: "json" };
 import { validPaperDependencies } from "@/lib/paper-detail-dependencies";
 import { PAPER_BREAKDOWN_SECTIONS, type PaperBreakdownSection } from "@/lib/research-paper-breakdown";
 
@@ -69,15 +70,19 @@ export function canonicalJson(value: unknown): string {
 
 // The allowlist is the publication boundary. This is an additional check for
 // common accidental disclosures in otherwise valid free-text fields.
-const privateText = /\b(?:sk-[A-Za-z0-9_-]{12,}|sb_secret_[A-Za-z0-9_-]{8,}|AKIA[A-Z0-9]{16}|ASIA[A-Z0-9]{16}|gh[pousr]_[A-Za-z0-9]{12,}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)\b|BEGIN (?:[A-Z]+ )*PRIVATE KEY|\bBearer\s+[\w.+/~=-]+|\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b|\/(?:Users|home|private|var|tmp|mnt|root|workspace)\/|[A-Z]:\\(?:Users|Documents)\\|\b(?:password|client[_-]?secret|access[_-]?token|api[_-]?key)\s*[:=]\s*\S+|[?&](?:token|signature|x-amz-signature)=/i;
+const privateText = new RegExp(shareableText.privatePattern, "i");
+const invalidControl = new RegExp(shareableText.controlPattern);
 
-export function checkAssessmentText(value: unknown): void {
+export function checkAssessmentText(value: unknown, path = ""): void {
   if (typeof value === "string") {
-    if (!value.trim() || privateText.test(value) || /[\u0000-\u0008\u000b-\u001f\u007f]/.test(value)) {
-      throw new Error("Remove blank fields, credentials, contact details and private paths from the assessment record.");
+    if (!value.trim() || privateText.test(value) || invalidControl.test(value)) {
+      throw new Error(`${shareableText.message} at ${path || "/"}.`);
     }
   } else if (value !== null && typeof value === "object") {
-    for (const item of Object.values(value)) checkAssessmentText(item);
+    // Callers validate closed schemas before checking text, so keys are field names.
+    for (const [key, item] of Object.entries(value)) {
+      checkAssessmentText(item, `${path}/${key.replaceAll("~", "~0").replaceAll("/", "~1")}`);
+    }
   }
 }
 

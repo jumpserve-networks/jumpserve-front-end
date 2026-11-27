@@ -78,9 +78,46 @@ def check_run(bundle_path, run, paper_digest):
     return comparable
 
 
-def check_bundle(bundle_path):
+def schema_fields(schema):
+    if isinstance(schema, dict):
+        yield from schema.get("properties", {})
+        for child in schema.values():
+            yield from schema_fields(child)
+    elif isinstance(schema, list):
+        for child in schema:
+            yield from schema_fields(child)
+
+
+def check_shareable_text(bundle):
+    references = Path(__file__).resolve().parents[1] / "references"
+    policy = json.loads((references / "shareable-text.json").read_text(encoding="utf-8"))
+    fields = set(schema_fields(json.loads((references / "assessment.schema.json").read_text(encoding="utf-8"))))
+    whitespace = policy["whitespaceClass"]
+    # Match JavaScript's word boundaries and whitespace in the shared pattern.
+    private = policy["privatePattern"].replace(r"\s", f"[{whitespace}]").replace(r"\S", f"[^{whitespace}]")
+    private_text = re.compile(private, re.IGNORECASE | re.ASCII)
+    blank_text = re.compile(f"[{whitespace}]*")
+    invalid_control = re.compile(policy["controlPattern"])
+
+    def visit(value, path):
+        if isinstance(value, str):
+            if blank_text.fullmatch(value) or private_text.search(value) or invalid_control.search(value):
+                raise ValueError(f"{policy['message']} at {path or '/'}.")
+        elif isinstance(value, dict):
+            for key, child in value.items():
+                visit(child, f"{path}/{key if key in fields else '<field>'}")
+        elif isinstance(value, list):
+            for index, child in enumerate(value):
+                visit(child, f"{path}/{index}")
+
+    visit(bundle, "")
+
+
+def check_bundle(bundle_path, *, shareable=False):
     bundle_path = bundle_path.resolve(strict=True)
     bundle = json.loads(bundle_path.read_bytes())
+    if shareable:
+        check_shareable_text(bundle)
     ids = set()
     supported_claims = set()
     for run in bundle["runs"]:
@@ -104,10 +141,10 @@ def main():
     parser.add_argument("bundle", type=Path)
     args = parser.parse_args()
     try:
-        count = check_bundle(args.bundle)
+        count = check_bundle(args.bundle, shareable=True)
     except (OSError, ValueError, TypeError, KeyError) as error:
         parser.exit(1, f"{error}\n")
-    print(f"Verified evidence for {count} experiment runs.")
+    print(f"Checked shareable bundle text and verified evidence for {count} experiment runs.")
 
 
 if __name__ == "__main__":
