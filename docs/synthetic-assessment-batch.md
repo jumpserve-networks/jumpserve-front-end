@@ -37,11 +37,12 @@ skills as the JumpServe plugin. A run pins the active published instructions by
 checksum, or uses the bundled instructions when the results endpoint lacks
 published workflow support.
 
-With a configured pool of signed-in worker volumes, the coordinator starts a
-fresh Generator EC2 instance for every paper concurrently. A coordinator with
-one signed-in volume runs papers in sequence. Each paper moves to its own
-Verifier EC2 instance as soon as its
-private Generator bundle has been validated and saved in Supabase. The
+With the five-session pool enabled, the coordinator runs up to five papers at
+a time. Each paper starts on a fresh Generator EC2 instance and moves to a
+fresh Verifier EC2 instance after its private Generator bundle has been
+validated and saved in Supabase. When a paper's Verifier result is saved and
+both workers have been cleaned up, the same session takes the next queued
+paper. A coordinator with one signed-in volume runs papers in sequence. The
 Verifier receives that paper's matching answer key and read-only Generator
 evidence. The coordinator saves each validated scorecard and continues
 processing the other papers regardless of the points earned. A blocker,
@@ -54,7 +55,7 @@ and Verifier step. Step timing includes worker setup, execution, validation
 and result saving. Historical batches without time records show time as
 unavailable.
 
-Each paper uses its own encrypted Codex sign-in volume for both stages. The
+Each session uses its own encrypted Codex sign-in volume for both stages. The
 worker attaches it in the same Availability Zone and mounts the sign-in
 directory only in its authenticated Codex container. The execution container
 and evidence transfer are separate from those credentials. The workers share
@@ -96,26 +97,46 @@ to `TrainingTerminalConnectionsTable`. Set
 before building the site. The same setting in `.env.local` enables viewing on
 `http://localhost:6001`.
 
-Deploy the coordinator stack with `EnableParallelTraining=true`. Provision one
-encrypted gp3 sign-in volume in the worker Availability Zone for each paper,
-including the existing `CodexVolumeId`. Set `AdditionalWorkerAuthVolumeArns`
-to the additional volumes' exact ARNs. In
-`/etc/jumpserve-synthetic-batch.env`, set `JUMPSERVE_WORKER_AUTH_VOLUMES`
-to the comma-separated list of all enrolled volume IDs,
-`JUMPSERVE_WORKER_SUBNET_ID` to `TrainingWorkerSubnetId`, and
-`JUMPSERVE_WORKER_SECURITY_GROUP_ID` to `TrainingWorkerSecurityGroupId`.
-The current 15-paper corpus needs capacity for 15 concurrent t3.medium workers
-in addition to the coordinator and other workloads.
+### Five-session pool
+
+Deploy the coordinator stack with `EnableParallelTraining=true` and an empty
+`AdditionalWorkerAuthVolumeArns`. The `TrainingWorkerSessionVolumeIds` output
+lists the existing `CodexVolumeId` followed by four new encrypted gp3 volumes
+in the worker Availability Zone. The pool needs capacity for five concurrent
+t3.medium workers in addition to the coordinator and other workloads.
 
 The coordinator uses its instance role and the scoped experiment-client role
 for leases. Prepare or renew the JumpServe results session on the coordinator
 with `npm run assessment -- login --results --callback-port 54457` using a
-loopback-only SSH forward. Enroll each ChatGPT session independently on its
-volume. Temporarily attach and mount each credential volume at
-`/mnt/jumpserve-codex`, then run `codex login` with
-`CODEX_HOME=/mnt/jumpserve-codex/session` and file-backed credential storage.
-Unmount and detach each volume before starting a batch.
-[Codex headless sign-in](https://learn.chatgpt.com/docs/auth#login-on-headless-devices)
+loopback-only SSH forward.
+
+Enroll each new ChatGPT session once. The existing session can be reused if it
+is still signed in. Use the idle coordinator or an enrollment instance in the
+worker zone and attach one detached volume at a time. Verify the device's EBS
+volume ID and initialize ext4 only on a confirmed new, blank volume. Mount it at
+`/mnt/jumpserve-codex` and create the `session` directory with mode `0700` and
+ownership matching `ec2-user` on the workers. Enable device code login in
+ChatGPT security settings or workspace permissions. Run the following as
+`ec2-user` with the volume mounted and complete the device sign-in in your
+browser. [Codex headless sign-in](https://learn.chatgpt.com/docs/auth#login-on-headless-devices)
+
+```sh
+CODEX_HOME=/mnt/jumpserve-codex/session codex \
+  -c 'cli_auth_credentials_store="file"' -c 'forced_login_method="chatgpt"' login --device-auth
+CODEX_HOME=/mnt/jumpserve-codex/session codex \
+  -c 'cli_auth_credentials_store="file"' login status
+```
+
+Confirm status reports a ChatGPT login, then unmount and detach the volume.
+Repeat for each new volume. After all five sessions are enrolled and the
+coordinator has no active batch, set these in its
+`/etc/jumpserve-synthetic-batch.env` for the next batch:
+
+- `JUMPSERVE_WORKER_AUTH_VOLUMES` uses `TrainingWorkerSessionVolumeIds`.
+- `JUMPSERVE_WORKER_SUBNET_ID` uses `TrainingWorkerSubnetId`.
+- `JUMPSERVE_WORKER_SECURITY_GROUP_ID` uses `TrainingWorkerSecurityGroupId`.
+
+### Operations
 
 Inspect a numbered unit with `sudo journalctl -u jumpserve-training-batch@<id>.service`.
 Cancel it with `sudo systemctl stop jumpserve-training-batch@<id>.service`.

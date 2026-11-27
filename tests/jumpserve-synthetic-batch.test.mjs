@@ -22,13 +22,13 @@ function correctClaim(evidence = []) {
     assessment: 'correct', evidence, finding: 'The recorded outcome agrees.' };
 }
 
-async function fixture(t) {
+async function fixture(t, paperIds = ['A', 'B', 'C']) {
   const root = await mkdtemp(join(tmpdir(), 'jumpserve-batch-test-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const papers = join(root, 'pdfs');
   const keys = join(root, 'keys');
   for (const path of [papers, join(keys, 'development')]) await mkdir(path, { recursive: true });
-  for (const id of ['A', 'B', 'C']) {
+  for (const id of paperIds) {
     const paper = Buffer.from(`%PDF-1.7\n${id}\n`);
     const paperSha256 = sha256(paper);
     await writeFile(join(papers, `${id}.pdf`), paper);
@@ -213,61 +213,74 @@ test('a one-point loss is recorded and the next paper still runs', async t => {
   assert.equal(lab.calls.length, 9);
 });
 
-test('parallel batches overlap all Generators and keep each paper’s saves and Verifier ordered', { timeout: 5_000 }, async t => {
-  const lab = await fixture(t);
-  const barrier = Promise.withResolvers();
-  const lowerScoreSaved = Promise.withResolvers();
+test('five workers reuse their sessions for queued papers after saving each Verifier result', { timeout: 5_000 }, async t => {
+  const paperIds = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+  const lab = await fixture(t, paperIds);
+  const poolSize = 5;
+  const initialWorkersReady = Promise.withResolvers();
+  const queuedPaperStarted = Promise.withResolvers();
   const launched = new Set();
-  const generated = new Set();
-  const reviewed = new Set();
   const ids = new Map();
-  const result = await runSyntheticBatch({ ...lab, parallel: true,
-    async generate({ signal, ...input }) {
-      signal.throwIfAborted();
-      launched.add(input.paperSha256);
-      if (launched.size === lab.cases.length) barrier.resolve();
-      await barrier.promise;
-      if (input.paperSha256 === lab.cases[2].paperSha256) await lowerScoreSaved.promise;
-      signal.throwIfAborted();
-      await lab.generate(input);
-    },
-    async reviewOnInstance({ assessmentId, ...input }) {
-      assert.ok(generated.has(assessmentId));
-      const checked = await lab.preflight(input);
-      assert.equal(ids.get(checked.paper_sha256), assessmentId);
-      await lab.score(input, checked.paper_id === 'B' ? 1 : 2);
-      return checked;
-    },
+  const reviewed = new Set();
+  const workerPool = Array.from({ length: poolSize }, () => {
+    let previousAssessmentId;
+    return {
+      async generate({ signal, ...input }) {
+        signal.throwIfAborted();
+        if (previousAssessmentId) assert.ok(reviewed.has(previousAssessmentId));
+        previousAssessmentId = input.assessmentId;
+        const { paperId } = lab.cases.find(item => item.paperSha256 === input.paperSha256);
+        assert.ok(!launched.has(paperId));
+        launched.add(paperId);
+        if (launched.size === poolSize) {
+          assert.deepEqual([...launched].sort(), paperIds.slice(0, poolSize));
+          initialWorkersReady.resolve();
+        }
+        if (paperId === 'F') queuedPaperStarted.resolve();
+        await initialWorkersReady.promise;
+        if (paperId === 'C') await queuedPaperStarted.promise;
+        signal.throwIfAborted();
+        await lab.generate(input);
+      },
+      async reviewOnInstance({ assessmentId, ...input }) {
+        assert.equal(assessmentId, previousAssessmentId);
+        const checked = await lab.preflight(input);
+        assert.equal(ids.get(checked.paper_sha256), assessmentId);
+        await lab.score(input, checked.paper_id === 'B' ? 1 : 2);
+        return checked;
+      },
+    };
+  });
+  const result = await runSyntheticBatch({ ...lab, workerPool,
     persistence: {
       async generator(id, _paper, bundle) {
         ids.set(bundle.paper.sha256, id);
-        generated.add(id);
         return id;
       },
       async verifier(id, _artifact, grade) {
         assert.equal(ids.get(grade.paper_sha256), id);
         reviewed.add(id);
-        if (grade.paper_id === 'B') lowerScoreSaved.resolve();
         return id;
       },
     },
   });
   assert.equal(result.status, 'completed');
-  assert.equal(reviewed.size, 3);
-  assert.equal(new Set(result.cases.map(item => item.database.assessment_id)).size, 3);
-  assert.deepEqual(result.cases.map(item => item.status), ['passed', 'completed', 'passed']);
+  assert.equal(reviewed.size, paperIds.length);
+  assert.equal(new Set(result.cases.map(item => item.database.assessment_id)).size, paperIds.length);
+  assert.deepEqual(result.cases.map(item => item.status), paperIds.map(id => id === 'B' ? 'completed' : 'passed'));
   assert.deepEqual(JSON.parse(await readFile(join(lab.output, 'batch.json'))), result);
 });
 
 test('a blocked Verifier saves its scorecard and waits for interrupted workers to clean up', { timeout: 5_000 }, async t => {
-  const lab = await fixture(t);
+  const lab = await fixture(t, ['A', 'B', 'C', 'D']);
   const allStarted = Promise.withResolvers();
   const allAborted = Promise.withResolvers();
   const allowCleanup = Promise.withResolvers();
   let started = 0;
   let aborted = 0;
   const scoresSaved = [];
-  const running = runSyntheticBatch({ ...lab, parallel: true,
+  const worker = {
+    preflight: lab.preflight,
     async generate({ signal, ...input }) {
       if (++started === 3) allStarted.resolve();
       if (input.paperSha256 === lab.cases[0].paperSha256) {
@@ -285,6 +298,8 @@ test('a blocked Verifier saves its scorecard and waits for interrupted workers t
     verify: input => lab.score(input, 0, {
       status: 'blocked', score: null, blockers: ['Fixture prerequisite missing.'], rubric: [],
     }),
+  };
+  const running = runSyntheticBatch({ ...lab, workerPool: [worker, worker, worker],
     persistence: {
       generator: async id => id,
       async verifier(id, _artifact, grade) {
@@ -303,8 +318,9 @@ test('a blocked Verifier saves its scorecard and waits for interrupted workers t
   assert.deepEqual(scoresSaved, ['blocked']);
   assert.equal(state.status, 'stopped');
   assert.equal(state.stop.paper_id, 'A');
-  assert.deepEqual(state.cases.map(item => item.status), ['stopped', 'interrupted', 'interrupted']);
-  for (const item of state.cases.slice(1)) {
+  assert.deepEqual(state.cases.map(item => item.status), ['stopped', 'interrupted', 'interrupted', 'pending']);
+  assert.deepEqual(state.cases[3].steps, {});
+  for (const item of state.cases.slice(1, 3)) {
     assert.equal(item.steps.generator.status, 'interrupted');
     assert.ok(item.steps.generator.durationMs >= 0);
     assert.equal(item.steps.verifier, undefined);
@@ -534,19 +550,19 @@ writeFileSync(join(stage, 'aws-lease/state.json'), JSON.stringify({ role, cleane
     rubric: lab.cases[0].rubric, expected }), expected);
   await assert.rejects(readFile(join(chatgptDirectory, 'ec2-generator/session.json')), { code: 'ENOENT' });
 
-  const mappedWorkers = createEc2Workers({ settings: { profile: 'fixture', region: 'us-east-1',
-    instanceProfile: 'JumpServeExperimentWorkload-SSM', instanceType: 't3.medium', workerZone: 'us-east-1a',
-    workerAuthVolumes: new Map([['A', 'vol-00000000000000001'], ['B', 'vol-00000000000000002']]),
-    workerSubnet: 'subnet-00000000000000001', workerSecurityGroup: 'sg-00000000000000001' }, snapshot, workflowFiles: {},
-  timeoutMs: 30 * 60_000 });
-  await Promise.all(['A', 'B'].map(async id => {
+  const volumes = { A: 'vol-00000000000000001', B: 'vol-00000000000000002' };
+  await Promise.all(Object.entries(volumes).map(async ([id, workerAuthVolume]) => {
+    const worker = createEc2Workers({ settings: { profile: 'fixture', region: 'us-east-1',
+      instanceProfile: 'JumpServeExperimentWorkload-SSM', instanceType: 't3.medium', workerZone: 'us-east-1a', workerAuthVolume,
+      workerSubnet: 'subnet-00000000000000001', workerSecurityGroup: 'sg-00000000000000001' }, snapshot, workflowFiles: {},
+    timeoutMs: 30 * 60_000 });
     const generator = join(root, id, 'generator');
     const verifier = join(root, id, 'verifier');
     await mkdir(generator, { recursive: true });
     await mkdir(verifier);
-    await mappedWorkers.generate({ assessmentId, paper, output: generator, paperSha256: lab.cases[0].paperSha256,
+    await worker.generate({ assessmentId, paper, output: generator, paperSha256: lab.cases[0].paperSha256,
       guidance: lab.guidance.generator });
-    await mappedWorkers.reviewOnInstance({ assessmentId, paper, key, artifactDirectory: generator, output: verifier,
+    await worker.reviewOnInstance({ assessmentId, paper, key, artifactDirectory: generator, output: verifier,
       guidance: lab.guidance.verifier, rubric: lab.cases[0].rubric, expected });
   }));
 
