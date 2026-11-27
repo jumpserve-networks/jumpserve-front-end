@@ -143,13 +143,29 @@ test('training batch progress reports saved assessments and stops polling at a t
   assert.equal(within(verifier).queryByRole('timer'), null);
   await act(async () => { t.mock.timers.tick(10_000); });
   assert.ok(screen.getByText('9 / 10'));
-  assert.ok(screen.getByText('1 of 1 papers completed'));
+  assert.ok(screen.getByText('1 of 1 papers completed · 1 imperfect score'));
   assert.equal(screen.queryByText(/earned full credit/), null);
   assert.equal(screen.getByRole('progressbar', { name: 'Papers completed' }).value, 1);
   assert.ok(within(verifier).getByText('Completed'));
   assert.ok(within(verifier).getByText('2 minutes 1 second'));
   await act(async () => { t.mock.timers.tick(30_000); });
   assert.equal(fetch.mock.callCount(), 1);
+});
+
+test('the batch summary counts passed papers, imperfect scores, and verification errors', () => {
+  const paper = (index, status, earned) => ({
+    id: `paper-${index}`, fileName: `paper-${index}.pdf`, status, assessmentId: null, score: { earned, maximum: 10 },
+  });
+  render(React.createElement(TrainingBatchProgress, { id: 12, initial: {
+    id: 12, requestedAt: null, startedAt: null, updatedAt: null, finishedAt: null, stale: false,
+    status: 'completed', stopPhase: null, versions: { generator: null, verifier: null },
+    papers: [
+      ...Array.from({ length: 10 }, (_, index) => paper(index, 'passed', 10)),
+      ...Array.from({ length: 4 }, (_, index) => paper(index + 10, 'completed', 9)),
+      paper(14, 'verification_error', 5),
+    ],
+  } }));
+  assert.ok(screen.getByText('14 of 15 papers completed · 10 passed · 4 imperfect scores · 1 verification error'));
 });
 
 test('training batch viewers can read saved assessment IDs and see which papers are pending', () => {

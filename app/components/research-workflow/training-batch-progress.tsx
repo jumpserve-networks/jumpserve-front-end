@@ -135,7 +135,11 @@ export function TrainingBatchProgress({ id, initial }: { id: number; initial?: T
     return () => { controller.abort(); clearTimeout(timer); };
   }, [id, hasInitial, refresh, shouldPoll]);
 
-  const completed = batch?.papers.filter(paper => paper.status === "passed" || paper.status === "completed").length ?? 0;
+  const completedPapers = batch?.papers.filter(paper => paper.status === "passed" || paper.status === "completed") ?? [];
+  const completed = completedPapers.length;
+  const passed = completedPapers.filter(paper => paper.status === "passed").length;
+  const imperfectScores = completedPapers.filter(({ status, score }) =>
+    status === "completed" && score && score.earned < score.maximum).length;
   const generationErrors = batch?.papers.filter(paper => paper.status === "generation_error").length ?? 0;
   const verificationErrors = batch?.papers.filter(paper => paper.status === "verification_error").length ?? 0;
   const paperCount = batch?.papers.length ?? 0;
@@ -168,6 +172,8 @@ export function TrainingBatchProgress({ id, initial }: { id: number; initial?: T
         <div role="status" className="flex flex-wrap items-center gap-3">
           <Badge variant={batch.status === "failed" || batch.status === "stopped" ? "destructive" : "secondary"}>{trainingBatchStatusLabels[batch.status]}</Badge>
           {paperCount ? <span className="text-sm">{completed} of {paperCount} papers completed
+            {passed ? ` · ${passed} passed` : ""}
+            {imperfectScores ? ` · ${imperfectScores} imperfect ${imperfectScores === 1 ? "score" : "scores"}` : ""}
             {generationErrors ? ` · ${generationErrors} generation ${generationErrors === 1 ? "error" : "errors"}` : ""}
             {verificationErrors ? ` · ${verificationErrors} verification ${verificationErrors === 1 ? "error" : "errors"}` : ""}
           </span> : null}
