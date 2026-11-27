@@ -22,6 +22,137 @@
   animation-direction: reverse;
 }
 
+.training-batch-launch-graphic {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  inline-size: min(100%, 28rem);
+  block-size: 10rem;
+  margin-inline: auto;
+  overflow: hidden;
+  color: var(--chart-2);
+}
+
+.training-batch-launch-graphic::before {
+  content: "";
+  position: absolute;
+  inline-size: 5.5rem;
+  aspect-ratio: 1;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  animation: training-batch-launch-wave 3.2s ease-out infinite;
+}
+
+.training-batch-launch-guide {
+  position: absolute;
+  inset-inline: 5%;
+  border-block-start: 1px dashed color-mix(in srgb, currentColor 36%, transparent);
+}
+
+.training-batch-launch-guide::before,
+.training-batch-launch-guide::after {
+  content: "";
+  position: absolute;
+  inset-block-start: -0.2rem;
+  inline-size: 0.36rem;
+  aspect-ratio: 1;
+  border: 1px solid currentColor;
+  background: var(--background);
+  transform: rotate(45deg);
+}
+
+.training-batch-launch-guide::before { inset-inline-start: 0; }
+.training-batch-launch-guide::after { inset-inline-end: 0; }
+
+.training-batch-launch-orbit {
+  position: absolute;
+  inline-size: 9rem;
+  aspect-ratio: 1;
+  border: 1px solid color-mix(in srgb, currentColor 45%, transparent);
+  border-radius: 50%;
+  transform: rotate(var(--orbit-tilt, -12deg)) scaleY(0.38);
+}
+
+.training-batch-launch-orbit-steep {
+  --orbit-tilt: 54deg;
+  --orbit-duration: 3.4s;
+  --orbit-delay: -1.6s;
+  color: var(--chart-3);
+}
+
+.training-batch-launch-orbit-counter {
+  --orbit-tilt: -65deg;
+  --orbit-duration: 4.1s;
+  --orbit-delay: -2.4s;
+  --orbit-direction: reverse;
+  color: var(--chart-1);
+}
+
+.training-batch-launch-orbit > span {
+  position: absolute;
+  inset: -1px;
+  border: 2px solid transparent;
+  border-block-start-color: currentColor;
+  border-radius: inherit;
+  animation: training-batch-launch-orbit var(--orbit-duration, 2.8s) linear var(--orbit-delay, 0s)
+    infinite var(--orbit-direction, normal);
+}
+
+.training-batch-launch-orbit > span::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 12%;
+  inset-inline-end: 12%;
+  inline-size: 0.42rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0.85rem 0.18rem currentColor;
+}
+
+.training-batch-launch-core {
+  position: relative;
+  display: grid;
+  place-items: center;
+  inline-size: 2.55rem;
+  aspect-ratio: 1;
+  border: 1px solid currentColor;
+  background: color-mix(in srgb, var(--card) 85%, currentColor);
+  box-shadow: 0 0 1.55rem color-mix(in srgb, currentColor 45%, transparent);
+  transform: rotate(45deg);
+}
+
+.training-batch-launch-core::before {
+  content: "";
+  position: absolute;
+  inset: 0.3rem;
+  border: 1px solid color-mix(in srgb, currentColor 50%, transparent);
+}
+
+.training-batch-launch-core::after {
+  content: "";
+  inline-size: 0.63rem;
+  aspect-ratio: 1;
+  background: currentColor;
+  box-shadow: 0 0 0.75rem currentColor;
+  animation: training-batch-launch-beacon 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes training-batch-launch-orbit {
+  to { transform: rotate(1turn); }
+}
+
+@keyframes training-batch-launch-wave {
+  from { opacity: 0.55; transform: scale(0.5); }
+  to { opacity: 0; transform: scale(1.7); }
+}
+
+@keyframes training-batch-launch-beacon {
+  from { opacity: 0.55; transform: scale(0.82); }
+  to { opacity: 1; transform: scale(1.12); }
+}
+
 @plugin "@tailwindcss/typography";
 @custom-variant dark (&:where(.dark, .dark *));
 
