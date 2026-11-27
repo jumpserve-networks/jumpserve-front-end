@@ -10,8 +10,8 @@
       "description": "Recreate research testbeds, run experiments locally, and view the results on JumpServe.",
       "source": {
         "source": "archive",
-        "url": "https://jumpserve.quaint-lab.org/downloads/jumpserve-plugin-v1.8.0.zip",
-        "sha256": "e829a5c4aa6f8583ead3efd94df1383e56bcd48b3fd8259f8951ce03f9248573"
+        "url": "https://jumpserve.quaint-lab.org/downloads/jumpserve-plugin-v1.8.1.zip",
+        "sha256": "21977336ff1d85f040d0b71a165b0e42c2d3a89b1b0807fd6b59fedc90cba4a2"
       }
     }
   ]

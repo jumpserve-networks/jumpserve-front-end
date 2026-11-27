@@ -45,7 +45,7 @@ same assessment steps. Record the [guidance version](instruction-loading.md) in
   and evidence digests. Keep values extracted from the paper as
   reference values in `paper_value`. Leave `runs` empty if no trial produced
   eligible measurements and use the claim findings to explain coverage.
-  Run the [local evidence check](testbed.md#check-the-saved-bundle) before saving.
+  Run the [local bundle and evidence checks](testbed.md#check-the-saved-bundle) before saving.
 
 Keep the original PDF and local evidence directory. Raw logs, credentials,
 account details, private paths and unsuitable commands or scripts stay local.

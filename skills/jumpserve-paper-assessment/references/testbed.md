@@ -75,9 +75,12 @@ From the assessment directory, run the packaged checker before private delivery.
 python3 "$SKILL_DIR/scripts/check_experiment_evidence.py" jumpserve-assessment.json
 ```
 
-The checker needs only the Python 3.9+ standard library. It verifies the link
-from each bundled run to a local receipt and its raw outputs, and requires
-comparable execution evidence for conclusive claims. Validate the actual
+The checker needs only the Python 3.9+ standard library. It checks shareable
+text, including embedded commands and scripts, with the same text rules as the
+JumpServe importer. A text error identifies the field by its JSON Pointer and
+keeps the rejected value private. Correct the shareable copy and check it again.
+The checker also verifies the link from each bundled run to a local receipt and
+its raw outputs, and requires comparable execution evidence for conclusive claims. Validate the actual
 method, sampling and provenance against the frozen specification separately.
 An assessment with no eligible run can use an empty `runs` array and
 unresolved outcomes. Keep the receipts and raw observations local.
