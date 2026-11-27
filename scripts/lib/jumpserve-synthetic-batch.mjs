@@ -307,13 +307,13 @@ async function runBatch({ output, cases, guidance, runtime, generate, preflight,
     let phase = 'generating';
     let step;
     function startStep(role) {
-      step = { role, startedAt: now() };
+      step = { role, startedAtMs: now() };
       item.steps ??= {};
-      item.steps[role] = { status: 'running', durationMs: null };
+      item.steps[role] = { status: 'running', durationMs: null, startedAt: new Date().toISOString() };
     }
     function finishStep(status) {
       if (!step) return;
-      item.steps[step.role] = { status, durationMs: Math.round(now() - step.startedAt) };
+      item.steps[step.role] = { ...item.steps[step.role], status, durationMs: Math.round(now() - step.startedAtMs) };
       step = undefined;
     }
     try {

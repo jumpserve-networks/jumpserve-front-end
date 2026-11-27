@@ -77,6 +77,44 @@ test('the launch graphic stays through coordinator preparation and disappears wh
   assert.equal(screen.getByRole('status').textContent, 'Running');
 });
 
+test('running Generator and Verifier timers tick between polls and switch to recorded durations', async t => {
+  const timestamp = '2026-11-01T00:01:10.000Z';
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout', 'setInterval'], now: Date.parse(timestamp) });
+  const startedGenerator = '2026-11-01T00:01:05.000Z';
+  const startedVerifier = '2026-11-01T00:00:05.000Z';
+  const first = { id: 12, status: 'running', stale: false, requestedAt: null, startedAt: startedVerifier,
+    updatedAt: timestamp, finishedAt: null, stopPhase: null, versions: { generator: null, verifier: null },
+    papers: [
+      { id: 'paper-1', fileName: 'first.pdf', status: 'generating', assessmentId: null, score: null,
+        steps: { generator: { status: 'running', durationMs: null, startedAt: startedGenerator } } },
+      { id: 'paper-2', fileName: 'second.pdf', status: 'verifying', assessmentId: null, score: null,
+        steps: { verifier: { status: 'running', durationMs: null, startedAt: startedVerifier } } },
+    ],
+  };
+  const final = { ...first, status: 'completed', finishedAt: '2026-11-01T00:01:20.000Z', papers: first.papers.map((paper, index) => ({
+    ...paper, status: 'completed', steps: index === 0
+      ? { generator: { status: 'completed', durationMs: 11_420, startedAt: startedGenerator } }
+      : { verifier: { status: 'completed', durationMs: 72_310, startedAt: startedVerifier } },
+  })) };
+  const fetch = t.mock.method(globalThis, 'fetch', async () => Response.json(final));
+  render(React.createElement(TrainingBatchProgress, { id: 12, initial: first }));
+  const generator = within(screen.getByRole('list', { name: 'Assessment steps for first.pdf' }));
+  const verifier = within(screen.getByRole('list', { name: 'Assessment steps for second.pdf' }));
+  assert.equal(generator.getByRole('timer').textContent, '5 seconds');
+  assert.equal(verifier.getByRole('timer').textContent, '1 minute 5 seconds');
+  await act(async () => { t.mock.timers.tick(3_000); });
+  assert.equal(generator.getByRole('timer').textContent, '8 seconds');
+  assert.equal(verifier.getByRole('timer').textContent, '1 minute 8 seconds');
+  assert.equal(fetch.mock.callCount(), 0);
+  await act(async () => { t.mock.timers.tick(7_000); });
+  assert.equal(screen.queryByRole('timer'), null);
+  assert.ok(generator.getByText('11 seconds'));
+  assert.ok(verifier.getByText('1 minute 12 seconds'));
+  await act(async () => { t.mock.timers.tick(20_000); });
+  assert.ok(generator.getByText('11 seconds'));
+  assert.equal(fetch.mock.callCount(), 1);
+});
+
 test('training batch progress reports saved assessments and stops polling at a terminal result', async t => {
   const batchId = 12;
   t.mock.timers.enable({ apis: ['setTimeout'] });
@@ -102,6 +140,7 @@ test('training batch progress reports saved assessments and stops polling at a t
   assert.ok(within(generator).getByText('15 minutes 3 seconds'));
   assert.ok(within(verifier).getByText('Verifier'));
   assert.ok(within(verifier).getByText('Running'));
+  assert.equal(within(verifier).queryByRole('timer'), null);
   await act(async () => { t.mock.timers.tick(10_000); });
   assert.ok(screen.getByText('9 / 10'));
   assert.ok(screen.getByText('1 of 1 papers completed'));

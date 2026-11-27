@@ -188,8 +188,9 @@ class TrainingBatchTest(unittest.TestCase):
             "stop": {"phase": "verifying", "reason": "private error"},
             "cases": [{"paper_id": "paper-1", "pdf": "paper.pdf", "status": "stopped", "answer_key_sha256": "private",
                        "score": {"earned": 9, "rubric_maximum": 10},
-                       "steps": {"generator": {"status": "completed", "durationMs": 1234, "internal": "private"},
-                                 "verifier": {"status": "completed", "durationMs": 100}},
+                       "steps": {"generator": {"status": "completed", "durationMs": 1234,
+                                               "startedAt": "2026-11-01T00:00:01.234Z", "internal": "private"},
+                                 "verifier": {"status": "completed", "durationMs": 100, "startedAt": "private"}},
                        "database": {"assessment_id": self.assessment_id, "generator_result_id": "private"}},
                       {"paper_id": "paper-2", "pdf": "other.pdf", "status": "interrupted"}],
         }
@@ -218,7 +219,7 @@ class TrainingBatchTest(unittest.TestCase):
         self.assertEqual(snapshots[-1]["papers"][0]["score"], {"earned": 9, "maximum": 10})
         self.assertEqual(snapshots[-1]["papers"][0]["assessmentId"], self.assessment_id)
         self.assertEqual(snapshots[-1]["papers"][0]["steps"], {
-            "generator": {"status": "completed", "durationMs": 1234},
+            "generator": {"status": "completed", "durationMs": 1234, "startedAt": "2026-11-01T00:00:01.234Z"},
             "verifier": {"status": "completed", "durationMs": 100},
         })
         self.assertEqual(snapshots[-1]["papers"][1]["status"], "interrupted")

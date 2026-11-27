@@ -17,6 +17,7 @@ export const trainingBatchStepLabels: Record<TrainingBatchStep, string> = {
 type TrainingBatchStepProgress = {
   status: "running" | "completed" | "stopped" | "interrupted";
   durationMs: number | null;
+  startedAt?: string;
 };
 
 export type TrainingBatchPaper = {
@@ -34,12 +35,14 @@ export function projectTrainingBatchSteps(value: unknown): TrainingBatchPaper["s
   for (const role of trainingBatchSteps) {
     const entry = (value as Record<string, unknown>)[role];
     if (typeof entry !== "object" || entry === null) continue;
-    const { status, durationMs } = entry as Partial<TrainingBatchStepProgress>;
+    const { status, durationMs, startedAt } = entry as Partial<TrainingBatchStepProgress>;
     if (status !== "running" && status !== "completed" && status !== "stopped" && status !== "interrupted") continue;
+    const startTime = typeof startedAt === "string" && startedAt.length === 24 ? Date.parse(startedAt) : NaN;
     steps[role] = {
       status,
       durationMs: status !== "running" && typeof durationMs === "number" &&
         Number.isSafeInteger(durationMs) && durationMs >= 0 ? durationMs : null,
+      ...(Number.isFinite(startTime) && new Date(startTime).toISOString() === startedAt ? { startedAt } : {}),
     };
   }
   return steps;

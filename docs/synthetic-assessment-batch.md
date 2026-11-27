@@ -53,8 +53,9 @@ mismatch, missing output, worker timeout, or cleanup failure stops the batch
 and interrupts other unfinished workers. The coordinator retains
 completed results and waits for remaining workers to exit before publishing
 the final batch status.
-The paper list shows the status and recorded elapsed time of each Generator
-and Verifier step. Step timing includes worker setup, execution, validation
+The paper list updates the elapsed time of each running Generator or Verifier
+step once a second from its recorded start time. Finished steps show their
+recorded duration. Step timing includes worker setup, execution, validation
 and result saving. Historical batches without time records show time as
 unavailable.
 

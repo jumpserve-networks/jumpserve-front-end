@@ -228,8 +228,8 @@ test('an uncertain dispatch keeps the same progress URL and can reconcile a late
     status: 'stopped', updatedAt: timestamp, startedAt: timestamp, finishedAt: timestamp, stopPhase: 'verifying',
     versions: { generator: 4, verifier: 2, sha256: 'private' },
     papers: [{ id: 'paper-1', fileName: 'paper.pdf', status: 'stopped', assessmentId,
-      steps: { generator: { status: 'completed', durationMs: 0, internal: 'private' },
-        verifier: { status: 'stopped', durationMs: -1 }, other: { status: 'completed', durationMs: 2 } },
+      steps: { generator: { status: 'completed', durationMs: 0, startedAt: timestamp, internal: 'private' },
+        verifier: { status: 'stopped', durationMs: -1, startedAt: 'private' }, other: { status: 'completed', durationMs: 2 } },
       score: { earned: 9, maximum: 10, internal: 'private' }, answer_key_sha256: 'private' }],
     reason: 'raw private error',
   });
@@ -239,7 +239,7 @@ test('an uncertain dispatch keeps the same progress URL and can reconcile a late
   assert.equal(state.stopPhase, 'verifying');
   assert.deepEqual(state.papers[0].score, { earned: 9, maximum: 10 });
   assert.deepEqual(state.papers[0].steps, {
-    generator: { status: 'completed', durationMs: 0 }, verifier: { status: 'stopped', durationMs: null },
+    generator: { status: 'completed', durationMs: 0, startedAt: timestamp }, verifier: { status: 'stopped', durationMs: null },
   });
   assert.equal(state.papers[0].assessmentId, assessmentId);
   assert.equal(state.canViewAssessmentLinks, true);
