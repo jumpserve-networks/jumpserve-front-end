@@ -17,38 +17,43 @@ export async function stageBatchGuidance({ skillsDirectory, snapshot, published,
   const guidance = {};
   const workflowFiles = {};
   for (const [role, directory] of Object.entries(BATCH_SKILLS)) {
+    const revision = (previous ?? published)?.[role];
+    const legacy = previous && revision?.source === 'bundled';
+    const legacyFile = 'references/workflow.md';
     const staged = join(snapshot, directory);
-    const revision = previous ? previous[role] : published?.[role];
-    const isPublished = published !== undefined || revision?.source === 'supabase';
-    const bundledFile = 'references/workflow.md';
-    let workflowFile = isPublished ? 'published-workflow.md' : bundledFile;
-    if (!previous) {
-      await cp(join(skillsDirectory, directory), staged, { recursive: true, errorOnExist: true, force: false });
-      if (isPublished) {
-        if (revision?.role !== role || typeof revision.instructions !== 'string' || !revision.instructions.trim() ||
-            Buffer.byteLength(revision.instructions) > 24_000) {
-          throw new Error(`Invalid published ${role} workflow.`);
-        }
-        await writeFile(join(staged, workflowFile), revision.instructions, { flag: 'wx', mode: 0o600 });
-      }
-    }
-    const bytes = await readFile(join(staged, workflowFile)).catch(error => {
-      // Early published snapshots used the bundled path for the pinned bytes.
-      if (!previous || !isPublished || error.code !== 'ENOENT') throw error;
-      workflowFile = bundledFile;
-      return readFile(join(staged, workflowFile));
-    });
-    const checksum = sha256(bytes);
-    if (isPublished) {
-      if (revision.sha256 !== checksum || !isResearchId(revision.version_id) ||
-          !Number.isSafeInteger(revision.version_number) || revision.version_number < 1) {
-        throw new Error(`Could not verify the pinned ${role} workflow.`);
-      }
-      guidance[role] = { source: 'supabase', version_id: revision.version_id, sha256: checksum, version_number: revision.version_number };
+    let workflowFile = legacy ? legacyFile : 'published-workflow.md';
+    let bytes;
+    if (previous) {
+      bytes = await readFile(join(staged, workflowFile)).catch(error => {
+        // Older published snapshots stored the pinned text at the legacy path.
+        if (legacy || revision?.source !== 'supabase' || error.code !== 'ENOENT') throw error;
+        workflowFile = legacyFile;
+        return readFile(join(staged, workflowFile));
+      });
     } else {
-      guidance[role] = { source: 'bundled', sha256: checksum };
+      if (revision?.role !== role || typeof revision.instructions !== 'string' || !revision.instructions.trim() ||
+          Buffer.byteLength(revision.instructions) > 24_000) {
+        throw new Error(`Published ${role} guidance is required to start a training batch.`);
+      }
+      bytes = revision.instructions;
     }
+    const checksum = sha256(bytes);
+    if (revision?.sha256 !== checksum || (!legacy &&
+        ((previous && revision.source !== 'supabase') || !isResearchId(revision.version_id) ||
+          !Number.isSafeInteger(revision.version_number) || revision.version_number < 1))) {
+      throw new Error(`Could not verify the pinned ${role} workflow.`);
+    }
+    guidance[role] = legacy ? { source: 'bundled', sha256: checksum }
+      : { source: 'supabase', version_id: revision.version_id, sha256: checksum, version_number: revision.version_number };
     workflowFiles[role] = workflowFile;
+  }
+  if (!previous) {
+    // Verify both revisions before creating either skill snapshot.
+    for (const [role, directory] of Object.entries(BATCH_SKILLS)) {
+      const staged = join(snapshot, directory);
+      await cp(join(skillsDirectory, directory), staged, { recursive: true, errorOnExist: true, force: false });
+      await writeFile(join(staged, workflowFiles[role]), published[role].instructions, { flag: 'wx', mode: 0o600 });
+    }
   }
   return { guidance, workflowFiles };
 }

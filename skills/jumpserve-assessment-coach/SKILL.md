@@ -7,7 +7,7 @@ description: Turn JumpServe Verifier feedback from development scorecards into a
 
 Review development scorecards in a session separate from the Generator. Treat the active Generator, assessment records, scorecards, Verifier, and answer keys as read-only inputs. Keep candidate work in a separate local review directory. The owner decides whether to adopt a candidate.
 
-Resolve the Coach's guidance once at the start using [versioned instructions](references/instruction-loading.md) with role `coach`. Use the [bundled Coach instructions](references/workflow.md) for local work without the connector. This skill can create a local candidate for review. Publishing or activating instructions is an owner operation outside the skill.
+Load the Coach's [published guidance](references/instruction-loading.md) with role `coach` before starting. Draft candidates locally for owner review. Publication and activation are owner operations.
 
 1. Take explicit paths to local `jumpserve-verifier-scorecard-v1` files. Run `python3 -B <coach-skill-directory>/scripts/prepare_feedback.py <scorecard.json> [more-scorecards.json ...]`. Use the helper output as the source of Verifier findings. It admits development feedback and keeps held-out contents out of the Coach context. If there is no usable feedback, request a development scorecard. Keep answer keys, raw logs, PDFs, and expected replay observations with the original evaluation.
 2. Follow the selected guidance to choose one evidence-backed improvement. Keep scientific criteria and recorded measurements fixed. Follow [Draft a Generator candidate](references/candidate.md). For an explicitly proposal-only review, return recommendations. If the evidence supports no change, explain that in the report.

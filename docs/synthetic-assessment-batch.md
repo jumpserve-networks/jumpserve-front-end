@@ -33,9 +33,10 @@ connection metadata. The live relay sends terminal output directly to viewers.
 
 The coordinator reads `pdfs/synthetic_papers` in filename order and binds each
 PDF to exactly one answer key by SHA-256. It uses the same Generator and Verifier
-skills as the JumpServe plugin. A run pins the active published instructions by
-checksum, or uses the bundled instructions when the results endpoint lacks
-published workflow support.
+skills as the JumpServe plugin. The coordinator fetches both published
+workflows before starting workers, verifies their checksums, and pins their
+versions for the batch. If a workflow is unavailable, the batch reports the
+blocker during startup.
 
 With the eight-session pool enabled, the coordinator runs up to eight papers at
 a time. Each paper starts on a fresh Generator EC2 instance and moves to a

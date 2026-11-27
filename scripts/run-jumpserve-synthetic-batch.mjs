@@ -53,7 +53,7 @@ async function main() {
   await mkdir(dirname(chosen), { recursive: true, mode: 0o700 });
   const output = join(await realpath(dirname(chosen)), basename(chosen));
   const results = privateResultsClient();
-  const published = await results.check() ? await results.batchGuidance() : undefined;
+  const published = await results.batchGuidance();
   const snapshot = await mkdtemp(join(dirname(output), '.skills-'));
   const { guidance, workflowFiles } = await stageBatchGuidance({
     skillsDirectory: join(root, 'skills'), snapshot, published,
