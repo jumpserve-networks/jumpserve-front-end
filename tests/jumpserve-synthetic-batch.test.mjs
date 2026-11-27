@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { chmod, mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { registerHooks } from 'node:module';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { inventory, runSyntheticBatch, sha256, stageBatchGuidance } from '../scripts/lib/jumpserve-synthetic-batch.mjs';
-import { BATCH_SKILLS, verifierPrompt } from '../scripts/lib/jumpserve-synthetic-worker-inputs.mjs';
+import { BATCH_SKILLS, PaperAssessmentError, verifierPrompt } from '../scripts/lib/jumpserve-synthetic-worker-inputs.mjs';
 import { createBatchProgressReporter } from '../scripts/lib/jumpserve-synthetic-progress.mjs';
 import { createEc2Workers } from '../scripts/lib/jumpserve-synthetic-ec2.mjs';
 import { createContainerWorkers } from '../scripts/lib/jumpserve-synthetic-containers.mjs';
@@ -165,7 +165,7 @@ test('the batch pins published guidance without changing the skills and recovers
   const invalid = await runSyntheticBatch({ ...lab, output: `${lab.output}-invalid-version`, guidance,
     verify: input => lab.score(input, 2, { skill_instructions: { ...input.guidance, version_id: published.generator.version_id } }),
   });
-  assert.match(invalid.stop.reason, /does not identify the pinned skill guidance/);
+  assert.match(invalid.cases[0].verification_error, /does not identify the pinned skill guidance/);
 
   const stagedGenerator = join(snapshot, BATCH_SKILLS.generator);
   await writeFile(join(stagedGenerator, workflowFiles.generator), 'Modified snapshot.');
@@ -319,14 +319,76 @@ test('a malformed scorecard leaves the other Verifier running and frees the sess
   assert.deepEqual(JSON.parse(await readFile(join(lab.output, 'batch.json'))), result);
 });
 
-test('a blocked Verifier saves its scorecard and waits for interrupted workers to clean up', { timeout: 5_000 }, async t => {
+test('a rejected Generator bundle is retained while active and queued papers finish', { timeout: 5_000 }, async t => {
+  const lab = await fixture(t);
+  const queued = Promise.withResolvers();
+  const generated = [];
+  const verified = [];
+  const worker = {
+    preflight: lab.preflight,
+    verify: input => lab.score(input, 2),
+    async generate({ signal, ...input }) {
+      const paperId = basename(dirname(input.output));
+      if (paperId === 'B') await queued.promise;
+      signal.throwIfAborted();
+      await lab.generate(input);
+      if (paperId === 'C') queued.resolve();
+      if (paperId === 'A') {
+        const path = join(input.output, 'jumpserve-assessment.json');
+        const artifact = JSON.parse(await readFile(path, 'utf8'));
+        artifact.runs = [{
+          id: 'r1', configuration: 'Fixture environment', started_at: '2026-10-01T10:00:00Z', artifact_sha256: sha256('artifact'),
+          measurements: [{ claim_id: 'c1', metric: 'Counter', units: 'count', paper_value: null, observed_value: 1 }],
+        }];
+        await writeFile(path, JSON.stringify(artifact));
+      }
+    },
+  };
+  const result = await runSyntheticBatch({ ...lab, workerPool: [worker, worker], persistence: {
+    generator: async (id, _paper, bundle) => { generated.push(bundle.paper.title); return id; },
+    verifier: async (id, _artifact, grade) => { verified.push(grade.paper_id); return id; },
+  } });
+  const [failed] = result.cases;
+  assert.equal(result.status, 'completed');
+  assert.equal(result.stop, undefined);
+  assert.deepEqual(result.cases.map(item => item.status), ['generation_error', 'passed', 'passed']);
+  assert.equal(failed.generation_error, 'An untested claim cannot carry measured results.');
+  assert.equal(failed.steps.generator.status, 'stopped');
+  assert.equal(failed.steps.verifier, undefined);
+  assert.deepEqual(generated.sort(), ['Fixture B', 'Fixture C']);
+  assert.deepEqual(verified.sort(), ['B', 'C']);
+  const retained = JSON.parse(await readFile(join(lab.output, 'A', 'generator', 'jumpserve-assessment.json'), 'utf8'));
+  assert.equal(retained.claims[0].outcome, 'untested');
+  assert.equal(retained.runs[0].measurements[0].observed_value, 1);
+});
+
+test('a blocked Verifier saves its scorecard while remaining papers continue', async t => {
+  const lab = await fixture(t);
+  const scoresSaved = [];
+  const state = await runSyntheticBatch({ ...lab,
+    verify: input => basename(input.caseDirectory) === 'A' ? lab.score(input, 0, {
+      status: 'blocked', score: null, blockers: ['Fixture prerequisite missing.'], rubric: [],
+    }) : lab.score(input, 2),
+    persistence: {
+      generator: async id => id,
+      async verifier(id, _artifact, grade) { scoresSaved.push(grade.status); return id; },
+    },
+  });
+  assert.equal(state.status, 'completed');
+  assert.deepEqual(scoresSaved, ['blocked', 'scored', 'scored']);
+  assert.deepEqual(state.cases.map(item => item.status), ['verification_error', 'passed', 'passed']);
+  assert.equal(state.cases[0].steps.verifier.status, 'stopped');
+  assert.ok(state.cases[0].database.verification_id);
+  assert.equal(state.cases[0].score, null);
+});
+
+test('a shared save failure interrupts the batch and waits for active workers to clean up', { timeout: 5_000 }, async t => {
   const lab = await fixture(t, ['A', 'B', 'C', 'D']);
   const allStarted = Promise.withResolvers();
   const allAborted = Promise.withResolvers();
   const allowCleanup = Promise.withResolvers();
   let started = 0;
   let aborted = 0;
-  const scoresSaved = [];
   const worker = {
     preflight: lab.preflight,
     async generate({ signal, ...input }) {
@@ -343,17 +405,11 @@ test('a blocked Verifier saves its scorecard and waits for interrupted workers t
       await allowCleanup.promise;
       signal.throwIfAborted();
     },
-    verify: input => lab.score(input, 0, {
-      status: 'blocked', score: null, blockers: ['Fixture prerequisite missing.'], rubric: [],
-    }),
+    verify: () => assert.fail('Verifier started during a failed Generator save'),
   };
   const running = runSyntheticBatch({ ...lab, workerPool: [worker, worker, worker],
     persistence: {
-      generator: async id => id,
-      async verifier(id, _artifact, grade) {
-        scoresSaved.push(grade.status);
-        return id;
-      },
+      generator: async () => { throw new Error('Storage unavailable'); },
     },
   });
   await allAborted.promise;
@@ -363,9 +419,9 @@ test('a blocked Verifier saves its scorecard and waits for interrupted workers t
     allowCleanup.resolve();
   }
   const state = await running;
-  assert.deepEqual(scoresSaved, ['blocked']);
   assert.equal(state.status, 'stopped');
   assert.equal(state.stop.paper_id, 'A');
+  assert.equal(state.stop.phase, 'saving_generator');
   assert.deepEqual(state.cases.map(item => item.status), ['stopped', 'interrupted', 'interrupted', 'pending']);
   assert.deepEqual(state.cases[3].steps, {});
   for (const item of state.cases.slice(1, 3)) {
@@ -374,6 +430,27 @@ test('a blocked Verifier saves its scorecard and waits for interrupted workers t
     assert.equal(item.steps.verifier, undefined);
   }
   assert.deepEqual(JSON.parse(await readFile(join(lab.output, 'batch.json'))), state);
+});
+
+test('an operator stop interrupts active papers and leaves queued papers pending', { timeout: 5_000 }, async t => {
+  const lab = await fixture(t);
+  const controller = new AbortController();
+  const active = Promise.withResolvers();
+  let launched = 0;
+  const worker = {
+    async generate({ signal }) {
+      if (++launched === 2) active.resolve();
+      await new Promise(resolve => signal.addEventListener('abort', resolve, { once: true }));
+      signal.throwIfAborted();
+    },
+  };
+  const completion = runSyntheticBatch({ ...lab, workerPool: [worker, worker], signal: controller.signal });
+  await active.promise;
+  controller.abort(new Error('Operator stopped the batch.'));
+  const state = await completion;
+  assert.equal(state.status, 'interrupted');
+  assert.equal(state.stop, undefined);
+  assert.deepEqual(state.cases.map(item => item.status), ['interrupted', 'interrupted', 'pending']);
 });
 
 test('concurrent result saves share one JumpServe session renewal', async t => {
@@ -419,11 +496,15 @@ test('concurrent result saves share one JumpServe session renewal', async t => {
 
 test('a substituted rubric criterion cannot pass even when the totals are perfect', async t => {
   const lab = await fixture(t);
-  const result = await runSyntheticBatch({ ...lab, verify: input => lab.score(input, 2,
-    { rubric: [{ criterion: 'different', earned: 2, maximum: 2, reason: 'Fixture replacement.' }] }) });
-  assert.equal(result.status, 'stopped');
-  assert.equal(result.stop.paper_id, 'A');
-  assert.deepEqual(lab.calls, ['generate A', 'preflight A', 'verify A']);
+  const saved = [];
+  const result = await runSyntheticBatch({ ...lab, verify: input => lab.score(input, 2, basename(input.caseDirectory) === 'A'
+    ? { rubric: [{ criterion: 'different', earned: 2, maximum: 2, reason: 'Fixture replacement.' }] } : undefined),
+    persistence: { generator: async id => id, verifier: async (id, _artifact, grade) => { saved.push(grade.paper_id); return id; } },
+  });
+  assert.equal(result.status, 'completed');
+  assert.deepEqual(result.cases.map(item => item.status), ['verification_error', 'passed', 'passed']);
+  assert.match(result.cases[0].verification_error, /pinned rubric/);
+  assert.deepEqual(saved, ['B', 'C']);
 });
 
 test('the batch persists both result IDs and step durations for a below-perfect grade', async t => {
@@ -570,7 +651,18 @@ mkdirSync(join(stage, 'retrieved/case', role), { recursive: true });
 writeFileSync(join(stage, 'retrieved/case', role, 'retained.json'), JSON.stringify({ role }));
 if (role === 'verifier') writeFileSync(join(stage, 'retrieved/case/preflight.json'), JSON.stringify(job.expected));
 mkdirSync(join(stage, 'aws-lease'));
-writeFileSync(join(stage, 'aws-lease/state.json'), JSON.stringify({ role, cleaned: true }));
+const fixture = require('node:path').basename(require('node:path').dirname(stage));
+const leasePath = join(stage, 'aws-lease/state.json');
+if (fixture.startsWith('failed-')) {
+  writeFileSync(leasePath, JSON.stringify({
+    assessment_id: fixture === 'failed-other-lease' ? 'another-assessment' : arg('--assessment-id'),
+    stacks: [{ cleaned: fixture !== 'failed-unconfirmed' }],
+  }));
+  process.stderr.write('Fixture worker timeout.');
+  process.exitCode = 1;
+} else {
+  writeFileSync(leasePath, JSON.stringify({ role, cleaned: true }));
+}
 `, { mode: 0o700 });
   const originalPath = process.env.PATH;
   process.env.PATH = `${bin}:${originalPath}`;
@@ -590,6 +682,17 @@ writeFileSync(join(stage, 'aws-lease/state.json'), JSON.stringify({ role, cleane
     assert.deepEqual(JSON.parse(await readFile(join(caseDirectory, role, 'retained.json'), 'utf8')), { role });
     assert.deepEqual(JSON.parse(await readFile(join(stage, 'retrieved/case', role, 'retained.json'), 'utf8')), { role });
     await assert.rejects(readFile(join(stage, 'payload/job.json')), { code: 'ENOENT' });
+  }
+
+  for (const [fixture, expectedPaperError] of [['failed-cleaned', true], ['failed-unconfirmed', false], ['failed-other-lease', false]]) {
+    const failedOutput = join(root, fixture, 'generator');
+    await mkdir(failedOutput, { recursive: true });
+    await assert.rejects(workers.generate({ assessmentId, paper, output: failedOutput, paperSha256: lab.cases[0].paperSha256,
+      guidance: lab.guidance.generator }), error => {
+      assert.match(error.message, /Fixture worker timeout/);
+      assert.equal(error instanceof PaperAssessmentError, expectedPaperError);
+      return true;
+    });
   }
 
   const chatgptDirectory = join(root, 'chatgpt-case');
@@ -798,8 +901,8 @@ test('case-relative Verifier citations pass validation and save privately from a
       persistence: { generator: async () => '09859c11-9be3-44d2-9b39-a0cb96a0d09f',
         verifier: () => assert.fail('Invalid evidence reached the private save.') },
     });
-    assert.equal(stopped.stop.phase, 'verifying');
-    assert.equal(stopped.stop.reason, 'Use relative evidence references in the scorecard.');
+    assert.equal(stopped.cases[0].status, 'verification_error');
+    assert.equal(stopped.cases[0].verification_error, 'Use relative evidence references in the scorecard.');
     assert.equal(stopped.cases[0].database.verification_id, undefined);
   }
 });
@@ -815,12 +918,17 @@ test('a failed database save stops the batch and keeps its assessment ID and loc
   assert.deepEqual(lab.calls, ['generate A']);
 });
 
-test('invalid scorecard and timed-out Generator both halt before the next paper', async t => {
+test('an answer-key mismatch is isolated to the affected paper', async t => {
   const lab = await fixture(t);
-  const invalid = await runSyntheticBatch({ ...lab, verify: input => lab.score(input, 2, { answer_key_sha256: 'f'.repeat(64) }) });
-  assert.equal(invalid.stop.paper_id, 'A');
-  assert.match(invalid.stop.reason, /pinned paper, key/);
-  const timeout = await runSyntheticBatch({ ...lab, output: `${lab.output}-timeout`,
+  const invalid = await runSyntheticBatch({ ...lab, verify: input => lab.score(input, 2,
+    basename(input.caseDirectory) === 'A' ? { answer_key_sha256: 'f'.repeat(64) } : undefined) });
+  assert.deepEqual(invalid.cases.map(item => item.status), ['verification_error', 'passed', 'passed']);
+  assert.match(invalid.cases[0].verification_error, /pinned paper, key/);
+});
+
+test('a worker timeout without verified cleanup halts before the next paper', async t => {
+  const lab = await fixture(t);
+  const timeout = await runSyntheticBatch({ ...lab,
     generate: () => { throw new Error('generator exited with ETIMEDOUT'); }, verify: () => assert.fail('Verifier started') });
   assert.equal(timeout.stop.phase, 'generating');
   assert.deepEqual(timeout.cases.map(item => item.status), ['stopped', 'pending', 'pending']);

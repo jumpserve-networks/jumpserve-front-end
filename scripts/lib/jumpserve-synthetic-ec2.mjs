@@ -1,10 +1,10 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { copyFile, cp, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { copyFile, cp, mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { BATCH_SKILLS, batchCasePaths } from './jumpserve-synthetic-worker-inputs.mjs';
+import { BATCH_SKILLS, batchCasePaths, PaperAssessmentError } from './jumpserve-synthetic-worker-inputs.mjs';
 import { containerCodexSession } from './jumpserve-synthetic-containers.mjs';
 
 const scripts = fileURLToPath(new URL('../', import.meta.url));
@@ -27,7 +27,18 @@ export function inspectEc2Batch(settings) {
   return JSON.parse(check.stdout);
 }
 
-async function executeStage(args, apiKey, terminal, cancellation) {
+async function stageCleanupVerified(stageDirectory, assessmentId) {
+  try {
+    // The lease journal is written by the coordinator after AWS cleanup succeeds.
+    const lease = JSON.parse(await readFile(join(stageDirectory, 'aws-lease', 'state.json'), 'utf8'));
+    return typeof assessmentId === 'string' && lease.assessment_id === assessmentId &&
+      Array.isArray(lease.stacks) && lease.stacks.length === 1 && lease.stacks[0]?.cleaned === true;
+  } catch {
+    return false;
+  }
+}
+
+async function executeStage(args, apiKey, terminal, { signal: cancellation, stageDirectory, assessmentId }) {
   cancellation?.throwIfAborted();
   const child = spawn('python3', ['-B', launcher, 'run', ...args], { env: controllerEnvironment(),
     detached: true, stdio: ['pipe', terminal ? 'pipe' : 'ignore', 'pipe'] });
@@ -52,7 +63,9 @@ async function executeStage(args, apiKey, terminal, cancellation) {
     const [status, signal] = await once(child, 'close');
     if (status !== 0 || (interrupted && !cancellation)) {
       cancellation?.throwIfAborted();
-      throw new Error(`EC2 stage ${interrupted ? 'interrupted' : `exited with ${status ?? signal}`}. ${diagnostic.trim()}`);
+      const message = `EC2 stage ${interrupted ? 'interrupted' : `exited with ${status ?? signal}`}. ${diagnostic.trim()}`;
+      if (!interrupted && await stageCleanupVerified(stageDirectory, assessmentId)) throw new PaperAssessmentError(message);
+      throw new Error(message);
     }
   } finally {
     cancellation?.removeEventListener('abort', interrupt);
@@ -107,16 +120,28 @@ export function createEc2Workers({ settings, snapshot, workflowFiles, timeoutMs,
           '--assessment-id', input.assessmentId, '--ttl-minutes', String(Math.ceil(timeoutMs / 60_000) + 20),
           '--codex-auth', authMode, ...(workerAuth ? ['--worker-auth-volume', workerAuth, '--worker-zone', settings.workerZone] : []),
           ...(settings.workerSubnet ? ['--worker-subnet', settings.workerSubnet, '--worker-security-group', settings.workerSecurityGroup] : []),
-          ...(terminal ? ['--terminal'] : [])], apiKey, terminal, input.signal);
+          ...(terminal ? ['--terminal'] : [])], apiKey, terminal,
+        { signal: input.signal, stageDirectory, assessmentId: input.assessmentId });
       } finally {
         await terminal?.finish();
       }
       const returned = join(stageDirectory, 'retrieved', 'case');
-      const preflight = isVerifier ? JSON.parse(await readFile(join(returned, 'preflight.json'), 'utf8')) : undefined;
+      const preflight = isVerifier ? await readFile(join(returned, 'preflight.json'), 'utf8').then(JSON.parse).catch(error => {
+        if (error instanceof SyntaxError || error.code === 'ENOENT' || error.code === 'EISDIR') {
+          throw new PaperAssessmentError('The Verifier did not return a valid evidence preflight record.', { cause: error });
+        }
+        throw error;
+      }) : undefined;
+      const returnedOutput = join(returned, role);
+      const returnedDirectory = await stat(returnedOutput).catch(error => {
+        if (error.code === 'ENOENT') return undefined;
+        throw error;
+      });
+      if (!returnedDirectory?.isDirectory()) throw new PaperAssessmentError(`The ${role} did not return its output directory.`);
       const temporary = await mkdtemp(join(caseDirectory, `.${role}-received-`));
       try {
         const complete = join(temporary, 'output');
-        await cp(join(returned, role), complete, { recursive: true, errorOnExist: true, force: false });
+        await cp(returnedOutput, complete, { recursive: true, errorOnExist: true, force: false });
         // The batch creates an empty output directory before provisioning. Publish only a complete copy.
         await rename(complete, input.output);
       } finally {

@@ -45,14 +45,14 @@ both workers have been cleaned up, the same session takes the next queued
 paper. A coordinator with one signed-in volume runs papers in sequence. The
 Verifier receives that paper's matching answer key and read-only Generator
 evidence. The coordinator saves each validated scorecard and continues
-processing the other papers regardless of the points earned. A malformed
-Verifier scorecard marks that paper with a verification error. The coordinator
-retains the raw scorecard and saved Generator result, then reuses the session
-for the next paper after cleanup. A blocker, failed save, evidence or rubric
-mismatch, missing output, worker timeout, or cleanup failure stops the batch
-and interrupts other unfinished workers. The coordinator retains
-completed results and waits for remaining workers to exit before publishing
-the final batch status.
+processing the other papers regardless of the points earned. Invalid or missing
+output, a pinned evidence or rubric mismatch, a blocked Verifier, or a failed
+EC2 stage with verified cleanup marks only that paper with a generation or
+verification error. The coordinator retains available raw artifacts and valid
+saved results, then reuses the session for the next paper. An explicit stop,
+failure to save results or record batch progress, a shared runtime failure,
+or unverified EC2 cleanup stops the batch. The coordinator waits for the
+remaining workers to exit before publishing the final batch status.
 The paper list updates the elapsed time of each running Generator or Verifier
 step once a second from its recorded start time. Finished steps show their
 recorded duration. Step timing includes worker setup, execution, validation

@@ -159,6 +159,7 @@ test('training batch viewers can read saved assessment IDs and see which papers 
     papers: [
       { id: 'JSB-E01', fileName: 'saved.pdf', status: 'stopped', assessmentId: id, score: null },
       { id: 'JSB-E02', fileName: 'pending.pdf', status: 'pending', assessmentId: null, score: null },
+      { id: 'JSB-E03', fileName: 'failed.pdf', status: 'generation_error', assessmentId: null, score: null },
     ],
   } }));
   assert.ok(screen.getByRole('cell', { name: id }));
@@ -169,6 +170,7 @@ test('training batch viewers can read saved assessment IDs and see which papers 
   assert.ok(within(saved).getByText('Time unavailable'));
   const pendingSteps = within(pending).getByRole('list');
   assert.equal(within(pendingSteps).getAllByText('Pending').length, 2);
+  assert.ok(screen.getByRole('cell', { name: 'Generation error' }));
 });
 
 test('paper status is plain text and closing a step’s details ends activity polling', async t => {
