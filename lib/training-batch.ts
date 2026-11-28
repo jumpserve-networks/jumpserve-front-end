@@ -70,6 +70,7 @@ export type TrainingBatchSnapshot = {
 export type TrainingBatch = Omit<TrainingBatchSnapshot, "status" | "updatedAt"> & {
   id: number;
   canViewAssessmentLinks?: true;
+  canStop?: true;
   status: TrainingBatchSnapshot["status"] | "requested" | "unconfirmed";
   requestedAt: string | null;
   updatedAt: string | null;
@@ -91,4 +92,8 @@ export const trainingBatchStatusLabels: Record<TrainingBatch["status"], string> 
 
 export function isTrainingBatchActive(status: TrainingBatch["status"]) {
   return status === "requested" || status === "unconfirmed" || status === "preparing" || status === "running";
+}
+
+export function isTrainingBatchStoppable(status: TrainingBatch["status"]) {
+  return status === "preparing" || status === "running";
 }

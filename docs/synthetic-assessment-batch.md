@@ -16,7 +16,11 @@ redelivery of a request leaves that batch's outcome in place.
 
 Signed-in Google users can browse the full batch history, view progress and see
 the assessment ID for each saved result. The account that started a batch also
-sees links to its saved private assessments.
+sees links to its saved private assessments. Select any batch row to see its
+details. The outcome squares show each paper's status.
+The configured owner can use **Stop Batch** on a batch they started once the
+coordinator reports preparation or execution. The request stops the numbered
+service gracefully and the page shows the outcome from the normal progress feed.
 The batch page refreshes automatically while a run is active. Click the
 Generator or Verifier under a paper to open that step's details and recent
 worker activity. With the live terminal enabled, any signed-in viewer can also
@@ -38,8 +42,8 @@ workflows before starting workers, verifies their checksums, and pins their
 versions for the batch. If a workflow is unavailable, the batch reports the
 blocker during startup.
 
-With the eight-session pool enabled, the coordinator runs up to eight papers at
-a time. Each paper starts on a fresh Generator EC2 instance and moves to a
+The parallel coordinator can run one paper per enrolled session, up to 20.
+Each paper starts on a fresh Generator EC2 instance and moves to a
 fresh Verifier EC2 instance after its private Generator bundle has been
 validated and saved in Supabase. When a paper's Verifier result is saved and
 both workers have been cleaned up, the same session takes the next queued
@@ -90,7 +94,10 @@ cutover, retire the previous unnumbered coordinator unit after any run it holds
 finishes. Keep its evidence directories.
 
 Release the coordinator and web access policies for the private `activity/`
-prefix alongside the matching coordinator package and website.
+prefix alongside the matching coordinator package and website. Deploy the
+`JumpServeTrainingBatchStopAccess` stack with the coordinator stack's
+`CoordinatorInstance` output before releasing the Stop Batch control.
+[Stop-access template](https://github.com/jumpserve-networks/jumpserve-infra/blob/main/assessment-batch-stop-access.json)
 
 Enable live terminal output by setting `EnableTrainingBatchTerminal=true` and
 using the site's Supabase project URL and public key for `TerminalSupabaseUrl`
@@ -102,14 +109,13 @@ to `TrainingTerminalConnectionsTable`. Set
 before building the site. The same setting in `.env.local` enables viewing on
 `http://localhost:6001`.
 
-### Eight-session pool
+### Parallel session pool
 
 Deploy the coordinator stack with `EnableParallelTraining=true` and an empty
-`AdditionalWorkerAuthVolumeArns`. The `TrainingWorkerSessionVolumeIds` output
-lists eight encrypted gp3 volumes in the worker Availability Zone. For an
-existing five-session deployment, the update adds three volumes and reuses
-the five already enrolled volumes. Eight concurrent `t3.medium` workers and
-the `t3.medium` coordinator need at least 18 vCPUs under the regional EC2
+`AdditionalWorkerAuthVolumeArns` when using only stack-managed volumes.
+The `TrainingWorkerSessionVolumeIds` output lists the 20 encrypted gp3 session
+volumes in the worker Availability Zone. Twenty concurrent `t3.medium` workers
+and the `t3.medium` coordinator need at least 42 vCPUs under the regional EC2
 Standard On-Demand quota, plus capacity for any other workloads using it.
 
 The coordinator uses its instance role and the scoped experiment-client role
@@ -135,7 +141,7 @@ CODEX_HOME=/mnt/jumpserve-codex/session codex \
 ```
 
 Confirm status reports a ChatGPT login, then unmount and detach the volume.
-Repeat for each new volume. After all eight sessions are enrolled and the
+Repeat for each new volume. After the intended sessions are enrolled and the
 coordinator has no active batch, set these in its
 `/etc/jumpserve-synthetic-batch.env` for the next batch:
 

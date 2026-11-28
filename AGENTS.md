@@ -1,26 +1,37 @@
 # AGENTS.md
 
-Last updated: 2026-10-17
+## Project purpose
 
-## Owner-directed local assessment architecture, 2026-11-20
+The purpose of this repository is to create a generalizable Generator skill that
+can thoroughly and accurately reproduce experiments from academic research
+papers in computer networks. The Generator derives protocols from each paper and
+its supporting materials, runs feasible experiments, and records the evidence and
+limitations. Keep the workflow usable on papers without benchmark answer keys.
 
-Claude Code or Codex uses the standalone skill in
-`skills/jumpserve-paper-assessment` for local analysis, experiment design,
-execution and evidence capture. It saves a local bundle and optionally shares
-selected results through the JumpServe MCP connector. Preserve account-owner
-approval of the exact public preview, scoped credentials, and idempotent
-submission. Keep original PDFs, raw logs and other private material local.
-Attach verified PDF copies through private storage and make the attachment
-public only when the owner approves that exact assessment preview.
-Keep paper-reported values distinct from observations and preserve existing
-URLs and uncertain outcomes.
+JumpServe supports this work by storing networking measurements with their test
+configurations and run metadata in **Supabase Postgres**. Researchers can query
+the data, compare experiments, and reuse results through the test modules,
+visualizations, reports, and AI tools. Treat persistence in Supabase as a core
+requirement when adding or changing tests and measurements in Congestion Control
+Emulated Tests, Congestion Control Real World Tests, and future modules.
 
-Hosted paper generation and the named platform supervisor are retired. The
-historical authority below does not authorize recreating their infrastructure.
-Next.js serves the connector and public pages. Supabase stores shared records
-and measurements. The connector validates and imports evidence without calling
-models or running uploaded commands. See
-`jumpserve-infra/docs/local-assessment-retirement-v1.md`.
+## Local assessment architecture
+
+Claude Code or Codex uses the Generator in
+`skills/jumpserve-paper-assessment` to load published guidance, derive a claim-level
+protocol from the paper, freeze it before measuring, and record the evidence.
+Keep the source PDF, protocol, drafts, scripts, and raw observations local.
+For a requested JumpServe assessment, save the validated bundle privately through
+the MCP connector. Public sharing requires the account owner's approval of the
+exact saved assessment and its attached PDF. Preserve scoped credentials and
+idempotent submission.
+
+Next.js serves the website and validates bundles through MCP. Supabase records
+saved assessments and shared measurements. Keep the former hosted paper
+generation and OpenClaw supervisor services retired. The separate AWS training
+coordinator runs synthetic evaluations from the website. See
+[the training batch workflow](docs/synthetic-assessment-batch.md) and
+[the hosted assessment retirement record](https://github.com/jumpserve-networks/jumpserve-infra/blob/main/docs/local-assessment-retirement-v1.md).
 
 ## Deployment workflow
 
@@ -33,43 +44,6 @@ models or running uploaded commands. See
   deployment status only as part of an explicitly requested deployment or when
   the user specifically asks for a deployment status check.
 
-The named Platform Development Supervisor OpenClaw has the owner's standing full
-operational authority to enable unattended reproduction of academic-paper
-experiments without further questions or permission requests. This covers worker
-skills/tools, dependencies, instrumentation, experiment environments, JumpServe
-infrastructure/service roles, Supabase migrations, worker/supervisor repairs,
-qualification, merges, production deployment, verification and rollback. Missing
-technical capabilities are implementation work, not missing owner authorization.
-Preserve cancellation, scientific criteria, original evidence, privacy and
-uncertain-call reconciliation. Do not infer an installed capability or successful
-release from authorization alone. Ordinary unrelated interactive editing retains
-the deployment rules above. See
-`jumpserve-infra/docs/platform-supervisor-standing-authority-v1.md`.
-
-### Named platform supervisor
-
-The user explicitly authorized the **Platform Development Supervisor OpenClaw**
-to merge and deploy qualified improvements to the three JumpServe repositories.
-After its initial explicitly requested activation, that named service may use
-the immutable Supabase `platform_authorizations` policy without per-release
-human confirmation. Fixed checks, exact protected GitHub revisions, scoped AWS
-release roles, recorded production verification, owner controls and task limits
-remain mandatory. This exception does not extend standing deployment authority
-to unrelated interactive editing sessions. See
-`jumpserve-infra/docs/platform-supervisor-v1.md` for scope and activation order.
-
-## Project purpose
-
-JumpServe's central purpose is to collect networking test measurements and store
-them in a relational database: **Supabase Postgres**. Measurements belong with
-their test configurations and run metadata so researchers can query the data,
-compare experiments, and reuse results for further analysis. Test execution,
-visualizations, reports, and AI tools all support this measurement repository.
-
-This purpose applies to Congestion Control Emulated Tests, Congestion Control
-Real World Tests, and future test modules. Treat persistence in Supabase as a
-core requirement when adding or changing tests and measurements.
-
 ## Local research assessment autonomy
 
 The goal of research assessments is **100% unattended autonomy** after the user
@@ -81,8 +55,9 @@ resume recoverable failures without routine user input.
 Installing dependencies, writing instrumentation and repairing experiment
 packages are local workflow responsibilities. Run claims in parallel where
 appropriate and share compatible acquisitions. Save prompts, responses,
-actions, failures, repairs and provenance locally. Import selected results and
-measurement provenance into Supabase only on approved sharing.
+actions, failures, repairs and provenance locally. Save requested JumpServe
+assessments privately and publish selected results and measurement provenance
+only after owner approval.
 
 Continue useful work within the approved spending, elapsed-time and authorization
 limits, honoring cancellation. Unattended operation does not guarantee conclusive
@@ -92,59 +67,38 @@ scientific criteria, reset limits or blindly replay uncertain calls to force
 completion. Record the exact remaining blocker and retained evidence. This goal
 does not change the separate requirement for an explicit merge/deployment request.
 
-`jumpserve-front-end` is a Next.js app for networking test modules. Logged-out
-visitors see a public overview and module links at `/`. Results and comparisons
-are public; only test execution, cancellation, and AI chat require Google sign-in
-at `/login`. Sign-in resumes the requested action. Emulated tools belong to
-**Congestion Control Emulated Tests** (`congestion-control-emulated`).
-**Congestion Control Real World Tests** (`congestion-control-real-world`) provides
-the separate EC2 launcher/history at
-`/congestion-control-real-world/run-a-test` and status at
-`/congestion-control-real-world/run-a-test/[jobId]`. Its `/real-world/*` API shares the benchmark
-API origin, with records and normalized reports in Supabase Postgres and raw
-measurements in private Supabase Storage. `real_world_runs` and
-`real_world_reports` are public read-only; `real_world_jobs` and
-`real_world_artifacts` are backend-only. Each test
-creates a server, bottleneck, and 1–16 receivers. Each machine supports t3.small,
-t3.medium (default), or t3.large, subject to live zone offerings; preserve each
-selected type when changing Regions. Show an independently controlled Region map
-for the server, bottleneck, and every receiver, including newly added receivers.
-Keep each map synchronized with its placement dropdown. Availability Zone
-dropdowns must show only available zones that offer the selected instance type.
-After a Region is chosen through either control, randomly select an available
-zone that offers that machine's instance type. Preserve valid manual or copied
-zone selections, and use functional updates so concurrent receiver lookups cannot
-overwrite one another or apply a stale Region's zones.
-Both placement and traffic maps must pan continuously on both axes by repeating
-the world, markers, and paths. Keep zoom bounded and render only visible copies.
-The real-world status timeline uses Supabase `real_world_status_history` records
-returned by the detail API. Show completed, current, pending, and interrupted
-steps with recorded completion times. Never derive historical times from browser
-polls or invent timestamps for tests that predate status tracking.
-Do not mix its duration-based
-throughput results with emulated file completion times.
+## Module and benchmark boundaries
 
-Real-world **Chat with AI** lives at `/congestion-control-real-world/chat`.
-Result links pass `jobId` to prefill an editable question; they do not automatically
-send it. Chat requires Google authentication and preserves the test link through
-login. Reuse `ChatPanel` with the explicit `congestion-control-real-world` module
-identifier. Filter saved conversations by both user and module. The backend owns
-prompt/tool selection and rejects cross-module history; client props are not an
-authorization boundary. Real-world chat uses a separately published Supabase
-prompt and read-only real-world measurement tools, never emulated launch tools.
-Its capability check prevents older agents from silently treating EC2 questions
-as emulated benchmarks. Deploy the module-aware prompt migration and evaluated
-prompt before enabling the new backend/frontend; see the infrastructure README.
+The public home page shows JumpServe's overview. A signed-in Google user sees
+the module chooser and can resume a safe requested destination through login.
+Public measurement results and comparisons remain readable without sign-in.
+
+Congestion Control Emulated Tests and Congestion Control Real World Tests expose
+recorded cloud benchmark results. Keep cloud benchmark execution retired.
+The emulated Benchmarks page shows history, and the real-world
+`/congestion-control-real-world/run-a-test` route explains local execution.
+Historical run detail pages display the recorded state and timestamps. Preserve
+the distinction between a recorded status and current activity. Use an explicit
+public read projection and keep requester identities, raw artifacts, and storage
+access private. Keep real-world duration-based throughput separate from emulated
+file completion times. See [the cloud benchmark retirement record](https://github.com/jumpserve-networks/jumpserve-infra/blob/main/docs/cloud-benchmark-retirement-v1.md)
+and [the real-world reporting contract](docs/real-world-reports.md).
+
+Real-world chat lives at `/congestion-control-real-world/chat` and uses the
+explicit `congestion-control-real-world` module identifier. A result link can
+prefill an editable question via `jobId`. The user sends it after Google sign-in.
+Scope saved conversations by user and module. The backend selects that module's
+published prompt and read-only measurement tools and verifies capabilities before
+using them.
 
 Define module names, availability, home routes, and tool ownership in
 `lib/test-modules.ts`. All module pages and module-owned Next.js API routes belong
-under the URL-transparent `app/(modules)` route group at `/{moduleId}`. Use the exported module path constants for links,
-launch redirects, query updates, and sign-in return paths. Legacy root tool URLs
-and both `/module/{moduleId}` and `/modules/{moduleId}` redirect permanently, preserving path suffixes and
-query parameters, through `next.config.ts`. AWS API endpoint paths stay unchanged.
-New modules need
-their own tools and data integration before becoming available; module selection
-is navigation, not an authentication or authorization boundary.
+under the URL-transparent `app/(modules)` route group at `/{moduleId}`. Use the
+exported module path constants for links, redirects, query updates, and sign-in
+return paths. Legacy root tool URLs, `/module/{moduleId}`, and
+`/modules/{moduleId}` redirect permanently through `next.config.ts`, preserving
+path suffixes and query parameters. New modules need their own tools and data
+integration before becoming available. Enforce authorization at the API boundary.
 
 The **Propagation Delay Study** module (`propagation-delay-study`) reads the
 `delay_study_*` Supabase relations for the NINeS 2026 reproduction campaign.
@@ -183,7 +137,7 @@ frontend. See `jumpserve-infra/docs/leo-study-chat.md` for the release order.
 - Next.js `16.3.8` (App Router)
 - React `19.2.3`
 - TypeScript `5`
-- Node.js `22` or newer (Supabase SDK requirement)
+- Node.js `24` in CI and local development
 - Tailwind CSS `4`
 - shadcn/ui (Base UI, with shared components in `app/components/ui`)
 - Supabase client libraries:
@@ -193,7 +147,7 @@ frontend. See `jumpserve-infra/docs/leo-study-chat.md` for the release order.
 ## Useful commands
 
 ```bash
-npm install
+npm ci
 npm run dev
 npm run lint
 npm test
@@ -208,10 +162,11 @@ Required in `.env.local`:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-For benchmark launching, cancellation, and logs, also set
-`NEXT_PUBLIC_BENCHMARK_API_URL` to the deployed API base URL from
-`jumpserve-networks/jumpserve-infra` (without the `/benchmarks` suffix).
-Set it before building; Next.js embeds public environment variables in client code.
+For historical benchmark and real-world result reads, set
+`NEXT_PUBLIC_BENCHMARK_API_URL` to the benchmark API base URL from
+`jumpserve-infra`. Use the base URL without the `/benchmarks` suffix. Set
+`NEXT_PUBLIC_*` values before building for production because Next.js embeds
+them in the browser bundle.
 
 For AI chat, also set `NEXT_PUBLIC_AGENT_URL` to the full `AgentFunctionUrl` output
 from `JumpServeAgentStack` in `jumpserve-infra`. Do not append `/chat`. Restart the
@@ -221,13 +176,13 @@ Do not commit real keys or tokens.
 
 ## Production and authentication
 
-Keep result routes public. Verify Google sessions at APIs before launching or
-cancelling tests or invoking the AI. Use `requireAccessToken` for browser actions;
-never trust caller-supplied requester identity. Supabase RLS stays enabled, with
-anonymous SELECT grants only for experiment tables and the explicit
-`PUBLIC_BENCHMARK_COLUMNS` projection. Do not use `select("*")` on benchmark jobs
-in public pages: requester emails are not public. Saved configurations and chat
-sessions remain authenticated. Real-world cancellation is owner-only.
+Keep public results on their explicit read projections. Verify Google sessions
+at API boundaries for private data, synthetic batch controls, and AI chat.
+Require the configured owner for batch controls, and use `requireAccessToken`
+when a browser calls a bearer-token API. Derive requester identity from the
+verified session. Keep Supabase RLS enabled. Use `PUBLIC_BENCHMARK_COLUMNS` for
+public benchmark job reads and retain restricted access to private records,
+saved configurations, and chat sessions.
 
 Each `/research-verification/assessment/<id>` page shows the paper header and owner
 wizard. The user removed the Assessment status, Claim progress, assessment-record
@@ -242,8 +197,9 @@ unpublished research ideas. Protect credentials, account/contact data, private
 storage locations and original file downloads. Shared copies label redactions
 and size limits, preserve missing values and zero, and identify hashes as belonging
 to unchanged originals. Retired queue links without an assessment open the
-My Assessments filter. Launches, cancellation and every write retain Google/owner checks. See
-`docs/shared-assessment-details-v1.md` for current access rules and verification.
+My Assessments filter. Enforce Google session and ownership checks on writes,
+including batch starts and stops. See `docs/shared-assessment-details-v1.md` for
+assessment access rules and verification.
 
 Completed local skill assessments stay private without expiration. Public sharing
 requires owner approval of the exact saved assessment. Use the wizard step as
@@ -298,6 +254,13 @@ behind CloudFront, Next.js can see the internal origin as `localhost:3000`. Pref
   - Client component.
   - Run selector + metadata cards.
   - Renders SVG line charts for selected run.
+- `skills/jumpserve-paper-assessment/`
+  - Generator skill, experiment protocol format, and local evidence checks.
+- `app/mcp/route.ts` and `lib/jumpserve-mcp-server.ts`
+  - JumpServe connector and tool definitions.
+- `app/(modules)/research-verification/training-batches` and
+  `app/(modules)/research-verification/training-batch`
+  - Shared synthetic batch history and per-paper progress.
 - `lib/supabase/server.ts`
   - SSR Supabase client with cookie integration.
 - `lib/supabase/client.ts`
@@ -305,46 +268,12 @@ behind CloudFront, Next.js can see the internal origin as `localhost:3000`. Pref
 - `app/globals.css`
   - Global styles and font family defaults.
 
-## Current data model assumptions
+## Measurement data
 
-### `public.emulated_runs`
-
-Important columns currently used:
-
-- `id` (int, PK)
-- `created_at` (timestamptz)
-- `client_number` (smallint)
-- `delay_added` (smallint)
-- `congestion_control_algorithm_id` (smallint)
-
-Joined relation currently used:
-
-- `congestion_control_algorithms(name)`
-
-### `public.emulated_per_second_stats`
-
-Important columns currently used:
-
-- `id` (int, PK)
-- `emulated_run_id` (int, FK -> `emulated_runs.id`)
-- `snapshot_index` (smallint)
-- `elapsed_seconds` (numeric)
-- `megabits_per_second` (numeric)
-- `round_trip_time_ms` (numeric)
-- `bottleneck_queuing_delay_ms` (numeric)
-- `in_flight_packets` (int)
-- `congestion_window_bytes` (bigint)
-
-## Graph behavior (current)
-
-- Loads up to 50 newest runs by `created_at desc`.
-- Loads per-second stats for those run IDs.
-- Run dropdown defaults to the first (newest) run.
-- Displays three charts:
-  - Throughput (`megabits_per_second`)
-  - Round-trip Time (`round_trip_time_ms`)
-  - Queueing Delay (`bottleneck_queuing_delay_ms`)
-- X-axis uses `elapsed_seconds`, then falls back to `snapshot_index`.
+Use the current queries in `lib/emulated-runs-data.ts` and the reporting contract
+in `docs/real-world-reports.md` as references for recorded measurements. The
+`METRICS` definitions in `app/components/emulated-runs-dashboard.tsx` own the
+dashboard's metric names, units, and series.
 
 ## Implementation notes
 
@@ -382,13 +311,6 @@ Important columns currently used:
   and sample counts, and never infer paired trials from run order. Follow
   `docs/research-comparisons.md` when changing estimates or confidence intervals.
 - Prefer adding new metrics in `METRICS` within `app/components/emulated-runs-dashboard.tsx`.
-
-## Suggested next improvements
-
-- Add URL query params for selected run and filters.
-- Add multi-run comparison charts.
-- Add additional metric toggles (`cwnd`, in-flight packets, backlog/rate fields).
-- Add a small table of raw points under each chart for debugging/validation.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

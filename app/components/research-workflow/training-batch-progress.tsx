@@ -95,6 +95,8 @@ function PaperSteps({ paper, active, now, onOpenDetails }: {
 export function TrainingBatchProgress({ id, initial }: { id: number; initial?: TrainingBatch }) {
   const [batch, setBatch] = useState(initial);
   const [error, setError] = useState("");
+  const [stopRequest, setStopRequest] = useState<{ status: "sending" | "requested" } | { status: "error"; message: string }>();
+  const stopInFlight = useRef(false);
   const [refresh, setRefresh] = useState(0);
   const [now, setNow] = useState<number>();
   const [activitySelection, setActivitySelection] = useState<{ paperId: string; role: TrainingBatchStep }>();
@@ -162,6 +164,27 @@ export function TrainingBatchProgress({ id, initial }: { id: number; initial?: T
     setActivitySelection({ paperId, role });
   }
 
+  async function stopBatch() {
+    if (stopInFlight.current) return;
+    stopInFlight.current = true;
+    setStopRequest({ status: "sending" });
+    const unconfirmed = "The stop request could not be confirmed. Check the batch status before retrying.";
+    try {
+      const response = await fetch(`${TRAINING_BATCH_STATUS_API_PATH}/${id}/stop`, { method: "POST" });
+      if (response.status === 202) {
+        setStopRequest({ status: "requested" });
+      } else {
+        const data = await response.json().catch(() => null);
+        setStopRequest({ status: "error", message: typeof data?.error === "string" ? data.error : unconfirmed });
+      }
+    } catch {
+      setStopRequest({ status: "error", message: unconfirmed });
+    } finally {
+      stopInFlight.current = false;
+      setRefresh(value => value + 1);
+    }
+  }
+
   return <>
     {error ? <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
       <p>{error}</p>
@@ -169,15 +192,22 @@ export function TrainingBatchProgress({ id, initial }: { id: number; initial?: T
     </div> : null}
     {batch ? <>
       <section className="content-panel space-y-3 rounded-lg border p-5">
-        <div role="status" className="flex flex-wrap items-center gap-3">
-          <Badge variant={batch.status === "failed" || batch.status === "stopped" ? "destructive" : "secondary"}>{trainingBatchStatusLabels[batch.status]}</Badge>
-          {paperCount ? <span className="text-sm">{completed} of {paperCount} papers completed
-            {passed ? ` · ${passed} passed` : ""}
-            {imperfectScores ? ` · ${imperfectScores} imperfect ${imperfectScores === 1 ? "score" : "scores"}` : ""}
-            {generationErrors ? ` · ${generationErrors} generation ${generationErrors === 1 ? "error" : "errors"}` : ""}
-            {verificationErrors ? ` · ${verificationErrors} verification ${verificationErrors === 1 ? "error" : "errors"}` : ""}
-          </span> : null}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div role="status" className="flex flex-wrap items-center gap-3">
+            <Badge variant={batch.status === "failed" || batch.status === "stopped" ? "destructive" : "secondary"}>{trainingBatchStatusLabels[batch.status]}</Badge>
+            {paperCount ? <span className="text-sm">{completed} of {paperCount} papers completed
+              {passed ? ` · ${passed} passed` : ""}
+              {imperfectScores ? ` · ${imperfectScores} imperfect ${imperfectScores === 1 ? "score" : "scores"}` : ""}
+              {generationErrors ? ` · ${generationErrors} generation ${generationErrors === 1 ? "error" : "errors"}` : ""}
+              {verificationErrors ? ` · ${verificationErrors} verification ${verificationErrors === 1 ? "error" : "errors"}` : ""}
+            </span> : null}
+          </div>
+          {batch.canStop ? <Button type="button" size="sm" variant="destructive" onClick={stopBatch} disabled={stopRequest?.status === "sending"}>
+            {stopRequest?.status === "sending" ? "Requesting stop…" : "Stop Batch"}
+          </Button> : null}
         </div>
+        {batch.canStop && stopRequest?.status === "requested" ? <p role="status" className="text-sm">Stop requested. Waiting for the coordinator to report progress.</p> : null}
+        {batch.canStop && stopRequest?.status === "error" ? <p role="alert" className="text-sm">{stopRequest.message}</p> : null}
         {batchActive && batch.status !== "running" ? <TrainingBatchLaunchGraphic /> : null}
         {paperCount ? <progress aria-label="Papers completed" className="h-2 w-full accent-primary" value={completed} max={paperCount} /> : null}
         {batch.status === "unconfirmed" ? <p className="text-sm">JumpServe is waiting for the first progress report from AWS.</p> : null}

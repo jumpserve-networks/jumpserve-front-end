@@ -4,7 +4,7 @@ import { SendCommandCommand, SSMClient } from "@aws-sdk/client-ssm";
 import { listLocalTrainingBatches, readLocalTrainingBatch } from "@/lib/local-training-batch-history";
 import { isResearchId } from "@/lib/research-experiment-queue";
 import { projectTrainingBatchActivity } from "@/lib/training-batch-activity";
-import { isTrainingBatchId, parseTrainingBatchId, projectTrainingBatchSteps, type TrainingBatch, type TrainingBatchSnapshot } from "@/lib/training-batch";
+import { isTrainingBatchId, isTrainingBatchStoppable, parseTrainingBatchId, projectTrainingBatchSteps, type TrainingBatch, type TrainingBatchSnapshot } from "@/lib/training-batch";
 
 const ssm = new SSMClient({ region: "us-east-1", maxAttempts: 1 });
 const localProfile = process.env.NODE_ENV === "development"
@@ -92,6 +92,17 @@ export async function requestSyntheticBatchStart(configuration: BatchConfigurati
   return id;
 }
 
+export async function requestSyntheticBatchStop({ instanceId }: BatchConfiguration, id: number) {
+  const { Command } = await ssm.send(new SendCommandCommand({
+    DocumentName: "JumpServeStopTrainingBatchById",
+    DocumentVersion: "1",
+    Parameters: { BatchId: [String(id)] },
+    InstanceIds: [instanceId],
+    TimeoutSeconds: 30,
+  }), { abortSignal: AbortSignal.timeout(8_000) });
+  if (!Command?.CommandId) throw new Error("AWS did not return a batch stop receipt.");
+}
+
 async function getRecord<T>(bucket: string, key: string, abortSignal = AbortSignal.timeout(5_000)) {
   try {
     const object = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }),
@@ -122,10 +133,13 @@ export async function readTrainingBatch(source: BatchHistorySource, id: number, 
   };
   const { status, updatedAt, startedAt, finishedAt, stopPhase, versions, papers } = snapshot;
   const canViewAssessmentLinks = viewerId !== undefined && request.ownerId === viewerId;
+  const canStop = canViewAssessmentLinks && isTrainingBatchStoppable(status) &&
+    getSyntheticBatchConfiguration()?.ownerId === viewerId;
   return {
     id, requestedAt, status, updatedAt, startedAt, finishedAt, stopPhase,
     ...(snapshot.activityAvailable === true ? { activityAvailable: true } : {}),
     ...(canViewAssessmentLinks ? { canViewAssessmentLinks: true } : {}),
+    ...(canStop ? { canStop: true } : {}),
     stale: (status === "preparing" || status === "running") && Date.now() - Date.parse(updatedAt) > 60_000,
     versions: { generator: versions.generator, verifier: versions.verifier },
     papers: papers.map(({ id, fileName, status, assessmentId, score, steps }) => ({
@@ -184,6 +198,7 @@ export async function listTrainingBatches(source: BatchHistorySource, page: numb
       id: batch.id, recordedAt: batch.requestedAt ?? batch.startedAt, status: batch.status,
       passed: batch.papers.filter(paper => paper.status === "passed").length,
       total: batch.papers.length,
+      papers: batch.papers.map(({ id, fileName, status }) => ({ id, fileName, status })),
     })),
   };
 }

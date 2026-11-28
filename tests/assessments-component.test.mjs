@@ -23,6 +23,7 @@ const hook = registerHooks({resolve(specifier, context, next) {
 }});
 const {Assessments} = await import('../app/components/research-workflow/assessments.tsx');
 const {StartSyntheticBatch} = await import('../app/components/research-workflow/start-synthetic-batch.tsx');
+const {TrainingBatchHistoryRow} = await import('../app/components/research-workflow/training-batch-history-row.tsx');
 const {TrainingBatchProgress} = await import('../app/components/research-workflow/training-batch-progress.tsx');
 hook.deregister();
 afterEach(() => {cleanup(); delete globalThis.__assessmentPreferences; delete globalThis.__assessmentLoad; delete globalThis.__assessmentDelete; delete globalThis.__assessmentProgress; delete globalThis.__trainingBatchNavigate;});
@@ -36,6 +37,51 @@ function show(props = {}, value = catalog([paper()])) {
   globalThis.__assessmentProgress ??= async ids => ({assessments: ids.map(id=>({id,step:2}))});
   return render(React.createElement(Assessments, props));
 }
+
+test('any part of a training batch row opens its detail page while the batch link stays keyboard accessible', () => {
+  const navigations = [];
+  globalThis.__trainingBatchNavigate = href => navigations.push(href);
+  const href = '/research-verification/training-batch/12';
+  render(React.createElement('table', null, React.createElement('tbody', null,
+    React.createElement(TrainingBatchHistoryRow, { batchId: 12 },
+      React.createElement('td', null, 'Completed'),
+      React.createElement('td', null, React.createElement('span', { title: 'paper.pdf · Passed' }, '✓'))))));
+
+  const link = screen.getByRole('link', { name: 'View batch 12' });
+  assert.equal(link.getAttribute('href'), href);
+  assert.equal(link.tabIndex, 0);
+  fireEvent.click(screen.getByRole('cell', { name: 'Completed' }));
+  fireEvent.click(screen.getByTitle('paper.pdf · Passed'));
+  assert.deepEqual(navigations, [href, href]);
+});
+
+test('the stop control sends one request and waits for the coordinator to report interruption', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const initial = { id: 12, status: 'running', canStop: true, stale: false,
+    requestedAt: null, startedAt: null, updatedAt: null, finishedAt: null, stopPhase: null,
+    versions: { generator: null, verifier: null }, papers: [] };
+  const interrupted = { ...initial, status: 'interrupted', canStop: undefined };
+  let accept;
+  let progress = initial;
+  const fetch = t.mock.method(globalThis, 'fetch', (_url, options) => options.method === 'POST'
+    ? new Promise(resolve => { accept = resolve; }) : Promise.resolve(Response.json(progress)));
+  render(React.createElement(TrainingBatchProgress, { id: 12, initial }));
+  const button = screen.getByRole('button', { name: 'Stop Batch' });
+  fireEvent.click(button);
+  fireEvent.click(button);
+  assert.ok(screen.getByRole('button', { name: 'Requesting stop…' }).disabled);
+  assert.equal(fetch.mock.callCount(), 1);
+  assert.deepEqual(fetch.mock.calls[0].arguments, ['/research-verification/api/synthetic-batch/12/stop', { method: 'POST' }]);
+
+  await act(async () => accept(Response.json({ status: 'requested' }, { status: 202 })));
+  assert.ok(screen.getByText(/Stop requested/));
+  assert.ok(screen.getByText('Running'));
+  progress = interrupted;
+  await act(async () => t.mock.timers.tick(10_000));
+  assert.ok(screen.getByText('Interrupted'));
+  assert.equal(screen.queryByRole('button', { name: 'Stop Batch' }), null);
+  assert.equal(screen.queryByText(/Stop requested/), null);
+});
 
 test('the batch launcher sends one request and navigates to its own progress page', async t => {
   const batchId = 12;
