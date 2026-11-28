@@ -285,7 +285,7 @@ test('the batch saves the corrected scorecard and retains the raw output', async
   const result = await runSyntheticBatch({ ...lab, verify: input => {
     const evidence_integrity = { status: 'verified', details: 'Original note.' };
     if (basename(input.caseDirectory) === 'B') evidence_integrity.verified_runs = 1;
-    return lab.score(input, 1, { evidence_integrity });
+    return lab.score(input, 1, { evidence_integrity, score: { earned: 2, applicable_maximum: 2, rubric_maximum: 2 } });
   }, persistence: {
     generator: async id => id,
     verifier: async (id, _artifact, grade) => { saved.push(grade); return id; },
@@ -299,7 +299,11 @@ test('the batch saves the corrected scorecard and retains the raw output', async
   const raw = JSON.parse(await readFile(join(output, 'scorecard.json'), 'utf8'));
   const corrected = JSON.parse(await readFile(join(output, 'scorecard.validated.json'), 'utf8'));
   assert.deepEqual(raw.evidence_integrity, { status: 'verified', details: 'Original note.' });
-  assert.deepEqual(corrected, { ...raw, evidence_integrity: { status: 'verified', detail: 'Original note.' } });
+  assert.equal(raw.score.earned, 2);
+  assert.deepEqual(corrected, {
+    ...raw, evidence_integrity: { status: 'verified', detail: 'Original note.' },
+    score: { ...raw.score, earned: 1 },
+  });
   assert.deepEqual(saved[0], corrected);
   await assert.rejects(readFile(join(lab.output, 'B', 'verifier', 'scorecard.validated.json')), { code: 'ENOENT' });
 });
@@ -413,6 +417,22 @@ test('a blocked Verifier saves its scorecard while remaining papers continue', a
   assert.equal(state.cases[0].steps.verifier.status, 'stopped');
   assert.ok(state.cases[0].database.verification_id);
   assert.equal(state.cases[0].score, null);
+});
+
+test('corrected totals preserve critical evidence failures', async t => {
+  const lab = await fixture(t, ['A']);
+  const critical_failures = ['The claim lacks comparable evidence.'];
+  const saved = [];
+  const batch = await runSyntheticBatch({ ...lab,
+    verify: input => lab.score(input, 1, {
+      status: 'failed', critical_failures, score: { earned: 2, applicable_maximum: 2, rubric_maximum: 2 },
+    }),
+    persistence: { generator: async id => id, verifier: async (id, _raw, grade) => { saved.push(grade); return id; } },
+  });
+  assert.equal(batch.cases[0].status, 'verification_error');
+  assert.equal(saved[0].score.earned, 1);
+  assert.equal(saved[0].status, 'failed');
+  assert.deepEqual(saved[0].critical_failures, critical_failures);
 });
 
 test('a shared save failure interrupts the batch and waits for active workers to clean up', { timeout: 5_000 }, async t => {

@@ -217,7 +217,7 @@ async function saveCorrectedGrade(review, grade) {
 }
 
 function evaluateScorecard(testCase, artifact, grade, preflight, pinned) {
-  const { scorecard } = prepareVerifierResult(artifact, grade);
+  const { scorecard } = prepareVerifierResult(artifact, grade, { deriveScoreTotals: true });
   requireGuidance(scorecard.skill_instructions, pinned);
   if (scorecard.paper_id !== testCase.paperId || scorecard.split !== testCase.split ||
       scorecard.answer_key_sha256 !== testCase.keySha256 || scorecard.mode !== 'fresh' ||
