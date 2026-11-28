@@ -72,6 +72,13 @@ a training-only subnet with no inbound security group rules. The coordinator
 retains `batch.json`, logs, and artifacts under `/home/ec2-user/jumpserve-runs/<id>`.
 The site reads the allowlisted progress summary in its private bucket.
 
+Generator workers provide `jumpserve-linux-testbed` for experiments that need
+kernel capabilities such as network namespaces and traffic control. The helper
+boots a disposable Debian guest with no network adapter. It mounts staged inputs
+read-only and writes the workload exit code and raw logs to a new evidence
+directory. The guest itself can create internal network links. Credentials stay
+in the separate Codex client container.
+
 ## Coordinator setup
 
 Deploy the coordinator stack with `EnableWebBatchStart=true` and install the

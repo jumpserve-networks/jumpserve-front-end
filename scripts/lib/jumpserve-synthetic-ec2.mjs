@@ -90,6 +90,8 @@ export function createEc2Workers({ settings, snapshot, workflowFiles, timeoutMs,
     await mkdir(isVerifier ? staged.output : staged.artifactDirectory, { recursive: true, mode: 0o700 });
     await mkdir(join(payload, 'lib'), { mode: 0o700 });
     await mkdir(join(payload, 'skills'), { mode: 0o700 });
+    const imageContext = join(payload, 'worker-image');
+    await mkdir(imageContext, { mode: 0o700 });
     try {
       await copyFile(input.paper, staged.paper);
       for (const skill of isVerifier ? Object.values(BATCH_SKILLS) : [BATCH_SKILLS.generator]) {
@@ -99,7 +101,12 @@ export function createEc2Workers({ settings, snapshot, workflowFiles, timeoutMs,
         await copyFile(input.key, staged.key);
         await cp(input.artifactDirectory, staged.artifactDirectory, { recursive: true, errorOnExist: true, force: false });
       }
-      await copyFile(join(scripts, 'jumpserve-synthetic-batch.Dockerfile'), join(payload, 'Dockerfile'));
+      await copyFile(join(scripts, 'jumpserve-synthetic-batch.Dockerfile'), join(imageContext, 'Dockerfile'));
+      if (!isVerifier) {
+        for (const file of ['guest-init.sh', 'linux-testbed.py']) {
+          await copyFile(join(scripts, 'jumpserve-linux-testbed', file), join(imageContext, file));
+        }
+      }
       await copyFile(join(scripts, 'jumpserve-synthetic-ec2-worker.mjs'), join(payload, 'worker.mjs'));
       for (const file of ['jumpserve-synthetic-containers.mjs', 'jumpserve-synthetic-worker-inputs.mjs',
         'jumpserve-synthetic-activity.mjs', 'jumpserve-synthetic-activity-schema.json', 'jumpserve-synthetic-terminal-proxy.mjs']) {

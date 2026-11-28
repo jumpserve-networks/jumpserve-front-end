@@ -15,6 +15,7 @@ FILES = (
     "scripts/jumpserve-training-batch@.service", "scripts/run-jumpserve-training-batch.py",
 )
 TREES = {
+    "scripts/jumpserve-linux-testbed": (".py", ".sh"),
     "lib": (".ts", ".json"),
     "scripts/lib": (".json", ".mjs"),
     "skills/jumpserve-paper-assessment": (".json", ".md", ".mjs", ".py", ".yaml", ".yml"),
