@@ -311,7 +311,8 @@ def worker_driver(stage, role, auth, volume, terminal=False):
         if ssh_command(argv, f"umask 077; mkdir {REMOTE} && tar -xzf - -C {REMOTE}", remaining(), source=source):
             raise RuntimeError(f"Could not transfer the {role} inputs to the leased EC2 instance.")
 
-    build = "docker build --build-arg BATCH_UID=$(id -u) --build-arg BATCH_GID=$(id -g) -t jumpserve-batch - < Dockerfile"
+    build = ("docker build --build-arg BATCH_UID=$(id -u) --build-arg BATCH_GID=$(id -g) "
+             f"--target {shlex.quote(role)} -t jumpserve-batch worker-image")
     if auth == "chatgpt":
         status = run_chatgpt_stage(argv, build, stage, role, remaining)
     elif auth == "worker-chatgpt":

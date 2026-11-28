@@ -132,7 +132,7 @@ export function containerCodexSession(role, input, workflowFiles, model) {
   if (role === 'generator') return { command: [...command, '--yolo'],
     prompt: generatorPrompt({ skillDirectory: generatorSkill, workflow: `${generatorSkill}/${workflowFiles.generator}`,
       paper: '/paper.pdf', paperSha256: input.paperSha256, guidance: input.guidance,
-      testbed: 'Keep test traffic inside the isolated container testbed. Public reference data may be read when the paper specifies it.' }) };
+      testbed: 'Keep test traffic inside the isolated worker. The jumpserve-linux-testbed helper runs experiments in an offline Linux guest when kernel capabilities are needed. Public reference data may be read when the paper specifies it.' }) };
   return { command: [...command, '--sandbox', 'read-only'],
     prompt: verifierPrompt({ skillDirectory: verifierSkill, workflow: `${verifierSkill}/${workflowFiles.verifier}`,
       caseDirectory: review.caseDirectory, paper: review.paper, key: review.key, assessment: reviewedAssessment,

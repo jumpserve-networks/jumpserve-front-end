@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ResearchHeader } from "@/app/components/research-workflow/header";
 import { StartSyntheticBatch } from "@/app/components/research-workflow/start-synthetic-batch";
 import { TrainingBatchHistoryRow } from "@/app/components/research-workflow/training-batch-history-row";
 import { Badge } from "@/app/components/ui/badge";
@@ -52,11 +51,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
   const history = source ? await listTrainingBatches(source, current).catch(() => null) : null;
 
   return <main className="mx-auto max-w-6xl space-y-6 px-4 py-6">
-    <ResearchHeader title="Training Batches" showModuleLabel={false} />
-    {user.id === configuration?.ownerId ? <section className="content-panel space-y-4 rounded-lg border p-5">
-      <p className="text-sm">Run the Generator and Verifier on the synthetic papers.</p>
-      <StartSyntheticBatch />
-    </section> : null}
+    <StartSyntheticBatch title="Training Batches" disabled={user.id !== configuration?.ownerId} />
     {history ? <>
       {source?.kind === "local" ? <p className="text-sm text-muted-foreground">Showing archived local batches.</p> : null}
       {history.batches.length ? <div className="content-panel rounded-lg border">

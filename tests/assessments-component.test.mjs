@@ -89,8 +89,15 @@ test('the batch launcher sends one request and navigates to its own progress pag
   globalThis.__trainingBatchNavigate = path => navigations.push(path);
   let resolve;
   const fetch = t.mock.method(globalThis, 'fetch', () => new Promise(done => { resolve = done; }));
-  const { container } = render(React.createElement(StartSyntheticBatch));
+  const title = 'Training Batches';
+  const { container, rerender } = render(React.createElement(StartSyntheticBatch, { title, disabled: true }));
   const button = screen.getByRole('button', { name: 'Start synthetic batch' });
+  assert.equal(button.parentElement, screen.getByRole('heading', { name: title }).parentElement);
+  assert.ok(button.disabled);
+  fireEvent.click(button);
+  assert.equal(fetch.mock.callCount(), 0);
+  rerender(React.createElement(StartSyntheticBatch, { title, disabled: false }));
+  assert.equal(button.disabled, false);
   assert.equal(container.querySelector('.training-batch-launch-graphic'), null);
   fireEvent.click(button);
   fireEvent.click(button);

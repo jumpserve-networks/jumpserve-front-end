@@ -336,7 +336,7 @@ test('training batch history and progress are shared while launch belongs to the
   assert.deepEqual(Array.from(markers.querySelectorAll('[aria-hidden="true"]'), marker => marker.textContent), ['✓', '•', '×', '×', '–']);
   assert.match(history.body.textContent, /1 of 5 passed/);
   assert.equal(history.querySelector(`[aria-label="Paper outcomes for batch ${previousBatch}"]`), null);
-  assert.equal(capture('StartSyntheticBatch'), undefined);
+  assert.deepEqual(capture('StartSyntheticBatch'), { title: 'Training Batches', disabled: true });
   state.batch = { id: batchId, status: 'running' };
   await renderPage('trainingBatch', props({ id: String(batchId) }));
   assert.equal(state.authPaths.at(-1), progressPath);
@@ -347,7 +347,10 @@ test('training batch history and progress are shared while launch belongs to the
   await renderPage('trainingBatches', props({}, { page: '2' }));
   assert.equal(state.authPaths.at(-1), launchPath + '?page=2');
   assert.deepEqual(state.historyRead, { source: state.batchSource, page: 2 });
-  assert.ok(capture('StartSyntheticBatch'));
+  assert.deepEqual(capture('StartSyntheticBatch'), { title: 'Training Batches', disabled: false });
+  delete state.batchConfiguration;
+  await renderPage('trainingBatches');
+  assert.deepEqual(capture('StartSyntheticBatch'), { title: 'Training Batches', disabled: true });
   state.captures.length = 0;
   await renderPage('assessments', props({}, { mine: '1' }));
   assert.equal(capture('StartSyntheticBatch'), undefined);
