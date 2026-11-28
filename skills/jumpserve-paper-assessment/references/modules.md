@@ -15,7 +15,7 @@ implement a role. Select the smallest combination that can answer the claim.
    workflow](testbed.md) to resolve missing components and find claim-relevant
    reconstructions. Record blockers for experiments that remain infeasible.
 2. Record the composition in private `composition.json` using the contract below.
-   Save a separate specification with the exact parameters, comparison,
+   Save the separate [experiment protocol](testbed.md#freeze-the-experiment-protocol) with the exact parameters, comparison,
    conditions, repetitions and order, duration, stopping rules, and resource
    roles. Select validators and their reference sources before the run. Record
    the assessment request, applicable limits, and the chosen validators. The
