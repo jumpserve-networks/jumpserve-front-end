@@ -202,6 +202,7 @@ def check_bundle(bundle_path, *, shareable=False, require_protocol=False):
             raise ValueError("The frozen protocol refers to unknown assessment claims.")
     ids = set()
     supported_claims = set()
+    compared_claims = set()
     for run in bundle["runs"]:
         if not isinstance(run, dict):
             raise ValueError("Each bundled run must be an object.")
@@ -209,12 +210,19 @@ def check_bundle(bundle_path, *, shareable=False, require_protocol=False):
             if run["id"] in ids:
                 raise ValueError("Duplicate run ID.")
             supported_claims.update(check_run(bundle_path, run, bundle["paper"]["sha256"], protocol))
+            if shareable:
+                compared_claims.update(measurement["claim_id"] for measurement in run["measurements"]
+                                       if measurement.get("paper_value") is not None)
             ids.add(run["id"])
         except (OSError, ValueError, TypeError, KeyError) as error:
             raise ValueError(f"Run {run.get('id', '(missing ID)')}: {error}") from error
     for claim in bundle["claims"]:
-        if claim["outcome"] in ("reproduced", "discrepant") and claim["id"] not in supported_claims:
+        if claim["outcome"] not in ("reproduced", "discrepant"):
+            continue
+        if claim["id"] not in supported_claims:
             raise ValueError(f"Claim {claim['id']} needs a comparable completed experiment.")
+        if shareable and claim["id"] not in compared_claims:
+            raise ValueError(f"Claim {claim['id']} needs a measurement with a non-null paper_value.")
     return len(ids)
 
 

@@ -83,6 +83,21 @@ class FrozenProtocolTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "linked frozen protocol file is missing"):
             check_bundle(self.bundle_path)
 
+    def test_shareable_conclusive_claim_requires_a_recorded_comparison(self):
+        self.fixture()
+        bundle = json.loads(self.bundle_path.read_text())
+        measurement = bundle["runs"][0]["measurements"][0]
+        for outcome in ("reproduced", "discrepant"):
+            with self.subTest(outcome=outcome):
+                bundle["claims"][0]["outcome"] = outcome
+                measurement["paper_value"] = None
+                self.write(self.bundle_path, bundle)
+                with self.assertRaisesRegex(ValueError, "needs a measurement with a non-null paper_value"):
+                    check_bundle(self.bundle_path, shareable=True, require_protocol=True)
+                measurement["paper_value"] = 0
+                self.write(self.bundle_path, bundle)
+                self.assertEqual(check_bundle(self.bundle_path, shareable=True, require_protocol=True), 1)
+
     def test_replay_and_late_protocols_cannot_validate_as_fresh(self):
         self.protocol["experiments"][0]["mode"] = "replay"
         self.fixture()
