@@ -1,6 +1,6 @@
 ---
 name: jumpserve-paper-assessment
-description: Recreate the testbed for a paper uploaded to JumpServe, run experiments to test its claims with fresh measurements, and return the private assessment link.
+description: Recreate a research paper's testbed, run feasible experiments against its claims, and save an evidence-backed assessment locally or privately in JumpServe.
 ---
 
 # Generator
@@ -13,8 +13,8 @@ Use the user's local Claude Code or Codex session to coordinate the Access, Expe
 
 Load the Generator's [published guidance](references/instruction-loading.md) with role `generator` before starting.
 
-1. For a batch worker, start with the supplied local PDF and verify its SHA-256 against the batch input. Write `jumpserve-assessment.json` and its evidence in the assigned output directory. The parent runner validates and saves the bundle privately. For other assessments, start with a JumpServe assessment ID. If it is missing, use the documented terminal upload or JumpServe Step 1 to obtain an ID. [Download and verify the private Step 1 PDF through the connector](references/sharing.md#download-a-step-1-pdf) before starting the assessment. Use a local copy only to recover the PDF for the same assessment ID.
-2. Follow the selected guidance and the [testbed and evidence workflow](references/testbed.md). Freeze comparison conditions and scientific criteria before measured trials, preserve original evidence, and verify cleanup. Keep paper-reported values distinct from fresh observations. Preserve untested and inconclusive outcomes where evidence is insufficient.
+1. For a batch worker, start with the supplied local PDF and verify its SHA-256 against the batch input. Write `jumpserve-assessment.json` and its evidence in the assigned output directory. The parent runner validates and saves the bundle privately. For a local assessment of a supplied PDF, preserve its original bytes and record its SHA-256 and byte count. For a requested JumpServe assessment, use its assessment ID and [download and verify the private Step 1 PDF](references/sharing.md#download-a-step-1-pdf). If an ID is needed, use the documented terminal upload or JumpServe Step 1 to obtain one. A local PDF used to recover an existing JumpServe assessment must match that assessment's source.
+2. Derive a [versioned experiment protocol](references/testbed.md#freeze-the-experiment-protocol) from the paper, its supporting materials, and any approved adaptations. Freeze it before measured trials. Follow the selected guidance and [testbed workflow](references/testbed.md), preserve original evidence, and verify cleanup. Distinguish paper-reported values, archival replay, and fresh observations. Preserve untested and inconclusive outcomes where evidence is insufficient.
 3. Save a local `jumpserve-assessment.json` using [the bundle schema](references/assessment.schema.json), with `skill_instructions` and the [wizard fields](references/sharing.md#assessment-wizard-fields). Include only fresh testbed observations in `runs`. Use `null` for an unavailable paper value and an empty `runs` array when no measurement qualifies. Run the [local bundle and evidence checks](references/testbed.md#check-the-saved-bundle) on the final JSON before private delivery or batch handoff.
 
 When a requested JumpServe assessment is complete, save the bundle privately using [the MCP delivery flow](references/sharing.md). JumpServe attaches the existing Step 1 PDF. For a requested run with a continuing blocker, preserve the draft and recovery details locally. Save an unresolved assessment on JumpServe only if the user chooses that outcome. Send only the exact completion message from the delivery flow after saving and end the reply immediately after the URL.
