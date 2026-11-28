@@ -12,7 +12,7 @@ const boundary = name => `export function ${name}(props){globalThis.__routeState
 const replacements = {
   'server-only': 'export {};',
   'next/link': "export default function Link({prefetch, ...props}){return globalThis.__routeReact.createElement('a',props);}",
-  'next/navigation': "export function notFound(){throw Object.assign(new Error('Synthetic notFound'),{code:'NEXT_NOT_FOUND'});}export function redirect(url){throw Object.assign(new Error('Synthetic redirect'),{code:'NEXT_REDIRECT',url});}export const permanentRedirect=redirect;",
+  'next/navigation': "export function notFound(){throw Object.assign(new Error('Synthetic notFound'),{code:'NEXT_NOT_FOUND'});}export function redirect(url){throw Object.assign(new Error('Synthetic redirect'),{code:'NEXT_REDIRECT',url});}export const permanentRedirect=redirect;export function useRouter(){return {push(){}};}",
   '@/lib/supabase/server': 'export async function createClient(){return globalThis.__routeState.client;}',
   '@/lib/auth': "export async function getGoogleUser(){return globalThis.__routeState.user;}export async function requireGoogleUser(path){globalThis.__routeState.authPaths.push(path);if(globalThis.__routeState.authError)throw globalThis.__routeState.authError;return globalThis.__routeState.user;}",
   '@/lib/local-paper-assessment-server': "export async function loadSharedLocalPaperAssessment(id){globalThis.__routeState.localReads=(globalThis.__routeState.localReads??0)+1;return globalThis.__routeState.localAssessment??{status:'absent'};}",
@@ -311,8 +311,14 @@ test('training batch history and progress are shared while launch belongs to the
   state.batchConfiguration = { ownerId: ID };
   state.batchSource = { kind: 's3', bucket: 'training-batches' };
   state.batchHistory = { batches: [
-    { id: batchId, status: 'running', recordedAt: '2026-11-02T00:00:00Z', passed: 1, total: 2 },
-    { id: previousBatch, status: 'passed', recordedAt: '2026-11-01T00:00:00Z', passed: 2, total: 2 },
+    { id: batchId, status: 'running', recordedAt: '2026-11-02T00:00:00Z', passed: 1, total: 5, papers: [
+      { id: 'paper-a', fileName: 'a.pdf', status: 'passed' },
+      { id: 'paper-b', fileName: 'b.pdf', status: 'completed' },
+      { id: 'paper-c', fileName: 'c.pdf', status: 'generation_error' },
+      { id: 'paper-d', fileName: 'd.pdf', status: 'verification_error' },
+      { id: 'paper-e', fileName: 'e.pdf', status: 'verifying' },
+    ] },
+    { id: previousBatch, status: 'requested', recordedAt: '2026-11-01T00:00:00Z', passed: 0, total: 0, papers: [] },
   ], hasMore: true };
   state.user = { ...google(), id: OTHER };
   const launchPath = BASE + '/training-batches';
@@ -323,6 +329,13 @@ test('training batch history and progress are shared while launch belongs to the
   assert.ok(history.querySelector(`a[href="${progressPath}"]`));
   assert.ok(history.querySelector(`a[href="${BASE}/training-batch/${previousBatch}"]`));
   assert.ok(history.querySelector(`a[href="${launchPath}?page=2"]`));
+  const markers = history.querySelector(`[aria-label="Paper outcomes for batch ${batchId}"]`);
+  assert.deepEqual(Array.from(markers.querySelectorAll('li'), marker => marker.title), [
+    'a.pdf · Passed', 'b.pdf · Imperfect', 'c.pdf · Generation error', 'd.pdf · Verification error', 'e.pdf · Verifying',
+  ]);
+  assert.deepEqual(Array.from(markers.querySelectorAll('[aria-hidden="true"]'), marker => marker.textContent), ['✓', '•', '×', '×', '–']);
+  assert.match(history.body.textContent, /1 of 5 passed/);
+  assert.equal(history.querySelector(`[aria-label="Paper outcomes for batch ${previousBatch}"]`), null);
   assert.equal(capture('StartSyntheticBatch'), undefined);
   state.batch = { id: batchId, status: 'running' };
   await renderPage('trainingBatch', props({ id: String(batchId) }));

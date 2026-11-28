@@ -1,6 +1,14 @@
 # Jumpserve Front End
 
-Starter app using:
+## Project purpose
+
+The purpose of this repository is to create a generalizable Generator skill that
+can thoroughly and accurately reproduce experiments from academic research
+papers in computer networks. The Generator uses each paper and its supporting
+materials to design and run feasible reproductions, then records the evidence
+and limitations so researchers can check the results.
+
+## Stack
 
 - Next.js `16.3.8`
 - TailwindCSS `4`
@@ -19,8 +27,13 @@ In **Assess a Paper**, sign in and upload the PDF in Step 1. Paste the
 provided prompt into Claude Code or Codex with the JumpServe plugin connected.
 The plugin downloads the verified PDF by assessment ID. Connect with the same
 Google account and authorize PDF downloads if your connection only supports sharing.
-Every assessment starts with this upload. JumpServe attaches the existing Step 1
-PDF when the plugin saves the results.
+JumpServe attaches the Step 1 PDF when the plugin saves the results privately.
+
+For a local-only reproduction, give the Generator the PDF path and request local
+output. It fetches published guidance from JumpServe and freezes an
+`experiment-protocol.json` derived from the paper and supporting materials
+before collecting measurements.
+
 An assessment request authorizes the plugin to recreate the paper's testbed
 and run in-scope local experiments. The plugin records fresh measurements,
 documents substitutions and blocked claims, and respects any limits or
@@ -50,13 +63,12 @@ to receive the prompts directly. If client policy blocks human review, the skill
 the assessment for an [interactive session that can resume it](skills/jumpserve-paper-assessment/references/permissions.md#resume-after-an-approval-blocker).
 If the PDF download is blocked, you can download it from the signed-in Step 1
 page and give the client its path for
-[offline verification](skills/jumpserve-paper-assessment/references/sharing.md#recover-from-a-blocked-pdf-download).
+[local PDF recovery](skills/jumpserve-paper-assessment/references/sharing.md#recover-from-a-blocked-pdf-download).
 
 To grade a completed assessment, open a separate session and use the
 [Verifier skill](skills/jumpserve-assessment-verifier/SKILL.md) with the saved
 `jumpserve-assessment.json` and the matching private answer key for the benchmark.
-Point the client to that skill file in this checkout or invoke
-`$jumpserve-assessment-verifier` in Codex with a plugin build that includes it.
+With the plugin installed, invoke `$jumpserve-assessment-verifier` in Codex.
 The Verifier reads local evidence and saves a separate claim-level scorecard.
 The connector can store an owner-authorized scorecard privately against the exact
 saved Generator result. For another version of a completed assessment, save it
@@ -71,9 +83,7 @@ review. The Coach's preparation script skips
 held-out scorecards before their findings reach the session. Each completed Coach
 report is saved privately through `save_coach_report` and linked to the exact
 saved development scorecards unless the owner explicitly requests local-only
-work. Apply the infrastructure migration
-`202611230002_jumpserve_private_coach_reports.sql` before releasing this tool.
-The combined JumpServe plugin includes the Coach.
+work.
 
 The Next.js app serves a Streamable HTTP MCP connector at `/mcp`. When a
 JumpServe assessment finishes, the connected skill calls `preview_assessment`
@@ -97,22 +107,12 @@ evidence stay with the user. The connector does not need a model-provider key.
 
 ### Enable and connect
 
-1. Apply `jumpserve-infra/database/202611210001_jumpserve_mcp_assessments.sql`
-   to the target Supabase project before enabling the connector. For PDF copies,
-   apply `database/202611220001_jumpserve_skill_pdf_copies.sql` in the infra
-   repository before releasing the updated connector and skill. Apply
-   `database/202611220002_jumpserve_assessment_sources.sql` for the Step 1
-   assessment IDs.
-   Apply `database/202611220003_jumpserve_mcp_source_access.sql` before enabling
-   private Step 1 downloads through the connector.
-   Apply `database/202611220004_jumpserve_private_assessments.sql` before releasing
-   the Step 1-only saving flow and completed private assessment list. Completed
-   assessments and sharing approvals remain available without time limits.
-   Apply `database/202611230001_jumpserve_private_evaluation_results.sql` before
-   releasing private Generator projections and Verifier scorecard saves. It
-   backfills completed assessment results and keeps these tables service-role only.
-   For private CLI result saves, apply `database/202611250001_jumpserve_coach_reports_without_recommendations.sql`
-   before deploying the app. It allows completed Coach reports that found no changes to recommend.
+1. After applying the base JumpServe schema, apply the connector migrations from
+   `202611210001_jumpserve_mcp_assessments.sql` through
+   `202611260001_jumpserve_skill_version_numbers.sql` in order. These cover
+   private PDFs and assessments, evaluation results, Coach reports and tracked
+   recommendations, and published skill versions.
+   [JumpServe infrastructure migrations](https://github.com/jumpserve-networks/jumpserve-infra/tree/main/database)
 2. Set `NEXT_PUBLIC_SITE_URL` to the app's actual origin and
    `JUMPSERVE_MCP_ENABLED=true` in the server runtime. Use the existing
    `PAPER_INTAKE_SECRET_ID` on Amplify or set a server-only
@@ -159,39 +159,44 @@ through the existing connector.
 
 Use `npm run --silent assessment -- start ./paper.pdf --json` for JSON output.
 If an upload is interrupted, retry the same PDF with `--assessment-id <id>`
-using the ID printed before upload. Pass `--url http://127.0.0.1:6001` to use
-an isolated local instance. `logout` clears the cached credential for that
-origin. The account's JumpServe connections page can revoke the connection
-on the server.
+using the ID printed before upload. To target an isolated local instance, pass
+`--url http://localhost:6001` or its configured origin. `logout` clears the cached
+credential for that origin. The account's JumpServe connections page can revoke
+the connection on the server.
 
-The [synthetic assessment batch](docs/synthetic-assessment-batch.md) runs the
-Generator and Verifier locally when you have matching answer keys.
+### Synthetic training batches
 
-Run `python3 scripts/package-jumpserve-plugin.py` to build both ZIPs and the
-Claude marketplace catalog from the same skill. The catalog pins the plugin
-archive's SHA-256. Run the script with `--check` to verify the release files.
-For a new release, update the package version and the standalone download link
-in this README. Release the connector that accepts `bundle.wizard` before
-distributing the plugin that sends it.
-Publish the extracted plugin files to the separate public marketplace repository
-with its installation README.
+The configured owner starts a synthetic batch from
+`/research-verification/training-batches`. Signed-in users can browse all
+batches and follow individual paper progress at
+`/research-verification/training-batch/<id>`. The AWS coordinator runs the
+Generator followed by the Verifier for each paper and saves private assessments
+and scorecards. The detail page shows stage timing and any available read-only
+worker output. [Synthetic training batches](docs/synthetic-assessment-batch.md)
 
-The Generator, Verifier, and Coach load published workflow guidance through
+### Plugin and guidance releases
+
+The released Generator, Verifier, and Coach fetch versioned guidance through
 `get_skill_instructions` and record the selected version in their outputs.
-The installed skills require a JumpServe connection for guidance. Local-only
-reviews fetch versioned guidance and keep their inputs and results on the machine.
-For release order, publication, and rollback, see
-[JumpServe skill instruction publishing](https://github.com/jumpserve-networks/jumpserve-infra/blob/main/docs/jumpserve-skill-instructions.md).
+Local-only runs still connect to JumpServe for guidance and keep paper inputs
+and results in the workspace.
+[JumpServe skill instruction publishing](https://github.com/jumpserve-networks/jumpserve-infra/blob/main/docs/jumpserve-skill-instructions.md)
+
+Run `python3 scripts/package-jumpserve-plugin.py` to build the standalone
+Generator archive, the combined plugin archive, and the Claude marketplace
+catalog. The catalog pins the plugin archive's SHA-256. Run the script with
+`--check` to verify the release files. For a new release, update the package
+version and the standalone download link in this README. Publish the extracted
+plugin files to the public marketplace repository with its installation README.
 
 ## Quick Start
 
-Use Node.js 22 or newer. The pinned Supabase SDK requires Node.js 22+; local
-verification currently uses Node.js 24.
+Use Node.js 24 to match CI.
 
 1. Install dependencies:
 
 ```bash
-npm install
+npm ci
 ```
 
 2. Create your local environment file:
@@ -209,7 +214,7 @@ npm run dev
 ```
 
 Open `http://localhost:6001`. Both `npm run dev` and `npm start` default to port
-6001; an explicit `PORT` environment variable or `--port` argument overrides it.
+6001. Set `PORT` or pass `--port` to use a different port.
 When using another local port, match `NEXT_PUBLIC_SITE_URL` to that origin.
 
 For local Google sign-in, include `http://localhost:6001/auth/callback*` in the
@@ -255,108 +260,33 @@ runtime pins and operational policies remain active platform inputs.
 
 ## Test modules
 
-When logged out, `/` is a public landing page explaining JumpServe, the experiment
-workflow, and available and planned test environments. Sign-in controls open
-`/login`, where Google authentication begins. Signing out returns to the public
-landing page. Module overviews, test results, comparisons, status pages, and
-measurement downloads are public. Google sign-in is required to run or cancel
-tests and to chat with the AI; APIs verify the session independently.
+The public home page describes JumpServe and its test modules. Google sign-in at
+`/login` opens the module chooser or resumes a safe requested URL and query
+parameters. Measurement results and comparisons are public. Private research
+workspaces, batch controls, and chat require a verified session.
 
-After Google sign-in, `/` presents the module chooser. The current module is
-**Congestion Control Emulated Tests** (`congestion-control-emulated`), with a home
-at `/congestion-control-emulated`. All its tools share that prefix:
-`/test-lookup`, `/parent-run/[id]`, `/aggregate-graphs`, `/benchmarks`, and `/chat`.
-The parent-run query endpoint is `/congestion-control-emulated/api/parent-runs`.
-Legacy root tool URLs and both `/module/{moduleId}` and `/modules/{moduleId}` permanently redirect to the new
-module routes, preserving path suffixes and query parameters.
-A persistent left sidebar shows the current module, its overview and sections,
-and a **Dark Mode / Light Mode / System Default** selector. On smaller screens,
-the header menu button opens the same navigation in an accessible drawer. Detail pages highlight their parent
-section. The sidebar appears for module tools even when signed out, and is omitted
-from the landing page, module chooser, and print. Module selection is navigation.
+- **Verify Existing Claims** provides paper assessments and synthetic training
+  batches under `/research-verification`.
+- **Develop a New Idea** provides the private planning workspace at
+  `/research-ideas`.
+- **Congestion Control Emulated Tests** shows recorded benchmarks, measurements,
+  and comparisons under `/congestion-control-emulated`.
+- **Congestion Control Real World Tests** shows recorded EC2 runs and reports
+  under `/congestion-control-real-world`. The former launch page directs users
+  to local execution. Run details retain recorded lifecycle history, topology,
+  throughput, and time-limited links to available raw measurements.
 
-**Congestion Control Real World Tests** (`congestion-control-real-world`) opens
-`/congestion-control-real-world/run-a-test` for EC2 placement, server CCA,
-shared bottleneck settings, test launching, and history. The status page at
-`/congestion-control-real-world/run-a-test/[jobId]` shows lifecycle, cancellation,
-machine placement, receiver throughput, and signed raw-report downloads.
-It uses `/real-world/*` endpoints on `NEXT_PUBLIC_BENCHMARK_API_URL`. Result reads
-are public; launching requires a verified Google session, and cancellation also
-checks ownership. Raw files stay in private Supabase Storage, with temporary
-links to measurement files.
-Deploy the matching infrastructure/runtime before publishing this UI.
+Cloud benchmark launch and cancellation are retired. The benchmark API and
+Supabase continue serving historical data. Public reads use limited projections.
+Requester identities and raw storage access remain restricted. Keep real-world
+duration-based throughput separate from emulated file completion times.
+[Cloud benchmark retirement](https://github.com/jumpserve-networks/jumpserve-infra/blob/main/docs/cloud-benchmark-retirement-v1.md)
 
-Each run creates one server, one bottleneck, and 1–16 receivers. AWS Regions,
-Availability Zones, and compatible instance offerings come from the account's
-live catalog. Each machine can use **t3.small**, **t3.medium**, or **t3.large**,
-with t3.medium as the default. The zone selector checks availability for that
-machine’s selected type. The API, provisioner, and EC2 launch permissions enforce
-the same three-type allowlist. Region choices explain account opt-in restrictions;
-unavailable or incompatible Availability Zones are hidden from the zone dropdown.
-The server, bottleneck, and every receiver each have an interactive world map for
-selecting their Region. Each map stays synchronized with its own dropdown;
-changing Regions clears that machine's previous zone
-and retains the selected instance type. Changing type clears a selected zone
-unless the catalog confirms the new type is offered there. Nearby markers expand with zoom, and the map supports mouse,
-touch, and keyboard navigation. Drag, wheel, and trackpad panning wrap continuously
-left/right and up/down; the world and Region markers repeat at each edge.
-Map coordinates are approximate Region locations,
-not individual data centers. Live catalog availability remains authoritative;
-Regions without map coordinates remain selectable in the dropdown. See
-[map data and provenance](lib/maps/README.md).
-
-Each test also shows a progress timeline with completed, current, and upcoming
-stages. Supabase records stage transitions atomically with controller checkpoints;
-the detail API returns the current state and history in one database snapshot.
-Completed stages show a date/time with time zone and elapsed duration when both
-timestamps exist. Failures and cancellation distinguish interrupted work from
-successful cleanup and stages that did not run. Older tests show missing history
-and times explicitly; browser polling does not create completion timestamps.
-
-Each test detail page includes an interactive traffic topology map: server →
-bottleneck → receivers, with machine inspection, zoom, pan, and fit controls.
-Machines in one Region share a marker and their local links appear as loops.
-The traffic map wraps on both axes with its markers, paths, and animations.
-Schematic paths animate in every lifecycle state, including completed tests and
-jobs without recorded timing. Only the explicit Pause/Resume control changes
-playback; the system motion preference does not suppress it. The status badge
-separately reports scheduled transfer activity using `start_epoch`, duration,
-cancellation, cleanup, completion, and the freshness of status updates.
-Paths and animation speeds are schematic;
-they do not represent measured packet rates or physical Internet routes. Collected
-receiver throughput is shown in the inspector once measurements are available.
-
-The workload is simultaneous TCP bulk transfer for a selected duration; CCAs are
-CUBIC, stock Linux BBR, and Reno. Per-machine results remain separate from the
-emulated comparison tools. EC2/network resources are removed after each run;
-both modules store their data in Supabase. Real-world configuration, lifecycle,
-normalized reports, and measurement traces live in Postgres; original per-machine
-JSON lives in the private `real-world-results` Storage bucket.
-
-`lib/test-modules.ts` is the module catalog: stable IDs, names, availability,
-home routes, and tool navigation. A new module needs its own pages, data queries,
-and backend integration before marking it available. Unknown or unavailable
-module home routes return 404. Existing run IDs, database tables, benchmark APIs,
-and agent endpoints remain scoped to emulated congestion-control tests.
-
-OAuth completion and the authenticated `/login` redirect resume the safe `next`
-path directly, including query parameters. Without a destination, sign-in opens
-`/`. Logged-out visitors can open either module from the landing page. The launch
-pages show a sign-in prompt while signed out; emulated run history stays readable.
-`/congestion-control-emulated/chat` redirects to login. Launch/cancel/chat clients attach Supabase bearer tokens;
-requester identity is verified by the API rather than accepted from the body.
-
-Supabase RLS remains enabled. Infrastructure migration
-`202609200003_public_test_results.sql` grants anonymous measurement reads and a
-limited benchmark-job column projection (excluding requester emails). Saved
-configurations, chat records, AI context, and anonymous writes remain private.
-Migration `202609200004_real_world_supabase.sql` adds public read-only
-`real_world_runs` and `real_world_reports`, private `real_world_jobs` and
-`real_world_artifacts`, and a private measurement bucket. Only backend Lambdas
-can write these records or sign uploads; EC2 machines receive object-scoped URLs.
-
-`npm test` covers redirect safety, deep-link continuity, module availability, and
-route ownership alongside the existing API tests.
+`lib/test-modules.ts` defines module IDs, availability, routes, and navigation.
+Legacy root tool URLs, `/module/{moduleId}`, and `/modules/{moduleId}` redirect to
+the canonical module routes and preserve path suffixes and query parameters.
+Module tools use a desktop sidebar and a mobile navigation drawer. Detail pages
+highlight their parent section.
 
 ## Research comparisons
 
@@ -369,11 +299,9 @@ source review/access status. Chat reuses `ChatPanel` with the explicit LEO
 module, Google authentication and editable country questions. The backend
 capability check prevents older agents from using another module's tools.
 Apply the LEO migrations and publish its evaluated prompt before deploying the
-matching agent and this frontend; see `jumpserve-infra/docs/leo-study-chat.md`.
-Data and prompt publication are complete. Production releases use the existing
-infrastructure workflow for the agent and Amplify for this frontend.
+matching agent and frontend. [LEO study chat](https://github.com/jumpserve-networks/jumpserve-infra/blob/main/docs/leo-study-chat.md)
 
-Compare Cohorts now requires matching complete recorded configurations and gives
+Compare Cohorts requires matching complete recorded configurations and gives
 each configuration equal weight. It reports independent parent-run repetition
 counts, exclusions, and exploratory confidence intervals when replication is
 sufficient. The Box Plot view isolates a delay sweep and shows coverage per level.
@@ -412,8 +340,8 @@ tokens live in `app/globals.css` and follow the existing `.dark` theme toggle.
 Use neutral surfaces, subtle borders, compact typography, and the shared blue
 accent for application controls. Reserve additional colors for chart series and
 meaningful status indicators. Avoid decorative gradients, page-entry animations,
-and oversized shadows. The theme selector lives at the bottom of the module sidebar
-and mobile module menu. The JumpServe header link returns to the home page.
+and oversized shadows. The site header contains the theme selector and a link
+back to the home page.
 
 SVG charts inside buttons must retain `role="img"`: the shared Button excludes
 these content graphics from its default icon sizing. Keep run charts in a
@@ -436,7 +364,7 @@ navigation, dialog focus restoration, and both themes after changing primitives.
 
 ## Benchmark API
 
-To launch or cancel benchmarks and view their logs, set
+To load historical emulated and real-world benchmark data, set
 `NEXT_PUBLIC_BENCHMARK_API_URL` in `.env.local` to the deployed benchmark API base
 URL. Use the `BenchmarkApiUrl` stack output or `benchmarkApiUrl` context value from
 `jumpserve-networks/jumpserve-infra`. Omit the `/benchmarks` suffix.
@@ -453,12 +381,8 @@ provided, including its trailing slash; do not append `/chat` or `/benchmarks`.
 
 Restart the development server after changing this value. For production, set it
 in the build environment and rebuild so the browser bundle includes the endpoint.
-A missing value previously caused chat to post to the frontend page and attempt
-to parse its HTML as JSON. The client now rejects missing or invalid configuration
-before sending a request and reports non-JSON API responses clearly.
 
-Run the API regression tests with `npm test` (Node.js 22.18+ or 24+).
-These tests mock API requests and do not launch EC2 instances or invoke AI models.
+Run the API regression tests with `npm test`. These tests mock API requests.
 
 ## Real-world test results
 
@@ -466,48 +390,44 @@ Choose the Congestion Control Real World Tests module, then **Test Results**.
 The workspace at `/congestion-control-real-world/test-results` shares saved EC2 measurements among all
 visitors, with individual throughput/RTT/queue reports, configuration
 matching, independent replication counts, exploratory confidence intervals,
-bookmarkable selections, CSV/JSON exports, and print-to-PDF. Test management
-remains owner-scoped. It uses the existing `NEXT_PUBLIC_BENCHMARK_API_URL`.
+bookmarkable selections, CSV/JSON exports, and print-to-PDF. It uses
+`NEXT_PUBLIC_BENCHMARK_API_URL`.
 
 See [reporting methods and limitations](docs/real-world-reports.md) for units,
 eligibility, matching, bootstrap assumptions, provenance, and access semantics.
-Apply `202609200004_real_world_supabase.sql` and deploy the reporting API from
-`jumpserve-infra` before
-deploying this frontend. `npm test` covers comparisons, exports, and navigation;
-backend tests cover normalization, artifact quality, and authentication boundaries.
+`npm test` covers comparisons, exports, and navigation. Backend tests cover
+normalization, artifact quality, and authentication boundaries.
 
 ## Develop an unpublished research idea
 
-Research Verification → **Develop an idea** opens
+**Develop a New Idea** → **Develop an Idea** opens
 `/research-ideas/new-idea`. Google sign-in resumes this route.
-Start with a title, domain and question; a paper/DOI is unnecessary. The private
+Start with a title, domain, and question. The private
 workspace starts with a **Guided conversation**: it reuses existing answers, asks
 one missing question at a time, and saves each answer as an immutable plan version.
 Methods questions build the protocol without requiring JSON. **Help me answer**
 uses the existing authenticated AI discussion; suggestions never silently edit the
 plan. The checklist questions are deterministic UI guidance, not model answers.
 
-After the methods are recorded, select an executable runner and specify its actual
-configuration, metrics, repetitions and limits. Built-in emulated settings use
-normal controls, and EC2 placement reuses the existing availability maps. Custom
-packages need a versioned implementation and inputs. Invalid parameters block
-compilation, and changed settings must be compiled and saved before review.
+After the methods are recorded, specify the runner, configuration, metrics,
+repetitions, and limits. Custom packages need a versioned implementation and
+inputs. Invalid parameters block compilation. Compile and save changed settings
+before review.
 Fresh comprehension and critic reviews check the exact saved plan. Failed reviews
 and unresolved questions block approval; substantive corrections create new versions.
-Owner approval precedes freezing and explicit queueing. Disabled runners or workers
-block automatic queueing with an explanation. Execution success is not validation
-of the hypothesis; empirical measurements and claim assessments remain separate.
+Owner approval precedes freezing the plan. Automatic queueing requires an enabled
+runner and worker. Keep execution status, empirical measurements, and claim
+assessments separate.
 
 **Detailed editor and history** retains the original bulk fields, protocol JSON,
 review history and manual domain workflow. Unsaved answers or campaign details
 block interface switches until saved or explicitly discarded. Unknown information
-stays missing. Model prompts, authentication, user/study-scoped persistence
-and server readiness gates are reused, with no new prompt publication or migration.
+stays missing. The workspace persists data by user and study.
 
 Use the existing research API origin and `NEXT_PUBLIC_AGENT_URL`; the browser
 checks capabilities before creating an idea or requesting a model call. Deploy
 the additive idea/prompt migrations and evaluated prompt before enabling the
-module-aware APIs and this frontend. Local changes are not a production release.
+module-aware APIs and frontend.
 
 `npm run verify:research:public-queue` checks the current public Experiment Queue
 through the local Next.js app and actual backend handlers with synthetic data.

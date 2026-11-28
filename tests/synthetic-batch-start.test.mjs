@@ -17,6 +17,7 @@ const hook = registerHooks({ resolve(specifier, context, next) {
 const { POST } = await import('../app/(modules)/research-verification/api/synthetic-batch/start/route.ts');
 const { GET } = await import('../app/(modules)/research-verification/api/synthetic-batch/[id]/route.ts');
 const { GET: ACTIVITY } = await import('../app/(modules)/research-verification/api/synthetic-batch/[id]/activity/route.ts');
+const { POST: STOP } = await import('../app/(modules)/research-verification/api/synthetic-batch/[id]/stop/route.ts');
 const { getTrainingBatchHistorySource, listTrainingBatches } = await import('../lib/synthetic-batch-server.ts');
 hook.deregister();
 
@@ -38,6 +39,10 @@ const request = ({ requestOrigin = origin, query = '', body } = {}) => new Reque
   { method: 'POST', headers: { origin: requestOrigin }, body },
 );
 const status = (id = batchId) => GET(new Request(origin), { params: Promise.resolve({ id: String(id) }) });
+const stop = (id = batchId, { requestOrigin = origin, query = '', body } = {}) => STOP(new Request(
+  `${origin}/research-verification/api/synthetic-batch/${id}/stop${query}`,
+  { method: 'POST', headers: { origin: requestOrigin }, body },
+), { params: Promise.resolve({ id: String(id) }) });
 const activity = paper => ACTIVITY(new Request(`${origin}?paper=${encodeURIComponent(paper)}`),
   { params: Promise.resolve({ id: String(batchId) }) });
 
@@ -77,6 +82,67 @@ afterEach(() => {
     if (value === undefined) delete process.env[name];
     else process.env[name] = value;
   }
+});
+
+test('the owner can stop only the specified active batch on the configured coordinator', async t => {
+  const { records, client } = mockStorage(t);
+  const startedAt = new Date().toISOString();
+  records.set(`requests/${batchId}.json`, { ownerId, requestedAt: startedAt, dispatch: 'requested' });
+  const progressKey = `progress/${batchId}.json`;
+  records.set(progressKey, { status: 'preparing', startedAt, updatedAt: startedAt, finishedAt: null,
+    stopPhase: null, versions: { generator: null, verifier: null }, papers: [] });
+
+  let receipt = { Command: { CommandId: 'accepted' } };
+  const send = t.mock.method(SSMClient.prototype, 'send', async (command, options) => {
+    assert.ok(command instanceof SendCommandCommand);
+    assert.deepEqual(command.input, { DocumentName: 'JumpServeStopTrainingBatchById', DocumentVersion: '1',
+      Parameters: { BatchId: [String(batchId)] }, InstanceIds: [instanceId], TimeoutSeconds: 30 });
+    assert.ok(options.abortSignal instanceof AbortSignal);
+    return receipt;
+  });
+
+  assert.equal((await (await status()).json()).canStop, true);
+  globalThis.__syntheticBatchUser = { id: 'another-viewer' };
+  assert.equal((await (await status()).json()).canStop, undefined);
+  globalThis.__syntheticBatchUser = { id: ownerId };
+  const accepted = await stop(batchId, { body: new Uint8Array(0) });
+  assert.equal(accepted.status, 202);
+  assert.equal(accepted.headers.get('cache-control'), 'private, no-store');
+  assert.deepEqual(await accepted.json(), { status: 'requested' });
+  assert.equal(records.get(progressKey).status, 'preparing');
+  receipt = {};
+  assert.equal((await stop()).status, 502);
+  assert.equal(send.mock.callCount(), 2);
+  assert.ok(client.mock.calls.every(call => call.arguments[0] instanceof GetObjectCommand));
+});
+
+test('invalid, non-owner, cross-origin, and inactive stops send no AWS command', async t => {
+  const { records } = mockStorage(t);
+  const send = t.mock.method(SSMClient.prototype, 'send', async () => assert.fail('AWS stop must be blocked'));
+  globalThis.__syntheticBatchUser = null;
+  assert.equal((await stop()).status, 401);
+  globalThis.__syntheticBatchUser = { id: 'another-viewer' };
+  assert.equal((await stop()).status, 403);
+  globalThis.__syntheticBatchUser = { id: ownerId };
+  assert.equal((await stop(batchId, { requestOrigin: 'https://another-origin.example' })).status, 403);
+  assert.equal((await stop(batchId, { query: '?target=other' })).status, 400);
+  assert.equal((await stop(batchId, { body: '{"document":"AWS-RunShellScript"}' })).status, 400);
+  for (const id of ['01', '-1', '2147483648', assessmentId]) assert.equal((await stop(id)).status, 404);
+  assert.equal((await stop()).status, 404);
+
+  const now = new Date().toISOString();
+  const requestKey = `requests/${batchId}.json`;
+  const progressKey = `progress/${batchId}.json`;
+  records.set(requestKey, { ownerId: 'previous-owner', requestedAt: now, dispatch: 'requested' });
+  records.set(progressKey, { status: 'running', updatedAt: now, versions: { generator: null, verifier: null }, papers: [] });
+  assert.equal((await stop()).status, 403);
+  records.set(requestKey, { ownerId, requestedAt: now, dispatch: 'requested' });
+  records.get(progressKey).status = 'completed';
+  assert.equal((await (await status()).json()).canStop, undefined);
+  assert.equal((await stop()).status, 409);
+  records.delete(progressKey);
+  assert.equal((await stop()).status, 409);
+  assert.equal(send.mock.callCount(), 0);
 });
 
 test('the authenticated owner can request only the fixed SSM document on the configured coordinator', async t => {
@@ -198,7 +264,10 @@ test('local development opens CLI journals and returns only safe progress fields
   const source = getTrainingBatchHistorySource();
   assert.deepEqual(source, { kind: 'local', directory });
   const history = await listTrainingBatches(source, 1);
-  assert.deepEqual(history.batches, [{ id: 1, recordedAt: startedAt, status: 'stopped', total: 2, passed: 0 }]);
+  assert.deepEqual(history.batches, [{ id: 1, recordedAt: startedAt, status: 'stopped', total: 2, passed: 0, papers: [
+    { id: 'paper-1', fileName: 'paper.pdf', status: 'stopped' },
+    { id: 'paper-2', fileName: 'pending.pdf', status: 'pending' },
+  ] }]);
   const response = await status(1);
   assert.equal(response.status, 200);
   const detail = await response.json();
