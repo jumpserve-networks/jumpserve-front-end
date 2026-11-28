@@ -801,7 +801,8 @@ test('Docker workers separate model authentication from case mounts and fail clo
   await writeFile(join(bin, 'docker'), String.raw`#!${process.execPath}
 const { appendFileSync, readFileSync, writeFileSync } = require('node:fs');
 const args = process.argv.slice(2);
-appendFileSync(${JSON.stringify(callsPath)}, JSON.stringify({ args, key: process.env.CODEX_API_KEY === ${JSON.stringify(fixtureKey)} }) + '\n');
+const prompt = args[0] === 'run' && args.includes('exec') ? readFileSync(0, 'utf8') : undefined;
+appendFileSync(${JSON.stringify(callsPath)}, JSON.stringify({ args, prompt, key: process.env.CODEX_API_KEY === ${JSON.stringify(fixtureKey)} }) + '\n');
 if (args.at(-1) === '--version') console.log(readFileSync(${JSON.stringify(versionPath)}, 'utf8'));
 if (args.includes('CODEX_API_KEY')) console.log('{"scorecard":true}');
 if (args[0] === 'port') console.log('127.0.0.1:30123');
@@ -834,6 +835,9 @@ if (args.includes('--json')) {
   const successful = await calls();
   const starts = successful.filter(({ args }) => args[0] === 'run');
   assert.equal(starts.length, 4);
+  assert.match(starts[1].prompt, /ends the Codex session at \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z \(UTC\)/);
+  assert.match(starts[1].prompt, /validate, and hand off the bundle before the deadline/);
+  assert.doesNotMatch(starts[3].prompt, /ends the Codex session at/);
   for (const [index, mode] of ['--yolo', '--sandbox'].entries()) {
     const [executor, client] = starts.slice(index * 2, index * 2 + 2);
     const executorName = executor.args[executor.args.indexOf('--name') + 1];

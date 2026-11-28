@@ -236,7 +236,12 @@ export function createContainerWorkers({ image, snapshot, workflowFiles, timeout
           '--env', `CODEX_EXEC_SERVER_URL=${serverUrl}`, image, ...command, ...authConfig, '--cd', workdir,
           ...(observed ? ['--json'] : []),
           ...(messageDirectory ? ['--output-last-message', '/last-message/response'] : []), '-'];
-        const options = { env, input: prompt, timeout: timeoutMs };
+        const deadline = new Date(Date.now() + timeoutMs).toISOString();
+        const timedPrompt = isGenerator ? `${prompt}\n` +
+          `This worker ends the Codex session at ${deadline} (UTC). Check the UTC clock before starting long work. ` +
+          'Reserve time to finish, validate, and hand off the bundle before the deadline. ' +
+          'Record any acquisition that cannot finish in time and preserve its limitations and available evidence.' : prompt;
+        const options = { env, input: timedPrompt, timeout: timeoutMs };
         if (observed) {
           onActivity({ kind: 'codex_started' });
           result = await observeDocker(args, options, onActivity);
