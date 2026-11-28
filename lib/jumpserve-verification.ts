@@ -110,7 +110,7 @@ function normalizeVerifierScorecard(input: unknown) {
   return { ...input, evidence_integrity: { ...fields, detail: details } };
 }
 
-export function prepareVerifierResult(raw: unknown, scorecard: unknown) {
+export function prepareVerifierResult(raw: unknown, scorecard: unknown, { deriveScoreTotals = false } = {}) {
   if (typeof raw !== "string" || Buffer.byteLength(raw) > MAX_REVIEWED_ASSESSMENT_BYTES) {
     throw new Error("Provide the original reviewed JSON text, up to 650 KB.");
   }
@@ -167,11 +167,15 @@ export function prepareVerifierResult(raw: unknown, scorecard: unknown) {
       applicable += item.maximum;
     }
   }
+  let validated = input;
   if (input.score && (!(applicable > 0) || !samePoints(input.score.earned, earned) ||
       !samePoints(input.score.applicable_maximum, applicable) || !samePoints(input.score.rubric_maximum, maximum))) {
-    throw new Error("Score totals must match the recorded rubric entries.");
+    if (!deriveScoreTotals || applicable <= 0 || maximum > points.maximum) {
+      throw new Error("Score totals must match the recorded rubric entries.");
+    }
+    validated = { ...input, score: { earned, applicable_maximum: applicable, rubric_maximum: maximum } };
   }
-  const json = canonicalJson(input);
+  const json = canonicalJson(validated);
   if (Buffer.byteLength(json) > 90_000) throw new Error("The scorecard exceeds 90 KB.");
-  return { bundle, generatorHash, scorecard: input, hash: createHash("sha256").update(json).digest("hex") };
+  return { bundle, generatorHash, scorecard: validated, hash: createHash("sha256").update(json).digest("hex") };
 }
